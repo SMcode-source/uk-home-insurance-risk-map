@@ -41,6 +41,18 @@
     </div>
   </section>
 
+  <section id="lookup">
+    <h2>Find a postcode district</h2>
+    <p class="lede" style="margin-bottom:16px">Type the outward part of a postcode —
+    the bit before the space — to see how the model rates it.</p>
+    <div class="lookup-box">
+      <input id="q" type="search" autocomplete="off" spellcheck="false"
+             placeholder="Try HU6, TW18, M1, CF10, EH6…" aria-label="Postcode district">
+      <div id="matches" class="matches" role="listbox"></div>
+      <div id="result" class="result" hidden></div>
+    </div>
+  </section>
+
   <section>
     <h2>Three ways in</h2>
     <p class="lede" style="margin-bottom:20px">The map is the exploration tool, the year
@@ -192,5 +204,83 @@
     </div>
   </div>
 </footer>
+<script>
+(function () {
+  const input = document.getElementById('q');
+  const matchBox = document.getElementById('matches');
+  const result = document.getElementById('result');
+  const GBP = v => '£' + Math.round(v).toLocaleString('en-GB');
+  let DATA = null, active = -1, shown = [];
+
+  fetch('assets/districts.json')
+    .then(r => r.json())
+    .then(d => { DATA = d; if (input.value) run(); })
+    .catch(() => { input.placeholder = 'District lookup unavailable offline'; });
+
+  const bar = (v, colour) =>
+    `<span class="bar"><span style="width:${Math.round(v * 100)}%;background:${colour}"></span></span>`;
+
+  function show(d) {
+    [...matchBox.children].forEach(c =>
+      c.classList.toggle('on', shown[+c.dataset.i] === d));
+    result.hidden = false;
+    result.innerHTML = `
+      <div class="result-head">
+        <div>
+          <div class="rname">${d.n}</div>
+          <div class="rsub">postcode district · rating group <b>${d.g}</b> of 10</div>
+        </div>
+        <div class="rprem"><div class="v">${GBP(d.p)}</div><div class="k">technical premium / yr</div></div>
+      </div>
+      <div class="rgrid">
+        <div><span class="lbl">Subsidence</span>${bar(d.s, 'var(--sub)')}<b>${d.s.toFixed(2)}</b></div>
+        <div><span class="lbl">Weather</span>${bar(d.w, 'var(--wx)')}<b>${d.w.toFixed(2)}</b></div>
+        <div><span class="lbl">Flood</span>${bar(d.f, 'var(--fl)')}<b>${d.f.toFixed(2)}</b></div>
+        <div><span class="lbl">Groundwater</span>${bar(d.gw, 'var(--gw)')}<b>${d.gw.toFixed(2)}</b></div>
+      </div>
+      <div class="rfoot">
+        Tail dependence adds <b>+${d.u.toFixed(0)}%</b> to this district's 1-in-100 loss
+        versus treating the perils as independent.
+        <a class="btn btn-primary" style="padding:8px 14px;font-size:13.5px"
+           href="map.html?d=${encodeURIComponent(d.n)}">View on the map →</a>
+      </div>`;
+  }
+
+  function run() {
+    const v = input.value.trim().toUpperCase().replace(/\s+/g, '');
+    result.hidden = true;
+    active = -1;
+    if (!DATA || v.length < 1) { matchBox.innerHTML = ''; shown = []; return; }
+    const exact = DATA.filter(d => d.n === v);
+    const pre = DATA.filter(d => d.n !== v && d.n.startsWith(v));
+    // shortest first, so "SW1" surfaces SW1A…SW1Y alongside SW10…SW19
+    pre.sort((a, b) => a.n.length - b.n.length || a.n.localeCompare(b.n));
+    shown = exact.concat(pre).slice(0, 12);
+    if (!shown.length) {
+      matchBox.innerHTML = '<div class="nores">No district starts with “' + v + '”.</div>';
+      return;
+    }
+    matchBox.innerHTML = shown.map((d, i) =>
+      `<button class="match" data-i="${i}" role="option">
+         <b>${d.n}</b><span class="g">group ${d.g}</span><span class="p">${GBP(d.p)}</span>
+       </button>`).join('');
+    if (exact.length) show(exact[0]);
+  }
+
+  matchBox.addEventListener('click', e => {
+    const b = e.target.closest('.match');
+    if (b) show(shown[+b.dataset.i]);
+  });
+  input.addEventListener('input', run);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && shown.length) { show(shown[Math.max(active, 0)]); e.preventDefault(); }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      active = Math.min(shown.length - 1, Math.max(0, active + (e.key === 'ArrowDown' ? 1 : -1)));
+      [...matchBox.children].forEach((c, i) => c.classList.toggle('on', i === active));
+      e.preventDefault();
+    }
+  });
+})();
+</script>
 </body>
 </html>

@@ -360,6 +360,22 @@ function setMetric(key) {
   }
 }
 setMetric('group');
+
+/* ---- deep link: map.html?d=SW1 (and ?m=metric) ---- */
+(function () {
+  const q = new URLSearchParams(location.search);
+  const m = q.get('m');
+  if (m && METRICS[m]) setMetric(m);
+  const want = (q.get('d') || '').trim().toUpperCase();
+  if (!want) return;
+  let target = null;
+  layer.eachLayer(l => { if (l.feature.properties.name === want) target = l; });
+  if (!target) return;
+  map.fitBounds(target.getBounds(), { maxZoom: 11, padding: [40, 40] });
+  target.openPopup();
+  target.setStyle({ weight: 3, opacity: 1, color: '#0b0b0b' });
+  setTimeout(() => target.setStyle({ weight: 0.5, opacity: 0.55, color: '#ffffff' }), 4000);
+})();
 </script>
 </body>
 </html>

@@ -194,6 +194,18 @@ def main():
     shutil.copy(os.path.join(SITE, "assets", "site.css"),
                 os.path.join(DOCS, "assets", "site.css"))
     print("  assets/site.css")
+
+    # compact per-district lookup for the landing-page search (no geometry)
+    with open(os.path.join(ROOT, "data", "districts_risk.geojson"),
+              encoding="utf-8") as fh:
+        feats = [f["properties"] for f in json.load(fh)["features"]]
+    lookup = sorted(
+        ({"n": p["name"], "g": int(p["group"]), "p": round(p["premium"]),
+          "s": round(p["sub_score"], 2), "w": round(p["wx_score"], 2),
+          "f": round(p["fl_score"], 2), "gw": round(p["gw_score"], 2),
+          "u": round(p["uplift_pct"], 1)} for p in feats),
+        key=lambda d: d["n"])
+    write("assets/districts.json", json.dumps(lookup, separators=(",", ":")))
     open(os.path.join(DOCS, ".nojekyll"), "w").close()
     print("  .nojekyll")
     print("done")
