@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UK Home Insurance Risk Map — four perils, one dependence model</title>
+<meta name="description" content="Subsidence, weather, flood and groundwater risk for 2,736 UK postcode districts, joined by a vine copula. Built entirely on open data.">
+<link rel="stylesheet" href="assets/site.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🗺️</text></svg>">
+</head>
+<body>
+__NAV__
+
+<div class="wrap">
+
+  <section class="hero">
+    <div class="eyebrow">Geospatial risk modelling · open data</div>
+    <h1>Four perils.<br>2,736 postcode districts.<br>One dependence model.</h1>
+    <p class="lede">A UK home-insurance risk model that scores every postcode district for
+    <b>subsidence</b>, <b>weather damage</b>, <b>flood</b> and <b>groundwater flooding</b> —
+    then joins them with a vine copula, because the expensive years are the ones where
+    several perils strike at once.</p>
+    <div class="perils">
+      <span class="chip"><i style="background:var(--sub)"></i>Subsidence · BGS geology</span>
+      <span class="chip"><i style="background:var(--wx)"></i>Weather · Met Office</span>
+      <span class="chip"><i style="background:var(--fl)"></i>Flood · EA / NRW / SEPA</span>
+      <span class="chip"><i style="background:var(--gw)"></i>Groundwater · EA alert areas</span>
+    </div>
+    <div class="cta">
+      <a class="btn btn-primary" href="map.html">Explore the map →</a>
+      <a class="btn btn-ghost" href="methodology.html">How it works</a>
+    </div>
+  </section>
+
+  <section style="padding-top:0">
+    <div class="tiles">
+      <div class="tile"><div class="k">Postcode districts</div><div class="v">__N_DISTRICTS__</div><div class="d">across 120 postcode areas</div></div>
+      <div class="tile"><div class="k">Simulated years</div><div class="v">__N_SIM__</div><div class="d">per district, seeded &amp; reproducible</div></div>
+      <div class="tile"><div class="k">Technical premium</div><div class="v">£__PREM_MIN__–__PREM_MAX__</div><div class="d">lowest to highest district</div></div>
+      <div class="tile"><div class="k">Cost of dependence</div><div class="v">+__CAT_UPLIFT__%</div><div class="d">catastrophic years vs independence</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Three ways in</h2>
+    <p class="lede" style="margin-bottom:20px">The map is the exploration tool, the year
+    analysis is the portfolio story, the methodology page is the full audit trail.</p>
+    <div class="cards">
+      <a class="card" href="map.html">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--wx)" stroke-width="1.6" stroke-linejoin="round">
+          <path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"/><path d="M9 4v13.5M15 6.5V20"/>
+        </svg>
+        <h3>Interactive map</h3>
+        <p>Eight switchable layers — rating group, technical premium, each peril score,
+        1-in-200 loss and the copula uplift. Click any district for its full risk
+        breakdown, right down to the bedrock formation beneath it.</p>
+        <span class="more">Open the map →</span>
+      </a>
+      <a class="card" href="years.html">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--fl)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 20h18"/><path d="M4 16l5-6 4 4 6-8"/><circle cx="19" cy="6" r="1.6" fill="var(--fl)" stroke="none"/>
+        </svg>
+        <h3>Good years vs bad years</h3>
+        <p>What separates a quiet year from an expensive one — cost composition by peril,
+        how widely claims spread, and the exceedance curve showing exactly what an
+        independence assumption hides.</p>
+        <span class="more">See the analysis →</span>
+      </a>
+      <a class="card" href="methodology.html">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="var(--gw)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="5" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="19" cy="18" r="2.2"/>
+          <path d="M12 7.2 6.4 15.8M12 7.2l5.6 8.6M7.2 18h9.6"/>
+        </svg>
+        <h3>Methodology &amp; data</h3>
+        <p>Every peril score, the vine copula structure, why the risk measure is TVaR and
+        not VaR, all fourteen open datasets with their endpoints and quirks — and the
+        commands to rebuild the whole thing.</p>
+        <span class="more">Read the methodology →</span>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>What the model says</h2>
+    <p class="lede" style="margin-bottom:8px">Four findings that fall out of the simulation.</p>
+
+    <div class="finding">
+      <div class="num">+__CAT_UPLIFT__%<small>catastrophic-year cost</small></div>
+      <div>
+        <h3>Ignoring dependence understates the tail badly</h3>
+        <p>In the worst 1% of years the portfolio costs <b>£__CAT_COST__</b> per policy under the
+        vine copula, against <b>£__CAT_INDEP__</b> if the perils were treated as independent. Storms,
+        floods and shrink–swell droughts are driven by the same climate; modelling them
+        separately quietly removes the years that hurt.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="num">×__FL_MULT__<small>flood cost, typical → bad</small></div>
+      <div>
+        <h3>Bad years aren't just "more weather"</h3>
+        <p>Weather is the workhorse loss in every year, but it is the secondary perils that
+        turn a typical year (<b>£__TYPICAL__</b> per policy) into a bad one (<b>£__BAD__</b>). Going
+        from typical to bad, flood cost multiplies __FL_MULT__× and subsidence __SUB_MULT__×, while
+        weather multiplies just __WX_MULT__×.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="num">TVaR<small>not VaR</small></div>
+      <div>
+        <h3>The obvious risk measure gives the wrong answer here</h3>
+        <p>With rare compound losses, tail dependence concentrates claims into fewer, worse
+        years — pushing losses <i>beyond</i> the 99.5% quantile. Value-at-Risk can therefore
+        <i>fall</i> as dependence rises. Premiums use expected shortfall (TVaR 99%), which is
+        monotone in dependence and doesn't hide the clustering.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="num">100%<small>of open data</small></div>
+      <div>
+        <h3>Every hazard input is public</h3>
+        <p>BGS geology, Met Office climatologies, Environment Agency, Natural Resources Wales
+        and SEPA flood maps, EA groundwater alert areas — all Open Government Licence, all
+        fetched by scripts in the repo. Nothing here depends on a licensed hazard product.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The riskiest districts are peril cocktails</h2>
+    <p class="lede" style="margin-bottom:18px">Top of the premium ranking, and what is
+    actually driving each one. No two are alike.</p>
+    <div class="tablewrap">
+      <table class="data">
+        <tr>
+          <th>District</th><th>Where</th>
+          <th class="num">Premium</th>
+          <th class="num">Subs.</th><th class="num">Weather</th><th class="num">Flood</th><th class="num">Gr.water</th>
+          <th>What drives it</th>
+        </tr>
+        __TOP_ROWS__
+      </table>
+    </div>
+    <p class="note" style="margin-top:10px">Technical premium per policy per year =
+    expected loss + 6% cost of capital on (TVaR₉₉ − expected loss). Scores are 0–1.</p>
+  </section>
+
+  <section>
+    <h2>Built on open data</h2>
+    <p class="lede">Fourteen datasets from six public bodies, each fetched by a script in the
+    repository and documented endpoint-by-endpoint — including the quirks that cost hours
+    to discover.</p>
+    <div class="sources" style="margin:16px 0 18px">
+      <span>British Geological Survey</span>
+      <span>Met Office</span>
+      <span>Environment Agency</span>
+      <span>Natural Resources Wales</span>
+      <span>SEPA</span>
+      <span>ECMWF ERA5</span>
+    </div>
+    <div class="callout">
+      <b>This is a demonstration model, not a priced product.</b> The hazard data is real and
+      current; the claim frequencies, severities and copula parameters are transparent
+      assumptions rather than calibrations to a claims triangle. The
+      <a href="methodology.html#caveats">caveats section</a> is explicit about every one of them.
+    </div>
+  </section>
+
+</div>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="row">
+      <div>
+        <b style="color:var(--ink-2)">UK Home Insurance Risk Map</b><br>
+        Code MIT-licensed · hazard data © their publishers under the
+        <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3</a>
+      </div>
+      <div>
+        <a href="__REPO_URL__">Source on GitHub</a> ·
+        <a href="methodology.html">Methodology</a> ·
+        <a href="map.html">Map</a> ·
+        <a href="years.html">Year analysis</a>
+      </div>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

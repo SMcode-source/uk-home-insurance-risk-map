@@ -1,0 +1,204 @@
+# UK Home Insurance Geospatial Risk Map
+
+Interactive choropleth of **2,736 UK postcode districts** rating four home-insurance
+perils — **subsidence**, **weather damage**, **flood** (rivers, sea and surface
+water) and **groundwater flooding** — with their dependency modelled by a
+**C-vine copula**, banded into 10 rating groups. A companion page decomposes
+**good years vs bad years** for the whole portfolio.
+
+Open **`map/uk_home_insurance_risk_map.html`** and
+**`analysis/uk_risk_year_analysis.html`** in a browser (fully self-contained;
+the map's basemap tiles need internet, everything else works offline).
+
+All input data is **open data** (OGL) and downloaded locally — see
+**[DATA_SOURCES.md](DATA_SOURCES.md)** for every dataset, endpoint, licence and
+the access quirks encountered.
+
+## Repository layout
+
+```
+data/                         downloaded + derived data (see DATA_SOURCES.md)
+scripts/
+  fetch_bgs.py                BGS 625k bedrock geology (OGC API, paged)
+  fetch_metoffice.py          4 Met Office climate grids (ArcGIS services)
+  fetch_flood.py              river/sea flood extents -> per-district fractions
+  fetch_surface_water.py      surface-water extents -> per-district fractions
+  merge_sw_wales.py           folds the 20m Wales re-render into sw_fractions
+  fetch_groundwater.py        EA postcode groundwater flags -> district fractions
+  scores_real.py              data -> per-district peril scores
+  build_model.py              scores -> marginals -> C-vine Monte Carlo ->
+                              districts_risk.geojson + year_analysis.json
+  build_map.py                -> map/uk_home_insurance_risk_map.html
+  build_analysis.py           -> analysis/uk_risk_year_analysis.html
+  check_sw.py, check_years.py sanity-check helpers
+map/template.html             map page (Leaflet inlined at build time)
+analysis/template.html        good/bad-years page (hand-rolled SVG charts)
+assets/leaflet.{js,css}       Leaflet 1.9.4, inlined into the map HTML
+```
+
+## Map layers
+
+| Layer | What it shows |
+|---|---|
+| Rating group (1–10) | Decile band of the technical premium |
+| Technical premium | E[loss] + 6% cost-of-capital × (TVaR₉₉ − E[loss]) |
+| Subsidence risk score | BGS shrink–swell clay geology (0–1) |
+| Weather risk score | Met Office wind / rain exposure (0–1) |
+| Flood risk score | EA / NRW / SEPA river, sea + surface-water zones (0–1) |
+| Groundwater risk score | EA groundwater alert-area coverage (0–1) |
+| 1-in-200 combined loss | 99.5% VaR of the four-peril annual loss (C-vine) |
+| Copula uplift | % increase of TVaR₉₉ vs assuming the perils independent |
+
+Hover any district for its value; click for the full breakdown (all scores and
+underlying data values, expected losses per peril, VaR/TVaR under vine /
+Gaussian / independence, each pair's θ and tail dependence λᵤ).
+
+## Methodology
+
+1. **Peril scores — real open data** (`scripts/scores_real.py`).
+   - *Subsidence*: **BGS Geology 625k bedrock** (via `ogcapi.bgs.ac.uk`,
+     fetched by `scripts/fetch_bgs.py`). Each of 11,244 formations is classified
+     for shrink–swell susceptibility (London Clay/Thames Group 1.0, Gault/Weald/
+     Oxford/Kimmeridge/Ampthill Clays 0.9, … Mercia Mudstone 0.45; generic
+     mudstone keywords down-weighted ×0.3 for pre-Mesozoic indurated rocks), then
+     **area-weighted onto each district** by polygon intersection in British
+     National Grid. This mirrors how BGS GeoSure's shrink–swell layer is derived.
+   - *Weather*: **Met Office** grids (Climate Data Portal ArcGIS services,
+     fetched by `scripts/fetch_metoffice.py`), interpolated to district
+     centroids by inverse-distance weighting: winter mean wind speed 5 km (UKCP18
+     baseline), annual **wind-driven rain index** for SW-facing walls 5 km (UKCP18
+     baseline), annual count of ≥10 mm rain days and annual precipitation
+     (**HadUK-Grid observations 1991–2020**) — plus a true extreme-value
+     component: the **1-in-50-year gust** per district, from Gumbel fits to
+     35 years of ERA5 daily gust maxima (`scripts/fetch_gusts.py`; ECMWF
+     reanalysis via Open-Meteo, the one non-Met-Office weather input).
+     Score = 0.30·wind + 0.25·WDR + 0.20·gust₅₀ + 0.15·rain days +
+     0.10·precipitation, each normalised 5th–95th percentile.
+2. **Flood — rivers & sea** (`scripts/fetch_flood.py`). Official flood-extent
+   maps rasterised at 100 m via WMS/ArcGIS tiles and counted per district:
+   **EA** NaFRA2 present-day *defended* extents for England (high band = rivers
+   1in100 / sea 1in200; low envelope = 1in1000), **NRW** FRAW for Wales, **SEPA**
+   river + coastal maps for Scotland (via FeatureServer vector queries — their
+   map services have a 1:85k scale limit). Each district gets `f_high` / `f_low`
+   area fractions, which drive flood claim frequency directly (~1.5%/yr inside
+   the high band, ~0.3%/yr in the rest of the envelope, 0.05%/yr background).
+3. **Flood — surface water** (`scripts/fetch_surface_water.py`). **EA** NaFRA2
+   RoFSW for England (WMS at 13 m/px — the layer only draws below 1:50,000 —
+   with the High/Medium/Low category colours decoded per pixel), **NRW** FRAW
+   surface water for Wales (20 m/px; see `merge_sw_wales.py`), **SEPA**
+   surface-water likelihood maps for Scotland (20 m/px, `layers=show:<id>`
+   because the sublayers are default-hidden). `sw_high` (≥1% AEP) adds ~1%/yr
+   claim frequency at full coverage; surface-water severity is modelled cheaper
+   (median ~£15k vs ~£30k river/sea) via a probability-weighted lognormal mix.
+4. **Groundwater** (`scripts/fetch_groundwater.py`). **EA** flood-risk postcode
+   search tool data: `GWTR_RISK` flags each unit postcode 'Possible' if any
+   address sits in a groundwater flood alert target area. District fraction =
+   share of unit postcodes flagged (Salisbury, Dorchester and the chalk downs
+   hit 100%). England only — UK groundwater flooding concentrates on the
+   English chalk; elsewhere a nominal 0.02 background. Claim frequency up to
+   ~0.8%/yr, median severity ~£20k (long-duration events).
+5. **Marginal losses.** Annual aggregate loss per policy per peril is
+   Bernoulli(p) × LogNormal: subsidence p up to ~3%/yr, median severity ~£9k;
+   weather p up to ~10%/yr, median ~£3.5k; flood and groundwater as above.
+6. **Vine copula.** The four annual-loss marginals are joined by a **C-vine**
+   (pair-copula construction) with weather W at the root:
+   - tree 1: **Gumbel(θ_WF)** weather–flood, θ = 1.4 + 1.6·√(s_wx·s_fl) ∈
+     [1.4, 3.0] — storm rain drives flood, strongest tail link;
+     **Gumbel(θ_WG)** weather–groundwater, θ = 1.3 + 1.1·√(s_wx·s_gw) ≤ 2.4 —
+     aquifer recharge follows prolonged rain;
+     **Gumbel(θ_WS)** weather–subsidence, θ = 1.25 + 1.25·√(s_sub·s_wx);
+   - tree 2 (given weather, second-level root flood): **Gaussian(ρ = 0.25)**
+     flood–groundwater (wet winters), **Gaussian(ρ = 0.15)** flood–subsidence;
+   - tree 3: independence.
+
+   The Gumbel pairs are upper-tail dependent (λᵤ = 2 − 2^(1/θ)): extreme years
+   hit perils together. Sampling: Marshall–Olkin (positive-stable frailty) for
+   the (W,F) root pair, then closed-form Gaussian h-inverses for tree 2 and
+   numeric bisection of the Gumbel h-function for the remaining margins —
+   20,000 simulated years per district with common random numbers. A pairwise
+   τ-matched **4-dim Gaussian copula** (correlation matrix implied by the vine
+   via partial-correlation recursion, batched Cholesky) and an **independence**
+   run are simulated for comparison; the uplift layer shows how much of the
+   tail an independence assumption hides.
+7. **Risk measure — TVaR, deliberately.** With rare compound losses
+   (flood claims at ~1%/yr), positive tail dependence concentrates claims into
+   fewer, worse years — losses get pushed *beyond* the 99.5% quantile, so
+   plain VaR can *fall* as dependence rises (VaR is not monotone under
+   concordance ordering; expected shortfall is). Premiums and the uplift layer
+   therefore use **TVaR 99%** (mean of the worst 1% of years); the 1-in-200
+   VaR is still shown in popups.
+8. **Grouping.** Technical premium = E[loss] + 6% × (TVaR₉₉ − E[loss]);
+   districts banded into deciles → rating groups 1–10.
+9. **Sensitivity analysis** (`scripts/sensitivity.py` →
+   `data/sensitivity.json`, rendered as a table on the analysis page).
+   Re-runs the simulation on a 1-in-3 district sample with perturbed
+   assumptions — Gumbel dependence ±25%, tree-2 correlations zeroed/doubled,
+   severity σ ×1.1, flood frequency ×1.5 — reporting the impact on expected
+   loss, premium, TVaR₉₉, copula uplift, catastrophic-year cost and
+   rating-group churn. This quantifies which of the documented assumptions
+   actually move the answer.
+10. **Good vs bad years** (`analysis/uk_risk_year_analysis.html`, built by
+   `scripts/build_analysis.py`). The 20,000 simulated portfolio years are
+   ranked and bucketed (good = best 50%, typical = 50–90th pct, bad = 90–99th,
+   catastrophic = worst 1%), with per-peril cost composition, claim incidence
+   (share of districts claiming), an exceedance curve (vine vs independence),
+   and the worst simulated year decomposed. The year view uses a Gaussian
+   factor model per peril: each district mixes the national systemic factor
+   (which carries the vine dependence) with idiosyncratic noise — spatial
+   loadings weather 50% / flood 40% / subsidence 60% / groundwater 70% —
+   preserving district marginals exactly while giving realistic cross-district
+   clustering (a pure common-random-numbers view is degenerate: no claims
+   anywhere in 90% of years, then everything at once).
+
+## Rebuild from scratch
+
+```bash
+py -3.13 -m venv .venv
+.venv/Scripts/python -m pip install -r requirements.txt
+git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data/uk-postcode-polygons
+
+.venv/Scripts/python scripts/fetch_bgs.py            # BGS 625k bedrock -> data/bgs_625k_bedrock.geojson (~32MB)
+.venv/Scripts/python scripts/fetch_metoffice.py      # Met Office grids -> data/metoffice/*.csv
+.venv/Scripts/python scripts/fetch_flood.py          # river/sea flood -> data/flood_fractions.csv (~20 min)
+.venv/Scripts/python scripts/fetch_surface_water.py  # surface water -> data/sw_fractions.csv (~60-90 min)
+# download Postcodes_Risk_Assessment_All.csv (see DATA_SOURCES.md #13) to data/ea_postcode_risk.csv, then:
+.venv/Scripts/python scripts/fetch_groundwater.py    # groundwater flags -> data/gw_fractions.csv
+.venv/Scripts/python scripts/fetch_gusts.py          # ERA5 gust extremes -> data/gusts.csv (resumable; the free
+                                                     # Open-Meteo tier has a daily volume quota - if it 429s, rerun
+                                                     # next day; the weather blend auto-includes gusts once >=60
+                                                     # grid points exist, and falls back to 4 components until then)
+.venv/Scripts/python scripts/build_model.py          # scores + vine sim -> districts_risk.geojson + year_analysis.json (~15 min)
+.venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs -> data/sensitivity.json (~25 min, optional)
+.venv/Scripts/python scripts/build_map.py            # -> map/uk_home_insurance_risk_map.html
+.venv/Scripts/python scripts/build_analysis.py       # -> analysis/uk_risk_year_analysis.html
+```
+
+Every step is deterministic (fixed RNG seed 42); re-running `build_model.py`
+reproduces the shipped outputs exactly given the same inputs.
+
+## Caveats & production path
+
+The **hazard inputs are real** (BGS geology, Met Office climatologies, EA/NRW/
+SEPA flood maps, EA groundwater alert areas — all OGL), but this is still not a
+priced product:
+
+- the formation→susceptibility lookup is a public-literature approximation of
+  BGS **GeoSure** (the licensed product adds superficial deposits, tree cover and
+  drought interaction — and GeoClimate adds UKCP18 projections);
+- 625k-scale geology is coarse: district edges inherit the dominant formation,
+  and superficial clays (e.g. till over chalk) are not counted;
+- the weather blend now includes a Gumbel-fitted 1-in-50 gust from ERA5
+  reanalysis, but ERA5 underestimates local gust peaks vs station records —
+  for storm pricing, fit to Met Office MIDAS station gusts (CEDA login) or
+  licensed event sets;
+- the flood fractions are area-based (13–100 m rasters) from *defended*
+  present-day extents — property-level receptor counts and defence-failure
+  scenarios are not included; FRAW (Wales) is notably more conservative than
+  EA RoFSW for surface water; Northern Ireland has no anonymous flood service
+  (GB-only boundaries make this moot);
+- groundwater uses alert-area *coverage*, not modelled emergence probability,
+  and is England-only;
+- marginal claim frequencies/severities, the vine structure, θ(s) forms and the
+  tree-2 ρ's remain **assumptions** — calibrate to your claims triangle and fit
+  the pair-copulas (e.g. with `pyvinecopulib`) to historical joint claim years
+  by district cluster.

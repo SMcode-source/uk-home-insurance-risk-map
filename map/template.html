@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UK Home Insurance Risk Map — Subsidence × Weather (Copula Model)</title>
+<style>__LEAFLET_CSS__</style>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --page: #f9f9f7;
+    --ink-1: #0b0b0b;
+    --ink-2: #52514e;
+    --ink-muted: #898781;
+    --hairline: #e1e0d9;
+    --border: rgba(11,11,11,0.10);
+    --accent: #2a78d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --page: #0d0d0d;
+      --ink-1: #ffffff;
+      --ink-2: #c3c2b7;
+      --ink-muted: #898781;
+      --hairline: #2c2c2a;
+      --border: rgba(255,255,255,0.10);
+      --accent: #3987e5;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --ink-1: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-muted: #898781;
+    --hairline: #2c2c2a;
+    --border: rgba(255,255,255,0.10);
+    --accent: #3987e5;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page); color: var(--ink-1);
+  }
+  #map { position: absolute; inset: 0; background: var(--page); }
+  .panel {
+    position: absolute; z-index: 1000;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+    padding: 12px 14px;
+    max-width: 320px;
+    font-size: 13px; line-height: 1.45; color: var(--ink-2);
+  }
+  #controls { top: 12px; right: 12px; }
+  #controls h1 { font-size: 15px; margin: 0 0 2px; color: var(--ink-1); font-weight: 650; }
+  #controls .sub { font-size: 11.5px; color: var(--ink-muted); margin-bottom: 10px; }
+  .metric-btns { display: flex; flex-direction: column; gap: 4px; }
+  .metric-btns button {
+    text-align: left; font: inherit; font-size: 12.5px;
+    padding: 6px 9px; border-radius: 7px; cursor: pointer;
+    border: 1px solid transparent; background: transparent; color: var(--ink-2);
+  }
+  .metric-btns button:hover { background: color-mix(in oklab, var(--ink-1) 6%, transparent); }
+  .metric-btns button.active {
+    background: color-mix(in oklab, var(--accent) 14%, transparent);
+    border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+    color: var(--ink-1); font-weight: 600;
+  }
+  #legend { bottom: 22px; right: 12px; min-width: 210px; }
+  #legend .title { font-weight: 600; color: var(--ink-1); font-size: 12.5px; margin-bottom: 7px; }
+  .legend-row { display: flex; align-items: center; gap: 8px; margin: 2px 0; }
+  .swatch { width: 22px; height: 13px; border-radius: 3px; border: 1px solid var(--border); flex: none; }
+  .legend-row span { font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  #about { bottom: 22px; left: 12px; max-width: 340px; }
+  #about summary { cursor: pointer; font-weight: 600; color: var(--ink-1); font-size: 12.5px; }
+  #about p { margin: 8px 0 0; font-size: 11.5px; }
+  #about .note { color: var(--ink-muted); }
+  .leaflet-tooltip.district-tip {
+    background: var(--surface-1); color: var(--ink-1);
+    border: 1px solid var(--border); border-radius: 7px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    font-family: inherit; font-size: 12px; padding: 6px 9px;
+  }
+  .district-tip .tip-name { font-weight: 650; }
+  .district-tip .tip-val { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .leaflet-popup-content-wrapper {
+    background: var(--surface-1); color: var(--ink-1);
+    border-radius: 10px; font-family: inherit;
+  }
+  .leaflet-popup-tip { background: var(--surface-1); }
+  .pop table { border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+  .pop td { padding: 2px 8px 2px 0; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .pop td:first-child { color: var(--ink-muted); }
+  .pop .hd { font-weight: 650; font-size: 14px; }
+  .pop .sect { border-top: 1px solid var(--hairline); }
+  .leaflet-container { font-family: inherit; }
+  .leaflet-control-attribution { background: color-mix(in oklab, var(--surface-1) 80%, transparent) !important; color: var(--ink-muted) !important; }
+  .leaflet-control-attribution a { color: var(--ink-2) !important; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="controls" class="panel">
+  <h1>UK home insurance risk map</h1>
+  <div class="sub">2,736 postcode districts &middot; subsidence &times; weather &times; flood &times; groundwater &middot; C-vine copula</div>
+  <div class="metric-btns" id="metricBtns"></div>
+</div>
+
+<div id="legend" class="panel">
+  <div class="title" id="legendTitle"></div>
+  <div id="legendRows"></div>
+</div>
+
+<details id="about" class="panel">
+  <summary>Methodology</summary>
+  <p><b>Perils &mdash; real open data.</b> The <b>subsidence score</b> is BGS 625k bedrock
+  geology classified for shrink&ndash;swell susceptibility (London Clay/Thames Group,
+  Gault, Oxford &amp; Kimmeridge Clays, Mercia Mudstone&hellip;; pre-Mesozoic mudstones
+  down-weighted), area-weighted over each district. The <b>weather score</b> blends
+  Met Office grids interpolated to each district: winter mean wind speed (5&nbsp;km),
+  the annual wind-driven rain index for SW-facing walls (5&nbsp;km), annual count of
+  &ge;10&nbsp;mm rain days and annual precipitation (HadUK-Grid observations 1991&ndash;2020).</p>
+  <p><b>Marginals.</b> Annual aggregate loss per policy per peril is compound
+  Bernoulli &times; LogNormal, with claim frequency and severity driven by the scores.</p>
+  <p><b>Flood.</b> Official flood extents rasterised per district: rivers &amp; sea from
+  EA NaFRA2 present-day defended extents (England), NRW FRAW (Wales) and SEPA maps
+  (Scotland) at 100&nbsp;m; <b>surface water</b> from EA RoFSW (13&nbsp;m, category colours
+  decoded), NRW FRAW surface water and SEPA surface water maps. Zone fractions drive
+  the flood claim frequency directly; surface-water claims are modelled shallower and
+  cheaper than river/sea.</p>
+  <p><b>Groundwater.</b> EA groundwater flood alert target areas via the postcode
+  search tool data: per district, the share of unit postcodes flagged &lsquo;Possible&rsquo;.
+  England only (UK groundwater flooding concentrates on the English chalk); a nominal
+  background elsewhere.</p>
+  <p><b>Vine copula.</b> The four perils are joined by a <b>C-vine</b> with weather at
+  the root. Tree&nbsp;1: Gumbel(&theta;<sub>WF</sub> up to 3.0) weather&ndash;flood,
+  Gumbel(&theta;<sub>WG</sub> up to 2.4) weather&ndash;groundwater (aquifer recharge follows
+  prolonged rain), Gumbel(&theta;<sub>WS</sub> up to 2.5) weather&ndash;subsidence &mdash; all
+  upper-tail dependent, so extreme years hit perils together. Tree&nbsp;2 (given
+  weather): Gaussian &rho;=0.25 flood&ndash;groundwater, &rho;=0.15 flood&ndash;subsidence; tree&nbsp;3
+  independent. 20,000 simulated years per district (Marshall&ndash;Olkin for the root
+  pair, conditional h-function inversion for the other margins). A tau-matched
+  4-dim Gaussian copula and an independence run are computed for comparison &mdash;
+  the <i>copula uplift</i> layer shows how much of the tail an independence
+  assumption hides.</p>
+  <p><b>Rating groups.</b> Districts are banded 1&ndash;10 by technical premium =
+  expected loss + 6% cost-of-capital on (TVaR&nbsp;99% &minus; expected loss). TVaR
+  (expected shortfall) rather than VaR: with rare compound losses, tail dependence
+  concentrates claims into fewer, worse years &mdash; VaR can move the wrong way, TVaR
+  is monotone in dependence.</p>
+  <p class="note">Hazard data: BGS Geology 625k, Met Office HadUK-Grid / Climate
+  Data Portal, EA / NRW / SEPA flood maps, EA flood-risk postcode data (all OGL).
+  Loss frequencies/severities and copula parameters are illustrative assumptions,
+  not calibrated to claims. Boundaries: uk-postcode-polygons. See DATA_SOURCES.md
+  in the repo for every endpoint, licence and access date.</p>
+</details>
+
+<script>__LEAFLET_JS__</script>
+<script>
+const DATA = __DATA__;
+
+/* ---- palette (dataviz reference instance) ---- */
+const RAMP_BLUE = ['#cde2fb','#9ec5f4','#6da7ec','#3987e5','#256abf','#184f95','#0d366b'];
+const RAMP_ORANGE = ['#fbe0d3','#f6bb9c','#f0946b','#eb6834','#cf5220','#a63f14','#7c2e0d'];
+const RAMP_AQUA = ['#d5f2e6','#a5e2c8','#72cfa8','#43bd8b','#219367','#136e4c','#0c4a33'];
+const RAMP_VIOLET = ['#e6e2f7','#c8c0ee','#a89ce4','#8a7bd8','#6f5cc4','#5643a8','#3d2f83'];
+const RAMP_DIVERGING = ['#1c5cab','#5598e7','#b7d3f6','#f0efec','#f2b8b7','#e34948','#9c2b2a'];
+const RAMP_GROUP = ['#b7d3f6','#9ec5f4','#86b6ef','#6da7ec','#5598e7','#3987e5','#2a78d6','#256abf','#184f95','#0d366b'];
+
+const fmtGBP = v => '£' + Math.round(v).toLocaleString('en-GB');
+const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+
+function quantileBreaks(values, n) {
+  const s = [...values].sort((a, b) => a - b);
+  const br = [];
+  for (let i = 1; i < n; i++) br.push(s[Math.floor(i * s.length / n)]);
+  return br;
+}
+
+const feats = DATA.features;
+const vals = k => feats.map(f => f.properties[k]);
+
+const METRICS = {
+  group: {
+    label: 'Rating group (1–10)',
+    legend: 'Rating group — technical premium decile',
+    ramp: RAMP_GROUP,
+    color: p => RAMP_GROUP[p.group - 1],
+    rows: () => RAMP_GROUP.map((c, i) => [c, 'Group ' + (i + 1) + (i === 0 ? ' — lowest premium' : i === 9 ? ' — highest' : '')]),
+    tip: p => 'Group ' + p.group + ' · ' + fmtGBP(p.premium),
+  },
+  premium: {
+    label: 'Technical premium (£)',
+    legend: 'Technical premium, £/policy/yr (quantile bins)',
+    ramp: RAMP_BLUE, breaks: quantileBreaks(vals('premium'), 7),
+    value: p => p.premium, fmt: fmtGBP,
+    tip: p => fmtGBP(p.premium) + '/yr',
+  },
+  sub_score: {
+    label: 'Subsidence risk score',
+    legend: 'Subsidence score (BGS shrink–swell geology)',
+    ramp: RAMP_ORANGE, breaks: [0.1, 0.25, 0.4, 0.55, 0.7, 0.85],
+    value: p => p.sub_score, fmt: v => v.toFixed(2),
+    tip: p => 'score ' + p.sub_score.toFixed(2),
+  },
+  wx_score: {
+    label: 'Weather risk score',
+    legend: 'Weather score (Met Office wind & rain)',
+    ramp: RAMP_BLUE, breaks: [0.1, 0.2, 0.35, 0.5, 0.65, 0.8],
+    value: p => p.wx_score, fmt: v => v.toFixed(2),
+    tip: p => 'score ' + p.wx_score.toFixed(2),
+  },
+  fl_score: {
+    label: 'Flood risk score',
+    legend: 'Flood score (river / sea / surface water zones)',
+    ramp: RAMP_AQUA, breaks: [0.1, 0.2, 0.35, 0.5, 0.65, 0.8],
+    value: p => p.fl_score, fmt: v => v.toFixed(2),
+    tip: p => 'score ' + p.fl_score.toFixed(2) + ' · ' + (100 * p.f_high).toFixed(1) + '% river/sea · ' + (100 * p.sw_high).toFixed(1) + '% surface',
+  },
+  gw_score: {
+    label: 'Groundwater risk score',
+    legend: 'Groundwater score (EA alert-area coverage)',
+    ramp: RAMP_VIOLET, breaks: [0.1, 0.2, 0.35, 0.5, 0.65, 0.8],
+    value: p => p.gw_score, fmt: v => v.toFixed(2),
+    tip: p => 'score ' + p.gw_score.toFixed(2) + ' · ' + (100 * p.gw_frac).toFixed(0) + '% of postcodes in alert areas',
+  },
+  var995: {
+    label: '1-in-200 combined loss (£)',
+    legend: '99.5% VaR of combined annual loss (C-vine)',
+    ramp: RAMP_BLUE, breaks: quantileBreaks(vals('var995_vine'), 7),
+    value: p => p.var995_vine, fmt: fmtGBP,
+    tip: p => fmtGBP(p.var995_vine),
+  },
+  uplift: {
+    label: 'Copula uplift vs independence',
+    legend: 'Tail loss (TVaR 99%): C-vine vs independence',
+    ramp: RAMP_DIVERGING, breaks: [-2, 0, 5, 10, 15, 20],
+    value: p => p.uplift_pct, fmt: fmtPct,
+    tip: p => fmtPct(p.uplift_pct) + ' · λᵤ(WF) ' + p.tail_dep_wf.toFixed(2),
+  },
+};
+
+function binColor(m, v) {
+  let i = 0;
+  while (i < m.breaks.length && v >= m.breaks[i]) i++;
+  return m.ramp[i];
+}
+function colorFor(m, p) { return m.color ? m.color(p) : binColor(m, m.value(p)); }
+
+let current = 'group';
+
+/* ---- map ---- */
+const map = L.map('map', { renderer: L.canvas({ padding: 0.3 }), zoomSnap: 0.5 })
+  .setView([54.3, -3.4], 6);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  opacity: 0.45, className: 'basemap',
+  attribution: '&copy; OpenStreetMap &middot; boundaries: uk-postcode-polygons',
+}).addTo(map);
+
+function popupHtml(p) {
+  const row = (k, v) => '<tr><td>' + k + '</td><td>' + v + '</td></tr>';
+  return '<div class="pop"><div class="hd">' + p.name + '</div>' +
+    '<div style="color:var(--ink-muted);font-size:11.5px">postcode district · area ' + p.area + '</div>' +
+    '<table>' +
+    row('Rating group', p.group + ' / 10') +
+    row('Technical premium', fmtGBP(p.premium) + '/yr') +
+    '<tr class="sect"><td>Subsidence score</td><td>' + p.sub_score.toFixed(2) + '</td></tr>' +
+    row('Bedrock (BGS)', '<span style="font-size:11px">' + p.geol + '</span>') +
+    '<tr class="sect"><td>Weather score</td><td>' + p.wx_score.toFixed(2) + '</td></tr>' +
+    row('Winter wind (5km)', p.wind_ms.toFixed(1) + ' m/s') +
+    row('1-in-50 gust (ERA5)', p.gust_rp50 != null ? p.gust_rp50.toFixed(0) + ' km/h' : 'pending fetch') +
+    row('Wind-driven rain idx', p.wdr_idx.toFixed(0)) +
+    row('Days ≥10mm rain/yr', p.rain10_days.toFixed(0)) +
+    row('Annual rainfall', p.precip_mm.toFixed(0) + ' mm') +
+    '<tr class="sect"><td>Flood score</td><td>' + p.fl_score.toFixed(2) + '</td></tr>' +
+    row('River/sea 1in100/200', (100 * p.f_high).toFixed(1) + '% of area') +
+    row('River/sea 1in1000', (100 * p.f_low).toFixed(1) + '% of area') +
+    row('Surface water ≥1% AEP', (100 * p.sw_high).toFixed(1) + '% of area') +
+    row('Surface water 1in1000', (100 * p.sw_low).toFixed(1) + '% of area') +
+    '<tr class="sect"><td>Groundwater score</td><td>' + p.gw_score.toFixed(2) + '</td></tr>' +
+    row('In GW alert areas', (100 * p.gw_frac).toFixed(0) + '% of postcodes') +
+    '<tr class="sect"><td>E[loss] subsidence</td><td>' + fmtGBP(p.el_sub) + '</td></tr>' +
+    row('E[loss] weather', fmtGBP(p.el_wx)) +
+    row('E[loss] flood', fmtGBP(p.el_fl)) +
+    row('E[loss] groundwater', fmtGBP(p.el_gw)) +
+    '<tr class="sect"><td>1-in-200 loss (C-vine)</td><td>' + fmtGBP(p.var995_vine) + '</td></tr>' +
+    row('TVaR 99% (C-vine)', fmtGBP(p.tvar99_vine)) +
+    row('TVaR 99% (Gaussian)', fmtGBP(p.tvar99_gauss)) +
+    row('TVaR 99% (independent)', fmtGBP(p.tvar99_indep)) +
+    row('Copula uplift (TVaR)', fmtPct(p.uplift_pct)) +
+    row('θ weather–flood', p.theta_wf.toFixed(2) + ' (λᵤ ' + p.tail_dep_wf.toFixed(2) + ')') +
+    row('θ weather–subsidence', p.theta_ws.toFixed(2) + ' (λᵤ ' + p.tail_dep_ws.toFixed(2) + ')') +
+    row('θ weather–groundwater', p.theta_wg.toFixed(2) + ' (λᵤ ' + p.tail_dep_wg.toFixed(2) + ')') +
+    '</table></div>';
+}
+
+const layer = L.geoJSON(DATA, {
+  style: f => ({
+    fillColor: colorFor(METRICS[current], f.properties),
+    fillOpacity: 0.82, color: '#ffffff', weight: 0.5, opacity: 0.55,
+  }),
+  onEachFeature: (f, lyr) => {
+    lyr.bindTooltip(() =>
+      '<div class="tip-name">' + f.properties.name + '</div>' +
+      '<div class="tip-val">' + METRICS[current].tip(f.properties) + '</div>',
+      { sticky: true, className: 'district-tip' });
+    lyr.bindPopup(() => popupHtml(f.properties), { maxWidth: 320 });
+    lyr.on('mouseover', () => lyr.setStyle({ weight: 2, opacity: 1, color: '#0b0b0b' }));
+    lyr.on('mouseout', () => lyr.setStyle({ weight: 0.5, opacity: 0.55, color: '#ffffff' }));
+  },
+}).addTo(map);
+
+/* ---- controls & legend ---- */
+const btnBox = document.getElementById('metricBtns');
+for (const key of Object.keys(METRICS)) {
+  const b = document.createElement('button');
+  b.textContent = METRICS[key].label;
+  b.dataset.key = key;
+  b.onclick = () => setMetric(key);
+  btnBox.appendChild(b);
+}
+
+function legendRows(m) {
+  if (m.rows) return m.rows();
+  const rows = [];
+  for (let i = 0; i < m.ramp.length; i++) {
+    const lo = i === 0 ? null : m.breaks[i - 1];
+    const hi = i === m.ramp.length - 1 ? null : m.breaks[i];
+    const lbl = lo === null ? '< ' + m.fmt(hi) : hi === null ? '≥ ' + m.fmt(lo) : m.fmt(lo) + ' – ' + m.fmt(hi);
+    rows.push([m.ramp[i], lbl]);
+  }
+  return rows;
+}
+
+function setMetric(key) {
+  current = key;
+  document.querySelectorAll('.metric-btns button').forEach(b =>
+    b.classList.toggle('active', b.dataset.key === key));
+  const m = METRICS[key];
+  layer.setStyle(f => ({
+    fillColor: colorFor(m, f.properties),
+    fillOpacity: 0.82, color: '#ffffff', weight: 0.5, opacity: 0.55,
+  }));
+  document.getElementById('legendTitle').textContent = m.legend;
+  const box = document.getElementById('legendRows');
+  box.innerHTML = '';
+  for (const [c, lbl] of legendRows(m)) {
+    const row = document.createElement('div');
+    row.className = 'legend-row';
+    row.innerHTML = '<div class="swatch" style="background:' + c + '"></div><span>' + lbl + '</span>';
+    box.appendChild(row);
+  }
+}
+setMetric('group');
+</script>
+</body>
+</html>
