@@ -36,8 +36,8 @@
     <div class="tiles">
       <div class="tile"><div class="k">Postcode districts</div><div class="v">2,736</div><div class="d">across 120 postcode areas</div></div>
       <div class="tile"><div class="k">Simulated years</div><div class="v">20,000</div><div class="d">per district, seeded &amp; reproducible</div></div>
-      <div class="tile"><div class="k">Technical premium</div><div class="v">£1,294–6,059</div><div class="d">lowest to highest district</div></div>
-      <div class="tile"><div class="k">Cost of dependence</div><div class="v">+57%</div><div class="d">catastrophic years vs independence</div></div>
+      <div class="tile"><div class="k">Technical premium</div><div class="v">£1,329–6,082</div><div class="d">lowest to highest district</div></div>
+      <div class="tile"><div class="k">Cost of dependence</div><div class="v">+58%</div><div class="d">catastrophic years vs independence</div></div>
     </div>
   </section>
 
@@ -97,11 +97,11 @@
     <p class="lede" style="margin-bottom:8px">Four findings that fall out of the simulation.</p>
 
     <div class="finding">
-      <div class="num">+57%<small>catastrophic-year cost</small></div>
+      <div class="num">+58%<small>catastrophic-year cost</small></div>
       <div>
         <h3>Ignoring dependence understates the tail badly</h3>
-        <p>In the worst 1% of years the portfolio costs <b>£15,460</b> per policy under the
-        vine copula, against <b>£9,831</b> if the perils were treated as independent. Storms,
+        <p>In the worst 1% of years the portfolio costs <b>£15,655</b> per policy under the
+        vine copula, against <b>£9,900</b> if the perils were treated as independent. Storms,
         floods and shrink–swell droughts are driven by the same climate; modelling them
         separately quietly removes the years that hurt.</p>
       </div>
@@ -112,8 +112,8 @@
       <div>
         <h3>Bad years aren't just "more weather"</h3>
         <p>Weather is the workhorse loss in every year, but it is the secondary perils that
-        turn a typical year (<b>£262</b> per policy) into a bad one (<b>£2,400</b>). Going
-        from typical to bad, flood cost multiplies 9× and subsidence 11×, while
+        turn a typical year (<b>£263</b> per policy) into a bad one (<b>£2,431</b>). Going
+        from typical to bad, flood cost multiplies 9× and subsidence 12×, while
         weather multiplies just 8×.</p>
       </div>
     </div>
@@ -126,6 +126,20 @@
         years — pushing losses <i>beyond</i> the 99.5% quantile. Value-at-Risk can therefore
         <i>fall</i> as dependence rises. Premiums use expected shortfall (TVaR 99%), which is
         monotone in dependence and doesn't hide the clustering.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="num">8% vs 31%<small>rating-group churn</small></div>
+      <div>
+        <h3>Dependence sets the tail; the marginals set the ranking</h3>
+        <p>Perturbing the copula — dependence strength ±25%, conditional correlations
+        zeroed or doubled — moves at most <b>8%</b> of districts into a different
+        rating group. Perturbing the loss assumptions moves up to <b>31%</b>. The
+        vine is what makes the tail honest (uplift ranges 20–25% across
+        scenarios), but if you want the <i>ranking</i> right, spend your effort on claim
+        frequencies and severities. Every scenario is tabulated on the
+        <a href="years.html#sens-section">year analysis page</a>.</p>
       </div>
     </div>
 
@@ -152,12 +166,12 @@
           <th class="num">Subs.</th><th class="num">Weather</th><th class="num">Flood</th><th class="num">Gr.water</th>
           <th>What drives it</th>
         </tr>
-        <tr><td><strong>ME11</strong></td><td>Isle of Sheppey</td><td class="num"><strong>£6,059</strong></td><td class="num">1.00</td><td class="num">0.28</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + subsidence (43% / 39%)</td></tr>
-        <tr><td><strong>LA4</strong></td><td>Morecambe</td><td class="num"><strong>£5,509</strong></td><td class="num">0.12</td><td class="num">0.64</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + weather (53% / 41%)</td></tr>
-        <tr><td><strong>HU6</strong></td><td>Hull</td><td class="num"><strong>£5,394</strong></td><td class="num">0.08</td><td class="num">0.15</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood-dominated (81% of E[loss])</td></tr>
-        <tr><td><strong>TW18</strong></td><td>Staines-upon-Thames</td><td class="num"><strong>£5,393</strong></td><td class="num">0.99</td><td class="num">0.11</td><td class="num">1.00</td><td class="num">1.00</td><td>Subsidence + flood (44% / 42%)</td></tr>
-        <tr><td><strong>HU2</strong></td><td>Hull</td><td class="num"><strong>£5,381</strong></td><td class="num">0.08</td><td class="num">0.16</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood-dominated (80% of E[loss])</td></tr>
-        <tr><td><strong>HU5</strong></td><td>Hull</td><td class="num"><strong>£5,319</strong></td><td class="num">0.08</td><td class="num">0.15</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood-dominated (80% of E[loss])</td></tr>
+        <tr><td><strong>ME11</strong></td><td>Isle of Sheppey</td><td class="num"><strong>£6,082</strong></td><td class="num">1.00</td><td class="num">0.29</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + subsidence (43% / 38%)</td></tr>
+        <tr><td><strong>LA4</strong></td><td>Morecambe</td><td class="num"><strong>£5,535</strong></td><td class="num">0.12</td><td class="num">0.65</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + weather (53% / 42%)</td></tr>
+        <tr><td><strong>TW18</strong></td><td>Staines-upon-Thames</td><td class="num"><strong>£5,532</strong></td><td class="num">0.99</td><td class="num">0.15</td><td class="num">1.00</td><td class="num">1.00</td><td>Subsidence + flood (43% / 42%)</td></tr>
+        <tr><td><strong>HU6</strong></td><td>Hull</td><td class="num"><strong>£5,335</strong></td><td class="num">0.08</td><td class="num">0.12</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood-dominated (82% of E[loss])</td></tr>
+        <tr><td><strong>HU2</strong></td><td>Hull</td><td class="num"><strong>£5,317</strong></td><td class="num">0.08</td><td class="num">0.13</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood-dominated (82% of E[loss])</td></tr>
+        <tr><td><strong>HU5</strong></td><td>Hull</td><td class="num"><strong>£5,257</strong></td><td class="num">0.08</td><td class="num">0.13</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood-dominated (82% of E[loss])</td></tr>
       </table>
     </div>
     <p class="note" style="margin-top:10px">Technical premium per policy per year =

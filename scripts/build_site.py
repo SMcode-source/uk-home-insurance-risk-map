@@ -114,7 +114,36 @@ def load_stats():
             "</tr>")
 
     mult = lambda a, b: f"{(a / b):.0f}" if b else "—"
+
+    # optional: sensitivity.json drives an extra landing-page finding
+    sens_path = os.path.join(ROOT, "data", "sensitivity.json")
+    sens_finding = ""
+    if os.path.exists(sens_path):
+        with open(sens_path) as fh:
+            s = json.load(fh)
+        dep = max(s[k]["group_churn_pct"] for k in
+                  ("theta_low", "theta_high", "rho2_zero", "rho2_high")
+                  if k in s)
+        marg = max(s[k]["group_churn_pct"] for k in
+                   ("sev_sigma_up", "flood_freq_150") if k in s)
+        up_lo = s.get("theta_low", {}).get("mean_uplift_pct")
+        up_hi = s.get("flood_freq_150", {}).get("mean_uplift_pct")
+        sens_finding = f"""<div class="finding">
+      <div class="num">{dep:.0f}% vs {marg:.0f}%<small>rating-group churn</small></div>
+      <div>
+        <h3>Dependence sets the tail; the marginals set the ranking</h3>
+        <p>Perturbing the copula — dependence strength ±25%, conditional correlations
+        zeroed or doubled — moves at most <b>{dep:.0f}%</b> of districts into a different
+        rating group. Perturbing the loss assumptions moves up to <b>{marg:.0f}%</b>. The
+        vine is what makes the tail honest (uplift ranges {up_lo:.0f}–{up_hi:.0f}% across
+        scenarios), but if you want the <i>ranking</i> right, spend your effort on claim
+        frequencies and severities. Every scenario is tabulated on the
+        <a href="years.html#sens-section">year analysis page</a>.</p>
+      </div>
+    </div>"""
+
     return {
+        "__SENS_FINDING__": sens_finding,
         "__N_DISTRICTS__": f"{len(feats):,}",
         "__N_SIM__": f"{ya['n_sim']:,}",
         "__PREM_MIN__": f"{prem[0]:,.0f}",

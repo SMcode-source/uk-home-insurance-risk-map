@@ -20,7 +20,7 @@ dates: 2026-07-29/30.
 | 11 | FRAW surface water & small watercourses | Natural Resources Wales | `scripts/fetch_surface_water.py` | ↳ same (+ `data/sw_wales20.csv` via `merge_sw_wales.py`) |
 | 12 | Surface water flood maps (medium/low likelihood) | SEPA | `scripts/fetch_surface_water.py` | ↳ same |
 | 13 | Flood risk: postcode search tool data (incl. GWTR_RISK groundwater flag) | Environment Agency | manual download (URL below) | `data/ea_postcode_risk.csv` (36 MB) → `data/gw_fractions.csv` via `scripts/fetch_groundwater.py` |
-| 14 | Daily 10 m wind-gust maxima 1990–2024 (ERA5 reanalysis) | ECMWF via Open-Meteo archive API (CC-BY 4.0; **not** Met Office) | `scripts/fetch_gusts.py` | `data/gusts.csv` (~140 grid points, p98 + Gumbel-fitted 1-in-50 gust) |
+| 14 | Daily 10 m wind-gust maxima 1990–2024 (ERA5 reanalysis) | ECMWF via Open-Meteo archive API (CC-BY 4.0; **not** Met Office) | `scripts/fetch_gusts.py` | `data/gusts.csv` (90 grid points, p98 + Gumbel-fitted 1-in-50 gust: 124–196 km/h) |
 
 ## Endpoints
 
@@ -83,8 +83,14 @@ dates: 2026-07-29/30.
 14. **ERA5 gusts** — `https://archive-api.open-meteo.com/v1/archive` with
     `daily=wind_gusts_10m_max`, multi-location batches. **Quirk:** the free
     tier rate-limits by data volume — 35-year daily pulls need small batches
-    (4 locations), ~20 s pauses and 60 s backoff on HTTP 429; the fetcher is
-    resumable (appends to the CSV and skips fetched points on restart).
+    (2 locations), ~45 s pauses and 150 s backoff on HTTP 429, and the daily
+    quota still cuts a full national sweep short. The fetcher is therefore
+    resumable — it appends to the CSV, skips points already fetched, and thins
+    the remaining grid on resume — so the published 90-point grid was built
+    over two days. Gust climatology is smooth at this scale, so the thinned
+    grid interpolates fine; `scores_real.py` only folds gusts into the weather
+    score once at least 60 points exist, and cleanly falls back to the
+    4-component blend below that.
 
 ## Not used / dead ends (so you don't repeat them)
 
