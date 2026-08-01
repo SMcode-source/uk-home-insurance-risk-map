@@ -774,6 +774,26 @@ svg.leaflet-image-layer.leaflet-interactive path {
 #controls { top: 64px; }
 #legend, #about { bottom: 22px; }
 body { overflow: hidden; }
+
+/* Phones: the three floating panels have to share one small screen.
+   Full-width stacked panels, each capped and internally scrollable, so
+   they never overlap each other and always leave map visible between. */
+@media (max-width: 640px) {
+  #controls {
+    top: 60px; left: 8px; right: 8px; max-width: none;
+    max-height: 34vh; overflow-y: auto; padding: 10px 12px;
+  }
+  #controls h1 { font-size: 14px; }
+  #controls .sub { display: none; }
+  .metric-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .metric-btns button { font-size: 12px; padding: 8px; }
+  #legend {
+    left: 8px; right: 8px; bottom: 62px; min-width: 0;
+    max-height: 24vh; overflow-y: auto; padding: 10px 12px;
+  }
+  #legend .legend-row span { font-size: 11px; }
+  #about { left: 8px; right: 8px; bottom: 8px; max-width: none; max-height: 40vh; overflow-y: auto; }
+}
 </style>
 </head>
 <body>
