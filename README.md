@@ -63,6 +63,7 @@ scripts/
   build_map.py                -> map/uk_home_insurance_risk_map.html
   build_analysis.py           -> analysis/uk_risk_year_analysis.html
   build_site.py               wraps both + templates -> docs/
+  make_images.py              favicon + social card, rendered from the geojson
   check_sw.py, check_years.py sanity-check helpers
 map/template.html             map page (Leaflet inlined at build time)
 analysis/template.html        good/bad-years page (hand-rolled SVG charts)
@@ -274,6 +275,7 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 .venv/Scripts/python scripts/fetch_households.py     # ONS lookup + census -> data/households.csv (exposure, ~22MB dl)
 .venv/Scripts/python scripts/build_model.py          # calibrate + vine sim -> districts_risk.geojson + year_analysis.json (~20 min)
 .venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs -> data/sensitivity.json (~25 min, optional)
+.venv/Scripts/python scripts/make_images.py          # favicon + 1200x630 social card, rendered from the data
 .venv/Scripts/python scripts/build_map.py            # -> map/uk_home_insurance_risk_map.html
 .venv/Scripts/python scripts/build_analysis.py       # -> analysis/uk_risk_year_analysis.html
 ```

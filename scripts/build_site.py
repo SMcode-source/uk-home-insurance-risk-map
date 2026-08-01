@@ -26,6 +26,56 @@ ROOT = os.path.abspath(os.path.join(HERE, ".."))
 SITE = os.path.join(ROOT, "site")
 DOCS = os.path.join(ROOT, "docs")
 REPO_URL = "https://github.com/SMcode-source/uk-home-insurance-risk-map"
+SITE_URL = "https://smcode-source.github.io/uk-home-insurance-risk-map/"
+
+# Per-page social metadata. Descriptions are what appears under the link
+# preview in Slack/WhatsApp/X, so they say what the page shows.
+META = {
+    "index.html": (
+        "UK Home Insurance Risk Map",
+        "Subsidence, weather, flood and groundwater risk for 2,736 UK postcode "
+        "districts, joined by a vine copula and calibrated to published ABI "
+        "payouts. Built entirely on open data."),
+    "map.html": (
+        "Interactive map — UK Home Insurance Risk Map",
+        "Eight switchable layers across 2,736 postcode districts: rating group, "
+        "technical premium, each peril score, and the capital charge. Click any "
+        "district for its full risk breakdown."),
+    "years.html": (
+        "Good years vs bad years — UK Home Insurance Risk Map",
+        "What separates a quiet year from an expensive one: cost by peril, how "
+        "widely claims spread, an exceedance curve, and a backtest against 35 "
+        "years of real UK weather."),
+    "methodology.html": (
+        "Methodology — UK Home Insurance Risk Map",
+        "How the four peril scores are built from open data, how the C-vine "
+        "copula joins them, why the risk measure is TVaR, and how to reproduce "
+        "the whole pipeline."),
+}
+
+
+def head_tags(page):
+    """Favicon set + Open Graph/Twitter card, identical on every page."""
+    title, desc = META[page]
+    url = SITE_URL + ("" if page == "index.html" else page)
+    img = SITE_URL + "assets/social.png"
+    return f"""<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+<meta name="description" content="{desc}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="UK Home Insurance Risk Map">
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="{desc}">
+<meta property="og:url" content="{url}">
+<meta property="og:image" content="{img}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Choropleth of Great Britain shaded by home-insurance rating group, with the title UK Home Insurance Risk Map">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{title}">
+<meta name="twitter:description" content="{desc}">
+<meta name="twitter:image" content="{img}">"""
 
 # (href, full label, short label for narrow screens)
 PAGES = [("index.html", "Overview", "Overview"),
@@ -197,6 +247,7 @@ def render_template(name, out_name, stats):
     with open(os.path.join(SITE, name), encoding="utf-8") as fh:
         html = fh.read()
     html = html.replace("__NAV__", nav_html(out_name))
+    html = html.replace("__HEAD__", head_tags(out_name))
     for k, v in stats.items():
         html = html.replace(k, v)
     write(out_name, html)
@@ -209,7 +260,9 @@ def wrap_generated(src, out_name, extra_css=""):
     # site.css goes FIRST so the page's own <style> keeps precedence for
     # shared tokens; the per-page override goes LAST so it beats them.
     html = html.replace(
-        "<head>", '<head>\n<link rel="stylesheet" href="assets/site.css">', 1)
+        "<head>",
+        '<head>\n<link rel="stylesheet" href="assets/site.css">\n'
+        + head_tags(out_name), 1)
     if extra_css:
         html = html.replace("</head>", f"<style>{extra_css}</style>\n</head>", 1)
     html = re.sub(r"<body([^>]*)>", r"<body\1>\n" + nav_html(out_name), html,
