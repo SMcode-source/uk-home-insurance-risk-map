@@ -9,11 +9,18 @@
   --surface-2: #f2f1ec;
   --ink-1: #0b0b0b;
   --ink-2: #52514e;
-  --ink-muted: #898781;
+  /* 5.04:1 on the light surface - #898781 was only 3.50:1 (WCAG AA needs 4.5) */
+  --ink-muted: #6f6d67;
   --grid: #e1e0d9;
   --axis: #c3c2b7;
   --border: rgba(11, 11, 11, 0.10);
+  /* --accent stays the dataviz series blue, for marks/borders/fills.
+     --link is a darker step used wherever the colour carries TEXT:
+     5.54:1 as text, 5.69:1 for white text on it. */
   --accent: #2a78d6;
+  --link: #1f66bd;
+  --btn-bg: #1f66bd;
+  --btn-fg: #ffffff;
   --wx: #2a78d6;
   --sub: #eb6834;
   --fl: #1baf7a;
@@ -38,6 +45,10 @@
     --fl: #199e70;
     --gw: #9085e9;
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
+    /* dark surface: #898781 is 4.85:1 and #3987e5 is 4.79:1, both pass */
+    --link: #6da7ec;
+    --btn-bg: #6da7ec;
+    --btn-fg: #0d0d0d;
   }
 }
 :root[data-theme="dark"] {
@@ -122,7 +133,7 @@ p { margin: 0 0 14px; color: var(--ink-2); }
   text-transform: uppercase; letter-spacing: .08em; font-size: 11.5px;
   font-weight: 650; color: var(--ink-muted); margin-bottom: 10px;
 }
-a { color: var(--accent); }
+a { color: var(--link); }
 
 /* ---------- hero ---------- */
 .hero { padding: 64px 0 40px; }
@@ -132,7 +143,7 @@ a { color: var(--accent); }
   padding: 11px 18px; border-radius: 10px; font-size: 14.5px;
   font-weight: 600; text-decoration: none; border: 1px solid transparent;
 }
-.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary { background: var(--btn-bg); color: var(--btn-fg); }
 .btn-primary:hover { filter: brightness(1.08); }
 .btn-ghost { border-color: var(--border); color: var(--ink-1); background: var(--surface-1); }
 .btn-ghost:hover { border-color: var(--axis); }
@@ -156,7 +167,7 @@ a.card { text-decoration: none; color: inherit; display: block; transition: tran
 a.card:hover { transform: translateY(-2px); border-color: var(--axis); }
 .card h3 { margin: 10px 0 4px; font-size: 17px; color: var(--ink-1); }
 .card p { font-size: 13.5px; margin: 0; }
-.card .more { font-size: 13px; font-weight: 600; color: var(--accent); margin-top: 10px; display: inline-block; }
+.card .more { font-size: 13px; font-weight: 600; color: var(--link); margin-top: 10px; display: inline-block; }
 .card .icon { width: 34px; height: 34px; display: block; }
 
 /* ---------- findings ---------- */

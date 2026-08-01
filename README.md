@@ -80,7 +80,12 @@ assets/leaflet.{js,css}       Leaflet 1.9.4, inlined into the map HTML
 | Flood risk score | EA / NRW / SEPA river, sea + surface-water zones (0–1) |
 | Groundwater risk score | EA groundwater alert-area coverage (0–1) |
 | 1-in-200 combined loss | 99.5% VaR of the four-peril annual loss (C-vine) |
-| Copula uplift | % increase of TVaR₉₉ vs assuming the perils independent |
+| Capital charge | The district's Euler share of portfolio tail risk, in £ |
+
+There is deliberately no per-district "copula uplift" layer: at calibrated
+frequencies that difference is inside Monte Carlo noise, so the layer would
+have been drawing noise across the country. The dependence effect is real but
+lives in the aggregate — see the [methodology](https://smcode-source.github.io/uk-home-insurance-risk-map/methodology.html#dependence-effect).
 
 Hover any district for its value; click for the full breakdown (all scores and
 underlying data values, expected losses per peril, VaR/TVaR under vine /
@@ -208,9 +213,9 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    Re-runs the simulation on a 1-in-3 district sample with perturbed
    assumptions — Gumbel dependence ±25%, tree-2 correlations zeroed/doubled,
    severity σ ×1.1, flood frequency ×1.5 — reporting the impact on expected
-   loss, premium, TVaR₉₉, copula uplift, catastrophic-year cost and
-   rating-group churn. This quantifies which of the documented assumptions
-   actually move the answer.
+   loss, premium, catastrophic-year cost and rating-group churn. This
+   quantifies which of the documented assumptions actually move the answer:
+   the copula parameters govern the tail, the marginals govern the ranking.
 11. **Good vs bad years** (`analysis/uk_risk_year_analysis.html`, built by
    `scripts/build_analysis.py`). The 20,000 simulated portfolio years are
    ranked and bucketed (good = best 50%, typical = 50–90th pct, bad = 90–99th,
