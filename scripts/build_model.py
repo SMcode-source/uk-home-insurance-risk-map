@@ -73,6 +73,35 @@ def load_districts() -> gpd.GeoDataFrame:
 #           = LN^-1((u - (1-p)) / p)     otherwise
 
 
+def load_households(names):
+    """Households per district (ONS/NRS census; see fetch_households.py).
+
+    Districts with no figure - a handful of tiny or non-residential ones -
+    get the 10th-percentile count rather than zero, so they still carry a
+    little weight instead of vanishing from the portfolio.
+    """
+    import csv as _csv
+    path = os.path.join(DATA, "households.csv")
+    if not os.path.exists(path):
+        print("  households.csv missing -> equal weighting "
+              "(run scripts/fetch_households.py)")
+        return np.ones(len(names))
+    table = {}
+    with open(path, newline="") as fh:
+        for row in _csv.DictReader(fh):
+            table[row["name"]] = float(row["households"])
+    vals = np.array([table.get(n, np.nan) for n in names])
+    miss = np.isnan(vals)
+    if miss.any():
+        vals[miss] = np.nanpercentile(vals, 10)
+        print(f"  households: {miss.sum()} districts without a count "
+              f"-> 10th-percentile fallback")
+    vals = np.maximum(vals, 1.0)
+    print(f"  exposure: {vals.sum():,.0f} households across {len(names)} "
+          f"districts (max {vals.max():,.0f})")
+    return vals
+
+
 # ------------------------------------------- calibration to UK aggregates
 # Published ABI figures for 2025 (see README "Calibration"): home insurers
 # paid ~£3.4bn across ~560,000 claims; the ABI premium tracker covers
@@ -127,8 +156,14 @@ def calibrate_frequency(gdf):
         gdf["f_high"].values, gdf["f_low"].values,
         gdf["sw_high"].values, gdf["sw_low"].values,
         gdf["gw_frac"].values)
-    raw = {"sub": float(p_sub.mean()), "wx": float(p_wx.mean()),
-           "fl": float(p_fl.mean()), "gw": float(p_gw.mean())}
+    # ABI totals are national, so the average must be exposure-weighted:
+    # a district with 40,000 households counts 40,000 times more than one
+    # with a single household.
+    w = gdf["households"].values
+    raw = {"sub": float(np.average(p_sub, weights=w)),
+           "wx": float(np.average(p_wx, weights=w)),
+           "fl": float(np.average(p_fl, weights=w)),
+           "gw": float(np.average(p_gw, weights=w))}
     for k in ("sub", "wx", "fl"):
         FREQ_SCALE[k] = ABI_TARGET_FREQ[k] / raw[k]
     # groundwater has no published total; peg it to a share of flood
@@ -167,7 +202,8 @@ def calibrate_spatial(gdf, target_ratio=TAIL_FREQ_RATIO):
         gdf["sw_high"].values, gdf["sw_low"].values,
         gdf["gw_frac"].values)
     perils = [("s", p_sub), ("w", p_wx), ("f", p_fl), ("g", p_gw)]
-    mean_freq = sum(float(p.mean()) for _, p in perils)
+    expo = gdf["households"].values
+    mean_freq = sum(float(np.average(p, weights=expo)) for _, p in perils)
     z99 = stats.norm.ppf(0.99)
 
     def tail_freq(lam):
@@ -175,8 +211,8 @@ def calibrate_spatial(gdf, target_ratio=TAIL_FREQ_RATIO):
         for key, p in perils:
             w = min(SPATIAL_BASE[key] * lam, 0.98)
             thr = stats.norm.ppf(np.clip(1 - p, 1e-12, 1 - 1e-12))
-            total += float(np.mean(stats.norm.cdf(
-                (np.sqrt(w) * z99 - thr) / np.sqrt(1 - w))))
+            total += float(np.average(stats.norm.cdf(
+                (np.sqrt(w) * z99 - thr) / np.sqrt(1 - w)), weights=expo))
         return total
 
     lo, hi = 0.01, 1.0
@@ -416,6 +452,10 @@ def simulate(district_df):
     # per-district year-view loss, kept so capital can be allocated to
     # districts by their contribution to the PORTFOLIO tail (Euler)
     year_loss = np.zeros((len(district_df), N_SIM), dtype=np.float32)
+    # exposure: portfolio quantities are per-policy, so districts enter
+    # weighted by how many households they actually contain
+    expo = district_df["households"].values.astype(np.float64)
+    expo_total = float(expo.sum())
 
     def mix_with(u, w_sp, eps):
         z = stats.norm.ppf(np.clip(u, 1e-12, 1 - 1e-12))
@@ -477,17 +517,18 @@ def simulate(district_df):
                          SPATIAL_LOADING["g"], eps_g)
         ls_iy, _, lf_iy, lg_iy, _ = total(uw_y, ufi_y, ugi_y, usi_y)
 
-        year["s_v"] += ls_y.sum(axis=0)
-        year["w_v"] += lw_y.sum(axis=0)
-        year["f_v"] += lf_y.sum(axis=0)
-        year["g_v"] += lg_y.sum(axis=0)
-        year["s_i"] += ls_iy.sum(axis=0)
-        year["f_i"] += lf_iy.sum(axis=0)
-        year["g_i"] += lg_iy.sum(axis=0)
-        year["inc_s"] += (ls_y > 0).sum(axis=0)
-        year["inc_w"] += (lw_y > 0).sum(axis=0)
-        year["inc_f"] += (lf_y > 0).sum(axis=0)
-        year["inc_g"] += (lg_y > 0).sum(axis=0)
+        ew = expo[start:start + len(chunk)][:, None]      # exposure weights
+        year["s_v"] += (ls_y * ew).sum(axis=0)
+        year["w_v"] += (lw_y * ew).sum(axis=0)
+        year["f_v"] += (lf_y * ew).sum(axis=0)
+        year["g_v"] += (lg_y * ew).sum(axis=0)
+        year["s_i"] += (ls_iy * ew).sum(axis=0)
+        year["f_i"] += (lf_iy * ew).sum(axis=0)
+        year["g_i"] += (lg_iy * ew).sum(axis=0)
+        year["inc_s"] += ((ls_y > 0) * ew).sum(axis=0)
+        year["inc_w"] += ((lw_y > 0) * ew).sum(axis=0)
+        year["inc_f"] += ((lf_y > 0) * ew).sum(axis=0)
+        year["inc_g"] += ((lg_y > 0) * ew).sum(axis=0)
 
         q = lambda a: np.quantile(a, 0.995, axis=1)
         t_v, t_n, t_i = tvar(tot_v), tvar(tot_n), tvar(tot_i)
@@ -521,16 +562,19 @@ def simulate(district_df):
     #     TVaR_i = E[L_i | L_portfolio >= VaR_99(L_portfolio)]
     # These allocations sum exactly to the portfolio TVaR (Euler additivity),
     # so cross-district diversification is credited rather than ignored.
-    port = year_loss.mean(axis=0)                      # mean loss per policy
+    # exposure-weighted portfolio loss per policy in each simulated year
+    port = (expo @ year_loss) / expo_total
     k = max(int(N_SIM * 0.01), 1)
     bad = np.argpartition(port, -k)[-k:]
     res["tvar99_euler"] = year_loss[:, bad].mean(axis=1)
     res["el_year"] = year_loss.mean(axis=1)
     port_tvar = float(port[bad].mean())
+    standalone = float(np.average(res["tvar99_vine"], weights=expo))
     print(f"  portfolio TVaR99 {port_tvar:,.0f} /policy; "
-          f"mean standalone TVaR99 {res['tvar99_vine'].mean():,.0f} "
+          f"exposure-weighted standalone TVaR99 {standalone:,.0f} "
           f"(diversification credit "
-          f"{100 * (1 - port_tvar / res['tvar99_vine'].mean()):.0f}%)")
+          f"{100 * (1 - port_tvar / standalone):.0f}%)")
+    year["expo_total"] = expo_total
     return res, year
 
 
@@ -618,7 +662,8 @@ BUCKETS = [
 
 
 def year_analysis(year, n_districts):
-    n = float(n_districts)
+    # divide by total exposure, so everything below is per policy nationally
+    n = float(year.get("expo_total") or n_districts)
     s, w, f, g = (year["s_v"] / n, year["w_v"] / n,
                   year["f_v"] / n, year["g_v"] / n)
     tv = s + w + f + g                                    # vine, per policy
@@ -713,6 +758,9 @@ def main():
     print("scoring groundwater from EA alert-area fractions...")
     gdf["gw_score"], gdf["gw_frac"] = groundwater_from_ea(gdf["name"].values)
 
+    print("loading exposure...")
+    gdf["households"] = load_households(gdf["name"].values)
+
     print("calibrating to published UK aggregates...")
     calibrate_frequency(gdf)
     calibrate_spatial(gdf)
@@ -742,7 +790,8 @@ def main():
           f"£{ABI['total_home_paid'] / POLICIES:,.0f} all-perils home claims cost")
 
     print("writing geojson...")
-    keep = ["name", "area", "sub_score", "wx_score", "fl_score", "gw_score",
+    keep = ["name", "area", "households",
+            "sub_score", "wx_score", "fl_score", "gw_score",
             "geol", "wind_ms", "wdr_idx", "rain10_days", "precip_mm",
             "gust_rp50",
             "f_high", "f_low", "sw_high", "sw_low", "gw_frac",
@@ -755,7 +804,7 @@ def main():
     out = gdf[keep].copy()
     out["geometry"] = out.geometry.simplify(0.0025, preserve_topology=True)
     round1 = {"wind_ms": 1, "wdr_idx": 1, "rain10_days": 1, "precip_mm": 0,
-              "gust_rp50": 0}
+              "gust_rp50": 0, "households": 0}
     for col in keep:
         if col in ("name", "area", "geometry", "group", "geol"):
             continue

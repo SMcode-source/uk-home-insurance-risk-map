@@ -23,6 +23,12 @@ dates: 2026-07-29/30.
 | 14 | Daily 10 m wind-gust maxima 1990–2024 (ERA5 reanalysis) | ECMWF via Open-Meteo archive API (CC-BY 4.0; **not** Met Office) | `scripts/fetch_gusts.py` | `data/gusts.csv` (90 grid points, p98 + Gumbel-fitted 1-in-50 gust: 124–196 km/h) |
 | 15 | Daily gusts, precipitation and max temperature 1990–2024 (ERA5) | ECMWF via Open-Meteo (CC-BY 4.0) | `scripts/fetch_history.py` | `data/history.csv` (12 points → per-year storm days, peak gust, wettest 5-day, JJA deficit) — the backtest |
 | 16 | UK domestic claims by peril, 2025 | Association of British Insurers (published statistics) | manual (figures embedded in `build_model.py`) | Calibration anchors: storm £244m @ £2,450 avg; flood £312m @ £30,000; subsidence £307m @ £17,820; ~15.5m policies; £3.4bn / 560,000 all-perils home claims for context |
+| 17 | Postcode → OA / LSOA / MSOA / LAD best-fit lookup (Aug 2023) | ONS Open Geography Portal | `scripts/fetch_households.py` | 2.6m postcodes → census small areas (22 MB zip, cached) |
+| 18 | Census 2021 TS041 "Number of households" by LSOA | ONS via NOMIS | `scripts/fetch_households.py` | England & Wales household counts (35,672 LSOAs, 24.78m households) |
+| 19 | Scotland's Census 2022 household total | National Records of Scotland | manual (constant in `fetch_households.py`) | 2,509,300 households, apportioned across Scottish postcodes |
+
+Together 17–19 produce `data/households.csv` — **27.3m households across 2,995
+districts**, used as the exposure weight throughout.
 
 ## Endpoints
 
@@ -111,6 +117,25 @@ dates: 2026-07-29/30.
       severities overstated the loss cost by ~77%.
     - **Denominator:** the ABI premium tracker covers ~15.5m policies, which
       is what every per-policy figure here divides by.
+
+17–19. **Households per district.** Postcode districts are not an ONS
+    geography, so households are built from census small areas: the outward
+    half of each postcode *is* the district, so the ONS lookup alone gives the
+    mapping with no spatial join, and each small area's households are shared
+    equally between the postcodes inside it. Traps found:
+    - **NOMIS silently truncates at 25,000 records.** The first run returned
+      exactly 25,000 LSOAs and looked fine; England & Wales actually has
+      35,672. `fetch_households.py` pages with `RecordOffset`.
+    - **The UK-wide 2011 table (QS406UK) also contains English and Welsh
+      areas.** Summing it onto the 2021 figures double-counts — filter to
+      `S` codes, and prefer the 2021 numbers for E&W.
+    - **Scottish data zones do not join.** The ONS lookup carries the 2011
+      vintage (S01006506–S01013481) while NOMIS only offers 2001
+      (S01000001–S01006505) for that table, so the overlap is empty. Scotland
+      therefore uses its national Census 2022 total spread across Scottish
+      postcodes — within Scotland this makes households proportional to
+      postcode count.
+    - The lookup CSV is **Latin-1**, not UTF-8 (Welsh and Gaelic place names).
 
 ## Not used / dead ends (so you don't repeat them)
 

@@ -277,7 +277,8 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 function popupHtml(p) {
   const row = (k, v) => '<tr><td>' + k + '</td><td>' + v + '</td></tr>';
   return '<div class="pop"><div class="hd">' + p.name + '</div>' +
-    '<div style="color:var(--ink-muted);font-size:11.5px">postcode district · area ' + p.area + '</div>' +
+    '<div style="color:var(--ink-muted);font-size:11.5px">postcode district · area ' + p.area +
+    ' · ' + Math.round(p.households).toLocaleString('en-GB') + ' households</div>' +
     '<table>' +
     row('Rating group', p.group + ' / 10') +
     row('Technical premium', fmtGBP(p.premium) + '/yr') +

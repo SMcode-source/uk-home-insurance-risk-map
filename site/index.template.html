@@ -34,7 +34,7 @@ __NAV__
 
   <section style="padding-top:0">
     <div class="tiles">
-      <div class="tile"><div class="k">Postcode districts</div><div class="v">__N_DISTRICTS__</div><div class="d">across 120 postcode areas</div></div>
+      <div class="tile"><div class="k">Districts &middot; households</div><div class="v">__N_DISTRICTS__</div><div class="d">__N_HOUSEHOLDS__ households (census-weighted)</div></div>
       <div class="tile"><div class="k">Simulated years</div><div class="v">__N_SIM__</div><div class="d">per district, seeded &amp; reproducible</div></div>
       <div class="tile"><div class="k">Four-peril premium</div><div class="v">£__PREM_MIN__–__PREM_MAX__</div><div class="d">lowest to highest district</div></div>
       <div class="tile"><div class="k">Diversification credit</div><div class="v">__DIVERSIFICATION__%</div><div class="d">portfolio vs standalone tail</div></div>
@@ -185,9 +185,9 @@ __NAV__
 
   <section>
     <h2>Built on open data</h2>
-    <p class="lede">Fourteen datasets from six public bodies, each fetched by a script in the
-    repository and documented endpoint-by-endpoint — including the quirks that cost hours
-    to discover.</p>
+    <p class="lede">Nineteen datasets from nine public bodies, each fetched by a script in
+    the repository and documented endpoint-by-endpoint — including the quirks that cost
+    hours to discover, and the dead ends so nobody repeats them.</p>
     <div class="sources" style="margin:16px 0 18px">
       <span>British Geological Survey</span>
       <span>Met Office</span>
@@ -195,6 +195,9 @@ __NAV__
       <span>Natural Resources Wales</span>
       <span>SEPA</span>
       <span>ECMWF ERA5</span>
+      <span>ONS Census 2021</span>
+      <span>National Records of Scotland</span>
+      <span>ABI</span>
     </div>
     <div class="callout">
       <b>This is a demonstration model, not a priced product.</b> The hazard data is real and
@@ -249,7 +252,8 @@ __NAV__
       <div class="result-head">
         <div>
           <div class="rname">${d.n}</div>
-          <div class="rsub">postcode district · rating group <b>${d.g}</b> of 10</div>
+          <div class="rsub">postcode district · rating group <b>${d.g}</b> of 10${
+            d.h ? ' · ' + d.h.toLocaleString('en-GB') + ' households' : ''}</div>
         </div>
         <div class="rprem"><div class="v">${GBP(d.p)}</div><div class="k">technical premium / yr</div></div>
       </div>

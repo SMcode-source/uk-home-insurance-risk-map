@@ -121,6 +121,7 @@ def main():
     (gdf["fl_score"], gdf["f_high"], gdf["f_low"],
      gdf["sw_high"], gdf["sw_low"]) = flood_from_agencies(gdf["name"].values)
     gdf["gw_score"], gdf["gw_frac"] = groundwater_from_ea(gdf["name"].values)
+    gdf["households"] = bm.load_households(gdf["name"].values)
     # calibrate on the FULL set (as build_model does) so every scenario is
     # perturbing a properly calibrated baseline, then sample for speed
     bm.calibrate_frequency(gdf)

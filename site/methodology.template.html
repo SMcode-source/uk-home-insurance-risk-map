@@ -298,6 +298,23 @@ __NAV__
     weakly correlated fraction of homes end up claiming. Conflating the two is what makes a
     catastrophe model overstate portfolio risk.</div>
 
+    <h3>Exposure — districts are not the same size</h3>
+    <p>The ABI anchors are national totals, so the model's average has to be a
+    <i>national</i> average, which means weighting districts by how many homes they
+    actually contain. Croydon has about 56,000 households; plenty of rural districts have a
+    few hundred. Counting them equally would let sparse geography outvote the population.</p>
+    <p>Postcode districts aren't an ONS geography, so household counts are built up from
+    census small areas: <b>ONS Census 2021</b> households by LSOA for England and Wales,
+    mapped through the ONS postcode→small-area lookup (the outward half of a postcode
+    <i>is</i> the district, so no spatial join is needed), with each small area's households
+    shared between the postcodes inside it. Scotland's data zones don't join — the lookup
+    uses the 2011 vintage and the available census table the 2001 one — so Scotland's
+    <b>Census 2022</b> national total of 2,509,300 is spread across Scottish postcodes
+    instead. Total: <b>27.3 million households across 2,995 districts</b>.</p>
+    <p>Everything downstream is exposure-weighted: the calibration average, the portfolio
+    loss in each simulated year, the tail that capital is held against, and the Euler
+    allocation.</p>
+
     <h3>Capital is a portfolio quantity</h3>
     <p>The earlier version charged each district 6% of <i>its own</i> 1-in-100 loss. That is
     wrong in a way worth being explicit about: an insurer does not hold capital against each
@@ -394,6 +411,10 @@ __NAV__
         <tr><td><strong>Environment Agency</strong></td><td>NaFRA2 Risk of Flooding from Surface Water (England)</td><td>Flood</td></tr>
         <tr><td><strong>Environment Agency</strong></td><td>Flood-risk postcode data — groundwater alert-area flags</td><td>Groundwater</td></tr>
         <tr><td><strong>OS / Wikipedia derived</strong></td><td>UK postcode district polygons (2,736 districts)</td><td>Geography</td></tr>
+        <tr><td><strong>ONS</strong></td><td>Postcode → OA/LSOA best-fit lookup (2.6m postcodes)</td><td rowspan="3">Exposure weighting — 27.3m households</td></tr>
+        <tr><td><strong>ONS</strong> (via NOMIS)</td><td>Census 2021 TS041 households by LSOA (England &amp; Wales)</td></tr>
+        <tr><td><strong>National Records of Scotland</strong></td><td>Scotland's Census 2022 household total</td></tr>
+        <tr><td><strong>ABI</strong></td><td>Domestic claims paid by peril, 2025</td><td>Loss calibration</td></tr>
       </table>
     </div>
     <p class="note">A note on honesty in sourcing: HadUK-Grid's NetCDF files on CEDA require a
@@ -416,6 +437,8 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 .venv/Scripts/python scripts/fetch_surface_water.py  # surface-water extents     (~60 min)
 .venv/Scripts/python scripts/fetch_groundwater.py    # groundwater alert flags
 .venv/Scripts/python scripts/fetch_gusts.py          # ERA5 gust extremes (resumable)
+.venv/Scripts/python scripts/fetch_history.py        # 35yr ERA5 drivers, for the backtest
+.venv/Scripts/python scripts/fetch_households.py     # census households -> exposure weights
 
 .venv/Scripts/python scripts/build_model.py          # scores + vine simulation  (~15 min)
 .venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs         (~25 min)
@@ -439,8 +462,10 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
       could be estimated directly (e.g. with <code>pyvinecopulib</code>) rather than taking
       the assumed θ(s) forms.</li>
       <li><b>Every policy is treated as one average home.</b> There is no sum insured, no
-      construction type, no excess, and no exposure weighting — a district with 200 houses
-      counts the same as one with 20,000. Real portfolio capital would be exposure-weighted.</li>
+      construction type and no excess. Districts <i>are</i> weighted by census household
+      counts, so the portfolio reflects where people actually live, but every household
+      inside a district is identical — a Victorian terrace and a new-build carry the same
+      risk here.</li>
       <li><b>The subsidence classification approximates BGS GeoSure</b> from the open 625k
       mapping. The licensed product adds superficial deposits, tree cover and drought
       interaction. At 625k scale, superficial clays such as till over chalk are invisible.</li>

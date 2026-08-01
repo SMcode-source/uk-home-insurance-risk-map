@@ -55,6 +55,7 @@ scripts/
   fetch_groundwater.py        EA postcode groundwater flags -> district fractions
   fetch_gusts.py              ERA5 gust extremes -> 1-in-50 gust per grid point
   fetch_history.py            35 years of ERA5 hazard drivers -> backtest
+  fetch_households.py         ONS/NRS census households per district (exposure)
   scores_real.py              data -> per-district peril scores
   build_model.py              scores -> marginals -> C-vine Monte Carlo ->
                               districts_risk.geojson + year_analysis.json
@@ -179,7 +180,17 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    concordance ordering; expected shortfall is). Premiums and the uplift layer
    therefore use **TVaR 99%** (mean of the worst 1% of years); the 1-in-200
    VaR is still shown in popups.
-8. **Capital, allocated from the portfolio (Euler).** An insurer holds
+8. **Exposure weighting** (`scripts/fetch_households.py`). Districts enter the
+   portfolio weighted by their **census household count**, not equally:
+   ONS Census 2021 households by LSOA for England & Wales, apportioned to
+   postcode districts through the ONS postcode→small-area lookup, plus
+   Scotland's Census 2022 national total spread across Scottish postcodes —
+   **27.3m households over 2,995 districts**. This matters because the ABI
+   anchors are national totals: the calibration average, the portfolio tail
+   and the capital allocation are all household-weighted, so Croydon
+   (56,000 households) counts 56,000× a single-household district rather
+   than 1×.
+9. **Capital, allocated from the portfolio (Euler).** An insurer holds
    capital against the *portfolio*, not against each policy's private worst
    year, so the charge is the district's expected loss **given the portfolio
    is in its worst 1% of years** — TVaRᵢ = E[Lᵢ | L_portfolio ≥ VaR₉₉]. These
@@ -192,7 +203,7 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    than assumed: it is set so a 1-in-100 year has ~2× the claim frequency of
    an average year. The solved value is far weaker than the assumed one —
    UK *weather* is strongly correlated nationally, but UK *claims* are not.
-9. **Sensitivity analysis** (`scripts/sensitivity.py` →
+10. **Sensitivity analysis** (`scripts/sensitivity.py` →
    `data/sensitivity.json`, rendered as a table on the analysis page).
    Re-runs the simulation on a 1-in-3 district sample with perturbed
    assumptions — Gumbel dependence ±25%, tree-2 correlations zeroed/doubled,
@@ -200,7 +211,7 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    loss, premium, TVaR₉₉, copula uplift, catastrophic-year cost and
    rating-group churn. This quantifies which of the documented assumptions
    actually move the answer.
-10. **Good vs bad years** (`analysis/uk_risk_year_analysis.html`, built by
+11. **Good vs bad years** (`analysis/uk_risk_year_analysis.html`, built by
    `scripts/build_analysis.py`). The 20,000 simulated portfolio years are
    ranked and bucketed (good = best 50%, typical = 50–90th pct, bad = 90–99th,
    catastrophic = worst 1%), with per-peril cost composition, claim incidence
@@ -213,7 +224,7 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    clustering (a pure common-random-numbers view is degenerate: no claims
    anywhere in 90% of years, then everything at once).
 
-10. **Backtest against real years** (`scripts/fetch_history.py`, shown on the
+12. **Backtest against real years** (`scripts/fetch_history.py`, shown on the
     year-analysis page). The loss model can't be validated without claims
     data, but its *hazard drivers* can: 35 years of ERA5 reanalysis over
     twelve UK locations are reduced to per-year storm days, peak gust,
@@ -255,6 +266,7 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
                                                      # next day; the weather blend auto-includes gusts once >=60
                                                      # grid points exist, and falls back to 4 components until then)
 .venv/Scripts/python scripts/fetch_history.py        # 35yr ERA5 hazard drivers -> data/history.csv (backtest)
+.venv/Scripts/python scripts/fetch_households.py     # ONS lookup + census -> data/households.csv (exposure, ~22MB dl)
 .venv/Scripts/python scripts/build_model.py          # calibrate + vine sim -> districts_risk.geojson + year_analysis.json (~20 min)
 .venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs -> data/sensitivity.json (~25 min, optional)
 .venv/Scripts/python scripts/build_map.py            # -> map/uk_home_insurance_risk_map.html
@@ -292,8 +304,9 @@ priced product:
   districts, the vine structure, the θ(s) forms and the tree-2 ρ's remain
   assumptions. With real claims, the pair-copulas could be estimated directly
   (e.g. with `pyvinecopulib`) instead;
-- **every policy is one average home** — no sum insured, construction type,
-  excess or exposure weighting, so a district with 200 houses counts the same
-  as one with 20,000 and the portfolio view is unweighted by exposure;
+- **every policy is one average home** — no sum insured, construction type or
+  excess. Districts *are* now exposure-weighted by census household counts, so
+  Croydon (56,000 households) carries its proper share of the portfolio against
+  a small rural district, but every household within a district is identical;
 - the backtest validates the **hazard drivers** against the historical record,
   not loss amounts — that still needs claims data.

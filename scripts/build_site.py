@@ -158,6 +158,7 @@ def load_stats():
     return {
         "__SENS_FINDING__": sens_finding,
         "__N_DISTRICTS__": f"{len(feats):,}",
+        "__N_HOUSEHOLDS__": f"{sum(p.get('households', 0) for p in feats) / 1e6:.1f}m",
         "__N_SIM__": f"{ya['n_sim']:,}",
         "__PREM_MIN__": f"{prem[0]:,.0f}",
         "__PREM_MAX__": f"{prem[-1]:,.0f}",
@@ -259,12 +260,14 @@ def main():
           # premium build-up: four expected losses + allocated capital
           "es": round(p["el_sub"]), "ew": round(p["el_wx"]),
           "ef": round(p["el_fl"]), "eg": round(p["el_gw"]),
-          "c": round(p.get("capital", 0))} for p in feats),
+          "c": round(p.get("capital", 0)),
+          "h": round(p.get("households", 0))} for p in feats),
         key=lambda d: d["n"])
     write("assets/districts.json", json.dumps(lookup, separators=(",", ":")))
 
     # full table as CSV, for anyone who wants the numbers directly
-    cols = ["name", "area", "group", "premium", "capital", "el_total",
+    cols = ["name", "area", "households", "group", "premium", "capital",
+            "el_total",
             "el_sub", "el_wx", "el_fl", "el_gw", "sub_score", "wx_score",
             "fl_score", "gw_score", "f_high", "f_low", "sw_high", "sw_low",
             "gw_frac", "wind_ms", "gust_rp50", "rain10_days", "precip_mm",
