@@ -43,7 +43,11 @@ DATA = os.path.join(HERE, "..", "data")
 OUT = os.path.join(DATA, "districts_risk.geojson")
 
 N_SIM = 20_000          # simulated years per district
-BATCH = 250             # districts per simulation batch (memory control)
+# Districts per simulation batch. Each batch holds ~25 transient
+# (BATCH x N_SIM) float64 arrays, so 250 needs ~1 GB and thrashes on a
+# 8 GB machine; 80 keeps the working set to a few hundred MB and is
+# markedly faster in wall-clock terms despite more batches.
+BATCH = 80
 RNG_SEED = 42
 
 # ---------------------------------------------------------------- load
@@ -69,9 +73,139 @@ def load_districts() -> gpd.GeoDataFrame:
 #           = LN^-1((u - (1-p)) / p)     otherwise
 
 
+# ------------------------------------------- calibration to UK aggregates
+# Published ABI figures for 2025 (see README "Calibration"): home insurers
+# paid ~£3.4bn across ~560,000 claims; the ABI premium tracker covers
+# ~15.5m policies. Severity means are ABI averages where published.
+# ABI domestic figures for 2025, BY PERIL - this is what makes the level
+# meaningful. Calibrating to the all-claims total would be wrong: the ABI's
+# 560,000 home claims are mostly escape of water, theft, fire and accidental
+# damage, none of which this model covers, so scaling four catastrophe
+# perils up to that frequency inflates them several-fold.
+POLICIES = 15_500_000                     # ABI premium tracker coverage
+ABI = dict(
+    storm_paid=244e6, sev_weather=2_450.0,          # storm damage to homes
+    flood_paid=312e6, sev_flood=30_000.0,           # domestic flood claims
+    subsidence_paid=307e6, sev_subsidence=17_820.0,  # domestic subsidence
+    # Groundwater is not reported separately (it sits inside flood); modelled
+    # as a small documented addition rather than calibrated.
+    sev_groundwater=20_000.0,
+    # Internal split of the flood severity: fluvial/tidal events cost more
+    # than surface-water ones, and the frequency-weighted blend is what is
+    # held to the published £30,000 average.
+    sev_flood_fluvial=35_000.0, sev_surface_water=18_000.0,
+    total_home_paid=3.4e9,                # all home claims, for context only
+)
+# Target per-policy frequency for each modelled peril = paid / severity / policies
+ABI_TARGET_FREQ = {
+    "wx": ABI["storm_paid"] / ABI["sev_weather"] / POLICIES,
+    "fl": ABI["flood_paid"] / ABI["sev_flood"] / POLICIES,
+    "sub": ABI["subsidence_paid"] / ABI["sev_subsidence"] / POLICIES,
+}
+ABI_LOSS_PER_POLICY = (ABI["storm_paid"] + ABI["flood_paid"]
+                       + ABI["subsidence_paid"]) / POLICIES
+
+# lognormal median that gives the target MEAN for a given sigma
+_median_for_mean = lambda mean, sigma: mean / np.exp(sigma ** 2 / 2)
+
+# One multiplier per peril, set by calibrate_frequency() before simulating.
+FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0}
+GW_SHARE_OF_FLOOD = 0.10      # groundwater not published separately
+
+
+def calibrate_frequency(gdf):
+    """Scale each peril's claim frequency to its published ABI level.
+
+    Only the LEVEL of each peril moves. The relative ranking of districts
+    within a peril - which is what the hazard data determines, and the whole
+    point of the model - is untouched.
+    """
+    global FREQ_SCALE
+    FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0}
+    p_sub, p_wx, p_fl, p_gw, *_ = marginal_params(
+        gdf["sub_score"].values, gdf["wx_score"].values,
+        gdf["f_high"].values, gdf["f_low"].values,
+        gdf["sw_high"].values, gdf["sw_low"].values,
+        gdf["gw_frac"].values)
+    raw = {"sub": float(p_sub.mean()), "wx": float(p_wx.mean()),
+           "fl": float(p_fl.mean()), "gw": float(p_gw.mean())}
+    for k in ("sub", "wx", "fl"):
+        FREQ_SCALE[k] = ABI_TARGET_FREQ[k] / raw[k]
+    # groundwater has no published total; peg it to a share of flood
+    FREQ_SCALE["gw"] = (GW_SHARE_OF_FLOOD * ABI_TARGET_FREQ["fl"]) / raw["gw"]
+    for k in ("wx", "fl", "sub"):
+        print(f"  {k:4} frequency {raw[k]:.3%} -> ABI {ABI_TARGET_FREQ[k]:.3%}"
+              f"  (x{FREQ_SCALE[k]:.3f})")
+    print(f"  gw   frequency pegged at {GW_SHARE_OF_FLOOD:.0%} of flood")
+    return FREQ_SCALE
+
+
+# How national each peril's bad years are (see year view in simulate()).
+# The base ratios are physical - storms, droughts and aquifer recharge are
+# large-scale, flooding is more localised - and the common multiplier is
+# calibrated so a 1-in-100 year does not claim implausibly widely.
+SPATIAL_BASE = {"w": 0.50, "f": 0.40, "s": 0.60, "g": 0.70}
+SPATIAL_SCALE = 1.0
+TAIL_FREQ_RATIO = 2.0        # 1-in-100 year claims ~2x the average year
+
+
+def calibrate_spatial(gdf, target_ratio=TAIL_FREQ_RATIO):
+    """Pick the spatial loading multiplier analytically.
+
+    Under the factor model a district claims when
+        Phi(sqrt(w)*z + sqrt(1-w)*eps) > 1 - p,
+    so conditional on the systemic factor being at z the claim probability
+    is Phi((sqrt(w)*z - Phi^-1(1-p)) / sqrt(1-w)). Averaging over districts
+    gives the national claim frequency in a year of severity z; we solve for
+    the multiplier that puts the 1-in-100 year (z = Phi^-1(0.99)) at
+    `target_ratio` times the mean year. No simulation needed.
+    """
+    global SPATIAL_SCALE
+    p_sub, p_wx, p_fl, p_gw, *_ = marginal_params(
+        gdf["sub_score"].values, gdf["wx_score"].values,
+        gdf["f_high"].values, gdf["f_low"].values,
+        gdf["sw_high"].values, gdf["sw_low"].values,
+        gdf["gw_frac"].values)
+    perils = [("s", p_sub), ("w", p_wx), ("f", p_fl), ("g", p_gw)]
+    mean_freq = sum(float(p.mean()) for _, p in perils)
+    z99 = stats.norm.ppf(0.99)
+
+    def tail_freq(lam):
+        total = 0.0
+        for key, p in perils:
+            w = min(SPATIAL_BASE[key] * lam, 0.98)
+            thr = stats.norm.ppf(np.clip(1 - p, 1e-12, 1 - 1e-12))
+            total += float(np.mean(stats.norm.cdf(
+                (np.sqrt(w) * z99 - thr) / np.sqrt(1 - w))))
+        return total
+
+    lo, hi = 0.01, 1.0
+    if tail_freq(hi) <= target_ratio * mean_freq:
+        SPATIAL_SCALE = hi
+    else:
+        for _ in range(40):
+            mid = 0.5 * (lo + hi)
+            if tail_freq(mid) > target_ratio * mean_freq:
+                hi = mid
+            else:
+                lo = mid
+        SPATIAL_SCALE = 0.5 * (lo + hi)
+    got = tail_freq(SPATIAL_SCALE) / mean_freq
+    print(f"  spatial calibration: loading x{SPATIAL_SCALE:.3f} -> "
+          f"1-in-100 year claims {got:.2f}x the mean year "
+          f"({mean_freq:.2%} -> {got * mean_freq:.2%})")
+    return SPATIAL_SCALE
+
+
 def marginal_params(sub, wx, f_high, f_low, sw_high, sw_low, gw_frac):
-    p_sub = 0.002 + 0.028 * sub ** 1.5          # claim frequency up to ~3%
-    p_wx = 0.010 + 0.090 * wx ** 1.2            # claim frequency up to ~10%
+    """Per-district claim frequency and severity for each peril.
+
+    Relative frequencies come from the hazard scores; the overall LEVEL is
+    set by FREQ_SCALE (calibrate_frequency). Severity medians are chosen so
+    each lognormal's MEAN matches the published ABI average claim.
+    """
+    p_sub = 0.002 + 0.028 * sub ** 1.5
+    p_wx = 0.010 + 0.090 * wx ** 1.2
     # river/sea flood frequency from actual zone fractions: ~1.5%/yr for a
     # property in the defended 1in100/200 zone, ~0.3%/yr in the rest of
     # the 1in1000 envelope, 0.05%/yr background
@@ -79,17 +213,25 @@ def marginal_params(sub, wx, f_high, f_low, sw_high, sw_low, gw_frac):
     # surface water: ~1%/yr in the >=1% AEP zone, shallower/cheaper events
     p_sw = 0.010 * sw_high + 0.002 * np.maximum(sw_low - sw_high, 0)
     p_fl = p_rs + p_sw
-    sev_sub = dict(mu=np.log(9000.0), sigma=0.90)   # median ~ £9k, heavy tail
-    sev_wx = dict(mu=np.log(3500.0), sigma=1.10)    # median ~ £3.5k
-    # flood severity: probability-weighted mix of river/sea (median ~£30k)
-    # and surface water (median ~£15k)
-    mu_fl = (p_rs * np.log(30000.0) + p_sw * np.log(15000.0)) \
-        / np.maximum(p_fl, 1e-12)
-    sev_fl = dict(mu=mu_fl, sigma=0.90)
-    # groundwater: rare but long-duration events (median ~ £20k)
     p_gw = 0.0003 + 0.008 * gw_frac
-    sev_gw = dict(mu=np.log(20000.0), sigma=0.80)
-    return p_sub, p_wx, p_fl, p_gw, sev_sub, sev_wx, sev_fl, sev_gw
+
+    s_sub, s_wx, s_fl, s_gw = 0.90, 1.10, 0.90, 0.80
+    sev_sub = dict(mu=np.log(_median_for_mean(ABI["sev_subsidence"], s_sub)),
+                   sigma=s_sub)
+    sev_wx = dict(mu=np.log(_median_for_mean(ABI["sev_weather"], s_wx)),
+                  sigma=s_wx)
+    # flood severity: frequency-weighted blend of fluvial/tidal and the
+    # shallower, cheaper surface-water events
+    mu_rs = np.log(_median_for_mean(ABI["sev_flood_fluvial"], s_fl))
+    mu_sw = np.log(_median_for_mean(ABI["sev_surface_water"], s_fl))
+    mu_fl = (p_rs * mu_rs + p_sw * mu_sw) / np.maximum(p_fl, 1e-12)
+    sev_fl = dict(mu=mu_fl, sigma=s_fl)
+    sev_gw = dict(mu=np.log(_median_for_mean(ABI["sev_groundwater"], s_gw)),
+                  sigma=s_gw)
+
+    k = FREQ_SCALE
+    return (p_sub * k["sub"], p_wx * k["wx"], p_fl * k["fl"], p_gw * k["gw"],
+            sev_sub, sev_wx, sev_fl, sev_gw)
 
 
 def inv_mixed_cdf(u, p, mu, sigma):
@@ -266,10 +408,14 @@ def simulate(district_df):
     # dependence) with idiosyncratic noise via a Gaussian factor model,
     # preserving each district's marginal exactly:
     #   u_dist = Phi( sqrt(w)*Phi^-1(u_sys) + sqrt(1-w)*eps )
-    SPATIAL_LOADING = {"w": 0.50, "f": 0.40, "s": 0.60, "g": 0.70}
+    SPATIAL_LOADING = {k: min(v * SPATIAL_SCALE, 0.98)
+                       for k, v in SPATIAL_BASE.items()}
     year = {k: np.zeros(N_SIM) for k in
             ["s_v", "w_v", "f_v", "g_v", "s_i", "f_i", "g_i",
              "inc_s", "inc_w", "inc_f", "inc_g"]}
+    # per-district year-view loss, kept so capital can be allocated to
+    # districts by their contribution to the PORTFOLIO tail (Euler)
+    year_loss = np.zeros((len(district_df), N_SIM), dtype=np.float32)
 
     def mix_with(u, w_sp, eps):
         z = stats.norm.ppf(np.clip(u, 1e-12, 1 - 1e-12))
@@ -319,7 +465,8 @@ def simulate(district_df):
         uf_y = mix_with(u_f, SPATIAL_LOADING["f"], eps_f)
         us_y = mix_with(u_s, SPATIAL_LOADING["s"], eps_s)
         ug_y = mix_with(u_g, SPATIAL_LOADING["g"], eps_g)
-        ls_y, lw_y, lf_y, lg_y, _ = total(uw_y, uf_y, ug_y, us_y)
+        ls_y, lw_y, lf_y, lg_y, tot_y = total(uw_y, uf_y, ug_y, us_y)
+        year_loss[start:start + len(chunk)] = tot_y.astype(np.float32)
         # independence year view: same idiosyncratic noise (common random
         # numbers), systemic factors independent across perils
         ufi_y = mix_with(np.broadcast_to(base["U_ind_F"], shape),
@@ -365,7 +512,26 @@ def simulate(district_df):
         out["theta_wg"].append(t_wg.ravel())
         print(f"  simulated {min(start + BATCH, len(district_df))}/{len(district_df)} districts")
 
-    return {k: np.concatenate(v) for k, v in out.items()}, year
+    res = {k: np.concatenate(v) for k, v in out.items()}
+
+    # ---- Euler allocation of PORTFOLIO capital -------------------------
+    # Capital is held against portfolio outcomes, not against each policy's
+    # own worst year, so the charge must be allocated by each district's
+    # expected loss GIVEN the portfolio is in its worst 1% of years:
+    #     TVaR_i = E[L_i | L_portfolio >= VaR_99(L_portfolio)]
+    # These allocations sum exactly to the portfolio TVaR (Euler additivity),
+    # so cross-district diversification is credited rather than ignored.
+    port = year_loss.mean(axis=0)                      # mean loss per policy
+    k = max(int(N_SIM * 0.01), 1)
+    bad = np.argpartition(port, -k)[-k:]
+    res["tvar99_euler"] = year_loss[:, bad].mean(axis=1)
+    res["el_year"] = year_loss.mean(axis=1)
+    port_tvar = float(port[bad].mean())
+    print(f"  portfolio TVaR99 {port_tvar:,.0f} /policy; "
+          f"mean standalone TVaR99 {res['tvar99_vine'].mean():,.0f} "
+          f"(diversification credit "
+          f"{100 * (1 - port_tvar / res['tvar99_vine'].mean()):.0f}%)")
+    return res, year
 
 
 # ------------------------------------------------- good vs bad years
@@ -547,6 +713,10 @@ def main():
     print("scoring groundwater from EA alert-area fractions...")
     gdf["gw_score"], gdf["gw_frac"] = groundwater_from_ea(gdf["name"].values)
 
+    print("calibrating to published UK aggregates...")
+    calibrate_frequency(gdf)
+    calibrate_spatial(gdf)
+
     print(f"running copula simulation ({N_SIM:,} years/district)...")
     sim, year = simulate(gdf)
     for k, v in sim.items():
@@ -556,9 +726,20 @@ def main():
     with open(os.path.join(DATA, "year_analysis.json"), "w") as fh:
         json.dump(year_analysis(year, len(gdf)), fh)
 
-    # technical premium = EL + 6% cost of capital on (TVaR99 - EL)
-    gdf["premium"] = gdf["el_total"] + 0.06 * (gdf["tvar99_vine"] - gdf["el_total"])
+    # Technical premium = expected loss + 6% cost of capital on the
+    # district's ALLOCATED share of portfolio tail risk (Euler), not on its
+    # standalone TVaR - an insurer holds capital against the portfolio.
+    gdf["capital"] = 0.06 * np.maximum(
+        gdf["tvar99_euler"] - gdf["el_year"], 0.0)
+    gdf["premium"] = gdf["el_total"] + gdf["capital"]
     gdf["group"] = pd.qcut(gdf["premium"].rank(method="first"), 10, labels=False) + 1
+
+    modelled = float(gdf["el_total"].mean())
+    print(f"  check: modelled loss cost for these four perils "
+          f"£{modelled:,.2f}/policy vs ABI £{ABI_LOSS_PER_POLICY:,.2f} "
+          f"({modelled / ABI_LOSS_PER_POLICY - 1:+.0%}); "
+          f"{modelled / (ABI['total_home_paid'] / POLICIES):.0%} of the "
+          f"£{ABI['total_home_paid'] / POLICIES:,.0f} all-perils home claims cost")
 
     print("writing geojson...")
     keep = ["name", "area", "sub_score", "wx_score", "fl_score", "gw_score",
@@ -567,7 +748,8 @@ def main():
             "f_high", "f_low", "sw_high", "sw_low", "gw_frac",
             "el_sub", "el_wx", "el_fl", "el_gw",
             "el_total", "var995_vine", "tvar99_vine", "tvar99_gauss",
-            "tvar99_indep", "uplift_pct", "tail_dep_wf", "tail_dep_ws",
+            "tvar99_indep", "tvar99_euler", "capital",
+            "uplift_pct", "tail_dep_wf", "tail_dep_ws",
             "tail_dep_wg", "theta_wf", "theta_ws", "theta_wg",
             "premium", "group", "geometry"]
     out = gdf[keep].copy()

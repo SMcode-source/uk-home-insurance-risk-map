@@ -36,8 +36,8 @@ __NAV__
     <div class="tiles">
       <div class="tile"><div class="k">Postcode districts</div><div class="v">__N_DISTRICTS__</div><div class="d">across 120 postcode areas</div></div>
       <div class="tile"><div class="k">Simulated years</div><div class="v">__N_SIM__</div><div class="d">per district, seeded &amp; reproducible</div></div>
-      <div class="tile"><div class="k">Technical premium</div><div class="v">£__PREM_MIN__–__PREM_MAX__</div><div class="d">lowest to highest district</div></div>
-      <div class="tile"><div class="k">Cost of dependence</div><div class="v">+__CAT_UPLIFT__%</div><div class="d">catastrophic years vs independence</div></div>
+      <div class="tile"><div class="k">Four-peril premium</div><div class="v">£__PREM_MIN__–__PREM_MAX__</div><div class="d">lowest to highest district</div></div>
+      <div class="tile"><div class="k">Diversification credit</div><div class="v">__DIVERSIFICATION__%</div><div class="d">portfolio vs standalone tail</div></div>
     </div>
   </section>
 
@@ -97,13 +97,16 @@ __NAV__
     <p class="lede" style="margin-bottom:8px">Four findings that fall out of the simulation.</p>
 
     <div class="finding">
-      <div class="num">+__CAT_UPLIFT__%<small>catastrophic-year cost</small></div>
+      <div class="num">×__MULTI_RATIO__<small>multi-peril years</small></div>
       <div>
-        <h3>Ignoring dependence understates the tail badly</h3>
-        <p>In the worst 1% of years the portfolio costs <b>£__CAT_COST__</b> per policy under the
-        vine copula, against <b>£__CAT_INDEP__</b> if the perils were treated as independent. Storms,
-        floods and shrink–swell droughts are driven by the same climate; modelling them
-        separately quietly removes the years that hurt.</p>
+        <h3>Dependence changes what can happen, not what usually does</h3>
+        <p>Storms, floods and shrink–swell droughts share a climate. Modelling that
+        properly makes it <b>__MULTI_RATIO__ times more likely</b> that the same home is hit by two
+        or more perils in one year — <b>__MULTI_VINE__%</b> of years against <b>__MULTI_INDEP__%</b>
+        under independence. But both are rare, so a single home's own 1-in-100 loss barely
+        moves: measured at ±0 within simulation noise. The dependence surfaces where it
+        should, in the aggregate — catastrophic years cost <b>__CAT_VS_INDEP__%</b> more than an
+        independence assumption implies.</p>
       </div>
     </div>
 
@@ -132,12 +135,28 @@ __NAV__
     __SENS_FINDING__
 
     <div class="finding">
+      <div class="num">25%<small>of a home's claims cost</small></div>
+      <div>
+        <h3>Each peril is pinned to what the market actually paid</h3>
+        <p>Storm, flood and subsidence are calibrated separately to the ABI's 2025
+        payouts — £244m, £312m and £307m across ~15.5m policies — rather than to a single
+        blended figure. Together they come to <b>£__MEAN_EL__</b> per policy per year, about
+        a quarter of what all home claims cost. The rest of a real premium is escape of
+        water, theft, fire, accidental damage and expenses, none of which this models.
+        <a href="methodology.html#calibration">How the calibration works →</a></p>
+      </div>
+    </div>
+
+    <div class="finding">
       <div class="num">100%<small>of open data</small></div>
       <div>
-        <h3>Every hazard input is public</h3>
+        <h3>Every hazard input is public, and it matches the record</h3>
         <p>BGS geology, Met Office climatologies, Environment Agency, Natural Resources Wales
         and SEPA flood maps, EA groundwater alert areas — all Open Government Licence, all
-        fetched by scripts in the repo. Nothing here depends on a licensed hazard product.</p>
+        fetched by scripts in the repo. Reconstructing 35 years of those drivers picks out
+        1990, 2015 and 2020 as the worst storm years and 1995, 2018 and 2022 as the driest
+        summers — the Burns' Day storm, Desmond, Ciara and Dennis, and the known
+        subsidence-surge years. <a href="years.html#backtest">See the backtest →</a></p>
       </div>
     </div>
   </section>
@@ -158,7 +177,10 @@ __NAV__
       </table>
     </div>
     <p class="note" style="margin-top:10px">Technical premium per policy per year =
-    expected loss + 6% cost of capital on (TVaR₉₉ − expected loss). Scores are 0–1.</p>
+    expected loss + 6% cost of capital on the district's allocated share of
+    <i>portfolio</i> tail risk. Scores are 0–1.
+    <a href="assets/uk_district_risk.csv" download>Download the full table (CSV)</a> ·
+    <a href="methodology.html#calibration">how these numbers are calibrated</a></p>
   </section>
 
   <section>
@@ -176,9 +198,11 @@ __NAV__
     </div>
     <div class="callout">
       <b>This is a demonstration model, not a priced product.</b> The hazard data is real and
-      current; the claim frequencies, severities and copula parameters are transparent
-      assumptions rather than calibrations to a claims triangle. The
-      <a href="methodology.html#caveats">caveats section</a> is explicit about every one of them.
+      current, and each peril's loss level is pinned to published ABI payouts — but these are
+      <b>four-peril technical premiums</b>, not home insurance premiums. A real policy also
+      covers escape of water, theft, fire and accidental damage, and carries expenses,
+      commission and profit on top. The
+      <a href="methodology.html#caveats">caveats section</a> is explicit about every assumption.
     </div>
   </section>
 
@@ -235,8 +259,28 @@ __NAV__
         <div><span class="lbl">Flood</span>${bar(d.f, 'var(--fl)')}<b>${d.f.toFixed(2)}</b></div>
         <div><span class="lbl">Groundwater</span>${bar(d.gw, 'var(--gw)')}<b>${d.gw.toFixed(2)}</b></div>
       </div>
+      <div class="decomp">
+        <div class="lbl">How the premium is built</div>
+        <div class="dbar">${
+          [['ew', 'Weather', '--wx'], ['es', 'Subsidence', '--sub'],
+           ['ef', 'Flood', '--fl'], ['eg', 'Groundwater', '--gw'],
+           ['c', 'Capital', '--ink-muted']]
+            .filter(([k]) => d[k] > 0)
+            .map(([k, name, col]) =>
+              `<span style="width:${(100 * d[k] / d.p).toFixed(2)}%;background:var(${col})"
+                     title="${name}: ${GBP(d[k])}"></span>`).join('')
+        }</div>
+        <div class="dkey">${
+          [['ew', 'Weather', '--wx'], ['es', 'Subsidence', '--sub'],
+           ['ef', 'Flood', '--fl'], ['eg', 'Groundwater', '--gw'],
+           ['c', 'Capital', '--ink-muted']]
+            .filter(([k]) => d[k] > 0)
+            .map(([k, name, col]) =>
+              `<span><i style="background:var(${col})"></i>${name} ${GBP(d[k])}</span>`).join('')
+        }</div>
+      </div>
       <div class="rfoot">
-        Tail dependence adds <b>+${d.u.toFixed(0)}%</b> to this district's 1-in-100 loss
+        Tail dependence adds <b>+${d.u.toFixed(0)}%</b> to this district's own 1-in-100 loss
         versus treating the perils as independent.
         <a class="btn btn-primary" style="padding:8px 14px;font-size:13.5px"
            href="map.html?d=${encodeURIComponent(d.n)}">View on the map →</a>

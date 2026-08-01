@@ -36,8 +36,8 @@
     <div class="tiles">
       <div class="tile"><div class="k">Postcode districts</div><div class="v">2,736</div><div class="d">across 120 postcode areas</div></div>
       <div class="tile"><div class="k">Simulated years</div><div class="v">20,000</div><div class="d">per district, seeded &amp; reproducible</div></div>
-      <div class="tile"><div class="k">Technical premium</div><div class="v">£1,329–6,082</div><div class="d">lowest to highest district</div></div>
-      <div class="tile"><div class="k">Cost of dependence</div><div class="v">+58%</div><div class="d">catastrophic years vs independence</div></div>
+      <div class="tile"><div class="k">Four-peril premium</div><div class="v">£21–368</div><div class="d">lowest to highest district</div></div>
+      <div class="tile"><div class="k">Diversification credit</div><div class="v">96%</div><div class="d">portfolio vs standalone tail</div></div>
     </div>
   </section>
 
@@ -97,24 +97,27 @@
     <p class="lede" style="margin-bottom:8px">Four findings that fall out of the simulation.</p>
 
     <div class="finding">
-      <div class="num">+58%<small>catastrophic-year cost</small></div>
+      <div class="num">×119<small>multi-peril years</small></div>
       <div>
-        <h3>Ignoring dependence understates the tail badly</h3>
-        <p>In the worst 1% of years the portfolio costs <b>£15,655</b> per policy under the
-        vine copula, against <b>£9,900</b> if the perils were treated as independent. Storms,
-        floods and shrink–swell droughts are driven by the same climate; modelling them
-        separately quietly removes the years that hurt.</p>
+        <h3>Dependence changes what can happen, not what usually does</h3>
+        <p>Storms, floods and shrink–swell droughts share a climate. Modelling that
+        properly makes it <b>119 times more likely</b> that the same home is hit by two
+        or more perils in one year — <b>0.12%</b> of years against <b>0.001%</b>
+        under independence. But both are rare, so a single home's own 1-in-100 loss barely
+        moves: measured at ±0 within simulation noise. The dependence surfaces where it
+        should, in the aggregate — catastrophic years cost <b>7.7%</b> more than an
+        independence assumption implies.</p>
       </div>
     </div>
 
     <div class="finding">
-      <div class="num">×9<small>flood cost, typical → bad</small></div>
+      <div class="num">×2.1<small>flood cost, typical → bad</small></div>
       <div>
         <h3>Bad years aren't just "more weather"</h3>
         <p>Weather is the workhorse loss in every year, but it is the secondary perils that
-        turn a typical year (<b>£263</b> per policy) into a bad one (<b>£2,431</b>). Going
-        from typical to bad, flood cost multiplies 9× and subsidence 12×, while
-        weather multiplies just 8×.</p>
+        turn a typical year (<b>£69</b> per policy) into a bad one (<b>£122</b>). Going
+        from typical to bad, flood cost multiplies 2.1× and subsidence 1.8×, while
+        weather multiplies just 1.3×.</p>
       </div>
     </div>
 
@@ -130,13 +133,13 @@
     </div>
 
     <div class="finding">
-      <div class="num">8% vs 31%<small>rating-group churn</small></div>
+      <div class="num">18% vs 33%<small>rating-group churn</small></div>
       <div>
         <h3>Dependence sets the tail; the marginals set the ranking</h3>
         <p>Perturbing the copula — dependence strength ±25%, conditional correlations
-        zeroed or doubled — moves at most <b>8%</b> of districts into a different
-        rating group. Perturbing the loss assumptions moves up to <b>31%</b>. The
-        vine is what makes the tail honest (uplift ranges 20–25% across
+        zeroed or doubled — moves at most <b>18%</b> of districts into a different
+        rating group. Perturbing the loss assumptions moves up to <b>33%</b>. The
+        vine is what makes the tail honest (uplift ranges -5–-6% across
         scenarios), but if you want the <i>ranking</i> right, spend your effort on claim
         frequencies and severities. Every scenario is tabulated on the
         <a href="years.html#sens-section">year analysis page</a>.</p>
@@ -144,12 +147,28 @@
     </div>
 
     <div class="finding">
+      <div class="num">25%<small>of a home's claims cost</small></div>
+      <div>
+        <h3>Each peril is pinned to what the market actually paid</h3>
+        <p>Storm, flood and subsidence are calibrated separately to the ABI's 2025
+        payouts — £244m, £312m and £307m across ~15.5m policies — rather than to a single
+        blended figure. Together they come to <b>£55</b> per policy per year, about
+        a quarter of what all home claims cost. The rest of a real premium is escape of
+        water, theft, fire, accidental damage and expenses, none of which this models.
+        <a href="methodology.html#calibration">How the calibration works →</a></p>
+      </div>
+    </div>
+
+    <div class="finding">
       <div class="num">100%<small>of open data</small></div>
       <div>
-        <h3>Every hazard input is public</h3>
+        <h3>Every hazard input is public, and it matches the record</h3>
         <p>BGS geology, Met Office climatologies, Environment Agency, Natural Resources Wales
         and SEPA flood maps, EA groundwater alert areas — all Open Government Licence, all
-        fetched by scripts in the repo. Nothing here depends on a licensed hazard product.</p>
+        fetched by scripts in the repo. Reconstructing 35 years of those drivers picks out
+        1990, 2015 and 2020 as the worst storm years and 1995, 2018 and 2022 as the driest
+        summers — the Burns' Day storm, Desmond, Ciara and Dennis, and the known
+        subsidence-surge years. <a href="years.html#backtest">See the backtest →</a></p>
       </div>
     </div>
   </section>
@@ -166,16 +185,19 @@
           <th class="num">Subs.</th><th class="num">Weather</th><th class="num">Flood</th><th class="num">Gr.water</th>
           <th>What drives it</th>
         </tr>
-        <tr><td><strong>ME11</strong></td><td>Isle of Sheppey</td><td class="num"><strong>£6,082</strong></td><td class="num">1.00</td><td class="num">0.29</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + subsidence (43% / 38%)</td></tr>
-        <tr><td><strong>LA4</strong></td><td>Morecambe</td><td class="num"><strong>£5,535</strong></td><td class="num">0.12</td><td class="num">0.65</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + weather (53% / 42%)</td></tr>
-        <tr><td><strong>TW18</strong></td><td>Staines-upon-Thames</td><td class="num"><strong>£5,532</strong></td><td class="num">0.99</td><td class="num">0.15</td><td class="num">1.00</td><td class="num">1.00</td><td>Subsidence + flood (43% / 42%)</td></tr>
-        <tr><td><strong>HU6</strong></td><td>Hull</td><td class="num"><strong>£5,335</strong></td><td class="num">0.08</td><td class="num">0.12</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood-dominated (82% of E[loss])</td></tr>
-        <tr><td><strong>HU2</strong></td><td>Hull</td><td class="num"><strong>£5,317</strong></td><td class="num">0.08</td><td class="num">0.13</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood-dominated (82% of E[loss])</td></tr>
-        <tr><td><strong>HU5</strong></td><td>Hull</td><td class="num"><strong>£5,257</strong></td><td class="num">0.08</td><td class="num">0.13</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood-dominated (82% of E[loss])</td></tr>
+        <tr><td><strong>CF24</strong></td><td>postcode area CF</td><td class="num"><strong>£368</strong></td><td class="num">0.40</td><td class="num">0.42</td><td class="num">0.86</td><td class="num">0.88</td><td>Flood + subsidence + weather (43% / 29%)</td></tr>
+        <tr><td><strong>GL2</strong></td><td>postcode area GL</td><td class="num"><strong>£284</strong></td><td class="num">0.52</td><td class="num">0.16</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + subsidence (56% / 34%)</td></tr>
+        <tr><td><strong>LA16</strong></td><td>postcode area LA</td><td class="num"><strong>£283</strong></td><td class="num">0.12</td><td class="num">0.70</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + weather (61% / 31%)</td></tr>
+        <tr><td><strong>NE44</strong></td><td>postcode area NE</td><td class="num"><strong>£257</strong></td><td class="num">0.12</td><td class="num">0.28</td><td class="num">0.52</td><td class="num">0.00</td><td>Weather + flood + subsidence (41% / 31%)</td></tr>
+        <tr><td><strong>DA15</strong></td><td>postcode area DA</td><td class="num"><strong>£251</strong></td><td class="num">1.00</td><td class="num">0.17</td><td class="num">0.62</td><td class="num">0.00</td><td>Subsidence-dominated (76% of E[loss])</td></tr>
+        <tr><td><strong>KT1</strong></td><td>postcode area KT</td><td class="num"><strong>£245</strong></td><td class="num">1.00</td><td class="num">0.13</td><td class="num">1.00</td><td class="num">0.00</td><td>Subsidence + flood (51% / 43%)</td></tr>
       </table>
     </div>
     <p class="note" style="margin-top:10px">Technical premium per policy per year =
-    expected loss + 6% cost of capital on (TVaR₉₉ − expected loss). Scores are 0–1.</p>
+    expected loss + 6% cost of capital on the district's allocated share of
+    <i>portfolio</i> tail risk. Scores are 0–1.
+    <a href="assets/uk_district_risk.csv" download>Download the full table (CSV)</a> ·
+    <a href="methodology.html#calibration">how these numbers are calibrated</a></p>
   </section>
 
   <section>
@@ -193,9 +215,11 @@
     </div>
     <div class="callout">
       <b>This is a demonstration model, not a priced product.</b> The hazard data is real and
-      current; the claim frequencies, severities and copula parameters are transparent
-      assumptions rather than calibrations to a claims triangle. The
-      <a href="methodology.html#caveats">caveats section</a> is explicit about every one of them.
+      current, and each peril's loss level is pinned to published ABI payouts — but these are
+      <b>four-peril technical premiums</b>, not home insurance premiums. A real policy also
+      covers escape of water, theft, fire and accidental damage, and carries expenses,
+      commission and profit on top. The
+      <a href="methodology.html#caveats">caveats section</a> is explicit about every assumption.
     </div>
   </section>
 
@@ -252,8 +276,28 @@
         <div><span class="lbl">Flood</span>${bar(d.f, 'var(--fl)')}<b>${d.f.toFixed(2)}</b></div>
         <div><span class="lbl">Groundwater</span>${bar(d.gw, 'var(--gw)')}<b>${d.gw.toFixed(2)}</b></div>
       </div>
+      <div class="decomp">
+        <div class="lbl">How the premium is built</div>
+        <div class="dbar">${
+          [['ew', 'Weather', '--wx'], ['es', 'Subsidence', '--sub'],
+           ['ef', 'Flood', '--fl'], ['eg', 'Groundwater', '--gw'],
+           ['c', 'Capital', '--ink-muted']]
+            .filter(([k]) => d[k] > 0)
+            .map(([k, name, col]) =>
+              `<span style="width:${(100 * d[k] / d.p).toFixed(2)}%;background:var(${col})"
+                     title="${name}: ${GBP(d[k])}"></span>`).join('')
+        }</div>
+        <div class="dkey">${
+          [['ew', 'Weather', '--wx'], ['es', 'Subsidence', '--sub'],
+           ['ef', 'Flood', '--fl'], ['eg', 'Groundwater', '--gw'],
+           ['c', 'Capital', '--ink-muted']]
+            .filter(([k]) => d[k] > 0)
+            .map(([k, name, col]) =>
+              `<span><i style="background:var(${col})"></i>${name} ${GBP(d[k])}</span>`).join('')
+        }</div>
+      </div>
       <div class="rfoot">
-        Tail dependence adds <b>+${d.u.toFixed(0)}%</b> to this district's 1-in-100 loss
+        Tail dependence adds <b>+${d.u.toFixed(0)}%</b> to this district's own 1-in-100 loss
         versus treating the perils as independent.
         <a class="btn btn-primary" style="padding:8px 14px;font-size:13.5px"
            href="map.html?d=${encodeURIComponent(d.n)}">View on the map →</a>

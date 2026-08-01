@@ -12,10 +12,14 @@ build_map.py / build_analysis.py; this script only wraps them in the site
 chrome so the whole thing navigates as one website.
 """
 
+import csv
+import io
 import json
 import os
 import re
 import shutil
+
+import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
@@ -113,7 +117,16 @@ def load_stats():
             f'<td>{drivers(p)}</td>'
             "</tr>")
 
-    mult = lambda a, b: f"{(a / b):.0f}" if b else "—"
+    mult = lambda a, b: f"{(a / b):.1f}" if b else "—"
+
+    dep_path = os.path.join(ROOT, "data", "dependence.json")
+    dep_ratio, dep_vine, dep_indep = "—", "—", "—"
+    if os.path.exists(dep_path):
+        with open(dep_path) as fh:
+            dep = json.load(fh)
+        dep_ratio = f"{dep['multi_peril_ratio']:.0f}"
+        dep_vine = f"{100 * dep['multi_peril_vine']:.2f}"
+        dep_indep = f"{100 * dep['multi_peril_indep']:.3f}"
 
     # optional: sensitivity.json drives an extra landing-page finding
     sens_path = os.path.join(ROOT, "data", "sensitivity.json")
@@ -149,6 +162,16 @@ def load_stats():
         "__PREM_MIN__": f"{prem[0]:,.0f}",
         "__PREM_MAX__": f"{prem[-1]:,.0f}",
         "__CAT_UPLIFT__": f"{100 * (cat['mean_total'] - cat['indep_mean_total']) / cat['indep_mean_total']:.0f}",
+        "__DIST_UPLIFT__": f"{np.mean([p['uplift_pct'] for p in feats]):.0f}",
+        "__MEAN_EL__": f"{np.mean([p['el_total'] for p in feats]):,.0f}",
+        "__MEAN_CAPITAL__": f"{np.mean([p.get('capital', 0) for p in feats]):,.0f}",
+        "__MEAN_STANDALONE__": f"{np.mean([p['tvar99_vine'] for p in feats]):,.0f}",
+        "__PORT_TVAR__": f"{np.mean([p.get('tvar99_euler', 0) for p in feats]):,.0f}",
+        "__DIVERSIFICATION__": f"{100 * (1 - np.mean([p.get('tvar99_euler', 0) for p in feats]) / np.mean([p['tvar99_vine'] for p in feats])):.0f}",
+        "__MULTI_RATIO__": dep_ratio,
+        "__MULTI_VINE__": dep_vine,
+        "__MULTI_INDEP__": dep_indep,
+        "__CAT_VS_INDEP__": f"{100 * (cat['mean_total'] - cat['indep_mean_total']) / cat['indep_mean_total']:.1f}",
         "__CAT_COST__": f"{cat['mean_total']:,.0f}",
         "__CAT_INDEP__": f"{cat['indep_mean_total']:,.0f}",
         "__TYPICAL__": f"{typ['mean_total']:,.0f}",
@@ -232,9 +255,26 @@ def main():
         ({"n": p["name"], "g": int(p["group"]), "p": round(p["premium"]),
           "s": round(p["sub_score"], 2), "w": round(p["wx_score"], 2),
           "f": round(p["fl_score"], 2), "gw": round(p["gw_score"], 2),
-          "u": round(p["uplift_pct"], 1)} for p in feats),
+          "u": round(p["uplift_pct"], 1),
+          # premium build-up: four expected losses + allocated capital
+          "es": round(p["el_sub"]), "ew": round(p["el_wx"]),
+          "ef": round(p["el_fl"]), "eg": round(p["el_gw"]),
+          "c": round(p.get("capital", 0))} for p in feats),
         key=lambda d: d["n"])
     write("assets/districts.json", json.dumps(lookup, separators=(",", ":")))
+
+    # full table as CSV, for anyone who wants the numbers directly
+    cols = ["name", "area", "group", "premium", "capital", "el_total",
+            "el_sub", "el_wx", "el_fl", "el_gw", "sub_score", "wx_score",
+            "fl_score", "gw_score", "f_high", "f_low", "sw_high", "sw_low",
+            "gw_frac", "wind_ms", "gust_rp50", "rain10_days", "precip_mm",
+            "tvar99_vine", "tvar99_euler", "uplift_pct", "geol"]
+    out = io.StringIO()
+    w = csv.writer(out, lineterminator="\n")
+    w.writerow(cols)
+    for p in sorted(feats, key=lambda d: d["name"]):
+        w.writerow([p.get(c, "") for c in cols])
+    write("assets/uk_district_risk.csv", out.getvalue())
     open(os.path.join(DOCS, ".nojekyll"), "w").close()
     print("  .nojekyll")
     print("done")

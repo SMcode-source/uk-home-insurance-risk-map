@@ -67,6 +67,11 @@ def reset():
     bm.marginal_params = ORIG["marginal_params"]
     bm.RHO_SF_GIVEN_W = ORIG["rho_sf"]
     bm.RHO_FG_GIVEN_W = ORIG["rho_fg"]
+    # scenario wrappers call the original marginal_params, which reads the
+    # module-level FREQ_SCALE - restore the calibrated values each time
+    if "freq_scale" in ORIG:
+        bm.FREQ_SCALE = ORIG["freq_scale"]
+        bm.SPATIAL_SCALE = ORIG["spatial_scale"]
 
 
 SCENARIOS = {
@@ -85,7 +90,10 @@ SCENARIOS = {
 def run_scenario(df):
     sim, year = bm.simulate(df)
     d = pd.DataFrame(sim)
-    d["premium"] = d["el_total"] + 0.06 * (d["tvar99_vine"] - d["el_total"])
+    # same basis as build_model: capital is the Euler-allocated share of
+    # portfolio tail risk, not the district's standalone TVaR
+    d["premium"] = d["el_total"] + 0.06 * np.maximum(
+        d["tvar99_euler"] - d["el_year"], 0.0)
     d["group"] = pd.qcut(d["premium"].rank(method="first"), 10,
                          labels=False) + 1
     ya = bm.year_analysis(year, len(df))
@@ -113,6 +121,13 @@ def main():
     (gdf["fl_score"], gdf["f_high"], gdf["f_low"],
      gdf["sw_high"], gdf["sw_low"]) = flood_from_agencies(gdf["name"].values)
     gdf["gw_score"], gdf["gw_frac"] = groundwater_from_ea(gdf["name"].values)
+    # calibrate on the FULL set (as build_model does) so every scenario is
+    # perturbing a properly calibrated baseline, then sample for speed
+    bm.calibrate_frequency(gdf)
+    bm.calibrate_spatial(gdf)
+    ORIG["freq_scale"] = bm.FREQ_SCALE
+    ORIG["spatial_scale"] = bm.SPATIAL_SCALE
+
     sample = gdf.iloc[::3].reset_index(drop=True)
     print(f"sample: {len(sample)} districts, N_SIM={bm.N_SIM}", flush=True)
 

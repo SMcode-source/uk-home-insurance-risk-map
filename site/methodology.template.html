@@ -49,6 +49,8 @@ __NAV__
       <a href="#pipeline">Pipeline</a>
       <a href="#perils">The four perils</a>
       <a href="#vine">Vine copula</a>
+      <a href="#calibration">Calibration</a>
+      <a href="#dependence-effect">Does it matter?</a>
       <a href="#tvar">Why TVaR</a>
       <a href="#years">Good vs bad years</a>
       <a href="#data">Data sources</a>
@@ -233,6 +235,108 @@ __NAV__
     <b>independence</b> run.</p>
   </section>
 
+  <section class="doc" id="calibration">
+    <h2>Calibration — anchoring to published UK aggregates</h2>
+    <p>The hazard data decides which districts are riskier than which. It says nothing
+    about how much a claim costs, so each peril's loss level is anchored to what the ABI
+    publishes for that peril in the UK domestic market.</p>
+
+    <div class="tablewrap" style="margin:16px 0">
+      <table class="data">
+        <tr><th>Peril</th><th class="num">Paid, 2025</th><th class="num">Average claim</th>
+            <th class="num">Implied claims</th><th class="num">Frequency</th></tr>
+        <tr><td><strong style="color:var(--wx)">Storm</strong></td><td class="num">£244m</td>
+            <td class="num">£2,450</td><td class="num">~99,600</td><td class="num">0.64%</td></tr>
+        <tr><td><strong style="color:var(--fl)">Flood</strong></td><td class="num">£312m</td>
+            <td class="num">£30,000</td><td class="num">~10,400</td><td class="num">0.067%</td></tr>
+        <tr><td><strong style="color:var(--sub)">Subsidence</strong></td><td class="num">£307m</td>
+            <td class="num">£17,820</td><td class="num">~17,200</td><td class="num">0.111%</td></tr>
+        <tr><td><strong style="color:var(--gw)">Groundwater</strong></td><td class="num">—</td>
+            <td class="num">£20,000</td><td class="num">—</td><td class="num">pegged at 10% of flood</td></tr>
+      </table>
+    </div>
+    <p class="note">Over ~15.5m policies (ABI premium-tracker coverage), these four perils
+    come to <b>£55.68</b> per policy per year — about <b>25%</b> of the £219 that all home
+    claims cost. Groundwater is not reported separately by the ABI, so it is a documented
+    assumption rather than a calibration.</p>
+
+    <div class="callout" style="margin:16px 0"><b>These are four-peril premiums, not home
+    insurance premiums.</b> A real policy also covers escape of water, theft, fire and
+    accidental damage — which together are the majority of claims — plus expenses,
+    commission and profit. Expect the numbers here to be a fraction of what you actually
+    pay, and don't compare them directly.</div>
+
+    <h3>What is fitted, and what isn't</h3>
+    <p>What <i>is</i> fitted: one frequency multiplier per peril, so each peril's national
+    claim count matches the published figure, and severity distributions whose <i>means</i>
+    are the published average claims. The national loss level is therefore correct by
+    construction — which is the point, since a level that is wrong by a factor of several
+    makes every downstream number meaningless.</p>
+    <p>What is <b>not</b> fitted, and is where the model actually earns its keep:</p>
+    <ul style="color:var(--ink-2); font-size:14px; line-height:1.7">
+      <li>the <b>geography</b> — which districts carry that national total, driven entirely
+      by BGS geology, Met Office climate and the agencies' flood maps;</li>
+      <li>the <b>dependence</b> — how the perils co-occur, and what that does to the tail;</li>
+      <li>the <b>spread</b> of frequency and severity within each peril.</li>
+    </ul>
+    <p>An earlier version of this page calibrated to the all-claims figures instead
+    (560,000 claims, 3.6% frequency). That was wrong: most of those claims are escape of
+    water and theft, so scaling four catastrophe perils up to that frequency while applying
+    catastrophe severities overstated the loss cost by about 77%. The per-peril anchors
+    above replace it.</p>
+
+    <h3>How national is a bad year?</h3>
+    <p>The portfolio view needs one more anchor: how widely claims spread in a bad year.
+    An early version assumed strongly correlated districts and produced catastrophic years
+    in which nearly half of the country claimed at once — around ten times anything in the
+    record. The spatial loading is now solved so that a 1-in-100 year has roughly
+    <b>twice</b> the claim frequency of an average year, which is already generous next to
+    a record year like 2025.</p>
+    <div class="callout">The solved loading is <b>much weaker than assumed</b>, and that is
+    a result worth stating plainly: UK <i>weather</i> is strongly correlated across the
+    country, but UK <i>claims</i> are not. A storm crosses every county; only a small and
+    weakly correlated fraction of homes end up claiming. Conflating the two is what makes a
+    catastrophe model overstate portfolio risk.</div>
+
+    <h3>Capital is a portfolio quantity</h3>
+    <p>The earlier version charged each district 6% of <i>its own</i> 1-in-100 loss. That is
+    wrong in a way worth being explicit about: an insurer does not hold capital against each
+    policy's private worst year — those bad years mostly happen in different years and
+    offset. Capital is held against the portfolio, then allocated back. The model now uses
+    the standard <b>Euler allocation</b>:</p>
+    <div class="formula">TVaR<sub>i</sub> = E[ L<sub>i</sub> | L<sub>portfolio</sub> ≥ VaR₉₉(L<sub>portfolio</sub>) ]</div>
+    <p>Each district is charged for the loss it contributes <i>when the portfolio is having
+    a bad year</i>, not when it personally is. These allocations sum exactly to the
+    portfolio TVaR, so diversification is credited rather than ignored — which is why
+    premiums here are a fraction of what the standalone calculation produced.</p>
+  </section>
+
+  <section class="doc" id="dependence-effect">
+    <h2>So how much does the copula actually change?</h2>
+    <p>Worth asking bluntly of any model that spends this much effort on dependence. Once
+    frequencies are calibrated to real levels, the answer splits in two.</p>
+    <p><b>For a single home, dependence transforms the rare case and barely touches the
+    typical one.</b> Modelling the perils jointly makes it <b>__MULTI_RATIO__ times</b> more
+    likely that one property suffers two or more perils in the same year — __MULTI_VINE__%
+    of years, against __MULTI_INDEP__% under independence. But at UK frequencies a home
+    claims on any of these perils in well under 1% of years, so its own 99% TVaR is
+    essentially "the average claim, if one happens" — a statistic almost blind to
+    dependence. Measured, the vine-versus-independence difference on a single policy's
+    TVaR₉₉ is <b>−0.8%, with a 95% bootstrap interval of −12% to +10%</b>: indistinguishable
+    from zero, exactly as it should be.</p>
+    <div class="callout">This is why the map no longer carries a per-district "copula
+    uplift" layer. An earlier version did, at frequencies several times too high; at correct
+    frequencies that layer would have been drawing Monte Carlo noise across the country.
+    Removing it is the finding, not a retreat from it.</div>
+    <p><b>For the portfolio, it shows up where capital is set.</b> Aggregate over 2,736
+    districts and the rare joint events stop cancelling: catastrophic years cost
+    <b>__CAT_VS_INDEP__%</b> more under the vine than under independence. That is the number
+    that matters for solvency, and it is the reason the vine is here.</p>
+    <p class="note">Measured by <code>scripts/dependence_check.py</code>: 60 districts ×
+    400,000 simulated years, with a bootstrap interval on the TVaR comparison so the noise
+    is stated rather than assumed away.</p>
+  </section>
+
   <section class="doc" id="tvar">
     <h2>Why the risk measure is TVaR, not VaR</h2>
     <p>This was a genuine surprise from the model, and it changed the headline numbers.</p>
@@ -327,10 +431,16 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
     <h2>Caveats</h2>
     <p>The hazard inputs are real and current. The loss model is not calibrated. Specifically:</p>
     <ul style="color:var(--ink-2); font-size:14px; line-height:1.7">
-      <li><b>Claim frequencies, severities and copula parameters are assumptions</b>, chosen to
-      be plausible and transparent rather than fitted. Calibrating them needs a claims
-      triangle; the pair-copulas would then be fitted to historical joint claim years
-      (e.g. with <code>pyvinecopulib</code>) instead of the assumed θ(s) forms.</li>
+      <li><b>The calibration is to market-wide aggregates, not to a claims triangle.</b>
+      One national frequency multiplier and the published average severities are all that
+      anchor the loss level (see <a href="#calibration">calibration</a>). The <i>shape</i>
+      of the frequency and severity curves across districts, and the copula parameters,
+      remain assumptions — fitting those needs real claims, after which the pair-copulas
+      could be estimated directly (e.g. with <code>pyvinecopulib</code>) rather than taking
+      the assumed θ(s) forms.</li>
+      <li><b>Every policy is treated as one average home.</b> There is no sum insured, no
+      construction type, no excess, and no exposure weighting — a district with 200 houses
+      counts the same as one with 20,000. Real portfolio capital would be exposure-weighted.</li>
       <li><b>The subsidence classification approximates BGS GeoSure</b> from the open 625k
       mapping. The licensed product adds superficial deposits, tree cover and drought
       interaction. At 625k scale, superficial clays such as till over chalk are invisible.</li>

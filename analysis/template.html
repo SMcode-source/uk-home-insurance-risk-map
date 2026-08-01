@@ -76,13 +76,15 @@
 <body>
 <div class="wrap">
   <h1>Good years vs bad years</h1>
-  <div class="sub">UK home portfolio &middot; subsidence &times; weather &times; flood (incl. surface water) &middot; C-vine copula &middot; <span id="nsim"></span> simulated years &middot; per-policy averages</div>
+  <div class="sub">UK home portfolio &middot; subsidence &times; weather &times; flood (incl. surface water) &times; groundwater &middot; C-vine copula &middot; <span id="nsim"></span> simulated years &middot; per-policy averages, <b>these four perils only</b></div>
 
   <div class="tiles" id="tiles"></div>
 
   <h2>How much worse do bad years get?</h2>
   <p class="desc">Average annual cost per policy by return period. The gap between the
-  two lines is the cost of tail dependence — what an independence assumption hides.
+  two lines is the portfolio cost of tail dependence. It is much smaller than the same gap
+  for a single home (see the map popups): across 2,736 districts, diversification between
+  <i>places</i> largely washes out dependence between <i>perils</i>.
   Hover for values.</p>
   <div class="card">
     <div class="legend">
@@ -107,9 +109,12 @@
   </div>
 
   <h2>How widespread are claims in each kind of year?</h2>
-  <p class="desc">Share of districts with at least one claim per peril. In good years
-  claims are scattered; in catastrophic years weather and flood strike a large share
-  of the country at once — that clustering is what the Gumbel tails model.</p>
+  <p class="desc">Share of districts with at least one claim per peril. The spread between
+  good and catastrophic years is deliberately modest: the spatial loading is calibrated so a
+  1-in-100 year runs at about twice the claim frequency of an average year, which is already
+  generous against the record. UK weather is strongly correlated across the country, but UK
+  <i>claims</i> are not — a storm crosses every county while only a small, weakly correlated
+  fraction of homes end up claiming.</p>
   <div class="card">
     <div class="legend">
       <span><span class="sw" style="background:var(--wx)"></span>Weather</span>
@@ -125,6 +130,28 @@
     <table class="buckets" id="btable"></table>
   </div>
   <p class="note" id="worstnote"></p>
+
+  <div id="backtest" style="display:none; scroll-margin-top:64px">
+    <h2>Does this match real UK years?</h2>
+    <p class="desc">The loss model can't be validated without claims data — but its
+    <b>hazard drivers</b> can. These are the real drivers, reconstructed from 35 years of
+    ERA5 reanalysis over twelve UK locations. If the model is watching the right things,
+    the years it would call bad should be the years Britain actually remembers.</p>
+    <div class="card">
+      <div class="legend">
+        <span><span class="sw" style="background:var(--wx)"></span>Storm days (gusts ≥ 70 km/h)</span>
+        <span><span class="sw" style="background:var(--sub)"></span>Summer rainfall deficit (subsidence driver)</span>
+      </div>
+      <div id="histchart"></div>
+    </div>
+    <div class="card" style="margin-top:14px; overflow-x:auto">
+      <table class="buckets" id="histtable"></table>
+    </div>
+    <p class="note" style="margin-top:10px">Storm days and summer deficits are means across
+    the twelve points; the deficit is measured against each point's own 1991–2020 June–August
+    normal. Event names are the historical record, not model output — they are what these
+    years are known for.</p>
+  </div>
 
   <div id="sens-section" style="display:none; scroll-margin-top:64px">
     <h2>Which assumptions matter?</h2>
@@ -151,6 +178,7 @@
 <script>
 const A = __DATA__;
 const SENS = __SENS__;
+const HIST = __HISTORY__;
 const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
 const GBP = v => '£' + Math.round(v).toLocaleString('en-GB');
 const tip = document.getElementById('tip');
@@ -307,6 +335,78 @@ document.getElementById('tiles').innerHTML = tiles.map(t =>
     in ${w.inc_wx_pct}% of districts for weather and ${w.inc_fl_pct}% for flood — a
     nationwide storm-and-flood event, which is exactly the joint tail the Gumbel
     pairs put mass on.`;
+})();
+
+/* ---- backtest: real hazard drivers by year ---- */
+(function () {
+  if (!HIST) return;
+  document.getElementById('backtest').style.display = '';
+
+  // What these years are actually known for (historical record).
+  const EVENTS = {
+    1990: 'Burns’ Day storm', 1994: 'Dry summer', 1995: 'Drought summer',
+    2003: 'August heatwave', 2007: 'Summer floods', 2012: 'Wettest summer on record',
+    2013: 'St Jude’s Day storm', 2014: 'Winter storm sequence',
+    2015: 'Storms Desmond, Eva, Frank', 2018: 'Summer drought',
+    2019: 'November floods', 2020: 'Storms Ciara & Dennis',
+    2022: 'Record heat & drought', 2023: 'Storms Babet & Ciarán',
+    2024: 'Storms Henk & Bert',
+  };
+
+  const W = 900, H = 240, L = 52, R = 14, T = 14, B = 30, GAP = 22;
+  const panelH = (H - T - B - GAP) / 2;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, document.getElementById('histchart'));
+  const bw = (W - L - R) / HIST.length;
+
+  function panel(key, colour, y0, label) {
+    const vals = HIST.map(d => d[key]);
+    const lo = Math.min(0, ...vals), hi = Math.max(...vals);
+    const y = v => y0 + panelH - ((v - lo) / (hi - lo)) * panelH;
+    el('text', { x: L, y: y0 - 3, class: 'axis-label' }, svg).textContent = label;
+    el('line', { x1: L, x2: W - R, y1: y(0), y2: y(0), stroke: css('--axis') }, svg);
+    HIST.forEach((d, i) => {
+      const x = L + i * bw + 1.5, v = d[key];
+      const top = Math.min(y(v), y(0)), h = Math.abs(y(v) - y(0));
+      const rect = el('rect', {
+        x, y: top, width: Math.max(bw - 3, 1), height: Math.max(h, 0.5),
+        fill: css(colour), rx: 1.5,
+        opacity: EVENTS[d.year] ? 1 : 0.55,
+      }, svg);
+      rect.addEventListener('mousemove', ev => showTip(
+        `<b>${d.year}</b>${EVENTS[d.year] ? ' · ' + EVENTS[d.year] : ''}<br>` +
+        `storm days <b>${d.storm_days.toFixed(1)}</b> · max gust ${d.max_gust.toFixed(0)} km/h<br>` +
+        `wettest 5 days ${d.rain5d.toFixed(0)} mm · summer deficit ${d.jja_deficit.toFixed(0)} mm`,
+        ev.clientX, ev.clientY));
+      rect.addEventListener('mouseleave', hideTip);
+    });
+    el('text', { x: L - 6, y: y(hi) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = Math.round(hi);
+    el('text', { x: L - 6, y: y(lo) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = Math.round(lo);
+  }
+
+  panel('storm_days', '--wx', T + 10, 'storm days per year');
+  panel('jja_deficit', '--sub', T + panelH + GAP + 12, 'summer rainfall deficit (mm)');
+  HIST.forEach((d, i) => {
+    if (+d.year % 5) return;
+    el('text', { x: L + i * bw + bw / 2, y: H - 8, 'text-anchor': 'middle', class: 'tick-label' }, svg)
+      .textContent = d.year;
+  });
+
+  const top = (key, n) => [...HIST].sort((a, b) => b[key] - a[key]).slice(0, n);
+  const fmtRow = d => `<tr><td class="hl">${d.year}</td>
+    <td>${EVENTS[d.year] || '—'}</td>
+    <td>${d.storm_days.toFixed(1)}</td><td>${d.max_gust.toFixed(0)} km/h</td>
+    <td>${d.rain5d.toFixed(0)} mm</td><td>${d.jja_deficit.toFixed(0)} mm</td></tr>`;
+  document.getElementById('histtable').innerHTML =
+    `<tr><th>Year</th><th>What it is remembered for</th><th>Storm days</th>
+     <th>Max gust</th><th>Wettest 5 days</th><th>Summer deficit</th></tr>` +
+    `<tr><td colspan="6" style="color:var(--ink-muted);padding-top:10px">Worst storm years</td></tr>` +
+    top('storm_days', 3).map(fmtRow).join('') +
+    `<tr><td colspan="6" style="color:var(--ink-muted);padding-top:10px">Driest summers — the subsidence driver</td></tr>` +
+    top('jja_deficit', 3).map(fmtRow).join('') +
+    `<tr><td colspan="6" style="color:var(--ink-muted);padding-top:10px">Wettest 5-day totals — the flood driver</td></tr>` +
+    top('rain5d', 3).map(fmtRow).join('');
 })();
 
 /* ---- sensitivity table ---- */

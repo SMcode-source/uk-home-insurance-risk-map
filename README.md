@@ -2,6 +2,7 @@
 
 [![Live site](https://img.shields.io/badge/%F0%9F%97%BA%EF%B8%8F_live_site-smcode--source.github.io-2a78d6?style=for-the-badge)](https://smcode-source.github.io/uk-home-insurance-risk-map/)
 
+[![tests](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/workflows/tests.yml/badge.svg)](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/workflows/tests.yml)
 [![Licence: MIT](https://img.shields.io/badge/code-MIT-blue?style=flat-square)](LICENSE)
 [![Data: OGL v3](https://img.shields.io/badge/data-OGL%20v3-1baf7a?style=flat-square)](DATA_SOURCES.md)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-eb6834?style=flat-square)](requirements.txt)
@@ -42,6 +43,8 @@ docs/                         the published website (GitHub Pages source)
   years.html                  good-vs-bad-years analysis
   methodology.html            full methodology write-up
 site/                         page templates + shared stylesheet for docs/
+tests/test_copula.py          property tests for the copula machinery
+.github/workflows/tests.yml   CI: tests + site rebuild + docs/ freshness
 data/                         downloaded + derived data (see DATA_SOURCES.md)
 scripts/
   fetch_bgs.py                BGS 625k bedrock geology (OGC API, paged)
@@ -50,6 +53,8 @@ scripts/
   fetch_surface_water.py      surface-water extents -> per-district fractions
   merge_sw_wales.py           folds the 20m Wales re-render into sw_fractions
   fetch_groundwater.py        EA postcode groundwater flags -> district fractions
+  fetch_gusts.py              ERA5 gust extremes -> 1-in-50 gust per grid point
+  fetch_history.py            35 years of ERA5 hazard drivers -> backtest
   scores_real.py              data -> per-district peril scores
   build_model.py              scores -> marginals -> C-vine Monte Carlo ->
                               districts_risk.geojson + year_analysis.json
@@ -124,9 +129,29 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    hit 100%). England only — UK groundwater flooding concentrates on the
    English chalk; elsewhere a nominal 0.02 background. Claim frequency up to
    ~0.8%/yr, median severity ~£20k (long-duration events).
-5. **Marginal losses.** Annual aggregate loss per policy per peril is
-   Bernoulli(p) × LogNormal: subsidence p up to ~3%/yr, median severity ~£9k;
-   weather p up to ~10%/yr, median ~£3.5k; flood and groundwater as above.
+5. **Marginal losses, calibrated per peril to published ABI payouts.**
+   Annual aggregate loss per policy per peril is Bernoulli(p) × LogNormal.
+   The hazard scores set *relative* frequencies within a peril; each peril's
+   *level* is pinned to what the ABI reports it paid in 2025 across ~15.5m
+   policies:
+
+   | Peril | Paid 2025 | Avg claim | Implied claims | Frequency |
+   |---|---|---|---|---|
+   | Storm | £244m | £2,450 | ~99,600 | 0.64% |
+   | Flood | £312m | £30,000 | ~10,400 | 0.067% |
+   | Subsidence | £307m | £17,820 | ~17,200 | 0.111% |
+   | Groundwater | not published | £20,000 | — | pegged at 10% of flood |
+
+   Together these come to **£55.68 per policy per year — about 25% of the
+   £219 that all home claims cost**. ⚠️ **These are four-peril technical
+   premiums, not home insurance premiums**: a real policy also covers escape
+   of water, theft, fire and accidental damage (the majority of claims) plus
+   expenses and profit. What is *not* fitted — and is where the model earns
+   its keep — is the geography, the dependence structure, and the spread of
+   frequency/severity within each peril.
+   *(An earlier version calibrated to the all-claims figures — 560,000 claims,
+   3.6% frequency — which overstated the loss cost by ~77%, because most home
+   claims are escape of water and theft rather than catastrophe perils.)*
 6. **Vine copula.** The four annual-loss marginals are joined by a **C-vine**
    (pair-copula construction) with weather W at the root:
    - tree 1: **Gumbel(θ_WF)** weather–flood, θ = 1.4 + 1.6·√(s_wx·s_fl) ∈
@@ -154,8 +179,19 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    concordance ordering; expected shortfall is). Premiums and the uplift layer
    therefore use **TVaR 99%** (mean of the worst 1% of years); the 1-in-200
    VaR is still shown in popups.
-8. **Grouping.** Technical premium = E[loss] + 6% × (TVaR₉₉ − E[loss]);
-   districts banded into deciles → rating groups 1–10.
+8. **Capital, allocated from the portfolio (Euler).** An insurer holds
+   capital against the *portfolio*, not against each policy's private worst
+   year, so the charge is the district's expected loss **given the portfolio
+   is in its worst 1% of years** — TVaRᵢ = E[Lᵢ | L_portfolio ≥ VaR₉₉]. These
+   allocations sum exactly to the portfolio TVaR, crediting diversification.
+   Technical premium = E[loss] + 6% × (allocated TVaR − E[loss]); districts
+   banded into deciles → rating groups 1–10. (An earlier version charged 6%
+   of each district's *standalone* TVaR, which double-counted risk and
+   inflated premiums roughly tenfold.)
+   The spatial loading behind the portfolio view is likewise solved rather
+   than assumed: it is set so a 1-in-100 year has ~2× the claim frequency of
+   an average year. The solved value is far weaker than the assumed one —
+   UK *weather* is strongly correlated nationally, but UK *claims* are not.
 9. **Sensitivity analysis** (`scripts/sensitivity.py` →
    `data/sensitivity.json`, rendered as a table on the analysis page).
    Re-runs the simulation on a 1-in-3 district sample with perturbed
@@ -177,6 +213,30 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    clustering (a pure common-random-numbers view is degenerate: no claims
    anywhere in 90% of years, then everything at once).
 
+10. **Backtest against real years** (`scripts/fetch_history.py`, shown on the
+    year-analysis page). The loss model can't be validated without claims
+    data, but its *hazard drivers* can: 35 years of ERA5 reanalysis over
+    twelve UK locations are reduced to per-year storm days, peak gust,
+    wettest 5-day total and summer rainfall deficit. The years the model
+    would call bad are the ones Britain remembers — 1990 (Burns' Day storm),
+    2015 (Desmond/Eva/Frank) and 2020 (Ciara & Dennis) top the storm
+    rankings; 1995, 2018 and 2022 top the drought summers, which are exactly
+    the known subsidence-surge years.
+
+## Tests
+
+```bash
+.venv/Scripts/python -m pytest tests -q
+```
+
+Property tests for the machinery the model rests on: Gumbel h-function
+inversion round-trips to 1e-8, sampled margins pass Kolmogorov–Smirnov
+against U(0,1), every vine pair recovers its target Kendall's τ, Gumbel shows
+upper-tail dependence where the tau-matched Gaussian does not, and the
+severity distributions reproduce the published ABI means. CI additionally
+rebuilds the whole site from committed data and fails if `docs/` has drifted
+from its templates.
+
 ## Rebuild from scratch
 
 ```bash
@@ -194,7 +254,8 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
                                                      # Open-Meteo tier has a daily volume quota - if it 429s, rerun
                                                      # next day; the weather blend auto-includes gusts once >=60
                                                      # grid points exist, and falls back to 4 components until then)
-.venv/Scripts/python scripts/build_model.py          # scores + vine sim -> districts_risk.geojson + year_analysis.json (~15 min)
+.venv/Scripts/python scripts/fetch_history.py        # 35yr ERA5 hazard drivers -> data/history.csv (backtest)
+.venv/Scripts/python scripts/build_model.py          # calibrate + vine sim -> districts_risk.geojson + year_analysis.json (~20 min)
 .venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs -> data/sensitivity.json (~25 min, optional)
 .venv/Scripts/python scripts/build_map.py            # -> map/uk_home_insurance_risk_map.html
 .venv/Scripts/python scripts/build_analysis.py       # -> analysis/uk_risk_year_analysis.html
@@ -225,7 +286,14 @@ priced product:
   (GB-only boundaries make this moot);
 - groundwater uses alert-area *coverage*, not modelled emergence probability,
   and is England-only;
-- marginal claim frequencies/severities, the vine structure, θ(s) forms and the
-  tree-2 ρ's remain **assumptions** — calibrate to your claims triangle and fit
-  the pair-copulas (e.g. with `pyvinecopulib`) to historical joint claim years
-  by district cluster.
+- the loss model is anchored to **market-wide aggregates, not a claims
+  triangle**. One national frequency multiplier and the published average
+  severities set the level; the *shape* of frequency and severity across
+  districts, the vine structure, the θ(s) forms and the tree-2 ρ's remain
+  assumptions. With real claims, the pair-copulas could be estimated directly
+  (e.g. with `pyvinecopulib`) instead;
+- **every policy is one average home** — no sum insured, construction type,
+  excess or exposure weighting, so a district with 200 houses counts the same
+  as one with 20,000 and the portfolio view is unweighted by exposure;
+- the backtest validates the **hazard drivers** against the historical record,
+  not loss amounts — that still needs claims data.

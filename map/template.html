@@ -151,11 +151,20 @@
   4-dim Gaussian copula and an independence run are computed for comparison &mdash;
   the <i>copula uplift</i> layer shows how much of the tail an independence
   assumption hides.</p>
-  <p><b>Rating groups.</b> Districts are banded 1&ndash;10 by technical premium =
-  expected loss + 6% cost-of-capital on (TVaR&nbsp;99% &minus; expected loss). TVaR
-  (expected shortfall) rather than VaR: with rare compound losses, tail dependence
-  concentrates claims into fewer, worse years &mdash; VaR can move the wrong way, TVaR
-  is monotone in dependence.</p>
+  <p><b>Calibration.</b> Each peril's claim frequency is scaled to the ABI's published 2025
+  domestic payouts &mdash; storm &pound;244m, flood &pound;312m, subsidence &pound;307m over
+  ~15.5m policies &mdash; and severities take the published average claim as their mean.
+  Together the four perils come to ~&pound;56/policy/yr, about a quarter of what all home
+  claims cost. <b>These are four-peril premiums, not home insurance premiums:</b> a real
+  policy also covers escape of water, theft, fire and accidental damage, plus expenses and
+  profit. What is <i>not</i> fitted is the geography and the dependence.</p>
+  <p><b>Rating groups.</b> Technical premium = expected loss + 6% cost-of-capital on the
+  district's <b>Euler-allocated</b> share of <i>portfolio</i> tail risk &mdash; its expected
+  loss given the whole book is in its worst 1% of years &mdash; so cross-district
+  diversification is credited rather than charging every home for its own private worst
+  year. TVaR (expected shortfall) rather than VaR: with rare compound losses, tail
+  dependence concentrates claims into fewer, worse years, so VaR can move the wrong way
+  while TVaR stays monotone in dependence.</p>
   <p class="note">Hazard data: BGS Geology 625k, Met Office HadUK-Grid / Climate
   Data Portal, EA / NRW / SEPA flood maps, EA flood-risk postcode data (all OGL).
   Loss frequencies/severities and copula parameters are illustrative assumptions,
@@ -239,12 +248,12 @@ const METRICS = {
     value: p => p.var995_vine, fmt: fmtGBP,
     tip: p => fmtGBP(p.var995_vine),
   },
-  uplift: {
-    label: 'Copula uplift vs independence',
-    legend: 'Tail loss (TVaR 99%): C-vine vs independence',
-    ramp: RAMP_DIVERGING, breaks: [-2, 0, 5, 10, 15, 20],
-    value: p => p.uplift_pct, fmt: fmtPct,
-    tip: p => fmtPct(p.uplift_pct) + ' · λᵤ(WF) ' + p.tail_dep_wf.toFixed(2),
+  capital: {
+    label: 'Capital charge (£)',
+    legend: 'Capital charge — Euler share of portfolio tail risk',
+    ramp: RAMP_DIVERGING, breaks: quantileBreaks(vals('capital'), 7),
+    value: p => p.capital, fmt: fmtGBP,
+    tip: p => fmtGBP(p.capital) + ' of ' + fmtGBP(p.premium) + ' premium',
   },
 };
 
@@ -291,11 +300,15 @@ function popupHtml(p) {
     row('E[loss] weather', fmtGBP(p.el_wx)) +
     row('E[loss] flood', fmtGBP(p.el_fl)) +
     row('E[loss] groundwater', fmtGBP(p.el_gw)) +
-    '<tr class="sect"><td>1-in-200 loss (C-vine)</td><td>' + fmtGBP(p.var995_vine) + '</td></tr>' +
+    '<tr class="sect"><td>Premium: expected loss</td><td>' + fmtGBP(p.el_total) + '</td></tr>' +
+    row('Premium: capital charge', fmtGBP(p.capital)) +
+    row('Allocated tail (Euler)', fmtGBP(p.tvar99_euler)) +
+    '<tr class="sect"><td colspan="2" style="color:var(--ink-muted);font-size:11px;padding-top:6px">Standalone tail — this home alone, no diversification</td></tr>' +
+    row('1-in-200 loss (C-vine)', fmtGBP(p.var995_vine)) +
     row('TVaR 99% (C-vine)', fmtGBP(p.tvar99_vine)) +
     row('TVaR 99% (Gaussian)', fmtGBP(p.tvar99_gauss)) +
     row('TVaR 99% (independent)', fmtGBP(p.tvar99_indep)) +
-    row('Copula uplift (TVaR)', fmtPct(p.uplift_pct)) +
+    '<tr><td colspan="2" style="color:var(--ink-muted);font-size:10.5px">At calibrated frequencies a single home claims in &lt;1% of years, so these three are within simulation noise of each other — dependence shows up in the portfolio, not here.</td></tr>' +
     row('θ weather–flood', p.theta_wf.toFixed(2) + ' (λᵤ ' + p.tail_dep_wf.toFixed(2) + ')') +
     row('θ weather–subsidence', p.theta_ws.toFixed(2) + ' (λᵤ ' + p.tail_dep_ws.toFixed(2) + ')') +
     row('θ weather–groundwater', p.theta_wg.toFixed(2) + ' (λᵤ ' + p.tail_dep_wg.toFixed(2) + ')') +

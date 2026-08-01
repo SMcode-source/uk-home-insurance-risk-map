@@ -21,6 +21,8 @@ dates: 2026-07-29/30.
 | 12 | Surface water flood maps (medium/low likelihood) | SEPA | `scripts/fetch_surface_water.py` | ↳ same |
 | 13 | Flood risk: postcode search tool data (incl. GWTR_RISK groundwater flag) | Environment Agency | manual download (URL below) | `data/ea_postcode_risk.csv` (36 MB) → `data/gw_fractions.csv` via `scripts/fetch_groundwater.py` |
 | 14 | Daily 10 m wind-gust maxima 1990–2024 (ERA5 reanalysis) | ECMWF via Open-Meteo archive API (CC-BY 4.0; **not** Met Office) | `scripts/fetch_gusts.py` | `data/gusts.csv` (90 grid points, p98 + Gumbel-fitted 1-in-50 gust: 124–196 km/h) |
+| 15 | Daily gusts, precipitation and max temperature 1990–2024 (ERA5) | ECMWF via Open-Meteo (CC-BY 4.0) | `scripts/fetch_history.py` | `data/history.csv` (12 points → per-year storm days, peak gust, wettest 5-day, JJA deficit) — the backtest |
+| 16 | UK domestic claims by peril, 2025 | Association of British Insurers (published statistics) | manual (figures embedded in `build_model.py`) | Calibration anchors: storm £244m @ £2,450 avg; flood £312m @ £30,000; subsidence £307m @ £17,820; ~15.5m policies; £3.4bn / 560,000 all-perils home claims for context |
 
 ## Endpoints
 
@@ -91,6 +93,24 @@ dates: 2026-07-29/30.
     grid interpolates fine; `scores_real.py` only folds gusts into the weather
     score once at least 60 points exist, and cleanly falls back to the
     4-component blend below that.
+
+15. **ERA5 history** — same archive endpoint as #14 but requesting
+    `wind_gusts_10m_max,precipitation_sum,temperature_2m_max` for twelve
+    named locations spanning the Atlantic west, exposed north, dry south-east
+    and the flood-prone north-west. Reduced to per-year national indices; the
+    JJA rainfall deficit is measured against each point's own 1991–2020
+    June–August normal.
+16. **ABI aggregates** — published in ABI press releases and property-claims
+    statistics; quoted (not scraped) in `build_model.py`'s `ABI` dict so the
+    calibration is auditable in one place. Update the dict when newer figures
+    are published. Two traps worth recording:
+    - **Use the per-peril figures, not the all-claims total.** The headline
+      "560,000 home claims / 3.6% frequency" covers escape of water, theft,
+      fire and accidental damage, which this model does not cover. Calibrating
+      four catastrophe perils to that frequency while applying catastrophe
+      severities overstated the loss cost by ~77%.
+    - **Denominator:** the ABI premium tracker covers ~15.5m policies, which
+      is what every per-policy figure here divides by.
 
 ## Not used / dead ends (so you don't repeat them)
 
