@@ -114,10 +114,19 @@ body {
   padding: 6px 10px; border: 1px solid var(--border); border-radius: 7px;
 }
 .site-nav .ghlink:hover { color: var(--ink-1); border-color: var(--axis); }
+.nav-short { display: none; }
+
 @media (max-width: 640px) {
-  .site-nav { gap: 0; padding: 0 8px; overflow-x: auto; }
+  .site-nav { gap: 0; padding: 0 6px; overflow-x: auto; }
   .site-nav .brand span.txt { display: none; }
+  /* the brand collapses to four dots; keep a finger-sized hit area */
+  .site-nav .brand { margin-right: 6px; padding: 10px 6px; min-height: 40px; }
+  .site-nav a.navlink { padding: 10px 8px; font-size: 13px; }
+  .nav-full { display: none; }
+  .nav-short { display: inline; }
   .site-nav .ghlink { display: none; }
+  /* footer links sit on their own line-ish; give them a real hit area */
+  footer.site-footer a { display: inline-block; padding: 4px 0; }
 }
 
 /* ---------- layout ---------- */

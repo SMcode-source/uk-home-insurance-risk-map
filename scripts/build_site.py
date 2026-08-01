@@ -27,8 +27,11 @@ SITE = os.path.join(ROOT, "site")
 DOCS = os.path.join(ROOT, "docs")
 REPO_URL = "https://github.com/SMcode-source/uk-home-insurance-risk-map"
 
-PAGES = [("index.html", "Overview"), ("map.html", "Map"),
-         ("years.html", "Good vs bad years"), ("methodology.html", "Methodology")]
+# (href, full label, short label for narrow screens)
+PAGES = [("index.html", "Overview", "Overview"),
+         ("map.html", "Map", "Map"),
+         ("years.html", "Good vs bad years", "Years"),
+         ("methodology.html", "Methodology", "Method")]
 
 # Recognisable names for districts that top the premium ranking.
 PLACES = {
@@ -57,9 +60,14 @@ PERIL_NAMES = {"el_fl": "flood", "el_sub": "subsidence",
 
 def nav_html(current):
     links = []
-    for href, label in PAGES:
+    for href, label, short in PAGES:
         cur = ' aria-current="page"' if href == current else ""
-        links.append(f'<a class="navlink" href="{href}"{cur}>{label}</a>')
+        # both labels ship; CSS shows the short one on narrow screens so the
+        # nav fits without sideways scrolling
+        inner = (f'<span class="nav-full">{label}</span>'
+                 f'<span class="nav-short">{short}</span>') if short != label \
+            else label
+        links.append(f'<a class="navlink" href="{href}"{cur}>{inner}</a>')
     dots = ('<span class="dots">'
             '<i style="background:var(--sub)"></i>'
             '<i style="background:var(--wx)"></i>'
