@@ -13,6 +13,11 @@ data/ea_postcode_risk.csv
 data/uk-postcode-polygons/
 data/haduk/
 
+# Download cache — refetchable via scripts/fetch_households.py.
+# The derived data/households.csv IS committed, so nothing here is needed
+# to rebuild the model.
+data/cache/
+
 # Intermediate artefacts
 data/sw_wales20.csv
 
