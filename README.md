@@ -1,10 +1,16 @@
 # UK Home Insurance Geospatial Risk Map
 
-### 🗺️ **[Live site → smcode-source.github.io/uk-home-insurance-risk-map](https://smcode-source.github.io/uk-home-insurance-risk-map/)**
+[![Live site](https://img.shields.io/badge/%F0%9F%97%BA%EF%B8%8F_live_site-smcode--source.github.io-2a78d6?style=for-the-badge)](https://smcode-source.github.io/uk-home-insurance-risk-map/)
 
-[Interactive map](https://smcode-source.github.io/uk-home-insurance-risk-map/map.html) ·
-[Good vs bad years](https://smcode-source.github.io/uk-home-insurance-risk-map/years.html) ·
-[Methodology](https://smcode-source.github.io/uk-home-insurance-risk-map/methodology.html)
+[![Licence: MIT](https://img.shields.io/badge/code-MIT-blue?style=flat-square)](LICENSE)
+[![Data: OGL v3](https://img.shields.io/badge/data-OGL%20v3-1baf7a?style=flat-square)](DATA_SOURCES.md)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-eb6834?style=flat-square)](requirements.txt)
+![Districts: 2,736](https://img.shields.io/badge/districts-2%2C736-6f5cc4?style=flat-square)
+![Perils: 4](https://img.shields.io/badge/perils-4-52514e?style=flat-square)
+
+**[Interactive map](https://smcode-source.github.io/uk-home-insurance-risk-map/map.html)** ·
+**[Good vs bad years](https://smcode-source.github.io/uk-home-insurance-risk-map/years.html)** ·
+**[Methodology](https://smcode-source.github.io/uk-home-insurance-risk-map/methodology.html)**
 
 ---
 
