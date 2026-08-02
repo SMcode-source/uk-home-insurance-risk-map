@@ -908,18 +908,34 @@ const RAMP_AQUA = ['#d5f2e6','#a5e2c8','#72cfa8','#43bd8b','#219367','#136e4c','
 const RAMP_VIOLET = ['#e6e2f7','#c8c0ee','#a89ce4','#8a7bd8','#6f5cc4','#5643a8','#3d2f83'];
 const RAMP_DIVERGING = ['#1c5cab','#5598e7','#b7d3f6','#f0efec','#f2b8b7','#e34948','#9c2b2a'];
 const RAMP_GROUP = ['#b7d3f6','#9ec5f4','#86b6ef','#6da7ec','#5598e7','#3987e5','#2a78d6','#256abf','#184f95','#0d366b'];
-/* erosion needs a hue not already spoken for by the four insured perils */
-const RAMP_ROSE = ['#fbdce8','#f4b3ce','#ec89b2','#e15c94','#c43e76','#9c2c5c','#701e41'];
+/* Erosion needs a hue not already spoken for by the four insured perils.
+   The palest step of the original rose ramp was dropped: measured on the
+   live map it came out at 1.02:1 against the "no exposure" grey, so a
+   district with a little erosion was indistinguishable from one with
+   none. The ramp now starts clearly darker and a step was added at the
+   bottom to keep seven bins. */
+const RAMP_ROSE = ['#f4b3ce','#ec89b2','#e15c94','#c43e76','#9c2c5c','#7d2249','#5c1735'];
+/* The depth layer needs its own aqua for the same reason: RAMP_AQUA starts
+   at #d5f2e6, which is 1.09:1 against the no-data grey, so "shallow" and
+   "no data" would be the same colour. The flood-score layer keeps the full
+   range - it has no no-data state, so the pale end costs it nothing. */
+const RAMP_DEPTH = ['#72cfa8','#43bd8b','#2aa376','#219367','#17805a','#136e4c','#0a3d2a'];
 /* 87% of districts are inland and have no NCERM exposure at all. Ramping
    over them would waste the whole scale on zeros, so they get a neutral
-   "not applicable" fill and the ramp covers only the coast. */
-const NO_EXPOSURE = '#e4e2dd';
+   fill and the ramp covers only the coast.
+   NO_DATA covers BOTH "measured, and it is zero" and "outside this
+   dataset's coverage". Those are genuinely different facts, and an earlier
+   version gave them separate greys — but measured on the live map they
+   came out at 1.23:1 and in the same hue family, which the eye cannot
+   resolve, while every darker alternative collided with DEFENDED or with
+   the ramp. Encoding a distinction nobody can see is worse than not
+   encoding it, so it lives in the legend wording and the tooltip, which
+   say exactly which case a district is in. */
+const NO_DATA = '#e4e2dd';
 /* exposed coast whose planned defences hold the loss at zero — a state of
-   its own, and not a point on the rose ramp */
+   its own, and not a point on the rose ramp. Blue is a hue no other state
+   here uses, so it survives at 1.99:1 against the neutral. */
 const DEFENDED = '#7fa6c4';
-/* outside the dataset's coverage entirely: distinct from "measured, and it
-   is zero", which is the distinction a plain grey would destroy */
-const NOT_MAPPED = '#cfcdc7';
 
 /* England-only datasets: a zero outside England is absence of measurement,
    not absence of risk. `country` is carried in the GeoJSON for this. */
@@ -1022,16 +1038,15 @@ const METRICS = {
   sw_depth: {
     label: 'Surface-water depth (m)',
     legend: 'Mean surface-water depth where it floods (EA depth bands, England)',
-    ramp: RAMP_AQUA, breaks: [0.15, 0.22, 0.30, 0.40, 0.55, 0.75],
+    ramp: RAMP_DEPTH, breaks: [0.15, 0.22, 0.30, 0.40, 0.55, 0.75],
     value: p => p.sw_depth_m,
     fmt: v => v.toFixed(2) + ' m',
-    color: p => notMapped(p) ? NOT_MAPPED
+    color: p => notMapped(p) ? NO_DATA
       : (p.sw_depth_m > 0
-        ? binColor({ ramp: RAMP_AQUA, breaks: [0.15, 0.22, 0.30, 0.40, 0.55, 0.75] }, p.sw_depth_m)
-        : NO_EXPOSURE),
-    rows: () => [[NOT_MAPPED, 'Not mapped — EA depth is England only'],
-                 [NO_EXPOSURE, 'No mapped surface water']].concat(
-      legendBands(RAMP_AQUA, [0.15, 0.22, 0.30, 0.40, 0.55, 0.75], v => v.toFixed(2) + ' m')),
+        ? binColor({ ramp: RAMP_DEPTH, breaks: [0.15, 0.22, 0.30, 0.40, 0.55, 0.75] }, p.sw_depth_m)
+        : NO_DATA),
+    rows: () => [[NO_DATA, 'No depth — no surface water, or outside England']].concat(
+      legendBands(RAMP_DEPTH, [0.15, 0.22, 0.30, 0.40, 0.55, 0.75], v => v.toFixed(2) + ' m')),
     tip: p => notMapped(p)
       ? 'not mapped — EA depth bands cover England only'
       : (p.sw_depth_m > 0
@@ -1046,12 +1061,19 @@ const METRICS = {
     fmt: v => (v >= 0 ? '+' : '') + v.toFixed(0) + '%',
     /* The EA publishes future extents for England only, so a zero outside
        it is "not modelled", not "no change" — the distinction the
-       cc_covered flag exists to preserve. */
+       cc_covered flag exists to preserve.
+       Accepted limitation: the no-data grey sits at 1.13:1 against this
+       ramp's neutral band. A diverging ramp's midpoint is near-white by
+       construction, so it cannot be pulled clear of a neutral grey without
+       ceasing to be a diverging ramp. Both read as "nothing notable", the
+       unmodelled area is contiguous (Wales and Scotland), and the tooltip
+       says which. The erosion and depth layers had the same collision
+       against real VALUE bands, which did matter, and were fixed. */
     color: p => p.cc_covered
       ? binColor({ ramp: RAMP_DIVERGING, breaks: CC_BREAKS },
                  p.cc_uplift_pct)
-      : NOT_MAPPED,
-    rows: () => [[NOT_MAPPED, 'Not modelled — England only']].concat(
+      : NO_DATA,
+    rows: () => [[NO_DATA, 'Not modelled — England only']].concat(
       legendBands(RAMP_DIVERGING, CC_BREAKS,
                   v => (v >= 0 ? '+' : '') + v.toFixed(0) + '%')),
     tip: p => p.cc_covered
@@ -1075,12 +1097,11 @@ const METRICS = {
            stopping it, which is the most interesting thing here.
        Blackpool and Eastbourne sit in that last case and would read as
        "no exposure" on a naive two-way split. */
-    color: p => notMapped(p) ? NOT_MAPPED
+    color: p => notMapped(p) ? NO_DATA
       : (p.er_smp105 > 0
         ? binColor({ ramp: RAMP_ROSE, breaks: EROSION_BREAKS }, p.er_smp105)
-        : (p.er_nfi105 > 0 ? DEFENDED : NO_EXPOSURE)),
-    rows: () => [[NOT_MAPPED, 'Not mapped — outside England'],
-                 [NO_EXPOSURE, 'Inland — no NCERM exposure'],
+        : (p.er_nfi105 > 0 ? DEFENDED : NO_DATA)),
+    rows: () => [[NO_DATA, 'No erosion mapped — inland, or outside England'],
                  [DEFENDED, 'Held at zero by planned defences']].concat(
       legendBands(RAMP_ROSE, EROSION_BREAKS, v => (100 * v).toFixed(2) + '%')),
     tip: p => notMapped(p)
