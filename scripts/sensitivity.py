@@ -13,6 +13,17 @@ Scenarios:
   rho2_zero/high    tree-2 partial correlations 0 / doubled (FG 0.5, FS 0.3)
   sev_sigma_up      all severity sigmas x1.1 (heavier tails)
   flood_freq_150    flood claim frequencies x1.5 (climate-change-style stress)
+  erosion_no_intervention   erosion from the NFI (defences lapse) scenario
+                    instead of the adopted SMP. Doubles as a check that the
+                    exclusion is wired correctly: it raises erosion exposure
+                    2.5x (4.0 -> 10.1 per policy) and moves EXACTLY ZERO
+                    districts between rating groups, which is what "not in
+                    the premium" has to mean.
+
+Reading the churn column: since capital stopped being Monte Carlo noise
+(see build_model.simulate), churn measures the perturbation rather than the
+noise floor. The spread across scenarios widened from 4.1x to 7.6x - weak
+perturbations now move fewer districts and strong ones move more.
 
 Output: data/sensitivity.json (+ printed table)
 """
@@ -31,7 +42,7 @@ from scores_real import (subsidence_from_bgs, weather_from_metoffice,  # noqa: E
                          erosion_from_ncerm, sw_depth_severity)
 
 bm.N_SIM = 8000
-bm.BATCH = 100      # smaller than the main run: 7 scenarios back to back
+bm.BATCH = 100      # smaller than the main run: 8 scenarios back to back
 
 ORIG = dict(theta_ws=bm.theta_ws, theta_wf=bm.theta_wf, theta_wg=bm.theta_wg,
             theta_we=bm.theta_we,

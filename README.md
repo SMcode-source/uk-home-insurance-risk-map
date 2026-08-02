@@ -276,10 +276,21 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    `data/sensitivity.json`, rendered as a table on the analysis page).
    Re-runs the simulation on a 1-in-3 district sample with perturbed
    assumptions — Gumbel dependence ±25%, tree-2 correlations zeroed/doubled,
-   severity σ ×1.1, flood frequency ×1.5 — reporting the impact on expected
-   loss, premium, catastrophic-year cost and rating-group churn. This
+   severity σ ×1.1, flood frequency ×1.5, and erosion switched from the
+   adopted defence plan to no-further-intervention — reporting the impact on
+   expected loss, premium, catastrophic-year cost and rating-group churn. This
    quantifies which of the documented assumptions actually move the answer:
    the copula parameters govern the tail, the marginals govern the ranking.
+
+   Two things worth reading out of that table. The erosion scenario raises
+   erosion exposure **2.5×** (£4.0 → £10.1 per policy) and moves **exactly
+   zero** districts between rating groups — which is what "excluded from the
+   premium" has to mean, checked rather than asserted. And since capital
+   stopped being Monte Carlo noise, the churn column measures the
+   perturbation instead of the noise floor: the spread across scenarios
+   widened from 4.1× to 7.6×, with weak perturbations (severity σ, 8.6% →
+   5.0%) moving fewer districts and strong ones (flood frequency, 33.1% →
+   37.8%) moving more.
 11. **Good vs bad years** (`analysis/uk_risk_year_analysis.html`, built by
    `scripts/build_analysis.py`). The 20,000 simulated portfolio years are
    ranked and bucketed (good = best 50%, typical = 50–90th pct, bad = 90–99th,
@@ -467,7 +478,9 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 # Climate-change scenario (optional; without these the repricing view is simply absent):
 .venv/Scripts/python -u scripts/fetch_flood.py --climate          # -> data/flood_fractions_cc.csv (~10 min)
 .venv/Scripts/python -u scripts/fetch_surface_water.py --climate  # -> data/sw_fractions_cc.csv (~45 min)
-.venv/Scripts/python -u scripts/fetch_sw_depth.py --climate       # -> data/sw_depth_cc.csv (~45 min, resumable)
+.venv/Scripts/python -u scripts/fetch_sw_depth.py --climate       # -> data/sw_depth_cc.csv (45 min on a quiet
+                                                     # network; took 3.7 h here, riding out 8 connection drops
+                                                     # while sharing the machine. Resumable, so interrupt freely.)
 # download Postcodes_Risk_Assessment_All.csv (see DATA_SOURCES.md #13) to data/ea_postcode_risk.csv, then:
 .venv/Scripts/python scripts/fetch_groundwater.py    # groundwater flags -> data/gw_fractions.csv
 .venv/Scripts/python scripts/fetch_gusts.py          # ERA5 gust extremes -> data/gusts.csv (resumable; the free

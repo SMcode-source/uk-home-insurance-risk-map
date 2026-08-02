@@ -422,10 +422,15 @@ document.getElementById('tiles').innerHTML = tiles.map(t =>
     rho2_high: 'Tree-2 correlations doubled',
     sev_sigma_up: 'Severity σ ×1.10 (heavier tails)',
     flood_freq_150: 'Flood frequency ×1.5 (climate stress)',
+    erosion_no_intervention: 'Erosion: defences lapse (NFI, not the plan)',
   };
+  /* Erosion gets its own column because it is NOT in the premium: the NFI
+     scenario raises it 2.5× while moving no district between rating groups,
+     which is the check that the exclusion is actually wired up. */
   const rows = Object.entries(SENS).map(([k, s]) => `
     <tr><td class="hl">${LABELS[k] || k}</td>
     <td>${GBP(s.mean_el)}</td><td>${GBP(s.mean_premium)}</td>
+    <td>${s.mean_el_erosion == null ? '—' : GBP(s.mean_el_erosion)}</td>
     <td>${GBP(s.cat_year_cost)}</td><td>+${s.cat_vs_indep_pct}%</td>
     <td>${s.group_churn_pct}%</td></tr>`).join('');
   // The per-district TVaR uplift is deliberately not shown: at calibrated
@@ -433,6 +438,7 @@ document.getElementById('tiles').innerHTML = tiles.map(t =>
   // so tabulating it per scenario would be tabulating noise.
   document.getElementById('stable').innerHTML =
     `<tr><th>Scenario</th><th>E[loss]</th><th>Premium</th>
+     <th>Erosion (not priced)</th>
      <th>Cat-year cost</th><th>Cat vs independence</th><th>Group churn</th></tr>` + rows;
 })();
 </script>
