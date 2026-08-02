@@ -394,9 +394,11 @@ Worth asking of any model that spends this much effort on dependence.
 answer splits in two:
 
 - **For one home**, modelling the perils jointly makes a multi-peril year
-  **119× more likely** (0.12% vs 0.001% under independence) — but both are rare,
-  so that home's own 99% TVaR barely moves: **−0.8%, 95% CI −12% to +10%**,
-  i.e. indistinguishable from zero.
+  **94× more likely** (0.11% vs 0.0012% under independence) — but both are rare,
+  so that home's own 99% TVaR barely moves: **+2.7%, 95% CI −9.2% to +12.9%**,
+  i.e. indistinguishable from zero. (The interval straddling zero is the
+  finding; its point estimate wanders between runs precisely because it is
+  noise, which is why nothing is priced off it.)
 - **For the portfolio**, the rare joint events stop cancelling: catastrophic
   years cost **~8% more** than independence implies. That is the number capital
   is set against, and the reason the vine is here.
@@ -418,7 +420,7 @@ The site is checked, not assumed:
 - Colours follow a validated data-viz palette; the peril hues (subsidence
   orange, weather blue, flood aqua, groundwater violet, erosion rose) are used
   consistently across map, charts, favicon and social card. The erosion rose is
-  contrast-checked in both themes (5.42:1 light, 6.6:1 dark) because it carries
+  contrast-checked live in both themes (5.12:1 light, 8.11:1 dark) because it carries
   text as well as fill.
 
 ## Tests

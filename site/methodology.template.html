@@ -500,8 +500,10 @@ __NAV__
     claims on any of these perils in well under 1% of years, so its own 99% TVaR is
     essentially "the average claim, if one happens" — a statistic almost blind to
     dependence. Measured, the vine-versus-independence difference on a single policy's
-    TVaR₉₉ is <b>−0.8%, with a 95% bootstrap interval of −12% to +10%</b>: indistinguishable
-    from zero, exactly as it should be.</p>
+    TVaR₉₉ is <b>__TVAR_UPLIFT__%, with a 95% bootstrap interval of __TVAR_CI__</b>:
+    indistinguishable from zero, exactly as it should be. The interval straddling zero is
+    the finding; the point estimate wanders between runs precisely because it is noise,
+    which is why nothing is priced off it.</p>
     <div class="callout">This is why the map no longer carries a per-district "copula
     uplift" layer. An earlier version did, at frequencies several times too high; at correct
     frequencies that layer would have been drawing Monte Carlo noise across the country.

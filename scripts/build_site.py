@@ -181,12 +181,19 @@ def load_stats():
 
     dep_path = os.path.join(ROOT, "data", "dependence.json")
     dep_ratio, dep_vine, dep_indep = "—", "—", "—"
+    dep_uplift, dep_ci = "—", "—"
     if os.path.exists(dep_path):
         with open(dep_path) as fh:
             dep = json.load(fh)
         dep_ratio = f"{dep['multi_peril_ratio']:.0f}"
         dep_vine = f"{100 * dep['multi_peril_vine']:.2f}"
-        dep_indep = f"{100 * dep['multi_peril_indep']:.3f}"
+        dep_indep = f"{100 * dep['multi_peril_indep']:.4f}"
+        # The per-policy TVaR uplift is noise by construction, so its point
+        # estimate wanders between runs. Injecting it rather than writing it
+        # into the template stops the prose drifting away from the data.
+        dep_uplift = f"{dep['tvar_uplift_pct']:+.1f}"
+        lo, hi = dep["tvar_uplift_ci"]
+        dep_ci = f"{lo:+.1f}% to {hi:+.1f}%"
 
     # optional: sensitivity.json drives an extra landing-page finding
     sens_path = os.path.join(ROOT, "data", "sensitivity.json")
@@ -264,6 +271,8 @@ def load_stats():
         "__MULTI_RATIO__": dep_ratio,
         "__MULTI_VINE__": dep_vine,
         "__MULTI_INDEP__": dep_indep,
+        "__TVAR_UPLIFT__": dep_uplift,
+        "__TVAR_CI__": dep_ci,
         "__CAT_VS_INDEP__": f"{100 * (cat['mean_total'] - cat['indep_mean_total']) / cat['indep_mean_total']:.1f}",
         "__CAT_COST__": f"{cat['mean_total']:,.0f}",
         "__CAT_INDEP__": f"{cat['indep_mean_total']:,.0f}",

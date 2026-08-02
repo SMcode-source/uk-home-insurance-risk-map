@@ -510,14 +510,16 @@
     <p>Worth asking bluntly of any model that spends this much effort on dependence. Once
     frequencies are calibrated to real levels, the answer splits in two.</p>
     <p><b>For a single home, dependence transforms the rare case and barely touches the
-    typical one.</b> Modelling the perils jointly makes it <b>119 times</b> more
-    likely that one property suffers two or more perils in the same year — 0.12%
-    of years, against 0.001% under independence. But at UK frequencies a home
+    typical one.</b> Modelling the perils jointly makes it <b>94 times</b> more
+    likely that one property suffers two or more perils in the same year — 0.11%
+    of years, against 0.0012% under independence. But at UK frequencies a home
     claims on any of these perils in well under 1% of years, so its own 99% TVaR is
     essentially "the average claim, if one happens" — a statistic almost blind to
     dependence. Measured, the vine-versus-independence difference on a single policy's
-    TVaR₉₉ is <b>−0.8%, with a 95% bootstrap interval of −12% to +10%</b>: indistinguishable
-    from zero, exactly as it should be.</p>
+    TVaR₉₉ is <b>+2.7%, with a 95% bootstrap interval of -9.2% to +12.9%</b>:
+    indistinguishable from zero, exactly as it should be. The interval straddling zero is
+    the finding; the point estimate wanders between runs precisely because it is noise,
+    which is why nothing is priced off it.</p>
     <div class="callout">This is why the map no longer carries a per-district "copula
     uplift" layer. An earlier version did, at frequencies several times too high; at correct
     frequencies that layer would have been drawing Monte Carlo noise across the country.
