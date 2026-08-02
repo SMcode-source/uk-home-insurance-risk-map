@@ -547,9 +547,14 @@ gh api graphql -f query='{repository(owner:"SMcode-source",name:"uk-home-insuran
 
 `false` means it did not stick; a custom image is also served from
 `repository-images.githubusercontent.com` rather than
-`opengraph.githubassets.com`. Either way this is cosmetic — the site's pages
-carry their own Open Graph tags and preview correctly already, so links to the
-map itself are unaffected.
+`opengraph.githubassets.com`.
+
+**Set and verified 2026-08-02.** Worth recording why it took several
+attempts: the 1200×630 **RGBA** card was rejected silently every time, and the
+1280×640 **opaque RGB** copy worked immediately. If it ever needs redoing, use
+`social-github.png`. Either way this is cosmetic — the site's pages carry their
+own Open Graph tags and preview correctly already, so links to the map itself
+are unaffected.
 
 ## Caveats & production path
 
