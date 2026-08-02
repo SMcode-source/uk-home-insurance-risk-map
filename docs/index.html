@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UK Home Insurance Risk Map — four perils, one dependence model</title>
+<title>UK Home Insurance Risk Map — four insured perils, one dependence model</title>
 <link rel="stylesheet" href="assets/site.css">
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
@@ -30,16 +30,18 @@
 
   <section class="hero">
     <div class="eyebrow">Geospatial risk modelling · open data</div>
-    <h1>Four perils.<br>2,736 postcode districts.<br>One dependence model.</h1>
+    <h1>Four insured perils.<br>2,736 postcode districts.<br>One dependence model.</h1>
     <p class="lede">A UK home-insurance risk model that scores every postcode district for
     <b>subsidence</b>, <b>weather damage</b>, <b>flood</b> and <b>groundwater flooding</b> —
     then joins them with a vine copula, because the expensive years are the ones where
-    several perils strike at once.</p>
+    several perils strike at once. <b>Coastal erosion</b> is modelled alongside them but
+    kept out of the premium, because no standard policy covers it.</p>
     <div class="perils">
       <span class="chip"><i style="background:var(--sub)"></i>Subsidence · BGS geology</span>
       <span class="chip"><i style="background:var(--wx)"></i>Weather · Met Office</span>
       <span class="chip"><i style="background:var(--fl)"></i>Flood · EA / NRW / SEPA</span>
       <span class="chip"><i style="background:var(--gw)"></i>Groundwater · EA alert areas</span>
+      <span class="chip"><i style="background:var(--er)"></i>Erosion · EA NCERM · not insured</span>
     </div>
     <div class="cta">
       <a class="btn btn-primary" href="map.html">Explore the map →</a>
@@ -51,9 +53,21 @@
     <div class="tiles">
       <div class="tile"><div class="k">Districts &middot; households</div><div class="v">2,736</div><div class="d">26.4m households (census-weighted)</div></div>
       <div class="tile"><div class="k">Simulated years</div><div class="v">20,000</div><div class="d">per district, seeded &amp; reproducible</div></div>
-      <div class="tile"><div class="k">Four-peril premium</div><div class="v">£22–362</div><div class="d">lowest to highest district</div></div>
-      <div class="tile"><div class="k">Diversification credit</div><div class="v">97%</div><div class="d">portfolio vs standalone tail</div></div>
+      <div class="tile"><div class="k">Four-peril premium</div><div class="v">£23–166</div><div class="d">lowest to highest district</div></div>
+      <div class="tile"><div class="k">Diversification credit</div><div class="v">98%</div><div class="d">portfolio vs standalone tail</div></div>
     </div>
+    <p class="note" style="margin-top:14px">Separately, 352 districts sit on a
+    coast the sea is projected to take land from by 2105. For <b>80</b> of
+    them the adopted defence plans hold that at <b>zero</b> — the clearest thing in the
+    model that sea walls do. Worst case is HU19, losing 28%
+    of its area even with its plan in place. None of this is in the premium:
+    <a href="methodology.html#erosion">no standard policy covers coastal erosion</a>.</p>
+    <p class="note" style="margin-top:10px">And re-running the whole model on the
+    Environment Agency's <b>climate-change flood extents</b> — calibration held fixed, so
+    only the hazard map moves — shifts the technical premium by
+    <b>+10%</b> across the 2,087 districts it covers, worst
+    DN32 at +256%. A scenario, not a forecast, and England only:
+    <a href="methodology.html#climate">what it does and does not mean</a>.</p>
   </section>
 
   <section id="lookup">
@@ -78,9 +92,10 @@
           <path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"/><path d="M9 4v13.5M15 6.5V20"/>
         </svg>
         <h3>Interactive map</h3>
-        <p>Eight switchable layers — rating group, technical premium, each peril score,
-        1-in-200 loss and the copula uplift. Click any district for its full risk
-        breakdown, right down to the bedrock formation beneath it.</p>
+        <p>Eleven switchable layers — rating group, technical premium, each peril score,
+        1-in-200 loss, surface-water depth, coastal erosion and the climate repricing.
+        Click any district for its full risk breakdown, right down to the bedrock
+        formation beneath it.</p>
         <span class="more">Open the map →</span>
       </a>
       <a class="card" href="years.html">
@@ -100,7 +115,7 @@
         </svg>
         <h3>Methodology &amp; data</h3>
         <p>Every peril score, the vine copula structure, why the risk measure is TVaR and
-        not VaR, all fourteen open datasets with their endpoints and quirks — and the
+        not VaR, all twenty-one open datasets with their endpoints and quirks — and the
         commands to rebuild the whole thing.</p>
         <span class="more">Read the methodology →</span>
       </a>
@@ -200,12 +215,12 @@
           <th class="num">Subs.</th><th class="num">Weather</th><th class="num">Flood</th><th class="num">Gr.water</th>
           <th>What drives it</th>
         </tr>
-        <tr><td><strong>CF24</strong></td><td>postcode area CF</td><td class="num"><strong>£362</strong></td><td class="num">0.40</td><td class="num">0.42</td><td class="num">0.86</td><td class="num">0.88</td><td>Flood + weather + subsidence (41% / 32%)</td></tr>
-        <tr><td><strong>GL2</strong></td><td>postcode area GL</td><td class="num"><strong>£346</strong></td><td class="num">0.52</td><td class="num">0.16</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + subsidence (57% / 31%)</td></tr>
-        <tr><td><strong>DA15</strong></td><td>postcode area DA</td><td class="num"><strong>£250</strong></td><td class="num">1.00</td><td class="num">0.17</td><td class="num">0.62</td><td class="num">0.00</td><td>Subsidence-dominated (73% of E[loss])</td></tr>
-        <tr><td><strong>HU5</strong></td><td>Hull</td><td class="num"><strong>£247</strong></td><td class="num">0.08</td><td class="num">0.13</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood-dominated (88% of E[loss])</td></tr>
-        <tr><td><strong>LE11</strong></td><td>postcode area LE</td><td class="num"><strong>£237</strong></td><td class="num">0.39</td><td class="num">0.22</td><td class="num">0.99</td><td class="num">0.00</td><td>Flood + subsidence + weather (54% / 27%)</td></tr>
-        <tr><td><strong>BN17</strong></td><td>postcode area BN</td><td class="num"><strong>£235</strong></td><td class="num">0.16</td><td class="num">0.46</td><td class="num">0.84</td><td class="num">0.00</td><td>Flood + weather (45% / 41%)</td></tr>
+        <tr><td><strong>ME11</strong></td><td>Isle of Sheppey</td><td class="num"><strong>£166</strong></td><td class="num">1.00</td><td class="num">0.29</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + subsidence (50% / 40%)</td></tr>
+        <tr><td><strong>TW18</strong></td><td>Staines-upon-Thames</td><td class="num"><strong>£151</strong></td><td class="num">0.99</td><td class="num">0.15</td><td class="num">1.00</td><td class="num">1.00</td><td>Flood + subsidence (47% / 44%)</td></tr>
+        <tr><td><strong>EC4R</strong></td><td>postcode area EC</td><td class="num"><strong>£145</strong></td><td class="num">1.00</td><td class="num">0.09</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + subsidence (48% / 47%)</td></tr>
+        <tr><td><strong>HU2</strong></td><td>Hull</td><td class="num"><strong>£142</strong></td><td class="num">0.08</td><td class="num">0.13</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood-dominated (88% of E[loss])</td></tr>
+        <tr><td><strong>HU6</strong></td><td>Hull</td><td class="num"><strong>£141</strong></td><td class="num">0.08</td><td class="num">0.12</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood-dominated (88% of E[loss])</td></tr>
+        <tr><td><strong>EC4V</strong></td><td>postcode area EC</td><td class="num"><strong>£139</strong></td><td class="num">1.00</td><td class="num">0.09</td><td class="num">1.00</td><td class="num">0.00</td><td>Subsidence + flood (48% / 46%)</td></tr>
       </table>
     </div>
     <p class="note" style="margin-top:10px">Technical premium per policy per year =

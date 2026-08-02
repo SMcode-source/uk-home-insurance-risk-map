@@ -37,6 +37,12 @@ OUT = os.path.join("data", "sw_fractions.csv")
 
 EA_SW = ("https://environment.data.gov.uk/spatialdata/"
          "nafra2-risk-of-flooding-from-surface-water/wms")
+# The EA's climate-change edition of the same product: same service family,
+# same legend, same 1:50,000 scale cap, so the two are directly comparable.
+# --climate swaps to it (England only; NRW and SEPA publish no equivalent).
+EA_SW_CC = ("https://environment.data.gov.uk/spatialdata/"
+            "nafra2-risk-of-flooding-from-surface-water-climate-change/wms")
+EA_SW_LAYER = "rofsw"
 NRW = "https://datamap.gov.wales/geoserver/ows"
 SEPA = "https://map.sepa.org.uk/server/rest/services/Open"
 FRAW_SW = "inspire-nrw:NRW_FLOOD_RISK_FROM_SURFACE_WATER_SMALL_WATERCOURSES"
@@ -65,14 +71,31 @@ REGIONS = {
 }
 
 
+# Tiles that could not be fetched at all. A dropped tile is silently
+# missing area - the CSV still looks complete - so the count is checked
+# before anything is written.
+FAILED = []
+
+
 def http_image(url):
-    for attempt in range(3):
+    """Fetch one tile, or None after exhausting retries.
+
+    Backoff is exponential and generous: a transient DNS or connection
+    failure (this machine sleeps, and the EA service drops connections)
+    otherwise costs a tile permanently, and three quick attempts five
+    seconds apart is not enough to ride out either.
+    """
+    delay = 5
+    for attempt in range(6):
         try:
             with urllib.request.urlopen(url, timeout=300) as r:
                 return Image.open(io.BytesIO(r.read())).convert("RGBA")
         except Exception as e:
-            print(f"    retry {attempt + 1}: {e}", flush=True)
-            time.sleep(5)
+            print(f"    retry {attempt + 1}/6 in {delay}s: {e}", flush=True)
+            time.sleep(delay)
+            delay = min(delay * 2, 120)
+    print(f"    !! GIVING UP on {url[:120]}", flush=True)
+    FAILED.append(url)
     return None
 
 
@@ -84,10 +107,11 @@ def masks_for_tile(region, bbox):
 
     if kind == "ea_color":
         q = dict(service="WMS", version="1.3.0", request="GetMap",
-                 layers="rofsw", crs="EPSG:27700", bbox=bstr,
+                 layers=EA_SW_LAYER, crs="EPSG:27700", bbox=bstr,
                  width=tile, height=tile, format="image/png",
                  transparent="true")
-        img = http_image(EA_SW + "?" + urllib.parse.urlencode(q))
+        img = http_image(region.get("service", EA_SW) + "?"
+                         + urllib.parse.urlencode(q))
         if img is None:
             return None
         a = np.asarray(img)
@@ -130,12 +154,22 @@ def masks_for_tile(region, bbox):
 
 
 def main():
-    global OUT
+    global OUT, EA_SW_LAYER
     args = sys.argv[1:]
     if "--out" in args:
         i = args.index("--out")
         OUT = args[i + 1]
         args = args[:i] + args[i + 2:]
+    if "--climate" in args:
+        # England only: the climate-change edition exists for the EA layer,
+        # not for NRW or SEPA, so restrict rather than silently mixing a
+        # future England with a present-day Wales and Scotland.
+        EA_SW_LAYER = "rofsw_cc01"
+        REGIONS["england"]["service"] = EA_SW_CC
+        if OUT == os.path.join("data", "sw_fractions.csv"):
+            OUT = os.path.join("data", "sw_fractions_cc.csv")
+        args = [a for a in args if a != "--climate"] or ["england"]
+        print(f"CLIMATE-CHANGE edition (England) -> {OUT}", flush=True)
     no_merge = "--no-merge" in args
     selected = [a for a in args if a in REGIONS] or list(REGIONS)
     print(f"regions: {selected} -> {OUT}", flush=True)
@@ -186,6 +220,18 @@ def main():
 
     sw_high = np.clip(frac["high"], 0, 1)
     sw_low = np.clip(np.maximum(frac["low"], frac["high"]), 0, 1)
+
+    # A dropped tile leaves a hole that looks like "no surface water here",
+    # and nothing downstream can tell the difference. Write to .partial
+    # instead so an incomplete fetch cannot quietly become model input.
+    if FAILED:
+        OUT = OUT + ".partial"
+        print(f"\n  !! {len(FAILED)} tile(s) could not be fetched. The result "
+              f"is INCOMPLETE - missing tiles read as 'no surface water', "
+              f"which is indistinguishable from real data downstream.\n"
+              f"  !! writing {OUT} instead; rerun before using it.",
+              flush=True)
+
     with open(OUT, "w", newline="") as fh:
         w = csv.writer(fh)
         w.writerow(["name", "sw_high", "sw_low"])

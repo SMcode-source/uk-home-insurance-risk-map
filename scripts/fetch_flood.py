@@ -97,19 +97,34 @@ def tile_url(kind, base, layer, cql, bbox):
     return base + "?" + urllib.parse.urlencode(q)
 
 
+# Tiles that could not be fetched at all. A skipped tile is silently
+# missing area - the CSV still looks complete - so this is checked before
+# anything is written.
+FAILED = []
+
+
 def fetch_mask(kind, base, layer, cql, bbox):
-    """Return boolean (TILE, TILE) array of painted pixels, or None."""
+    """Return boolean (TILE, TILE) array of painted pixels, or None.
+
+    Backoff is exponential and generous: a transient DNS or connection
+    drop otherwise costs a tile permanently, and three attempts five
+    seconds apart is not enough to ride one out.
+    """
     url = tile_url(kind, base, layer, cql, bbox)
-    for attempt in range(3):
+    delay = 5
+    for attempt in range(6):
         try:
             with urllib.request.urlopen(url, timeout=180) as r:
                 raw = r.read()
             img = Image.open(io.BytesIO(raw)).convert("RGBA")
             return np.asarray(img)[:, :, 3] > 16
         except Exception as e:
-            print(f"    retry {attempt + 1} {layer}: {e}", flush=True)
-            time.sleep(5)
-    print(f"    SKIPPED tile {bbox} layer {layer}", flush=True)
+            print(f"    retry {attempt + 1}/6 {layer} in {delay}s: {e}",
+                  flush=True)
+            time.sleep(delay)
+            delay = min(delay * 2, 120)
+    print(f"    !! GIVING UP on tile {bbox} layer {layer}", flush=True)
+    FAILED.append((layer, bbox))
     return None
 
 
@@ -205,7 +220,24 @@ def run_vector(region, gdf, tree, frac):
 
 
 def main():
-    selected = [a for a in sys.argv[1:] if a in REGIONS] or list(REGIONS)
+    global OUT
+    args = sys.argv[1:]
+    if "--climate" in args:
+        # The EA publishes a climate-change edition of this exact product:
+        # same service, same layer names with a _CCP1 suffix, and no scale
+        # cap, so it can be fetched at the same 100 m/px. Using the matched
+        # pair matters - comparing against a differently derived product
+        # would confound the method change with the climate change.
+        # England only; NRW and SEPA publish no equivalent.
+        for band in REGIONS["england"]["bands"].values():
+            for i, (mode, url, layer, cql) in enumerate(band):
+                band[i] = (mode,
+                           url.replace("-present-day/", "-climate-change/"),
+                           layer + "_CCP1", cql)
+        OUT = os.path.join("data", "flood_fractions_cc.csv")
+        args = [a for a in args if a != "--climate"] or ["england"]
+        print(f"CLIMATE-CHANGE edition (England) -> {OUT}", flush=True)
+    selected = [a for a in args if a in REGIONS] or list(REGIONS)
     print(f"regions: {selected}", flush=True)
 
     print("loading districts...", flush=True)
@@ -235,6 +267,16 @@ def main():
 
     f_high = np.clip(frac["high"], 0, 1)
     f_low = np.clip(np.maximum(frac["low"], frac["high"]), 0, 1)
+
+    # A dropped tile leaves a hole that reads as "no flood zone here", and
+    # nothing downstream can tell that apart from real data. Write to
+    # .partial so an incomplete fetch cannot quietly become model input.
+    if FAILED:
+        OUT = OUT + ".partial"
+        print(f"\n  !! {len(FAILED)} tile(s) could not be fetched. The result "
+              f"is INCOMPLETE - missing tiles read as 'no flood risk'.\n"
+              f"  !! writing {OUT} instead; rerun before using it.",
+              flush=True)
 
     with open(OUT, "w", newline="") as fh:
         w = csv.writer(fh)

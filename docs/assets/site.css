@@ -25,6 +25,9 @@
   --sub: #eb6834;
   --fl: #1baf7a;
   --gw: #6f5cc4;
+  /* erosion: a hue none of the four insured perils uses. #b83b6e is 5.42:1
+     on the light surface, so it is safe carrying text. */
+  --er: #b83b6e;
   --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
 }
 @media (prefers-color-scheme: dark) {
@@ -44,6 +47,7 @@
     --sub: #d95926;
     --fl: #199e70;
     --gw: #9085e9;
+    --er: #ee87b4;      /* 6.6:1 on the dark surface */
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
     /* dark surface: #898781 is 4.85:1 and #3987e5 is 4.79:1, both pass */
     --link: #6da7ec;
@@ -67,6 +71,7 @@
   --sub: #d95926;
   --fl: #199e70;
   --gw: #9085e9;
+  --er: #ee87b4;      /* 6.6:1 on the dark surface */
   --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
 }
 
@@ -279,6 +284,13 @@ table.data td strong { color: var(--ink-1); }
 
 /* ---------- misc ---------- */
 .note { font-size: 12.5px; color: var(--ink-muted); max-width: 76ch; }
+/* small inline badge, e.g. marking the erosion peril as not insured */
+.pill {
+  display: inline-block; font-size: 10.5px; font-weight: 600;
+  letter-spacing: .02em; text-transform: uppercase;
+  padding: 1px 6px; border-radius: 999px; vertical-align: 2px;
+  color: var(--er); border: 1px solid currentColor; white-space: nowrap;
+}
 .callout {
   background: var(--surface-2); border: 1px solid var(--border);
   border-left: 3px solid var(--accent);

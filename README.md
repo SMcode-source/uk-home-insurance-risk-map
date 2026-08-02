@@ -7,7 +7,7 @@
 [![Data: OGL v3](https://img.shields.io/badge/data-OGL%20v3-1baf7a?style=flat-square)](DATA_SOURCES.md)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-eb6834?style=flat-square)](requirements.txt)
 ![Districts: 2,736](https://img.shields.io/badge/districts-2%2C736-6f5cc4?style=flat-square)
-![Perils: 4](https://img.shields.io/badge/perils-4-52514e?style=flat-square)
+![Perils: 4 insured + 1](https://img.shields.io/badge/perils-4_insured_%2B_1-52514e?style=flat-square)
 
 **[Interactive map](https://smcode-source.github.io/uk-home-insurance-risk-map/map.html)** ·
 **[Good vs bad years](https://smcode-source.github.io/uk-home-insurance-risk-map/years.html)** ·
@@ -21,8 +21,12 @@ water) and **groundwater flooding** — with their dependency modelled by a
 **C-vine copula**, banded into 10 rating groups. A companion page decomposes
 **good years vs bad years** for the whole portfolio.
 
+A fifth peril, **coastal erosion**, is modelled in the vine but deliberately
+kept **out of the premium** — see
+[Coastal erosion: modelled, not priced](#coastal-erosion-modelled-not-priced).
+
 Every hazard input is **open data**, fetched by the scripts here — see
-**[DATA_SOURCES.md](DATA_SOURCES.md)** for all 19 datasets with their endpoints,
+**[DATA_SOURCES.md](DATA_SOURCES.md)** for all 21 datasets with their endpoints,
 licences, access quirks and the dead ends worth avoiding. Each peril's loss level
 is calibrated to published **ABI** claims payouts, and districts are weighted by
 **census household counts**.
@@ -55,13 +59,18 @@ scripts/
   fetch_metoffice.py          4 Met Office climate grids (ArcGIS services)
   fetch_flood.py              river/sea flood extents -> per-district fractions
   fetch_surface_water.py      surface-water extents -> per-district fractions
+  fetch_sw_depth.py           EA surface-water depth bands -> sw_depth.csv
+                              (England; checkpoints per column, resumable)
   merge_sw_wales.py           folds the 20m Wales re-render into sw_fractions
   fetch_groundwater.py        EA postcode groundwater flags -> district fractions
+  fetch_erosion.py            EA NCERM coastal frontages -> erosion.csv (England)
+  fetch_countries.py          ONS country boundaries -> country.csv, the
+                              coverage mask for every England-only dataset
   fetch_gusts.py              ERA5 gust extremes -> 1-in-50 gust per grid point
   fetch_history.py            35 years of ERA5 hazard drivers -> backtest
   fetch_households.py         ONS/NRS census households per district (exposure)
   scores_real.py              data -> per-district peril scores
-  build_model.py              scores -> marginals -> C-vine Monte Carlo ->
+  build_model.py              scores -> marginals -> 5-dim C-vine Monte Carlo ->
                               districts_risk.geojson + year_analysis.json
   sensitivity.py              perturbed re-runs -> data/sensitivity.json
   build_map.py                -> map/uk_home_insurance_risk_map.html
@@ -88,6 +97,16 @@ assets/leaflet.{js,css}       Leaflet 1.9.4, inlined into the map HTML
 | Groundwater risk score | EA groundwater alert-area coverage (0–1) |
 | 1-in-200 combined loss | 99.5% VaR of the four-peril annual loss (C-vine) |
 | Capital charge | The district's Euler share of portfolio tail risk, in £ |
+| Surface-water depth | Mean depth where it floods, from the EA depth bands (England) |
+| Coastal erosion (blight) | Land projected lost by 2105 under the adopted Shoreline Management Plan — **not insured** |
+| Climate repricing | Premium under the EA's future flood scenario vs present day (England) |
+
+The last three layers distinguish **"not mapped" from "measured, and it is
+zero"** — a distinction a single grey would destroy. 87% of districts have no
+NCERM erosion exposure, Wales and Scotland have no depth or climate product at
+all, and on the erosion layer a *defended* coast (Blackpool, Eastbourne) is a
+fourth state again: the sea would take land and the defences are stopping it.
+A plain quantile ramp would also have spent the whole colour scale on zeroes.
 
 There is deliberately no per-district "copula uplift" layer: at calibrated
 frequencies that difference is inside Monte Carlo noise, so the layer would
@@ -135,6 +154,26 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    because the sublayers are default-hidden). `sw_high` (≥1% AEP) adds ~1%/yr
    claim frequency at full coverage; surface-water severity is modelled cheaper
    (median ~£15k vs ~£30k river/sea) via a probability-weighted lognormal mix.
+   - **Depth-conditioned severity** (`scripts/fetch_sw_depth.py`). The same EA
+     WMS carries five nested depth layers (>0.2/0.3/0.6/0.9/1.2 m). Their
+     differences give, for each district, the depth distribution *within* its
+     flooded area, which is turned into an expected-damage relativity using
+     the usual UK depth–damage shape (damage climbs steeply through the first
+     half-metre as water passes floor level and reaches sockets, then flattens
+     once the ground floor is written off). The multiplier is **renormalised
+     to an exposure-weighted mean of 1.0**, so it re-shapes severity across
+     districts without moving the level the ABI calibration fixed — the same
+     discipline the frequency calibration follows. England only; Wales and
+     Scotland have no equivalent product and keep the flat severity.
+     Coverage comes from the **country boundary**, not from the numbers
+     (`scripts/fetch_countries.py` → `data/country.csv`). The depth file
+     has a row for every district, zero-filled outside England, so judging
+     by presence reads "no depth mapped" as "nothing over 0.2 m" — the
+     shallowest severity — for all of Wales and Scotland; and border
+     districts that clip into England on a sliver read as the shallowest
+     in the country. A district must be **England and ≥95% of its area
+     inside it**, which leaves 2,085 districts with usable depth and sends
+     the ~20 genuine straddlers to the neutral fallback.
 4. **Groundwater** (`scripts/fetch_groundwater.py`). **EA** flood-risk postcode
    search tool data: `GWTR_RISK` flags each unit postcode 'Possible' if any
    address sits in a groundwater flood alert target area. District fraction =
@@ -181,17 +220,17 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    the (W,F) root pair, then closed-form Gaussian h-inverses for tree 2 and
    numeric bisection of the Gumbel h-function for the remaining margins —
    20,000 simulated years per district with common random numbers. A pairwise
-   τ-matched **4-dim Gaussian copula** (correlation matrix implied by the vine
+   τ-matched **5-dim Gaussian copula** (correlation matrix implied by the vine
    via partial-correlation recursion, batched Cholesky) and an **independence**
-   run are simulated for comparison; the uplift layer shows how much of the
-   tail an independence assumption hides.
+   run are simulated for comparison — quantifying how much of the tail an
+   independence assumption hides.
 7. **Risk measure — TVaR, deliberately.** With rare compound losses
    (flood claims at ~1%/yr), positive tail dependence concentrates claims into
    fewer, worse years — losses get pushed *beyond* the 99.5% quantile, so
    plain VaR can *fall* as dependence rises (VaR is not monotone under
-   concordance ordering; expected shortfall is). Premiums and the uplift layer
-   therefore use **TVaR 99%** (mean of the worst 1% of years); the 1-in-200
-   VaR is still shown in popups.
+   concordance ordering; expected shortfall is). Premiums and every dependence
+   comparison therefore use **TVaR 99%** (mean of the worst 1% of years); the
+   1-in-200 VaR is still shown in popups.
 8. **Exposure weighting** (`scripts/fetch_households.py`). Districts enter the
    portfolio weighted by their **census household count**, not equally:
    ONS Census 2021 households by LSOA for England & Wales, apportioned to
@@ -211,6 +250,24 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    banded into deciles → rating groups 1–10. (An earlier version charged 6%
    of each district's *standalone* TVaR, which double-counted risk and
    inflated premiums roughly tenfold.)
+
+   **The allocation averages conditional expectations, not realised losses**
+   — and that is not a detail. The worst 1% of 20,000 years is 200 draws,
+   and at calibrated frequencies a district claims in one or two of them, so
+   averaging its *realised* loss there made capital, and therefore the
+   published rating group, largely Monte Carlo noise. Measured head to head
+   on the same fixture, the realised estimator correlated just **0.49 and
+   0.39** with itself across RNG seeds; a +0.4% change in flood expected
+   loss moved one district **8 rating deciles**. Conditioning on each year's
+   systemic draw instead — Φ((√w·z − Φ⁻¹(1−p))/√(1−w)) × E[severity], which
+   the factor model already gives in closed form — removes the Bernoulli
+   noise and lifts that to **0.97**, and to **0.9985** at the production
+   20,000 years. It costs nothing in runtime, is exact rather than
+   approximate (the bad-year ranking uses the same smoothed quantity, so the
+   selection is systemic-measurable and the tower property applies), and is
+   guarded by a test. This is the same lesson as the removed copula-uplift
+   layer: at these frequencies, per-district Monte Carlo estimates of tail
+   quantities are noise unless you condition.
    The spatial loading behind the portfolio view is likewise solved rather
    than assumed: it is set so a 1-in-100 year has ~2× the claim frequency of
    an average year. The solved value is far weaker than the assumed one —
@@ -246,6 +303,90 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
     rankings; 1995, 2018 and 2022 top the drought summers, which are exactly
     the known subsidence-surge years.
 
+## What climate change does to the premium
+
+The EA publishes a climate-change edition of both flood products this model already
+uses. Re-running on those extents with the calibration **held fixed** — nothing moves
+but the hazard map — gives a per-district repricing (`premium_cc`, `cc_uplift_pct`,
+and a map layer).
+
+**Choosing the right pair mattered.** NaFRA2 also publishes `rofrs_cc01_4band`, but it
+is derived differently from the present-day extents in use here, so comparing against
+it would have folded a *method* change into the *climate* change. The rivers-and-sea
+extents have a climate sibling with identical layer names and a `_CCP1` suffix — same
+product, same 100 m/px, same service — so that is the pair used.
+
+**Two normalisations had to be pinned to the present day**, or the exercise would have
+measured nothing: the depth multiplier (renormalising on future data divides out
+"water gets deeper everywhere") and the flood score's 95th-percentile anchor. Both runs
+share their random draws, so it is a paired comparison.
+
+Stated plainly, three limits:
+
+- **A scenario, not a forecast** — the EA's climate allowance, not a prediction.
+- **Rivers/sea is not a strict uplift.** The future layer is a separate model run, so
+  it does not simply contain the present one. On a Humber test tile at 13 m/px,
+  **19.7%** of today's *pixels* fall outside the future extent; across England at
+  district level the effect is much smaller but real — **61 districts (2.9%)** see the
+  1-in-100/200 band shrink, worst −11.3pp. Surface water behaves far more like a true
+  uplift: only **10 districts (0.5%)** decrease, worst −3.8pp. So the surface-water half
+  reads as a genuine climate delta and the rivers/sea half as a scenario swap.
+- **England only.** Neither NRW nor SEPA publishes an equivalent, so Wales and Scotland
+  are not modelled; the headline is quoted over covered districts, because a national
+  average would dilute it with two countries that cannot move.
+
+The direction of travel is not subtle. Across England the 1-in-100/200 river/sea band
+grows **+37.4%** and the surface-water ≥1% AEP zone **+28.7%**. Low-lying coast and
+estuary carry the fluvial/tidal side — TA9 on the Somerset Levels goes from 10% to
+**90%** of district area, PE21 (Boston) 13% → 82%, TS2 (Teesside) 20% → 85%, DN32
+(Grimsby) 4% → 80% — while surface water concentrates on dense urban drainage:
+EC4R 8% → 27%, SW8 (Nine Elms) 16% → 32%, RM9/RM10 (Dagenham) 37% → 53%, E8
+(Hackney) 36% → 52%.
+
+## Coastal erosion: modelled, not priced
+
+The model carries a fifth peril — **coastal erosion**, from the EA's
+**NCERM National 2024** frontages (`scripts/fetch_erosion.py`) — and it is
+deliberately kept out of `premium`.
+
+**Why it is excluded.** Gradual coastal erosion is not covered by standard UK
+household policies. Putting it in the technical premium would price a loss no
+policy pays, and would quietly wreck the rating: erosion is a *total* loss of
+the property rather than a repair, so where it bites it dwarfs everything else.
+It is carried instead as **blight and valuation exposure** — the thing that
+actually shows up in mortgage and insurability decisions on an eroding coast —
+in its own columns (`el_er`, `er_*`) and its own map layer.
+
+**Why it is still in the vine.** Erosion is storm-driven: cliffs and beaches
+retreat in a handful of surge events, not on calm days. So it belongs in the
+dependence structure even though it is not priced. It enters the C-vine as a
+fifth dimension with a Gumbel pair to weather (θ_we) and, given weather, the
+**strongest** of the tree-2 Gaussian pairs to flood (ρ_FE|W = 0.35) — coastal
+flooding and coastal erosion are driven by the same storm surges.
+
+**What is modelled.** A property inside the strip projected to be lost by the
+2105 epoch is lost within that horizon, so the annual hazard is the district's
+zone fraction spread over 80 years, at a sum-insured severity. Two assumptions
+worth stating plainly: households are taken as spread uniformly across the
+district (coastal populations actually cluster towards the shore, so this if
+anything **understates** it), and the **SMP** scenario is used — defences
+maintained as currently planned. The unmanaged **NFI** case is carried
+alongside for contrast, and is a sensitivity scenario.
+
+**Why it is absent from the good-vs-bad-years view.** Erosion is chronic, not
+episodic. Including it would add a near-constant charge to every simulated year
+and blur precisely the contrast that page exists to show. Capital is likewise
+allocated against insured losses only.
+
+The scenario contrast is stark and is the interesting output: nationally the
+adopted plans hold the 2105 land loss to **250 km²** against **435 km²**
+undefended, and several major seafronts — **Blackpool (FY1)**, **Eastbourne
+(BN21)**, **Bognor (PO21/PO22)**, **Crosby (L22)** — go from substantial
+unmanaged erosion to **exactly zero** under their "Hold the Line" plans. Where
+the defences are not there, the fastest-eroding coast in Europe shows up
+correctly: **Hornsea (HU18)** and **Withernsea (HU19)** on Holderness top the
+table, followed by **Southwold (IP18)** on the Suffolk coast.
+
 ## Does the copula actually matter?
 
 Worth asking of any model that spends this much effort on dependence.
@@ -274,9 +415,11 @@ The site is checked, not assumed:
 - **Mobile verified at 375×812** on the live site: no page-level horizontal
   overflow anywhere, wide tables and charts scroll inside their own containers,
   nav fits without sideways scrolling, tap targets ≥24px.
-- Colours follow a validated data-viz palette; the four peril hues
-  (subsidence orange, weather blue, flood aqua, groundwater violet) are used
-  consistently across map, charts, favicon and social card.
+- Colours follow a validated data-viz palette; the peril hues (subsidence
+  orange, weather blue, flood aqua, groundwater violet, erosion rose) are used
+  consistently across map, charts, favicon and social card. The erosion rose is
+  contrast-checked in both themes (5.42:1 light, 6.6:1 dark) because it carries
+  text as well as fill.
 
 ## Tests
 
@@ -287,10 +430,20 @@ The site is checked, not assumed:
 Property tests for the machinery the model rests on: Gumbel h-function
 inversion round-trips to 1e-8, sampled margins pass Kolmogorov–Smirnov
 against U(0,1), every vine pair recovers its target Kendall's τ, Gumbel shows
-upper-tail dependence where the tau-matched Gaussian does not, and the
-severity distributions reproduce the published ABI means. CI additionally
-rebuilds the whole site from committed data and fails if `docs/` has drifted
-from its templates.
+upper-tail dependence where the tau-matched Gaussian does not, the 5-dim
+vine-implied correlation matrix stays positive definite across the whole θ
+range, and the severity distributions reproduce the published ABI means.
+
+The newer perils get their own guards: erosion's frequency must annualise over
+the horizon and must **not** be touched by the ABI frequency scaling (it has no
+published payout to calibrate against), the flood–erosion tree-2 pair must come
+out as the strongest of the three, and the depth multiplier must leave the
+exposure-weighted national mean at exactly 1.0 while still ranking a deep
+district above a shallow one — plus a fallback test proving the model still
+runs when the depth product is absent, as it is outside England.
+
+CI additionally rebuilds the whole site from committed data and fails if
+`docs/` has drifted from its templates.
 
 ## Rebuild from scratch
 
@@ -303,6 +456,16 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 .venv/Scripts/python scripts/fetch_metoffice.py      # Met Office grids -> data/metoffice/*.csv
 .venv/Scripts/python scripts/fetch_flood.py          # river/sea flood -> data/flood_fractions.csv (~20 min)
 .venv/Scripts/python scripts/fetch_surface_water.py  # surface water -> data/sw_fractions.csv (~60-90 min)
+.venv/Scripts/python -u scripts/fetch_sw_depth.py    # SW depth bands -> data/sw_depth.csv (~40 min, England;
+                                                     # checkpoints per column, so rerun without --restart to resume)
+.venv/Scripts/python scripts/fetch_erosion.py        # NCERM coastal erosion -> data/erosion.csv (~3 min, England)
+.venv/Scripts/python scripts/fetch_countries.py      # ONS country boundaries -> data/country.csv (~1 min).
+                                                     # Run this BEFORE build_model: it is the coverage mask that
+                                                     # stops the England-only layers being read as GB-wide.
+# Climate-change scenario (optional; without these the repricing view is simply absent):
+.venv/Scripts/python -u scripts/fetch_flood.py --climate          # -> data/flood_fractions_cc.csv (~10 min)
+.venv/Scripts/python -u scripts/fetch_surface_water.py --climate  # -> data/sw_fractions_cc.csv (~45 min)
+.venv/Scripts/python -u scripts/fetch_sw_depth.py --climate       # -> data/sw_depth_cc.csv (~45 min, resumable)
 # download Postcodes_Risk_Assessment_All.csv (see DATA_SOURCES.md #13) to data/ea_postcode_risk.csv, then:
 .venv/Scripts/python scripts/fetch_groundwater.py    # groundwater flags -> data/gw_fractions.csv
 .venv/Scripts/python scripts/fetch_gusts.py          # ERA5 gust extremes -> data/gusts.csv (resumable; the free
@@ -311,7 +474,9 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
                                                      # grid points exist, and falls back to 4 components until then)
 .venv/Scripts/python scripts/fetch_history.py        # 35yr ERA5 hazard drivers -> data/history.csv (backtest)
 .venv/Scripts/python scripts/fetch_households.py     # ONS lookup + census -> data/households.csv (exposure, ~22MB dl)
-.venv/Scripts/python scripts/build_model.py          # calibrate + vine sim -> districts_risk.geojson + year_analysis.json (~20 min)
+.venv/Scripts/python scripts/build_model.py          # calibrate + vine sim -> districts_risk.geojson + year_analysis.json (~55 min;
+                                                     # the 5th vine dimension roughly doubled this - the extra Gumbel
+                                                     # h-inverse bisection for erosion is the dominant cost)
 .venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs -> data/sensitivity.json (~25 min, optional)
 .venv/Scripts/python scripts/make_images.py          # favicon + 1200x630 social card, rendered from the data
 .venv/Scripts/python scripts/build_map.py            # -> map/uk_home_insurance_risk_map.html
@@ -332,6 +497,20 @@ Two notes on running it:
   `fetch_history.py` are resumable; if they start returning HTTP 429, rerun the
   next day. The weather score folds gusts in automatically once ≥60 grid points
   exist and falls back cleanly below that.
+- `fetch_sw_depth.py` writes a checkpoint to `data/cache/` after every tile
+  column, so a machine that sleeps mid-run costs you one column, not the whole
+  fetch — rerun it plain to resume, or pass `--restart` to start over. Both new
+  fetchers degrade gracefully: if `sw_depth.csv` is missing the model falls back
+  to a flat surface-water severity, and if `erosion.csv` is missing the erosion
+  peril is simply zero everywhere.
+- **A dropped tile is invisible in the output** — it reads as "no flood risk
+  here", indistinguishable from real data. The raster fetchers therefore retry
+  six times with exponential backoff and, if a tile is still lost, write to
+  `<name>.partial` instead of the real filename so an incomplete fetch cannot
+  quietly become model input. This is not hypothetical: a DNS blip mid-run
+  silently cost one tile before the guard existed.
+- With the climate files present, `build_model.py` runs the simulation **twice**
+  (present and future), so budget ~110 min rather than ~55.
 
 ### Publishing
 
@@ -363,6 +542,16 @@ priced product:
   (GB-only boundaries make this moot);
 - groundwater uses alert-area *coverage*, not modelled emergence probability,
   and is England-only;
+- surface-water **severity** is now depth-conditioned, but only in England:
+  Wales and Scotland publish no depth product, so they keep the flat severity.
+  That is an asymmetry in the *spread* of severity, not its level — the
+  multiplier is renormalised to a national mean of 1.0 — but it means English
+  districts are differentiated on depth and the rest are not;
+- coastal **erosion** is England-only (NCERM), assumes households are spread
+  uniformly across the district when they in fact cluster towards the shore,
+  and annualises an 80-year projection into a flat yearly hazard. It is
+  reported separately and is **not** in the premium — see
+  [Coastal erosion: modelled, not priced](#coastal-erosion-modelled-not-priced);
 - the loss model is anchored to **market-wide aggregates, not a claims
   triangle**. One national frequency multiplier and the published average
   severities set the level; the *shape* of frequency and severity across

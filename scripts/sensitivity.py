@@ -27,14 +27,17 @@ import pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_model as bm  # noqa: E402
 from scores_real import (subsidence_from_bgs, weather_from_metoffice,  # noqa: E402
-                         flood_from_agencies, groundwater_from_ea)
+                         flood_from_agencies, groundwater_from_ea,
+                         erosion_from_ncerm, sw_depth_severity)
 
 bm.N_SIM = 8000
 bm.BATCH = 100      # smaller than the main run: 7 scenarios back to back
 
 ORIG = dict(theta_ws=bm.theta_ws, theta_wf=bm.theta_wf, theta_wg=bm.theta_wg,
-            marginal_params=bm.marginal_params,
-            rho_sf=bm.RHO_SF_GIVEN_W, rho_fg=bm.RHO_FG_GIVEN_W)
+            theta_we=bm.theta_we,
+            marginal_params=bm.marginal_params, fields=bm._fields,
+            rho_sf=bm.RHO_SF_GIVEN_W, rho_fg=bm.RHO_FG_GIVEN_W,
+            rho_fe=bm.RHO_FE_GIVEN_W)
 
 
 def scale_theta(k):
@@ -43,28 +46,48 @@ def scale_theta(k):
     bm.theta_ws = wrap(ORIG["theta_ws"], 3.5)
     bm.theta_wf = wrap(ORIG["theta_wf"], 3.5)
     bm.theta_wg = wrap(ORIG["theta_wg"], 3.5)
+    bm.theta_we = wrap(ORIG["theta_we"], 3.5)
 
 
 def sigma_up(f):
     def wrapped(*a):
-        p_sub, p_wx, p_fl, p_gw, s_s, s_w, s_f, s_g = ORIG["marginal_params"](*a)
-        for s in (s_s, s_w, s_f, s_g):
-            s["sigma"] = s["sigma"] * f
-        return p_sub, p_wx, p_fl, p_gw, s_s, s_w, s_f, s_g
+        m = dict(ORIG["marginal_params"](*a))
+        for key in ("sev_sub", "sev_wx", "sev_fl", "sev_gw", "sev_er"):
+            m[key] = dict(m[key])
+            m[key]["sigma"] = m[key]["sigma"] * f
+        return m
     bm.marginal_params = wrapped
 
 
 def flood_freq(f):
     def wrapped(*a):
-        p_sub, p_wx, p_fl, p_gw, s_s, s_w, s_f, s_g = ORIG["marginal_params"](*a)
-        return p_sub, p_wx, p_fl * f, p_gw, s_s, s_w, s_f, s_g
+        m = dict(ORIG["marginal_params"](*a))
+        m["p_fl"] = m["p_fl"] * f
+        return m
     bm.marginal_params = wrapped
 
 
+def erosion_scenario(col):
+    """Swap which NCERM scenario drives the erosion peril.
+
+    `er_frac` normally holds the SMP (planned-defence) 2105 zone; the
+    no-further-intervention case - defences allowed to lapse - is the
+    interesting stress, and roughly doubles the national land loss.
+    """
+    def wrapped(src):
+        f = ORIG["fields"](src)
+        f["er"] = np.asarray(src[col].values, dtype=float)
+        return f
+    bm._fields = wrapped
+
+
 def reset():
-    bm.theta_ws, bm.theta_wf, bm.theta_wg = (
-        ORIG["theta_ws"], ORIG["theta_wf"], ORIG["theta_wg"])
+    bm.theta_ws, bm.theta_wf, bm.theta_wg, bm.theta_we = (
+        ORIG["theta_ws"], ORIG["theta_wf"], ORIG["theta_wg"], ORIG["theta_we"])
     bm.marginal_params = ORIG["marginal_params"]
+    bm.RHO_FE_GIVEN_W = ORIG["rho_fe"]
+    if "fields" in ORIG:
+        bm._fields = ORIG["fields"]
     bm.RHO_SF_GIVEN_W = ORIG["rho_sf"]
     bm.RHO_FG_GIVEN_W = ORIG["rho_fg"]
     # scenario wrappers call the original marginal_params, which reads the
@@ -84,6 +107,8 @@ SCENARIOS = {
                           setattr(bm, "RHO_FG_GIVEN_W", 0.50)),
     "sev_sigma_up": lambda: sigma_up(1.10),
     "flood_freq_150": lambda: flood_freq(1.50),
+    # erosion: defences allowed to lapse instead of maintained as planned
+    "erosion_no_intervention": lambda: erosion_scenario("er_nfi105"),
 }
 
 
@@ -101,6 +126,8 @@ def run_scenario(df):
     return dict(
         mean_el=round(float(d["el_total"].mean()), 1),
         mean_premium=round(float(d["premium"].mean()), 1),
+        # erosion sits outside the premium, so it is reported on its own
+        mean_el_erosion=round(float(d["el_er"].mean()), 1),
         mean_tvar99=round(float(d["tvar99_vine"].mean()), 1),
         mean_uplift_pct=round(float(d["uplift_pct"].mean()), 2),
         cat_year_cost=cat["mean_total"],
@@ -121,7 +148,14 @@ def main():
     (gdf["fl_score"], gdf["f_high"], gdf["f_low"],
      gdf["sw_high"], gdf["sw_low"]) = flood_from_agencies(gdf["name"].values)
     gdf["gw_score"], gdf["gw_frac"] = groundwater_from_ea(gdf["name"].values)
+    gdf["er_score"], er = erosion_from_ncerm(gdf["name"].values)
+    for col, vals in er.items():
+        gdf[col] = vals
+    gdf["er_frac"] = gdf["er_smp105"]
     gdf["households"] = bm.load_households(gdf["name"].values)
+    gdf["sw_sev"], _ = sw_depth_severity(
+        gdf["name"].values, gdf["sw_high"].values, gdf["sw_low"].values,
+        gdf["households"].values)
     # calibrate on the FULL set (as build_model does) so every scenario is
     # perturbing a properly calibrated baseline, then sample for speed
     bm.calibrate_frequency(gdf)

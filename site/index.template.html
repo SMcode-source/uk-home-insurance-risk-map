@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UK Home Insurance Risk Map — four perils, one dependence model</title>
+<title>UK Home Insurance Risk Map — four insured perils, one dependence model</title>
 <link rel="stylesheet" href="assets/site.css">
 __HEAD__
 </head>
@@ -14,16 +14,18 @@ __NAV__
 
   <section class="hero">
     <div class="eyebrow">Geospatial risk modelling · open data</div>
-    <h1>Four perils.<br>2,736 postcode districts.<br>One dependence model.</h1>
+    <h1>Four insured perils.<br>2,736 postcode districts.<br>One dependence model.</h1>
     <p class="lede">A UK home-insurance risk model that scores every postcode district for
     <b>subsidence</b>, <b>weather damage</b>, <b>flood</b> and <b>groundwater flooding</b> —
     then joins them with a vine copula, because the expensive years are the ones where
-    several perils strike at once.</p>
+    several perils strike at once. <b>Coastal erosion</b> is modelled alongside them but
+    kept out of the premium, because no standard policy covers it.</p>
     <div class="perils">
       <span class="chip"><i style="background:var(--sub)"></i>Subsidence · BGS geology</span>
       <span class="chip"><i style="background:var(--wx)"></i>Weather · Met Office</span>
       <span class="chip"><i style="background:var(--fl)"></i>Flood · EA / NRW / SEPA</span>
       <span class="chip"><i style="background:var(--gw)"></i>Groundwater · EA alert areas</span>
+      <span class="chip"><i style="background:var(--er)"></i>Erosion · EA NCERM · not insured</span>
     </div>
     <div class="cta">
       <a class="btn btn-primary" href="map.html">Explore the map →</a>
@@ -38,6 +40,18 @@ __NAV__
       <div class="tile"><div class="k">Four-peril premium</div><div class="v">£__PREM_MIN__–__PREM_MAX__</div><div class="d">lowest to highest district</div></div>
       <div class="tile"><div class="k">Diversification credit</div><div class="v">__DIVERSIFICATION__%</div><div class="d">portfolio vs standalone tail</div></div>
     </div>
+    <p class="note" style="margin-top:14px">Separately, __EROSION_N__ districts sit on a
+    coast the sea is projected to take land from by 2105. For <b>__EROSION_SAVED__</b> of
+    them the adopted defence plans hold that at <b>zero</b> — the clearest thing in the
+    model that sea walls do. Worst case is __EROSION_WORST__, losing __EROSION_WORST_PCT__%
+    of its area even with its plan in place. None of this is in the premium:
+    <a href="methodology.html#erosion">no standard policy covers coastal erosion</a>.</p>
+    <p class="note" style="margin-top:10px">And re-running the whole model on the
+    Environment Agency's <b>climate-change flood extents</b> — calibration held fixed, so
+    only the hazard map moves — shifts the technical premium by
+    <b>__CC_UPLIFT__%</b> across the __CC_N__ districts it covers, worst
+    __CC_WORST__ at __CC_WORST_PCT__%. A scenario, not a forecast, and England only:
+    <a href="methodology.html#climate">what it does and does not mean</a>.</p>
   </section>
 
   <section id="lookup">
@@ -62,9 +76,10 @@ __NAV__
           <path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"/><path d="M9 4v13.5M15 6.5V20"/>
         </svg>
         <h3>Interactive map</h3>
-        <p>Eight switchable layers — rating group, technical premium, each peril score,
-        1-in-200 loss and the copula uplift. Click any district for its full risk
-        breakdown, right down to the bedrock formation beneath it.</p>
+        <p>Eleven switchable layers — rating group, technical premium, each peril score,
+        1-in-200 loss, surface-water depth, coastal erosion and the climate repricing.
+        Click any district for its full risk breakdown, right down to the bedrock
+        formation beneath it.</p>
         <span class="more">Open the map →</span>
       </a>
       <a class="card" href="years.html">
@@ -84,7 +99,7 @@ __NAV__
         </svg>
         <h3>Methodology &amp; data</h3>
         <p>Every peril score, the vine copula structure, why the risk measure is TVaR and
-        not VaR, all fourteen open datasets with their endpoints and quirks — and the
+        not VaR, all twenty-one open datasets with their endpoints and quirks — and the
         commands to rebuild the whole thing.</p>
         <span class="more">Read the methodology →</span>
       </a>

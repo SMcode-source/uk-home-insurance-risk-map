@@ -2,7 +2,7 @@
 
 Pipeline:
   1. Load ~2,700 postcode-district polygons (one GeoJSON per postcode area).
-  2. Score each district on two perils from REAL open data (see
+  2. Score each district on five perils from REAL open data (see
      scores_real.py):
        - subsidence  : BGS 625k bedrock geology classified for shrink-swell
                        susceptibility, area-weighted per district
@@ -10,19 +10,30 @@ Pipeline:
                        index, >=10mm rain days, annual precipitation)
                        interpolated to district centroids
        - flood       : EA / NRW / SEPA flood-zone extents rasterised to
-                       per-district area fractions
+                       per-district area fractions, with surface-water
+                       severity conditioned on the EA depth bands
+       - groundwater : EA groundwater flood alert areas
+       - erosion     : EA NCERM coastal frontages (England) — reported
+                       separately, see below
   3. Model per-district annual aggregate losses for each peril (compound
-     frequency-severity marginals) and join them with a C-vine copula
-     (weather at the root; Gumbel pairs weather-flood and
-     weather-subsidence, Gaussian subsidence-flood given weather) — with
-     trivariate-Gaussian and independence runs for comparison.
+     frequency-severity marginals) and join them with a 5-dim C-vine copula
+     (weather at the root; Gumbel pairs weather-flood, weather-groundwater,
+     weather-subsidence and weather-erosion; Gaussian pairs given weather)
+     — with 5-dim-Gaussian and independence runs for comparison.
   4. Band districts into 10 rating groups on the technical premium
      (expected loss + cost of capital on the 1-in-200 joint loss).
   5. Write districts_risk.geojson for the map front-end.
 
-The hazard inputs are real (BGS + Met Office, OGL); the marginal loss
-frequencies/severities and the copula theta remain assumptions — calibrate
-those to claims data for production use.
+Coastal erosion is modelled in the vine but deliberately EXCLUDED from
+`premium` and from the good-year/bad-year view. Gradual erosion is not
+covered by standard UK household policies, so pricing it as an insured
+loss would be wrong; and it is a chronic process rather than an event, so
+it has no bad years. It is carried as `el_er` / `er_*` for the blight and
+valuation exposure it genuinely represents.
+
+The hazard inputs are real (BGS + Met Office + EA/NRW/SEPA, OGL); the
+marginal loss frequencies/severities and the copula theta remain
+assumptions — calibrate those to claims data for production use.
 """
 
 import glob
@@ -36,7 +47,10 @@ import shapely
 from scipy import stats
 
 from scores_real import (subsidence_from_bgs, weather_from_metoffice,
-                         flood_from_agencies, groundwater_from_ea)
+                         flood_from_agencies, groundwater_from_ea,
+                         erosion_from_ncerm, sw_depth_severity, load_country,
+                         flood_future, flood_score_from_fractions,
+                         EROSION_HORIZON_YEARS)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "..", "data")
@@ -49,6 +63,62 @@ N_SIM = 20_000          # simulated years per district
 # markedly faster in wall-clock terms despite more batches.
 BATCH = 80
 RNG_SEED = 42
+
+# Columns written to districts_risk.geojson, in order. Kept at module level
+# so main() can check them BEFORE simulating: a missing column used to
+# surface only at the final write, which on a 55-minute run means losing
+# the whole thing to a typo.
+OUTPUT_COLUMNS = [
+    "name", "area", "country", "households",
+    "sub_score", "wx_score", "fl_score", "gw_score",
+    "geol", "wind_ms", "wdr_idx", "rain10_days", "precip_mm",
+    "gust_rp50",
+    "f_high", "f_low", "sw_high", "sw_low", "gw_frac",
+    "sw_sev", "sw_depth_m",
+    "er_score", "er_smp55", "er_smp105", "er_nfi55", "er_nfi105",
+    "er_smp105_lo", "er_smp105_hi", "er_nfi105_lo", "er_nfi105_hi",
+    "er_gi",
+    "el_sub", "el_wx", "el_fl", "el_gw", "el_er",
+    "el_total", "el_total5", "var995_vine", "tvar99_vine",
+    "tvar99_gauss",
+    "tvar99_indep", "tvar99_vine5", "tvar99_indep5", "tvar99_euler",
+    "capital",
+    "el_total_cc", "capital_cc", "premium_cc", "cc_uplift_pct",
+    "cc_covered",
+    "uplift_pct", "tail_dep_wf", "tail_dep_ws",
+    "tail_dep_wg", "tail_dep_we",
+    "theta_wf", "theta_ws", "theta_wg", "theta_we",
+    "premium", "group", "geometry",
+]
+
+# Everything above that is produced later, by simulate() or by main()'s own
+# premium/capital/climate arithmetic. Anything NOT in here must already be
+# on the frame once scoring finishes.
+DERIVED_COLUMNS = {
+    "el_sub", "el_wx", "el_fl", "el_gw", "el_er", "el_total", "el_total5",
+    "var995_vine", "var995_gauss", "var995_indep", "tvar99_vine",
+    "tvar99_gauss", "tvar99_indep", "tvar99_vine5", "tvar99_indep5",
+    "tvar99_euler", "el_year", "uplift_pct",
+    "tail_dep_wf", "tail_dep_ws", "tail_dep_wg", "tail_dep_we",
+    "theta_wf", "theta_ws", "theta_wg", "theta_we",
+    "capital", "premium", "group",
+    "el_total_cc", "capital_cc", "premium_cc", "cc_uplift_pct", "cc_covered",
+}
+
+
+def check_scored_columns(gdf):
+    """Fail fast if scoring did not produce everything the output needs."""
+    need = [c for c in OUTPUT_COLUMNS if c not in DERIVED_COLUMNS]
+    missing = [c for c in need if c not in gdf.columns]
+    if missing:
+        raise SystemExit(
+            f"scoring produced no {missing}.\n"
+            "OUTPUT_COLUMNS lists a column nothing writes - check that the "
+            "matching fetch script has been run and that its reader in "
+            "scores_real.py knows about the column.")
+    print(f"  output contract: {len(need)} scored columns present, "
+          f"{len(DERIVED_COLUMNS & set(OUTPUT_COLUMNS))} to come from the "
+          f"simulation")
 
 # ---------------------------------------------------------------- load
 
@@ -124,6 +194,12 @@ ABI = dict(
     # held to the published £30,000 average.
     sev_flood_fluvial=35_000.0, sev_surface_water=18_000.0,
     total_home_paid=3.4e9,                # all home claims, for context only
+    # Coastal erosion is a TOTAL loss of the property, not a repair, so its
+    # severity is a sum insured rather than an average claim. There is no
+    # ABI figure to calibrate against, because gradual erosion is excluded
+    # from standard household cover - which is exactly why this peril is
+    # reported separately from the insured premium throughout.
+    sev_erosion=250_000.0,
 )
 # Target per-policy frequency for each modelled peril = paid / severity / policies
 ABI_TARGET_FREQ = {
@@ -151,19 +227,15 @@ def calibrate_frequency(gdf):
     """
     global FREQ_SCALE
     FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0}
-    p_sub, p_wx, p_fl, p_gw, *_ = marginal_params(
-        gdf["sub_score"].values, gdf["wx_score"].values,
-        gdf["f_high"].values, gdf["f_low"].values,
-        gdf["sw_high"].values, gdf["sw_low"].values,
-        gdf["gw_frac"].values)
+    m = marginal_params(_fields(gdf))
     # ABI totals are national, so the average must be exposure-weighted:
     # a district with 40,000 households counts 40,000 times more than one
     # with a single household.
     w = gdf["households"].values
-    raw = {"sub": float(np.average(p_sub, weights=w)),
-           "wx": float(np.average(p_wx, weights=w)),
-           "fl": float(np.average(p_fl, weights=w)),
-           "gw": float(np.average(p_gw, weights=w))}
+    raw = {"sub": float(np.average(m["p_sub"], weights=w)),
+           "wx": float(np.average(m["p_wx"], weights=w)),
+           "fl": float(np.average(m["p_fl"], weights=w)),
+           "gw": float(np.average(m["p_gw"], weights=w))}
     for k in ("sub", "wx", "fl"):
         FREQ_SCALE[k] = ABI_TARGET_FREQ[k] / raw[k]
     # groundwater has no published total; peg it to a share of flood
@@ -196,12 +268,12 @@ def calibrate_spatial(gdf, target_ratio=TAIL_FREQ_RATIO):
     `target_ratio` times the mean year. No simulation needed.
     """
     global SPATIAL_SCALE
-    p_sub, p_wx, p_fl, p_gw, *_ = marginal_params(
-        gdf["sub_score"].values, gdf["wx_score"].values,
-        gdf["f_high"].values, gdf["f_low"].values,
-        gdf["sw_high"].values, gdf["sw_low"].values,
-        gdf["gw_frac"].values)
-    perils = [("s", p_sub), ("w", p_wx), ("f", p_fl), ("g", p_gw)]
+    m = marginal_params(_fields(gdf))
+    # erosion is deliberately absent: the spatial loading calibration is
+    # about how widely a bad YEAR claims, and erosion is chronic rather
+    # than event-driven (see year_analysis).
+    perils = [("s", m["p_sub"]), ("w", m["p_wx"]),
+              ("f", m["p_fl"]), ("g", m["p_gw"])]
     expo = gdf["households"].values
     mean_freq = sum(float(np.average(p, weights=expo)) for _, p in perils)
     z99 = stats.norm.ppf(0.99)
@@ -233,41 +305,77 @@ def calibrate_spatial(gdf, target_ratio=TAIL_FREQ_RATIO):
     return SPATIAL_SCALE
 
 
-def marginal_params(sub, wx, f_high, f_low, sw_high, sw_low, gw_frac):
+def marginal_params(f):
     """Per-district claim frequency and severity for each peril.
+
+    `f` is a mapping of same-shaped per-district arrays: sub, wx, f_high,
+    f_low, sw_high, sw_low, gw_frac, sw_sev (depth severity multiplier)
+    and er (erosion zone fraction). Passing a mapping rather than nine
+    positional arguments keeps the three call sites legible.
 
     Relative frequencies come from the hazard scores; the overall LEVEL is
     set by FREQ_SCALE (calibrate_frequency). Severity medians are chosen so
     each lognormal's MEAN matches the published ABI average claim.
     """
+    sub, wx = f["sub"], f["wx"]
     p_sub = 0.002 + 0.028 * sub ** 1.5
     p_wx = 0.010 + 0.090 * wx ** 1.2
     # river/sea flood frequency from actual zone fractions: ~1.5%/yr for a
     # property in the defended 1in100/200 zone, ~0.3%/yr in the rest of
     # the 1in1000 envelope, 0.05%/yr background
-    p_rs = 0.0005 + 0.015 * f_high + 0.003 * np.maximum(f_low - f_high, 0)
+    p_rs = (0.0005 + 0.015 * f["f_high"]
+            + 0.003 * np.maximum(f["f_low"] - f["f_high"], 0))
     # surface water: ~1%/yr in the >=1% AEP zone, shallower/cheaper events
-    p_sw = 0.010 * sw_high + 0.002 * np.maximum(sw_low - sw_high, 0)
+    p_sw = (0.010 * f["sw_high"]
+            + 0.002 * np.maximum(f["sw_low"] - f["sw_high"], 0))
     p_fl = p_rs + p_sw
-    p_gw = 0.0003 + 0.008 * gw_frac
+    p_gw = 0.0003 + 0.008 * f["gw_frac"]
+    # Coastal erosion. A property inside the strip projected to be lost by
+    # the 2105 epoch is lost within that horizon, so the annual hazard is
+    # the zone fraction spread over the horizon. Two assumptions worth
+    # stating: households are taken as spread uniformly across the district
+    # (coastal populations actually cluster towards the shore, so this if
+    # anything understates), and the SMP scenario is used, i.e. defences
+    # are assumed to be maintained as currently planned.
+    p_er = f["er"] / EROSION_HORIZON_YEARS
 
-    s_sub, s_wx, s_fl, s_gw = 0.90, 1.10, 0.90, 0.80
+    s_sub, s_wx, s_fl, s_gw, s_er = 0.90, 1.10, 0.90, 0.80, 0.35
     sev_sub = dict(mu=np.log(_median_for_mean(ABI["sev_subsidence"], s_sub)),
                    sigma=s_sub)
     sev_wx = dict(mu=np.log(_median_for_mean(ABI["sev_weather"], s_wx)),
                   sigma=s_wx)
     # flood severity: frequency-weighted blend of fluvial/tidal and the
-    # shallower, cheaper surface-water events
+    # shallower, cheaper surface-water events. The surface-water leg is
+    # scaled by the district's depth severity multiplier (EA depth bands,
+    # see sw_depth_severity) - deep water damages a house far more than a
+    # few centimetres, and the multiplier is normalised to leave the
+    # national average, and so the ABI calibration, unchanged.
     mu_rs = np.log(_median_for_mean(ABI["sev_flood_fluvial"], s_fl))
-    mu_sw = np.log(_median_for_mean(ABI["sev_surface_water"], s_fl))
+    mu_sw = np.log(_median_for_mean(
+        ABI["sev_surface_water"] * f["sw_sev"], s_fl))
     mu_fl = (p_rs * mu_rs + p_sw * mu_sw) / np.maximum(p_fl, 1e-12)
     sev_fl = dict(mu=mu_fl, sigma=s_fl)
     sev_gw = dict(mu=np.log(_median_for_mean(ABI["sev_groundwater"], s_gw)),
                   sigma=s_gw)
+    # erosion destroys the property outright, so severity is a sum insured
+    # with little spread rather than a repair-cost distribution
+    sev_er = dict(mu=np.log(_median_for_mean(ABI["sev_erosion"], s_er)),
+                  sigma=s_er)
 
     k = FREQ_SCALE
-    return (p_sub * k["sub"], p_wx * k["wx"], p_fl * k["fl"], p_gw * k["gw"],
-            sev_sub, sev_wx, sev_fl, sev_gw)
+    return dict(
+        p_sub=p_sub * k["sub"], p_wx=p_wx * k["wx"], p_fl=p_fl * k["fl"],
+        p_gw=p_gw * k["gw"], p_er=p_er,     # erosion is not ABI-calibrated
+        sev_sub=sev_sub, sev_wx=sev_wx, sev_fl=sev_fl, sev_gw=sev_gw,
+        sev_er=sev_er)
+
+
+def _fields(src):
+    """Pull the marginal_params inputs out of a GeoDataFrame/chunk."""
+    return {k: src[v].values for k, v in
+            [("sub", "sub_score"), ("wx", "wx_score"), ("f_high", "f_high"),
+             ("f_low", "f_low"), ("sw_high", "sw_high"), ("sw_low", "sw_low"),
+             ("gw_frac", "gw_frac"), ("sw_sev", "sw_sev"), ("er", "er_frac")]}
 
 
 def inv_mixed_cdf(u, p, mu, sigma):
@@ -285,19 +393,26 @@ def inv_mixed_cdf(u, p, mu, sigma):
 
 
 # ------------------------------------------------------- vine copula
-# C-vine on (W=weather, F=flood, G=groundwater, S=subsidence), root W:
+# C-vine on (W=weather, F=flood, G=groundwater, S=subsidence,
+# E=coastal erosion), root W:
 #   tree 1:  c_WF Gumbel(theta_wf)   storm rain drives flood - strongest
 #            c_WG Gumbel(theta_wg)   prolonged rain recharges aquifers
 #            c_WS Gumbel(theta_ws)   shared climate-volatility driver
+#            c_WE Gumbel(theta_we)   cliff and beach retreat happens in
+#                                    storms, not on calm days
 #   tree 2 (given W, second-level root F):
 #            c_FG|W Gaussian(0.25)   wet winters: fluvial + groundwater
 #            c_FS|W Gaussian(0.15)   weak residual dependence
-#   tree 3:  c_GS|WF = independence
+#            c_FE|W Gaussian(0.35)   coastal flooding and erosion share the
+#                                    same storm-surge events, so this is the
+#                                    strongest of the tree-2 pairs
+#   tree 3:  independence
 # Gumbel pairs are upper-tail dependent: extreme years hit the perils
 # together. Kendall tau = 1 - 1/theta; lambda_U = 2 - 2^(1/theta).
 
 RHO_SF_GIVEN_W = 0.15
 RHO_FG_GIVEN_W = 0.25
+RHO_FE_GIVEN_W = 0.35
 
 
 def theta_ws(sub, wx):
@@ -311,6 +426,12 @@ def theta_wf(wx, fl):
 def theta_wg(wx, gw):
     # groundwater responds to cumulative winter rainfall
     return np.clip(1.30 + 1.10 * np.sqrt(wx * gw), 1.0, 2.4)
+
+
+def theta_we(wx, er):
+    # erosion is storm-driven: the retreat happens in a handful of surge
+    # events, so the tail dependence with weather is meaningful
+    return np.clip(1.35 + 1.30 * np.sqrt(wx * er), 1.0, 2.6)
 
 
 def h_gumbel(v, u, th):
@@ -351,56 +472,60 @@ def sample_gumbel(theta, base):
     return u1, u2
 
 
-def sample_vine(t_ws, t_wf, t_wg, base):
-    """Sample (u_w, u_f, u_g, u_s) from the C-vine with common random
+def sample_vine(t_ws, t_wf, t_wg, t_we, base):
+    """Sample (u_w, u_f, u_g, u_s, u_e) from the C-vine with common random
     numbers.
 
-    (W,F) drawn jointly via Marshall-Olkin; G and S conditionally:
+    (W,F) drawn jointly via Marshall-Olkin; G, S and E conditionally:
       v   = h_{F|W}(u_f | u_w)                (tree-1 pseudo-observation)
       z_x = h^{-1}_gauss(w | v; rho_xF|W)     (tree 2, closed form)
       u_x = h^{-1}_{x|W}(z_x | u_w; theta_wx) (tree 1, bisection)
-    Tree 3 (G,S | W,F) is independence, so S needs no extra step.
+    Tree 3 is independence, so nothing further is needed.
     """
     u_w, u_f = sample_gumbel(t_wf, base)
     v = np.clip(h_gumbel(u_f, u_w, t_wf), 1e-9, 1 - 1e-9)
     zv = stats.norm.ppf(v)
 
-    rho_g = RHO_FG_GIVEN_W
-    z_g = stats.norm.cdf(rho_g * zv + np.sqrt(1 - rho_g ** 2) * base["Z4"])
-    u_g = hinv_gumbel(np.clip(z_g, 1e-9, 1 - 1e-9), u_w, t_wg)
+    def conditional(rho, z_indep, t_wx):
+        z = stats.norm.cdf(rho * zv + np.sqrt(1 - rho ** 2) * z_indep)
+        return hinv_gumbel(np.clip(z, 1e-9, 1 - 1e-9), u_w, t_wx)
 
-    rho_s = RHO_SF_GIVEN_W
-    z_s = stats.norm.cdf(rho_s * zv + np.sqrt(1 - rho_s ** 2) * base["Z3"])
-    u_s = hinv_gumbel(np.clip(z_s, 1e-9, 1 - 1e-9), u_w, t_ws)
-    return u_w, u_f, u_g, u_s
+    u_g = conditional(RHO_FG_GIVEN_W, base["Z4"], t_wg)
+    u_s = conditional(RHO_SF_GIVEN_W, base["Z3"], t_ws)
+    u_e = conditional(RHO_FE_GIVEN_W, base["Z5"], t_we)
+    return u_w, u_f, u_g, u_s, u_e
 
 
-def sample_gaussian4(t_ws, t_wf, t_wg, base):
-    """4-dim Gaussian copula, tau-matched pairwise to the vine (same
-    rank correlations, no tail dependence). Order: (W, F, G, S)."""
+def sample_gaussian5(t_ws, t_wf, t_wg, t_we, base):
+    """5-dim Gaussian copula, tau-matched pairwise to the vine (same
+    rank correlations, no tail dependence). Order: (W, F, G, S, E)."""
     tau2rho = lambda t: np.sin(np.pi * (1 - 1 / t) / 2).ravel()
-    r_wf, r_ws, r_wg = tau2rho(t_wf), tau2rho(t_ws), tau2rho(t_wg)
+    r_wf, r_ws = tau2rho(t_wf), tau2rho(t_ws)
+    r_wg, r_we = tau2rho(t_wg), tau2rho(t_we)
     # unconditional pairwise correlations implied by the vine (partial
-    # correlation recursion; rho_GS|WF = 0)
+    # correlation recursion; every tree-3 partial correlation is zero)
     orth = lambda a, b: np.sqrt((1 - a ** 2) * (1 - b ** 2))
     r_fs = r_wf * r_ws + RHO_SF_GIVEN_W * orth(r_wf, r_ws)
     r_fg = r_wf * r_wg + RHO_FG_GIVEN_W * orth(r_wf, r_wg)
+    r_fe = r_wf * r_we + RHO_FE_GIVEN_W * orth(r_wf, r_we)
     r_gs = r_wg * r_ws + (RHO_FG_GIVEN_W * RHO_SF_GIVEN_W) * orth(r_wg, r_ws)
+    r_ge = r_wg * r_we + (RHO_FG_GIVEN_W * RHO_FE_GIVEN_W) * orth(r_wg, r_we)
+    r_se = r_ws * r_we + (RHO_SF_GIVEN_W * RHO_FE_GIVEN_W) * orth(r_ws, r_we)
 
     d = len(r_wf)
-    R = np.empty((d, 4, 4))
-    R[:, 0, 0] = R[:, 1, 1] = R[:, 2, 2] = R[:, 3, 3] = 1.0
-    R[:, 0, 1] = R[:, 1, 0] = r_wf
-    R[:, 0, 2] = R[:, 2, 0] = r_wg
-    R[:, 0, 3] = R[:, 3, 0] = r_ws
-    R[:, 1, 2] = R[:, 2, 1] = r_fg
-    R[:, 1, 3] = R[:, 3, 1] = r_fs
-    R[:, 2, 3] = R[:, 3, 2] = r_gs
-    L = np.linalg.cholesky(R)                      # (d, 4, 4)
-    Z = np.stack([base["Z1"], base["Z2"], base["Z4"], base["Z3"]])  # (4, N)
-    z = np.einsum("dij,jn->din", L, Z)             # (d, 4, N)
+    R = np.empty((d, 5, 5))
+    for i in range(5):
+        R[:, i, i] = 1.0
+    for i, j, r in [(0, 1, r_wf), (0, 2, r_wg), (0, 3, r_ws), (0, 4, r_we),
+                    (1, 2, r_fg), (1, 3, r_fs), (1, 4, r_fe),
+                    (2, 3, r_gs), (2, 4, r_ge), (3, 4, r_se)]:
+        R[:, i, j] = R[:, j, i] = r
+    L = np.linalg.cholesky(R)                      # (d, 5, 5)
+    Z = np.stack([base["Z1"], base["Z2"], base["Z4"],
+                  base["Z3"], base["Z5"]])         # (5, N)
+    z = np.einsum("dij,jn->din", L, Z)             # (d, 5, N)
     u = stats.norm.cdf(z)
-    return u[:, 0], u[:, 1], u[:, 2], u[:, 3]
+    return u[:, 0], u[:, 1], u[:, 2], u[:, 3], u[:, 4]
 
 
 def simulate(district_df):
@@ -414,17 +539,20 @@ def simulate(district_df):
         "Z2": rng.standard_normal(N_SIM),
         "Z3": rng.standard_normal(N_SIM),
         "Z4": rng.standard_normal(N_SIM),
+        "Z5": rng.standard_normal(N_SIM),
         "U_ind_F": rng.uniform(0, 1, N_SIM),   # independence comparison
         "U_ind_S": rng.uniform(0, 1, N_SIM),
         "U_ind_G": rng.uniform(0, 1, N_SIM),
+        "U_ind_E": rng.uniform(0, 1, N_SIM),
     }
 
     out = {k: [] for k in [
-        "el_sub", "el_wx", "el_fl", "el_gw", "el_total", "var995_vine",
+        "el_sub", "el_wx", "el_fl", "el_gw", "el_er", "el_total",
+        "el_total5", "var995_vine",
         "var995_gauss", "var995_indep", "tvar99_vine", "tvar99_gauss",
-        "tvar99_indep", "uplift_pct",
-        "tail_dep_wf", "tail_dep_ws", "tail_dep_wg",
-        "theta_wf", "theta_ws", "theta_wg",
+        "tvar99_indep", "tvar99_vine5", "tvar99_indep5", "uplift_pct",
+        "tail_dep_wf", "tail_dep_ws", "tail_dep_wg", "tail_dep_we",
+        "theta_wf", "theta_ws", "theta_wg", "theta_we",
     ]}
 
     def tvar(a, q=0.99):
@@ -449,8 +577,25 @@ def simulate(district_df):
     year = {k: np.zeros(N_SIM) for k in
             ["s_v", "w_v", "f_v", "g_v", "s_i", "f_i", "g_i",
              "inc_s", "inc_w", "inc_f", "inc_g"]}
-    # per-district year-view loss, kept so capital can be allocated to
-    # districts by their contribution to the PORTFOLIO tail (Euler)
+    # Per-district year-view loss, kept so capital can be allocated to
+    # districts by their contribution to the PORTFOLIO tail (Euler).
+    #
+    # This holds the CONDITIONAL EXPECTED loss given the year's systemic
+    # draw, not the realised loss. That is a deliberate variance reduction
+    # (Rao-Blackwellisation), and it matters: the allocation averages over
+    # the worst 1% of years, which is only 200 draws, and at calibrated
+    # frequencies a district claims in 1-2 of them. Averaging REALISED
+    # losses over that window made capital - and therefore the premium and
+    # the published rating group - largely Monte Carlo noise. Re-running
+    # with a different seed churned ~58% of districts into a different
+    # decile on a 304-district portfolio, and a +0.4% change in flood
+    # expected loss moved one district 8 deciles on the full run.
+    #
+    # Conditioning on the systemic factor removes the Bernoulli noise
+    # entirely and is exact rather than approximate, because the bad-year
+    # selection below also uses the smoothed portfolio loss - so the
+    # selection is systemic-measurable and the tower property applies.
+    # Expected loss is unchanged in expectation; only its variance falls.
     year_loss = np.zeros((len(district_df), N_SIM), dtype=np.float32)
     # exposure: portfolio quantities are per-policy, so districts enter
     # weighted by how many households they actually contain
@@ -461,38 +606,60 @@ def simulate(district_df):
         z = stats.norm.ppf(np.clip(u, 1e-12, 1 - 1e-12))
         return stats.norm.cdf(np.sqrt(w_sp) * z + np.sqrt(1 - w_sp) * eps)
 
+    def cond_expected(u_sys, p, sev, w_sp):
+        """E[loss | this year's systemic draw] for one peril.
+
+        Under the factor model a district claims when
+            Phi(sqrt(w)*Phi^-1(u_sys) + sqrt(1-w)*eps) > 1 - p,
+        so conditional on u_sys the claim probability is closed-form, and
+        the expected loss is that times the lognormal mean. Same marginal
+        as the realised draw, a fraction of the variance.
+        """
+        z = stats.norm.ppf(np.clip(u_sys, 1e-12, 1 - 1e-12))
+        thr = stats.norm.ppf(np.clip(1.0 - p, 1e-12, 1 - 1e-12))
+        q = stats.norm.cdf((np.sqrt(w_sp) * z - thr) / np.sqrt(1 - w_sp))
+        return q * np.exp(sev["mu"] + sev["sigma"] ** 2 / 2)
+
     for start in range(0, len(district_df), BATCH):
         chunk = district_df.iloc[start:start + BATCH]
-        sub = chunk["sub_score"].values[:, None]
-        wx = chunk["wx_score"].values[:, None]
-        fl = chunk["fl_score"].values[:, None]
-        fh = chunk["f_high"].values[:, None]
-        flo = chunk["f_low"].values[:, None]
-        swh = chunk["sw_high"].values[:, None]
-        swl = chunk["sw_low"].values[:, None]
-        gwf = chunk["gw_frac"].values[:, None]
-        gws = chunk["gw_score"].values[:, None]
-        t_ws = theta_ws(sub, wx)
-        t_wf = theta_wf(wx, fl)
-        t_wg = theta_wg(wx, gws)
-        p_sub, p_wx, p_fl, p_gw, sev_s, sev_w, sev_f, sev_g = marginal_params(
-            sub, wx, fh, flo, swh, swl, gwf)
+        fld = {k: v[:, None] for k, v in _fields(chunk).items()}
+        t_ws = theta_ws(fld["sub"], fld["wx"])
+        t_wf = theta_wf(fld["wx"], chunk["fl_score"].values[:, None])
+        t_wg = theta_wg(fld["wx"], chunk["gw_score"].values[:, None])
+        t_we = theta_we(fld["wx"], chunk["er_score"].values[:, None])
+        m = marginal_params(fld)
 
-        def total(u_w, u_f, u_g, u_s):
-            lw = inv_mixed_cdf(u_w, np.broadcast_to(p_wx, u_w.shape), **sev_w)
-            lf = inv_mixed_cdf(u_f, np.broadcast_to(p_fl, u_f.shape), **sev_f)
-            lg = inv_mixed_cdf(u_g, np.broadcast_to(p_gw, u_g.shape), **sev_g)
-            ls = inv_mixed_cdf(u_s, np.broadcast_to(p_sub, u_s.shape), **sev_s)
-            return ls, lw, lf, lg, ls + lw + lf + lg
+        # The headline total is the four INSURED perils. Erosion is kept
+        # separate: gradual coastal erosion is excluded from standard
+        # household cover, so folding it into the premium would price a
+        # loss no policy pays. It is still drawn from the joint vine, so
+        # its dependence on storms and coastal flooding is modelled.
+        # u_e is optional because most callers here discard the erosion
+        # leg, and this loop is memory-bound (see the BATCH note above) —
+        # no point materialising another (BATCH x N_SIM) array to drop it.
+        def losses(u_w, u_f, u_g, u_s, u_e=None):
+            """Per-peril loss draws: (sub, wx, flood, gw, erosion-or-None)."""
+            def leg(u, p, sev):
+                return inv_mixed_cdf(u, np.broadcast_to(m[p], u.shape),
+                                     **m[sev])
+            return (leg(u_s, "p_sub", "sev_sub"), leg(u_w, "p_wx", "sev_wx"),
+                    leg(u_f, "p_fl", "sev_fl"), leg(u_g, "p_gw", "sev_gw"),
+                    leg(u_e, "p_er", "sev_er") if u_e is not None else None)
 
-        u_w, u_f, u_g, u_s = sample_vine(t_ws, t_wf, t_wg, base)
-        ls, lw, lf, lg, tot_v = total(u_w, u_f, u_g, u_s)
-        _, _, _, _, tot_n = total(*sample_gaussian4(t_ws, t_wf, t_wg, base))
-        _, _, _, _, tot_i = total(
-            u_w,
-            np.broadcast_to(base["U_ind_F"], u_w.shape),
-            np.broadcast_to(base["U_ind_G"], u_w.shape),
-            np.broadcast_to(base["U_ind_S"], u_w.shape))
+        def insured(parts):
+            return parts[0] + parts[1] + parts[2] + parts[3]
+
+        u_w, u_f, u_g, u_s, u_e = sample_vine(t_ws, t_wf, t_wg, t_we, base)
+        ls, lw, lf, lg, le = losses(u_w, u_f, u_g, u_s, u_e)
+        tot_v = ls + lw + lf + lg
+        tot5_v = tot_v + le
+        tot_n = insured(losses(*sample_gaussian5(t_ws, t_wf, t_wg, t_we,
+                                                 base)[:4]))
+        bc = lambda key: np.broadcast_to(base[key], u_w.shape)
+        parts_i = losses(u_w, bc("U_ind_F"), bc("U_ind_G"), bc("U_ind_S"),
+                         bc("U_ind_E"))
+        tot_i = insured(parts_i)
+        tot5_i = tot_i + parts_i[4]
 
         # year view: systemic factor + idiosyncratic district noise
         rng_b = np.random.default_rng(RNG_SEED + 1000 + start)
@@ -501,12 +668,23 @@ def simulate(district_df):
         eps_f = rng_b.standard_normal(shape)
         eps_s = rng_b.standard_normal(shape)
         eps_g = rng_b.standard_normal(shape)
+        # Erosion is deliberately absent from the year view. It is a
+        # chronic process, not an event: including it would add a nearly
+        # constant charge to every simulated year and blur exactly the
+        # good-year / bad-year contrast this view exists to show. Capital
+        # is therefore also allocated against insured losses only.
         uw_y = mix_with(u_w, SPATIAL_LOADING["w"], eps_w)
         uf_y = mix_with(u_f, SPATIAL_LOADING["f"], eps_f)
         us_y = mix_with(u_s, SPATIAL_LOADING["s"], eps_s)
         ug_y = mix_with(u_g, SPATIAL_LOADING["g"], eps_g)
-        ls_y, lw_y, lf_y, lg_y, tot_y = total(uw_y, uf_y, ug_y, us_y)
-        year_loss[start:start + len(chunk)] = tot_y.astype(np.float32)
+        ls_y, lw_y, lf_y, lg_y, _ = losses(uw_y, uf_y, ug_y, us_y)
+        # realised losses drive the good/bad-year narrative (incidence,
+        # per-peril composition); the smoothed version drives capital
+        cond = (cond_expected(u_s, m["p_sub"], m["sev_sub"], SPATIAL_LOADING["s"])
+                + cond_expected(u_w, m["p_wx"], m["sev_wx"], SPATIAL_LOADING["w"])
+                + cond_expected(u_f, m["p_fl"], m["sev_fl"], SPATIAL_LOADING["f"])
+                + cond_expected(u_g, m["p_gw"], m["sev_gw"], SPATIAL_LOADING["g"]))
+        year_loss[start:start + len(chunk)] = cond.astype(np.float32)
         # independence year view: same idiosyncratic noise (common random
         # numbers), systemic factors independent across perils
         ufi_y = mix_with(np.broadcast_to(base["U_ind_F"], shape),
@@ -515,7 +693,7 @@ def simulate(district_df):
                          SPATIAL_LOADING["s"], eps_s)
         ugi_y = mix_with(np.broadcast_to(base["U_ind_G"], shape),
                          SPATIAL_LOADING["g"], eps_g)
-        ls_iy, _, lf_iy, lg_iy, _ = total(uw_y, ufi_y, ugi_y, usi_y)
+        ls_iy, _, lf_iy, lg_iy, _ = losses(uw_y, ufi_y, ugi_y, usi_y)
 
         ew = expo[start:start + len(chunk)][:, None]      # exposure weights
         year["s_v"] += (ls_y * ew).sum(axis=0)
@@ -537,20 +715,37 @@ def simulate(district_df):
         out["el_wx"].append(lw.mean(axis=1))
         out["el_fl"].append(lf.mean(axis=1))
         out["el_gw"].append(lg.mean(axis=1))
+        # Erosion's expected loss is taken ANALYTICALLY, not from the draws.
+        # Its annual probability is ~1.5e-5 for a typical coastal district,
+        # so 20,000 years give well under one event: the simulated mean
+        # would be a £250,000 spike or nothing at all — pure Monte Carlo
+        # noise, the same trap that killed the per-district copula-uplift
+        # layer. E[B(p)·LogNormal] = p·exp(mu + sigma²/2) is exact and the
+        # severity is built to hit that mean, so there is nothing to gain
+        # from simulating it. The DRAWS are still used for the joint tail
+        # (tvar99_vine5), where the dependence is the point.
+        el_er = (m["p_er"] * np.exp(m["sev_er"]["mu"]
+                                    + m["sev_er"]["sigma"] ** 2 / 2)).ravel()
+        out["el_er"].append(el_er)
         out["el_total"].append(tot_v.mean(axis=1))
+        out["el_total5"].append(tot_v.mean(axis=1) + el_er)
         out["var995_vine"].append(q(tot_v))
         out["var995_gauss"].append(q(tot_n))
         out["var995_indep"].append(q(tot_i))
         out["tvar99_vine"].append(t_v)
         out["tvar99_gauss"].append(t_n)
         out["tvar99_indep"].append(t_i)
+        out["tvar99_vine5"].append(tvar(tot5_v))
+        out["tvar99_indep5"].append(tvar(tot5_i))
         out["uplift_pct"].append(100.0 * (t_v - t_i) / np.maximum(t_i, 1e-9))
         out["tail_dep_wf"].append((2.0 - 2.0 ** (1.0 / t_wf)).ravel())
         out["tail_dep_ws"].append((2.0 - 2.0 ** (1.0 / t_ws)).ravel())
         out["tail_dep_wg"].append((2.0 - 2.0 ** (1.0 / t_wg)).ravel())
+        out["tail_dep_we"].append((2.0 - 2.0 ** (1.0 / t_we)).ravel())
         out["theta_wf"].append(t_wf.ravel())
         out["theta_ws"].append(t_ws.ravel())
         out["theta_wg"].append(t_wg.ravel())
+        out["theta_we"].append(t_we.ravel())
         print(f"  simulated {min(start + BATCH, len(district_df))}/{len(district_df)} districts")
 
     res = {k: np.concatenate(v) for k, v in out.items()}
@@ -562,7 +757,9 @@ def simulate(district_df):
     #     TVaR_i = E[L_i | L_portfolio >= VaR_99(L_portfolio)]
     # These allocations sum exactly to the portfolio TVaR (Euler additivity),
     # so cross-district diversification is credited rather than ignored.
-    # exposure-weighted portfolio loss per policy in each simulated year
+    # `year_loss` holds conditional expectations (see above), so both the
+    # ranking of years and the allocation are smooth functions of the
+    # systemic draws - which is what makes the result reproducible.
     port = (expo @ year_loss) / expo_total
     k = max(int(N_SIM * 0.01), 1)
     bad = np.argpartition(port, -k)[-k:]
@@ -570,80 +767,18 @@ def simulate(district_df):
     res["el_year"] = year_loss.mean(axis=1)
     port_tvar = float(port[bad].mean())
     standalone = float(np.average(res["tvar99_vine"], weights=expo))
-    print(f"  portfolio TVaR99 {port_tvar:,.0f} /policy; "
+    print(f"  portfolio TVaR99 {port_tvar:,.0f} /policy (systemic-conditional); "
           f"exposure-weighted standalone TVaR99 {standalone:,.0f} "
           f"(diversification credit "
           f"{100 * (1 - port_tvar / standalone):.0f}%)")
+    # How concentrated is the tail? With the smoothed allocation this is a
+    # property of the hazard, not of the draw.
+    share = res["tvar99_euler"] * expo
+    share = np.sort(share / max(share.sum(), 1e-9))[::-1]
+    print(f"  tail concentration: top 10% of exposure carries "
+          f"{100 * share[:max(len(share) // 10, 1)].sum():.0f}% of allocated capital")
     year["expo_total"] = expo_total
     return res, year
-
-
-# ------------------------------------------------- good vs bad years
-
-
-def year_analysis(year, n):
-    """Summarise the simulated portfolio years for the analysis page.
-
-    year: dict of shape-(N_SIM,) arrays — per-year losses summed over all
-    n districts (vine and independence runs) and per-peril claim counts.
-    All money figures are converted to per-policy averages (sum / n).
-    NOTE: common random numbers across districts mean within-year spatial
-    dependence is effectively perfect — a 'bad year' is bad everywhere at
-    once, which overstates portfolio concentration vs reality; treat the
-    bucket contrasts as an upper bound on year-to-year swing.
-    """
-    tv = (year["s_v"] + year["w_v"] + year["f_v"]) / n
-    ti = (year["s_i"] + year["w_v"] + year["f_i"]) / n
-
-    order = np.argsort(tv)
-    order_i = np.argsort(ti)
-    edges = [(0.0, 0.5, "good"), (0.5, 0.9, "typical"),
-             (0.9, 0.99, "bad"), (0.99, 1.0, "catastrophic")]
-
-    typical_mask = order[int(0.5 * N_SIM):int(0.9 * N_SIM)]
-    typical_mean = float(tv[typical_mask].mean())
-
-    buckets = []
-    for lo, hi, label in edges:
-        idx = order[int(lo * N_SIM):int(hi * N_SIM)]
-        idx_i = order_i[int(lo * N_SIM):int(hi * N_SIM)]
-        b = dict(
-            label=label, share_pct=round(100 * (hi - lo), 1),
-            mean_total=round(float(tv[idx].mean()), 1),
-            mean_sub=round(float(year["s_v"][idx].mean() / n), 1),
-            mean_wx=round(float(year["w_v"][idx].mean() / n), 1),
-            mean_fl=round(float(year["f_v"][idx].mean() / n), 1),
-            extra_vs_typical=round(float(tv[idx].mean()) - typical_mean, 1),
-            inc_sub_pct=round(100 * float(year["inc_s"][idx].mean() / n), 2),
-            inc_wx_pct=round(100 * float(year["inc_w"][idx].mean() / n), 2),
-            inc_fl_pct=round(100 * float(year["inc_f"][idx].mean() / n), 2),
-            indep_mean_total=round(float(ti[idx_i].mean()), 1),
-        )
-        buckets.append(b)
-
-    def exceedance(t):
-        srt = np.sort(t)[::-1]
-        ranks = np.unique(np.round(np.geomspace(1, N_SIM / 2, 140)).astype(int))
-        return [[round(float(N_SIM / k), 2), round(float(srt[k - 1]), 1)]
-                for k in ranks]
-
-    worst = int(order[-1])
-    return dict(
-        n_sim=N_SIM, n_districts=n,
-        mean_total=round(float(tv.mean()), 1),
-        mean_indep=round(float(ti.mean()), 1),
-        buckets=buckets,
-        exceedance=dict(vine=exceedance(tv), indep=exceedance(ti)),
-        worst_year=dict(
-            total=round(float(tv[worst]), 1),
-            sub=round(float(year["s_v"][worst] / n), 1),
-            wx=round(float(year["w_v"][worst] / n), 1),
-            fl=round(float(year["f_v"][worst] / n), 1),
-            inc_wx_pct=round(100 * float(year["inc_w"][worst] / n), 1),
-            inc_fl_pct=round(100 * float(year["inc_f"][worst] / n), 1),
-            inc_sub_pct=round(100 * float(year["inc_s"][worst] / n), 1),
-        ),
-    )
 
 
 # ------------------------------------------------------- year analysis
@@ -758,8 +893,26 @@ def main():
     print("scoring groundwater from EA alert-area fractions...")
     gdf["gw_score"], gdf["gw_frac"] = groundwater_from_ea(gdf["name"].values)
 
+    # Carried through to the front end so England-only layers can say
+    # "not mapped here" rather than showing a zero that reads as "no risk".
+    gdf["country"] = load_country(gdf["name"].values)
+
+    print("scoring coastal erosion from EA NCERM frontages...")
+    gdf["er_score"], er = erosion_from_ncerm(gdf["name"].values)
+    for col, vals in er.items():
+        gdf[col] = vals
+    # the insured-peril calculation uses the SMP (planned defences) case
+    gdf["er_frac"] = gdf["er_smp105"]
+
     print("loading exposure...")
     gdf["households"] = load_households(gdf["name"].values)
+
+    print("conditioning surface-water severity on EA depth bands...")
+    gdf["sw_sev"], gdf["sw_depth_m"] = sw_depth_severity(
+        gdf["name"].values, gdf["sw_high"].values, gdf["sw_low"].values,
+        gdf["households"].values)
+
+    check_scored_columns(gdf)
 
     print("calibrating to published UK aggregates...")
     calibrate_frequency(gdf)
@@ -782,6 +935,50 @@ def main():
     gdf["premium"] = gdf["el_total"] + gdf["capital"]
     gdf["group"] = pd.qcut(gdf["premium"].rank(method="first"), 10, labels=False) + 1
 
+    # ---- climate-change repricing ------------------------------------
+    # Re-run the SAME model on the EA's future flood extents, holding the
+    # ABI calibration fixed. The point is to let the hazard map move and
+    # nothing else: recalibrating would absorb the change and report no
+    # repricing at all. Common random numbers make it a paired comparison.
+    future = flood_future(gdf["name"].values, gdf["f_high"].values,
+                          gdf["f_low"].values, gdf["sw_high"].values,
+                          gdf["sw_low"].values)
+    if future is not None:
+        fh_cc, fl_cc, swh_cc, swl_cc, cc_covered = future
+        fut = gdf.copy()
+        fut["f_high"], fut["f_low"] = fh_cc, fl_cc
+        fut["sw_high"], fut["sw_low"] = swh_cc, swl_cc
+        fut["fl_score"] = flood_score_from_fractions(
+            fh_cc, fl_cc, swh_cc, swl_cc, climate=True)
+        fut["sw_sev"], _ = sw_depth_severity(
+            gdf["name"].values, swh_cc, swl_cc, gdf["households"].values,
+            climate=True)
+        print(f"running climate-change simulation "
+              f"({N_SIM:,} years/district)...")
+        sim_cc, _ = simulate(fut)
+        gdf["el_total_cc"] = sim_cc["el_total"]
+        gdf["capital_cc"] = 0.06 * np.maximum(
+            sim_cc["tvar99_euler"] - sim_cc["el_year"], 0.0)
+        gdf["premium_cc"] = gdf["el_total_cc"] + gdf["capital_cc"]
+        gdf["cc_covered"] = cc_covered.astype(int)
+        gdf["cc_uplift_pct"] = np.where(
+            cc_covered,
+            100.0 * (gdf["premium_cc"] / np.maximum(gdf["premium"], 1e-9) - 1),
+            np.nan)
+        w = gdf["households"].values
+        cov = cc_covered
+        nat = 100 * (np.average(gdf["premium_cc"].values[cov], weights=w[cov])
+                     / np.average(gdf["premium"].values[cov], weights=w[cov])
+                     - 1)
+        print(f"  climate repricing over {int(cov.sum())} covered districts: "
+              f"exposure-weighted premium {nat:+.1f}%; "
+              f"district range {np.nanmin(gdf['cc_uplift_pct']):+.0f}% to "
+              f"{np.nanmax(gdf['cc_uplift_pct']):+.0f}%")
+    else:
+        for c in ("el_total_cc", "capital_cc", "premium_cc", "cc_uplift_pct"):
+            gdf[c] = np.nan
+        gdf["cc_covered"] = 0
+
     modelled = float(gdf["el_total"].mean())
     print(f"  check: modelled loss cost for these four perils "
           f"£{modelled:,.2f}/policy vs ABI £{ABI_LOSS_PER_POLICY:,.2f} "
@@ -789,29 +986,45 @@ def main():
           f"{modelled / (ABI['total_home_paid'] / POLICIES):.0%} of the "
           f"£{ABI['total_home_paid'] / POLICIES:,.0f} all-perils home claims cost")
 
+    # Coastal erosion, reported alongside but NOT inside the premium.
+    # Standard household policies exclude gradual erosion, so adding it to
+    # `premium` would price a loss no policy pays; it is kept as its own
+    # column so the exposure is visible without contaminating the rating.
+    w = gdf["households"].values
+    er_el = float(np.average(gdf["el_er"].values, weights=w))
+    n_er = int((gdf["el_er"].values > 0.5).sum())
+    print(f"  erosion (excluded from premium): £{er_el:,.2f}/policy "
+          f"nationally, {100 * er_el / max(modelled, 1e-9):.1f}% of the "
+          f"insured loss cost, but concentrated in {n_er} districts "
+          f"(max £{gdf['el_er'].max():,.0f}/policy)")
+
     print("writing geojson...")
-    keep = ["name", "area", "households",
-            "sub_score", "wx_score", "fl_score", "gw_score",
-            "geol", "wind_ms", "wdr_idx", "rain10_days", "precip_mm",
-            "gust_rp50",
-            "f_high", "f_low", "sw_high", "sw_low", "gw_frac",
-            "el_sub", "el_wx", "el_fl", "el_gw",
-            "el_total", "var995_vine", "tvar99_vine", "tvar99_gauss",
-            "tvar99_indep", "tvar99_euler", "capital",
-            "uplift_pct", "tail_dep_wf", "tail_dep_ws",
-            "tail_dep_wg", "theta_wf", "theta_ws", "theta_wg",
-            "premium", "group", "geometry"]
+    keep = OUTPUT_COLUMNS
     out = gdf[keep].copy()
     out["geometry"] = out.geometry.simplify(0.0025, preserve_topology=True)
+    # NaN would be written literally and make the GeoJSON unparseable. The
+    # only column that carries it is the mean surface-water depth, which is
+    # undefined where no depth is mapped - Wales, Scotland, and English
+    # districts with no surface water at all - so send it out as 0.
+    out["sw_depth_m"] = out["sw_depth_m"].fillna(0.0)
+    # Same for the climate columns: undefined outside England, where the EA
+    # publishes no future extents. `cc_covered` is the flag that keeps the
+    # zero readable as "not modelled" rather than "no change".
+    for col in ("el_total_cc", "capital_cc", "premium_cc", "cc_uplift_pct"):
+        out[col] = out[col].fillna(0.0)
     round1 = {"wind_ms": 1, "wdr_idx": 1, "rain10_days": 1, "precip_mm": 0,
-              "gust_rp50": 0, "households": 0}
+              "gust_rp50": 0, "households": 0, "sw_depth_m": 2}
     for col in keep:
-        if col in ("name", "area", "geometry", "group", "geol"):
+        if col in ("name", "area", "country", "geometry", "group", "geol"):
             continue
         if col in round1:
             out[col] = out[col].round(round1[col])
         elif "var" in col or col.startswith("el") or col == "premium":
             out[col] = out[col].round(1)
+        elif col.startswith("er_"):
+            # erosion fractions run down to ~1e-6 for lightly-clipped
+            # districts; 4 dp would round most of them away
+            out[col] = out[col].round(7)
         else:
             out[col] = out[col].round(4)
     out.to_file(OUT, driver="GeoJSON", coordinate_precision=4)

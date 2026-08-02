@@ -38,9 +38,10 @@ META = {
         "payouts. Built entirely on open data."),
     "map.html": (
         "Interactive map — UK Home Insurance Risk Map",
-        "Eight switchable layers across 2,736 postcode districts: rating group, "
-        "technical premium, each peril score, and the capital charge. Click any "
-        "district for its full risk breakdown."),
+        "Eleven switchable layers across 2,736 postcode districts: rating "
+        "group, technical premium, each peril score, surface-water depth, "
+        "coastal erosion, the climate repricing and the capital charge. "
+        "Click any district for its full risk breakdown."),
     "years.html": (
         "Good years vs bad years — UK Home Insurance Risk Map",
         "What separates a quiet year from an expensive one: cost by peril, how "
@@ -48,9 +49,10 @@ META = {
         "years of real UK weather."),
     "methodology.html": (
         "Methodology — UK Home Insurance Risk Map",
-        "How the four peril scores are built from open data, how the C-vine "
-        "copula joins them, why the risk measure is TVaR, and how to reproduce "
-        "the whole pipeline."),
+        "How the peril scores are built from open data, how the 5-dim C-vine "
+        "copula joins them, why coastal erosion is modelled but not priced, "
+        "why the risk measure is TVaR, and how to reproduce the whole "
+        "pipeline."),
 }
 
 
@@ -213,8 +215,40 @@ def load_stats():
       </div>
     </div>"""
 
+    # Coastal erosion, computed from the data so the copy cannot drift.
+    # "Saved" districts are the striking case: land the sea would take if
+    # the defences were left to lapse, held at exactly zero by the adopted
+    # Shoreline Management Plan.
+    er_exposed = [p for p in feats if p.get("er_nfi105", 0) > 0]
+    er_saved = [p for p in er_exposed if p.get("er_smp105", 0) == 0]
+    er_worst = max(feats, key=lambda p: p.get("er_smp105", 0))
+
+    # Climate repricing, over the districts the EA actually models. A
+    # national average would be diluted by Wales and Scotland, which have
+    # no future extents and so cannot move by construction.
+    cc = [p for p in feats if p.get("cc_covered")]
+    if cc:
+        w = np.array([p.get("households", 1) for p in cc], dtype=float)
+        cc_pct = 100 * (np.average([p["premium_cc"] for p in cc], weights=w)
+                        / np.average([p["premium"] for p in cc], weights=w) - 1)
+        cc_worst = max(cc, key=lambda p: p.get("cc_uplift_pct", 0))
+        cc_bits = {
+            "__CC_N__": f"{len(cc):,}",
+            "__CC_UPLIFT__": f"{cc_pct:+.0f}",
+            "__CC_WORST__": cc_worst["name"],
+            "__CC_WORST_PCT__": f"{cc_worst.get('cc_uplift_pct', 0):+.0f}",
+        }
+    else:
+        cc_bits = {"__CC_N__": "0", "__CC_UPLIFT__": "n/a",
+                   "__CC_WORST__": "n/a", "__CC_WORST_PCT__": "n/a"}
+
     return {
+        **cc_bits,
         "__SENS_FINDING__": sens_finding,
+        "__EROSION_N__": f"{len(er_exposed):,}",
+        "__EROSION_SAVED__": f"{len(er_saved):,}",
+        "__EROSION_WORST__": er_worst["name"],
+        "__EROSION_WORST_PCT__": f"{100 * er_worst.get('er_smp105', 0):.0f}",
         "__N_DISTRICTS__": f"{len(feats):,}",
         "__N_HOUSEHOLDS__": f"{sum(p.get('households', 0) for p in feats) / 1e6:.1f}m",
         "__N_SIM__": f"{ya['n_sim']:,}",
@@ -347,12 +381,23 @@ def main():
     write("assets/districts.json", json.dumps(lookup, separators=(",", ":")))
 
     # full table as CSV, for anyone who wants the numbers directly
+    # el_er and the er_* columns are erosion, which is NOT in `premium` —
+    # see the methodology. They are exported so the exposure is usable,
+    # but anyone summing them into the premium is doing it wrong.
     cols = ["name", "area", "households", "group", "premium", "capital",
             "el_total",
             "el_sub", "el_wx", "el_fl", "el_gw", "sub_score", "wx_score",
             "fl_score", "gw_score", "f_high", "f_low", "sw_high", "sw_low",
-            "gw_frac", "wind_ms", "gust_rp50", "rain10_days", "precip_mm",
-            "tvar99_vine", "tvar99_euler", "uplift_pct", "geol"]
+            "gw_frac", "sw_depth_m", "sw_sev",
+            "wind_ms", "gust_rp50", "rain10_days", "precip_mm",
+            "tvar99_vine", "tvar99_euler", "uplift_pct",
+            "el_er", "er_score", "er_smp55", "er_smp105", "er_nfi55",
+            "er_nfi105", "er_smp105_lo", "er_smp105_hi", "er_nfi105_lo",
+            "er_nfi105_hi", "er_gi",
+            # climate scenario: zero outside England, where the EA
+            # publishes no future extents - cc_covered says which
+            "cc_covered", "premium_cc", "el_total_cc", "cc_uplift_pct",
+            "country", "geol"]
     out = io.StringIO()
     w = csv.writer(out, lineterminator="\n")
     w.writerow(cols)

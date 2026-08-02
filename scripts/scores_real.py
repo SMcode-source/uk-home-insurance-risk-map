@@ -246,12 +246,84 @@ def flood_from_agencies(names):
     sw_high, sw_low = _load_fraction_csv(
         "sw_fractions.csv", ["sw_high", "sw_low"], names)
 
-    # surface water weighted lower: shallower water, cheaper claims
+    score = flood_score_from_fractions(f_high, f_low, sw_high, sw_low)
+    return score, f_high, f_low, sw_high, sw_low
+
+
+# 95th percentile of the present-day flood index, held so the climate run
+# is scored on the same scale rather than re-anchoring to its own spread.
+_FLOOD_REF = None
+
+
+def flood_score_from_fractions(f_high, f_low, sw_high, sw_low, climate=False):
+    """0-1 flood score from zone fractions.
+
+    Surface water is weighted lower than fluvial/tidal: shallower water,
+    cheaper claims. The score is anchored to the 95th percentile of the
+    PRESENT-DAY index in both runs - re-anchoring the climate run to its
+    own distribution would rescale the very increase being measured and
+    report a smaller change than there is.
+    """
+    global _FLOOD_REF
     idx = (0.75 * f_high + 0.25 * f_low) \
         + 0.6 * (0.75 * sw_high + 0.25 * sw_low)
-    ref = max(np.percentile(idx, 95), 1e-6)
-    score = np.clip(np.sqrt(idx / ref), 0, 1)
-    return score, f_high, f_low, sw_high, sw_low
+    if climate and _FLOOD_REF is not None:
+        ref = _FLOOD_REF
+    else:
+        ref = max(np.percentile(idx, 95), 1e-6)
+        if not climate:
+            _FLOOD_REF = ref
+    return np.clip(np.sqrt(idx / ref), 0, 1)
+
+
+# ------------------------------------------------------------ coverage
+
+# Several EA products stop at the English border. Deciding coverage from
+# the data itself keeps going wrong in ways that look plausible - a Welsh
+# district with no depth mapped reads as "nothing over 0.2 m", and Dundee's
+# missing climate-change extent reads as a 70-point FALL in flood risk. So
+# coverage comes from the actual boundary instead (see fetch_countries.py).
+# A district must also be substantially inside England: the ~20 genuine
+# straddlers (Portishead, Chester, Berwick, Welshpool...) get only partial
+# English data, so they take the neutral fallback rather than a reading
+# built from whichever half happens to be mapped.
+ENGLAND_MIN_SHARE = 0.95
+
+
+def load_country(names):
+    """Country per district, or '' if country.csv is missing."""
+    path = os.path.join(DATA, "country.csv")
+    if not os.path.exists(path):
+        return np.array([""] * len(names))
+    table = {}
+    with open(path, newline="") as fh:
+        for row in csv.DictReader(fh):
+            table[row["name"]] = row["country"]
+    return np.array([table.get(n, "") for n in names])
+
+
+def england_mask(names):
+    """Boolean mask: districts substantially inside England.
+
+    Falls back to all-True with a warning if country.csv is missing, so the
+    model still runs - but the England-only datasets will then be read as
+    if they covered the whole of GB, which is exactly the error the file
+    exists to prevent.
+    """
+    path = os.path.join(DATA, "country.csv")
+    if not os.path.exists(path):
+        print("  country.csv missing -> cannot tell England from Wales or "
+              "Scotland; England-only layers will be misread "
+              "(run scripts/fetch_countries.py)")
+        return np.ones(len(names), dtype=bool)
+    table = {}
+    with open(path, newline="") as fh:
+        for row in csv.DictReader(fh):
+            table[row["name"]] = (row["country"], float(row["share"]))
+    mask = np.array([table.get(n, ("", 0.0))[0] == "England"
+                     and table.get(n, ("", 0.0))[1] >= ENGLAND_MIN_SHARE
+                     for n in names])
+    return mask
 
 
 GW_BACKGROUND = 0.02   # non-England fallback (see fetch_groundwater.py)
@@ -275,3 +347,281 @@ def groundwater_from_ea(names):
     ref = max(np.percentile(gw_frac, 97), 1e-6)
     score = np.clip(np.sqrt(gw_frac / ref), 0, 1)
     return score, gw_frac
+
+
+# ------------------------------------------------------ surface-water depth
+
+
+# Depth bands from the EA layers, as (csv key, lower edge, upper edge).
+# The top band is open-ended; 1.8 m is a working upper bound for the mean
+# depth of water in it.
+DEPTH_BANDS = [("d02", 0.0, 0.2), ("d03", 0.2, 0.3), ("d06", 0.3, 0.6),
+               ("d09", 0.6, 0.9), ("d12", 0.9, 1.2), (None, 1.2, 1.8)]
+
+# Relative damage by depth band for a UK residential property (buildings +
+# contents). The shape follows the standard UK depth-damage curves: damage
+# climbs steeply through the first half-metre as water passes floor level
+# and reaches sockets, then flattens once the ground floor is written off.
+# These are RELATIVITIES only - the national average is renormalised to 1.0
+# below, so the calibrated ABI severity level is untouched and only the
+# spread between districts changes.
+DEPTH_DAMAGE = [0.45, 0.75, 1.00, 1.35, 1.60, 1.95]
+
+
+# Claim-frequency weights per likelihood band, matching marginal_params:
+# a property in the >=1% AEP ("high") zone claims about five times as often
+# as one in the rest of the 1-in-1000 envelope.
+SW_FREQ_HIGH, SW_FREQ_LOW = 0.010, 0.002
+
+# Exposure-weighted mean of the raw present-day multiplier. Held so the
+# climate run can be expressed on the same scale instead of renormalising
+# its own level away. Set by the first non-climate call.
+_DEPTH_REF = None
+
+
+def _band_shares(env, frac):
+    """Occupancy of each depth band within an envelope.
+
+    `frac` is the nested set of exceedance fractions (>0.2, >0.3, ... m),
+    so successive differences give the band occupancies; the shallowest
+    band is whatever the envelope holds beyond the 0.2 m mask.
+    """
+    edges = np.column_stack([env, frac])                   # (n, 6)
+    edges = np.maximum.accumulate(edges[:, ::-1], axis=1)[:, ::-1]
+    bands = edges[:, :-1] - edges[:, 1:]                   # (n, 5)
+    return np.column_stack([bands, edges[:, -1]])          # (n, 6) incl. >1.2
+
+
+def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
+    """Per-district relative severity multiplier for surface-water claims.
+
+    Reads data/sw_depth.csv (see fetch_sw_depth.py): the fraction of each
+    district exceeding 0.2/0.3/0.6/0.9/1.2 m of surface water. Conditional
+    on being inside the flooded envelope, those nested fractions give the
+    depth distribution, which is turned into an expected damage relativity.
+
+    The depth distribution is computed SEPARATELY for the two likelihood
+    bands and blended by how much each contributes to claim frequency.
+    That matters because the two are not alike: the >=1% AEP zone is where
+    most claims come from, and it is generally the deeper water, so mixing
+    it into one envelope-wide average dilutes exactly the signal being
+    measured. The residual 1-in-1000 fringe is shallower and claims five
+    times less often, so it is weighted accordingly.
+
+    England only - NRW and SEPA publish no equivalent depth product, so
+    Welsh and Scottish districts (and any English district with no mapped
+    surface water) fall back to 1.0, i.e. the flat severity used before.
+
+    Returns (multiplier, mean_depth_m), both length-len(names).
+    """
+    fname = "sw_depth_cc.csv" if climate else "sw_depth.csv"
+    path = os.path.join(DATA, fname)
+    if climate and not os.path.exists(path):
+        # Fall back to the present-day depth bands rather than to a flat
+        # severity: the future extents are still wider, so this understates
+        # the change rather than inventing one. Note it swaps the FILE, not
+        # the climate flag - recursing with climate=False would renormalise
+        # against the future's own mean and overwrite the present-day
+        # reference, which is precisely what that reference exists to stop.
+        print(f"  {fname} missing -> future severity reuses present-day "
+              "depth (run fetch_sw_depth.py --climate)")
+        path = os.path.join(DATA, "sw_depth.csv")
+    if not os.path.exists(path):
+        print("  sw_depth.csv missing -> flat surface-water severity "
+              "(run scripts/fetch_sw_depth.py)")
+        return np.ones(len(names)), np.full(len(names), np.nan)
+
+    keys = [k for k, _, _ in DEPTH_BANDS if k]
+    table = {}
+    with open(path, newline="") as fh:
+        for row in csv.DictReader(fh):
+            table[row["name"]] = ([float(row[f"{k}_high"]) for k in keys],
+                                  [float(row[f"{k}_low"]) for k in keys])
+    blank = ([0.0] * len(keys), [0.0] * len(keys))
+    frac_hi = np.array([table.get(n, blank)[0] for n in names])
+    frac_lo = np.array([table.get(n, blank)[1] for n in names])
+
+    env_hi = np.asarray(sw_high, dtype=float)
+    env_lo = np.asarray(sw_low, dtype=float)
+    # the two bands are disjoint: the fringe is the envelope minus the
+    # high-likelihood zone, in extent and in depth alike
+    b_hi = _band_shares(env_hi, frac_hi)
+    b_fringe = np.maximum(_band_shares(env_lo, frac_lo) - b_hi, 0.0)
+
+    # weight by contribution to claim frequency, not by area
+    w_hi = SW_FREQ_HIGH * b_hi.sum(axis=1)
+    w_fr = SW_FREQ_LOW * b_fringe.sum(axis=1)
+    denom = np.maximum(w_hi + w_fr, 1e-15)
+    bands = (b_hi * (w_hi / denom / np.maximum(b_hi.sum(axis=1), 1e-15))[:, None]
+             + b_fringe * (w_fr / denom
+                           / np.maximum(b_fringe.sum(axis=1), 1e-15))[:, None])
+    bands = np.nan_to_num(bands)
+
+    # Coverage comes from the boundary, not from the numbers. Two silent
+    # traps make that necessary:
+    #
+    # 1. fetch_sw_depth.py writes a row for EVERY district, zero-filled
+    #    outside England. A Welsh district DOES have surface water (from
+    #    NRW), so judging by the envelope alone reads "no depth mapped" as
+    #    "none of it exceeds 0.2 m" - the shallowest possible severity,
+    #    handed to all of Wales and Scotland.
+    # 2. Border districts (Annan, Wrexham, Caldicot, Berwick...) clip into
+    #    England far enough to pick up a sliver of EA depth while sw_low
+    #    covers the whole district, so they look uniformly shallow.
+    #
+    # england_mask() settles both from the actual country boundary.
+    tot = bands.sum(axis=1)
+    have = (tot > 1e-9) & england_mask(names)
+    share = np.zeros_like(bands)
+    share[have] = bands[have] / tot[have][:, None]
+
+    mult = np.ones(len(names))
+    mult[have] = share[have] @ np.array(DEPTH_DAMAGE)
+
+    mids = np.array([0.5 * (lo + hi) for _, lo, hi in DEPTH_BANDS])
+    mean_depth = np.full(len(names), np.nan)
+    mean_depth[have] = share[have] @ mids
+
+    # Renormalise so the exposure-weighted national mean multiplier is 1.0:
+    # this re-shapes severity across districts without moving the level the
+    # ABI calibration has already fixed.
+    #
+    # The climate run must NOT renormalise to its own mean. Doing so would
+    # divide out exactly what it is measuring - water getting deeper
+    # everywhere - and leave only the relativities, reporting no severity
+    # change at all. It is therefore normalised against the PRESENT-DAY
+    # reference, so a uniformly deeper future comes out above 1.0.
+    global _DEPTH_REF
+    w = np.asarray(households, dtype=float)
+    own_ref = float(np.average(mult[have], weights=w[have])) if have.any() else 1.0
+    if climate and _DEPTH_REF is not None:
+        ref = _DEPTH_REF
+        print(f"  (climate depth normalised against the present-day "
+              f"reference {ref:.4f}, not its own {own_ref:.4f})")
+    else:
+        ref = own_ref
+        if not climate:
+            _DEPTH_REF = own_ref
+    mult = mult / max(ref, 1e-9)
+    mult[~have] = 1.0
+
+    print(f"  sw depth: {int(have.sum())}/{len(names)} districts with mapped "
+          f"depth; multiplier {mult[have].min():.2f}..{mult[have].max():.2f} "
+          f"(mean depth {np.nanmin(mean_depth):.2f}..{np.nanmax(mean_depth):.2f} m)")
+    return mult, mean_depth
+
+
+# ------------------------------------------------ climate-change scenario
+
+
+def flood_future(names, f_high, f_low, sw_high, sw_low):
+    """Swap in the EA's climate-change flood extents where they exist.
+
+    The EA publishes a climate-change edition of the two products this
+    model already uses - the rivers/sea defended extents and NaFRA2 RoFSW -
+    under the same service family and the same layer names. Using that
+    matched pair matters: the alternative NaFRA2 `rofrs_cc01_4band` product
+    is derived differently from the present-day extents we hold, so a
+    comparison against it would confound the method change with the
+    climate change.
+
+    England only. Wales and Scotland keep their present-day values, so the
+    repricing must be reported over covered districts rather than
+    nationally, where it would be diluted into meaninglessness.
+
+    Returns (f_high, f_low, sw_high, sw_low, covered) or None if the
+    climate files have not been fetched.
+    """
+    fl = os.path.join(DATA, "flood_fractions_cc.csv")
+    sw = os.path.join(DATA, "sw_fractions_cc.csv")
+    if not (os.path.exists(fl) and os.path.exists(sw)):
+        print("  climate-change flood files missing -> no repricing view "
+              "(run fetch_flood.py --climate and "
+              "fetch_surface_water.py --climate)")
+        return None
+
+    def read(path, cols):
+        t = {}
+        with open(path, newline="") as fh:
+            for row in csv.DictReader(fh):
+                t[row["name"]] = tuple(float(row[c]) for c in cols)
+        return t
+
+    tfl = read(fl, ["f_high", "f_low"])
+    tsw = read(sw, ["sw_high", "sw_low"])
+    covered = england_mask(names)
+
+    out = [np.array(f_high, dtype=float), np.array(f_low, dtype=float),
+           np.array(sw_high, dtype=float), np.array(sw_low, dtype=float)]
+    for i, n in enumerate(names):
+        if not covered[i]:
+            continue
+        if n in tfl:
+            out[0][i], out[1][i] = tfl[n]
+        if n in tsw:
+            out[2][i], out[3][i] = tsw[n]
+    # the future extent should contain the present one; enforce the nesting
+    # the products should already satisfy rather than letting a rasterising
+    # difference produce a negative "improvement"
+    out[1] = np.maximum(out[1], out[0])
+    out[3] = np.maximum(out[3], out[2])
+    print(f"  climate-change flood: {int(covered.sum())} districts repriced "
+          f"(England); f_high mean {np.mean(f_high):.5f} -> "
+          f"{out[0].mean():.5f}")
+    return out[0], out[1], out[2], out[3], covered
+
+
+# --------------------------------------------------------- coastal erosion
+
+
+EROSION_HORIZON_YEARS = 80.0     # 2025 -> 2105 epoch
+
+
+def erosion_from_ncerm(names):
+    """Per-district coastal-erosion exposure (EA NCERM 2024; England).
+
+    Returns (score, dict of fractions). The fractions are the share of
+    district area projected to be lost to erosion by each epoch/scenario -
+    see fetch_erosion.py, which allocates each frontage's length x
+    recession rather than trusting the polygon area.
+
+    The headline score uses the SMP (adopted Shoreline Management Plan)
+    2105 scenario: that is what is expected to happen given the defences
+    that are actually planned. The NFI (no further intervention) columns
+    are carried alongside as the unmanaged worst case.
+
+    Districts with no NCERM coverage - inland, and all of Wales, Scotland
+    and Northern Ireland - are zero, not missing: they genuinely have no
+    coastal erosion exposure in this dataset.
+    """
+    path = os.path.join(DATA, "erosion.csv")
+    # Must stay in step with LAYERS in fetch_erosion.py. The *_lo / *_hi
+    # columns are the 0th and 95th-percentile climate allowances on the
+    # 2105 epoch; the unsuffixed ones are the 70th (central) case.
+    cols = ["er_smp55", "er_smp105", "er_nfi55", "er_nfi105",
+            "er_smp105_lo", "er_smp105_hi", "er_nfi105_lo", "er_nfi105_hi",
+            "er_gi"]
+    if not os.path.exists(path):
+        print("  erosion.csv missing -> zero erosion exposure "
+              "(run scripts/fetch_erosion.py)")
+        z = np.zeros(len(names))
+        return z, {c: z.copy() for c in cols}
+
+    table = {}
+    with open(path, newline="") as fh:
+        rdr = csv.DictReader(fh)
+        missing = [c for c in cols if c not in (rdr.fieldnames or [])]
+        if missing:
+            print(f"  erosion.csv predates {missing} -> zero "
+                  "(rerun scripts/fetch_erosion.py to add them)")
+        for row in rdr:
+            table[row["name"]] = [float(row.get(c) or 0.0) for c in cols]
+    arr = np.array([table.get(n, [0.0] * len(cols)) for n in names])
+    out = {c: arr[:, i] for i, c in enumerate(cols)}
+
+    coastal = int((out["er_nfi105"] > 0).sum())
+    ref = max(np.percentile(out["er_smp105"], 99.5), 1e-9)
+    score = np.clip(np.sqrt(out["er_smp105"] / ref), 0, 1)
+    print(f"  erosion: {coastal}/{len(names)} districts with NCERM exposure; "
+          f"SMP-2105 max {out['er_smp105'].max():.3%} of district area")
+    return score, out

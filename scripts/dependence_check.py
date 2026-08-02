@@ -24,7 +24,8 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_model as bm  # noqa: E402
 from scores_real import (subsidence_from_bgs, weather_from_metoffice,  # noqa: E402
-                         flood_from_agencies, groundwater_from_ea)
+                         flood_from_agencies, groundwater_from_ea,
+                         erosion_from_ncerm, sw_depth_severity)
 
 N_SIM = 400_000          # per district-batch; multi-peril years are rare
 SAMPLE = 60              # districts, spread across the premium range
@@ -42,7 +43,12 @@ def main():
     (gdf["fl_score"], gdf["f_high"], gdf["f_low"],
      gdf["sw_high"], gdf["sw_low"]) = flood_from_agencies(gdf["name"].values)
     gdf["gw_score"], gdf["gw_frac"] = groundwater_from_ea(gdf["name"].values)
+    gdf["er_score"], er = erosion_from_ncerm(gdf["name"].values)
+    gdf["er_frac"] = er["er_smp105"]
     gdf["households"] = bm.load_households(gdf["name"].values)
+    gdf["sw_sev"], _ = sw_depth_severity(
+        gdf["name"].values, gdf["sw_high"].values, gdf["sw_low"].values,
+        gdf["households"].values)
 
     bm.calibrate_frequency(gdf)
     step = max(len(gdf) // SAMPLE, 1)
@@ -59,6 +65,7 @@ def main():
         "Z2": rng.standard_normal(N_SIM),
         "Z3": rng.standard_normal(N_SIM),
         "Z4": rng.standard_normal(N_SIM),
+        "Z5": rng.standard_normal(N_SIM),
         "U_ind_F": rng.uniform(0, 1, N_SIM),
         "U_ind_G": rng.uniform(0, 1, N_SIM),
         "U_ind_S": rng.uniform(0, 1, N_SIM),
@@ -69,25 +76,28 @@ def main():
 
     for start in range(0, len(sample), BATCH):
         chunk = sample.iloc[start:start + BATCH]
-        sub = chunk["sub_score"].values[:, None]
-        wx = chunk["wx_score"].values[:, None]
-        fl = chunk["fl_score"].values[:, None]
-        p_sub, p_wx, p_fl, p_gw, s_s, s_w, s_f, s_g = bm.marginal_params(
-            sub, wx, chunk["f_high"].values[:, None],
-            chunk["f_low"].values[:, None], chunk["sw_high"].values[:, None],
-            chunk["sw_low"].values[:, None], chunk["gw_frac"].values[:, None])
-        t_ws, t_wf = bm.theta_ws(sub, wx), bm.theta_wf(wx, fl)
-        t_wg = bm.theta_wg(wx, chunk["gw_score"].values[:, None])
+        fld = {k: v[:, None] for k, v in bm._fields(chunk).items()}
+        m = bm.marginal_params(fld)
+        t_ws = bm.theta_ws(fld["sub"], fld["wx"])
+        t_wf = bm.theta_wf(fld["wx"], chunk["fl_score"].values[:, None])
+        t_wg = bm.theta_wg(fld["wx"], chunk["gw_score"].values[:, None])
+        t_we = bm.theta_we(fld["wx"], chunk["er_score"].values[:, None])
 
+        # Erosion stays out of this count. The question here is how often
+        # one home suffers two or more INSURED perils in a year; erosion is
+        # not insured, and being a chronic process it would also break the
+        # "how many events hit this year" reading of the statistic.
         def losses(u_w, u_f, u_g, u_s):
-            lw = bm.inv_mixed_cdf(u_w, np.broadcast_to(p_wx, u_w.shape), **s_w)
-            lf = bm.inv_mixed_cdf(u_f, np.broadcast_to(p_fl, u_f.shape), **s_f)
-            lg = bm.inv_mixed_cdf(u_g, np.broadcast_to(p_gw, u_g.shape), **s_g)
-            ls = bm.inv_mixed_cdf(u_s, np.broadcast_to(p_sub, u_s.shape), **s_s)
+            leg = lambda u, p, s: bm.inv_mixed_cdf(
+                u, np.broadcast_to(m[p], u.shape), **m[s])
+            lw = leg(u_w, "p_wx", "sev_wx")
+            lf = leg(u_f, "p_fl", "sev_fl")
+            lg = leg(u_g, "p_gw", "sev_gw")
+            ls = leg(u_s, "p_sub", "sev_sub")
             n_perils = ((lw > 0).astype(np.int8) + (lf > 0) + (lg > 0) + (ls > 0))
             return lw + lf + lg + ls, n_perils
 
-        u_w, u_f, u_g, u_s = bm.sample_vine(t_ws, t_wf, t_wg, base)
+        u_w, u_f, u_g, u_s, _ = bm.sample_vine(t_ws, t_wf, t_wg, t_we, base)
         tot_v, n_v = losses(u_w, u_f, u_g, u_s)
         shape = tot_v.shape
         tot_i, n_i = losses(u_w,

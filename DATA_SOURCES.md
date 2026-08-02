@@ -3,7 +3,7 @@
 Every external dataset used by the model: what it is, where it comes from, how
 it is fetched, its licence, and any access quirks discovered along the way. All
 sources are **open data** (Open Government Licence v3 unless noted). Access
-dates: 2026-07-29/30.
+dates: 2026-07-29/30, plus 2026-08-01 for sources 20–21.
 
 | # | Dataset | Publisher | Fetched by | Local file(s) |
 |---|---------|-----------|------------|---------------|
@@ -26,6 +26,9 @@ dates: 2026-07-29/30.
 | 17 | Postcode → OA / LSOA / MSOA / LAD best-fit lookup (Aug 2023) | ONS Open Geography Portal | `scripts/fetch_households.py` | 2.6m postcodes → census small areas (22 MB zip, cached) |
 | 18 | Census 2021 TS041 "Number of households" by LSOA | ONS via NOMIS | `scripts/fetch_households.py` | England & Wales household counts (35,672 LSOAs, 24.78m households) |
 | 19 | Scotland's Census 2022 household total | National Records of Scotland | manual (constant in `fetch_households.py`) | 2,509,300 households, apportioned across Scottish postcodes |
+| 20 | Surface-water flood **depth** bands (NaFRA2 RoFSW, >0.2/0.3/0.6/0.9/1.2 m) | Environment Agency | `scripts/fetch_sw_depth.py` | `data/sw_depth.csv` (derived; England only) |
+| 21 | National Coastal Erosion Risk Mapping (NCERM) National 2024 | Environment Agency | `scripts/fetch_erosion.py` | `data/erosion.csv` (derived; England only) |
+| 22 | Countries (December 2025) UK BGC boundaries | ONS Open Geography Portal | `scripts/fetch_countries.py` | `data/country.csv` — the coverage mask for every England-only dataset |
 
 Together 17–19 produce `data/households.csv` — **27.3m households across 2,995
 districts**, used as the exposure weight throughout.
@@ -137,6 +140,115 @@ districts**, used as the exposure weight throughout.
       postcode count.
     - The lookup CSV is **Latin-1**, not UTF-8 (Welsh and Gaelic place names).
 
+20. **EA surface-water depth bands** — the *same* WMS as #10,
+    `.../nafra2-risk-of-flooding-from-surface-water/wms`, which carries five
+    extra layers alongside `rofsw`:
+
+        rofsw_0_2m_depth  rofsw_0_3m_depth  rofsw_0_6m_depth
+        rofsw_0_9m_depth  rofsw_1_2m_depth
+
+    Each is the part of the surface-water envelope deeper than that
+    threshold, painted with the same three likelihood colours, so the same
+    decode as #10 works unchanged. Notes:
+    - **They carry no `Abstract` and all five share one `Style` name**
+      (`Risk_of_Flooding_from_Surface_Water_Depth_0mm`), so the layer name is
+      the only statement of what each contains. Verified empirically instead
+      of trusted: over a Humber test tile the painted area falls
+      100% → 48% → 29% → 10% → 4.9% → 2.3%, and each mask nests inside the
+      previous one to within the antialiasing error at 13 m/px.
+    - Same `MaxScaleDenominator` 50000 as #10, so **13 m/px or finer or they
+      render empty**.
+    - The deeper layers are sparse and therefore fast (0.7–2.6 s/tile vs
+      6.9 s for the base), so all five together cost only ~10% more than one
+      base pass.
+    - `sw_low` from #10 is the depth>0 denominator — same layer, same grid,
+      no need to refetch it.
+    - England only. NRW and SEPA publish no equivalent depth product, so
+      Wales and Scotland keep a flat surface-water severity.
+    - **`sw_depth.csv` has a row for every district, zero-filled outside
+      England** — so "row exists" is not "has data". A Welsh district has
+      real surface water (`sw_low > 0`, from NRW) but all-zero depth
+      fractions; read naively that says *none of its flooding exceeds
+      0.2 m*, i.e. the shallowest possible severity, quietly under-pricing
+      Wales and Scotland.
+    - And it is not clean either way: **~17 border districts** (Annan,
+      Jedburgh, Wrexham, Caldicot, Newtown…) clip far enough into England
+      to pick up a *sliver* of EA depth, while `sw_low` covers the whole
+      district. That drags the ratio towards zero and makes them look
+      uniformly shallow — they were the entire bottom of the severity
+      ranking before this was caught.
+    - Coverage is therefore judged by whether the depth mapping explains a
+      plausible share of the envelope: `d02_low / sw_low ≥ 0.10`.
+      Nationally that share is ~0.44 (median), 1st percentile 0.16, so a
+      tenth is unambiguously missing coverage rather than shallow water.
+      This drops 2,118 districts to 2,101 and leaves only genuine
+      straddlers (Berwick, Knighton, Presteigne, Chepstow) with a partial
+      reading — a residual limitation, and the reason a hand-maintained
+      country list was not used: `SY` and `CH` really do span the border.
+      Both traps have tests.
+
+21. **EA NCERM coastal erosion** —
+    `https://environment.data.gov.uk/spatialdata/ncern-national-2024/`
+    with `/wfs`, `/wms` and `/ogc/features/v1`. Traps:
+    - **The slug is misspelled `ncern`, not `ncerm`.** The correctly spelled
+      URL 404s. This cost a round of dead guesses.
+    - **The OGC API Features `items` endpoint returns HTTP 500.** Use WFS
+      `GetFeature` with `outputFormat=application/json`, paged via
+      `count`/`startIndex` (1,000 per page).
+    - Licence is **OGL**, but `license_id`/`license_title` on CKAN are both
+      `null` — it is recorded only in an `extras` entry keyed `licence`.
+    - 14 collections: `NCERM_{SMP,NFI}_{2055,2105}_{0,70,95}CC` plus
+      `NCERM_Ground_Instability_{Zone,Recession}`. SMP = the adopted
+      Shoreline Management Plan (defences maintained as planned); NFI = no
+      further intervention (defences lapse). We use the 70th-percentile
+      climate-change allowance.
+    - **The polygon area is not a reliable measure of land lost.** For most
+      of the ~7,500 frontages the polygon is the recession strip and its
+      area ≈ `shape_leng × recession`, but 2–10% of records — concentrated
+      in estuaries — are broad zones instead. Frontage 101342 covers 10 km²
+      of the Dee while declaring a **3 m** recession over a **110 km**
+      "frontage"; taken literally it made two Wirral districts (CH60, CH64)
+      the most erosion-exposed in England, ahead of the Holderness coast,
+      and barely moved between 2055 and 2105 — the tell that it is not
+      erosion. `fetch_erosion.py` therefore takes the land lost from
+      `shape_leng × recession` and uses the polygon only to decide *where*
+      it falls. This also restores the scenario contrast the broad zones
+      were flattening: on raw polygon area SMP-2055 → NFI-2105 spans just
+      1.6×, on length × recession it spans 6.4× (67 → 435 km²).
+
+22. **Country boundaries — the coverage mask.** Three separate EA products
+    stop at the English border (#20 depth, #21 erosion, and the
+    climate-change extents), and every attempt to infer that from the data
+    produced a plausible-looking error:
+    - a Welsh district has real surface water from NRW but zero EA depth,
+      which reads as *"none of its flooding exceeds 0.2 m"* — the
+      shallowest possible severity, applied to all of Wales and Scotland;
+    - Dundee's present-day flood fraction is 70% and its EA climate-change
+      fraction is 0%, which reads as a **70-point fall** in flood risk
+      under climate change;
+    - border districts that clip a few hundred metres into England pick up
+      a sliver of English data and look like genuine observations.
+
+    Postcode areas cannot settle it — `SY` and `CH` genuinely straddle —
+    so `fetch_countries.py` takes the actual ONS boundary and assigns each
+    district the country holding most of its area, keeping the share.
+    Coverage requires **England and ≥95% share**, so the ~20 real
+    straddlers (Portishead 50%, Chester 54%, Hereford 57%, Berwick 64%,
+    Welshpool 66%) take the neutral fallback instead of a reading built
+    from whichever half happens to be mapped. Result: England 2,099,
+    Scotland 442, Wales 195.
+
+    Two traps in fetching it:
+    - Use the **BGC** (generalised) edition. The **BFC** full-resolution
+      one is **133 MB**, its single England feature exceeds GDAL's default
+      GeoJSON object-size limit (`OGR_GEOJSON_MAX_OBJ_SIZE`), and
+      intersecting that coastline against 2,700 districts takes tens of
+      minutes for a question answered at kilometre scale.
+    - Service names on the portal are inconsistent
+      (`Countries_Dec_2021_GB_BFC_2022` vs
+      `Countries_December_2025_Boundaries_UK_BGC`); list the services
+      rather than guessing the pattern.
+
 ## Not used / dead ends (so you don't repeat them)
 
 - `environment.data.gov.uk/arcgis/rest/...` — EA's old ArcGIS root: gone.
@@ -147,3 +259,11 @@ districts**, used as the exposure weight throughout.
 - SEPA surface water via FeatureServer: 8–10 M features — infeasible; use the
   raster route.
 - BGS GeoSure / GeoClimate, OS AddressBase: licensed, not open.
+- `spatialdata/ncerm-national-2024/...` (correctly spelled): 404. The EA
+  published it as **`ncern`**.
+- NCERM via `/ogc/features/v1/collections/<id>/items`: HTTP 500. WFS works.
+- `nafra2-risk-of-flooding-from-surface-water-depth` as its own dataset slug:
+  404. The depth layers live inside the existing surface-water WMS.
+- **Postcode-sector boundaries for England & Wales**: not open. Only Scotland
+  publishes sector polygons; E&W publish postcode→sector *lookups* only, so
+  sector-level geography would mean deriving polygons from ONSPD centroids.

@@ -141,22 +141,33 @@
   search tool data: per district, the share of unit postcodes flagged &lsquo;Possible&rsquo;.
   England only (UK groundwater flooding concentrates on the English chalk); a nominal
   background elsewhere.</p>
-  <p><b>Vine copula.</b> The four perils are joined by a <b>C-vine</b> with weather at
+  <p><b>Coastal erosion.</b> EA <b>NCERM National 2024</b> frontages: the strip of each
+  district projected to be lost to the sea by 2105, under the adopted Shoreline
+  Management Plan and under no-further-intervention. <b>Not part of the premium</b> &mdash;
+  standard household policies exclude gradual erosion &mdash; so it is shown as blight and
+  valuation exposure only. England only.</p>
+  <p><b>Vine copula.</b> The five perils are joined by a <b>C-vine</b> with weather at
   the root. Tree&nbsp;1: Gumbel(&theta;<sub>WF</sub> up to 3.0) weather&ndash;flood,
   Gumbel(&theta;<sub>WG</sub> up to 2.4) weather&ndash;groundwater (aquifer recharge follows
-  prolonged rain), Gumbel(&theta;<sub>WS</sub> up to 2.5) weather&ndash;subsidence &mdash; all
-  upper-tail dependent, so extreme years hit perils together. Tree&nbsp;2 (given
-  weather): Gaussian &rho;=0.25 flood&ndash;groundwater, &rho;=0.15 flood&ndash;subsidence; tree&nbsp;3
-  independent. 20,000 simulated years per district (Marshall&ndash;Olkin for the root
-  pair, conditional h-function inversion for the other margins). A tau-matched
-  4-dim Gaussian copula and an independence run are computed for comparison &mdash;
-  the <i>copula uplift</i> layer shows how much of the tail an independence
-  assumption hides.</p>
+  prolonged rain), Gumbel(&theta;<sub>WS</sub> up to 2.5) weather&ndash;subsidence,
+  Gumbel(&theta;<sub>WE</sub> up to 2.6) weather&ndash;erosion (coasts retreat in storms)
+  &mdash; all upper-tail dependent, so extreme years hit perils together. Tree&nbsp;2 (given
+  weather): Gaussian &rho;=0.35 flood&ndash;erosion (the same surges drive both, making this
+  the strongest of the three), &rho;=0.25 flood&ndash;groundwater, &rho;=0.15
+  flood&ndash;subsidence; tree&nbsp;3 independent. 20,000 simulated years per district
+  (Marshall&ndash;Olkin for the root pair, conditional h-function inversion for the other
+  margins). A tau-matched 5-dim Gaussian copula and an independence run are computed for
+  comparison. There is deliberately no per-district <i>copula uplift</i> layer: at
+  calibrated frequencies that difference is inside Monte Carlo noise, so it would be
+  drawing noise across the country. The dependence effect is real, but it lives in the
+  portfolio.</p>
   <p><b>Calibration.</b> Each peril's claim frequency is scaled to the ABI's published 2025
   domestic payouts &mdash; storm &pound;244m, flood &pound;312m, subsidence &pound;307m over
   ~15.5m policies &mdash; and severities take the published average claim as their mean.
-  Together the four perils come to ~&pound;56/policy/yr, about a quarter of what all home
-  claims cost. <b>These are four-peril premiums, not home insurance premiums:</b> a real
+  Together the four insured perils come to ~&pound;56/policy/yr, about a quarter of what all
+  home claims cost. Coastal erosion is <i>not</i> in that figure and is not calibrated to
+  ABI at all &mdash; it has no published payout, because it is not covered.
+  <b>These are four-peril premiums, not home insurance premiums:</b> a real
   policy also covers escape of water, theft, fire and accidental damage, plus expenses and
   profit. What is <i>not</i> fitted is the geography and the dependence.</p>
   <p><b>Rating groups.</b> Technical premium = expected loss + 6% cost-of-capital on the
@@ -184,6 +195,22 @@ const RAMP_AQUA = ['#d5f2e6','#a5e2c8','#72cfa8','#43bd8b','#219367','#136e4c','
 const RAMP_VIOLET = ['#e6e2f7','#c8c0ee','#a89ce4','#8a7bd8','#6f5cc4','#5643a8','#3d2f83'];
 const RAMP_DIVERGING = ['#1c5cab','#5598e7','#b7d3f6','#f0efec','#f2b8b7','#e34948','#9c2b2a'];
 const RAMP_GROUP = ['#b7d3f6','#9ec5f4','#86b6ef','#6da7ec','#5598e7','#3987e5','#2a78d6','#256abf','#184f95','#0d366b'];
+/* erosion needs a hue not already spoken for by the four insured perils */
+const RAMP_ROSE = ['#fbdce8','#f4b3ce','#ec89b2','#e15c94','#c43e76','#9c2c5c','#701e41'];
+/* 87% of districts are inland and have no NCERM exposure at all. Ramping
+   over them would waste the whole scale on zeros, so they get a neutral
+   "not applicable" fill and the ramp covers only the coast. */
+const NO_EXPOSURE = '#e4e2dd';
+/* exposed coast whose planned defences hold the loss at zero — a state of
+   its own, and not a point on the rose ramp */
+const DEFENDED = '#7fa6c4';
+/* outside the dataset's coverage entirely: distinct from "measured, and it
+   is zero", which is the distinction a plain grey would destroy */
+const NOT_MAPPED = '#cfcdc7';
+
+/* England-only datasets: a zero outside England is absence of measurement,
+   not absence of risk. `country` is carried in the GeoJSON for this. */
+const notMapped = p => p.country && p.country !== 'England';
 
 const fmtGBP = v => '£' + Math.round(v).toLocaleString('en-GB');
 const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
@@ -197,6 +224,29 @@ function quantileBreaks(values, n) {
 
 const feats = DATA.features;
 const vals = k => feats.map(f => f.properties[k]);
+
+/* Erosion bins are cut over the COASTAL districts only — quantiles across
+   all 2,700 would put every break at zero. */
+const EROSION_BREAKS = quantileBreaks(vals('er_smp105').filter(v => v > 0), 7);
+
+/* Climate repricing uses the DIVERGING ramp, whose neutral swatch is the
+   middle of seven. The breaks must therefore straddle zero at that middle
+   position, or "no change" gets painted as though it were a large rise —
+   quantile or evenly-spaced breaks would both do exactly that. */
+const CC_BREAKS = [-20, -5, -1, 1, 15, 50];
+
+/* Legend rows for a ramp/breaks pair, used by metrics that also need a
+   separate "no data" swatch above the ramp. */
+function legendBands(ramp, breaks, fmt) {
+  const rows = [];
+  for (let i = 0; i < ramp.length; i++) {
+    const lo = i === 0 ? null : breaks[i - 1];
+    const hi = i === ramp.length - 1 ? null : breaks[i];
+    rows.push([ramp[i], lo === null ? '< ' + fmt(hi)
+      : hi === null ? '≥ ' + fmt(lo) : fmt(lo) + ' – ' + fmt(hi)]);
+  }
+  return rows;
+}
 
 const METRICS = {
   group: {
@@ -256,6 +306,80 @@ const METRICS = {
     value: p => p.capital, fmt: fmtGBP,
     tip: p => fmtGBP(p.capital) + ' of ' + fmtGBP(p.premium) + ' premium',
   },
+  sw_depth: {
+    label: 'Surface-water depth (m)',
+    legend: 'Mean surface-water depth where it floods (EA depth bands, England)',
+    ramp: RAMP_AQUA, breaks: [0.15, 0.22, 0.30, 0.40, 0.55, 0.75],
+    value: p => p.sw_depth_m,
+    fmt: v => v.toFixed(2) + ' m',
+    color: p => notMapped(p) ? NOT_MAPPED
+      : (p.sw_depth_m > 0
+        ? binColor({ ramp: RAMP_AQUA, breaks: [0.15, 0.22, 0.30, 0.40, 0.55, 0.75] }, p.sw_depth_m)
+        : NO_EXPOSURE),
+    rows: () => [[NOT_MAPPED, 'Not mapped — EA depth is England only'],
+                 [NO_EXPOSURE, 'No mapped surface water']].concat(
+      legendBands(RAMP_AQUA, [0.15, 0.22, 0.30, 0.40, 0.55, 0.75], v => v.toFixed(2) + ' m')),
+    tip: p => notMapped(p)
+      ? 'not mapped — EA depth bands cover England only'
+      : (p.sw_depth_m > 0
+        ? p.sw_depth_m.toFixed(2) + ' m mean depth · severity ×' + p.sw_sev.toFixed(2)
+        : 'no mapped surface water'),
+  },
+  cc_uplift: {
+    label: 'Climate repricing (%)',
+    legend: 'Premium under the EA future flood scenario vs present day',
+    ramp: RAMP_DIVERGING, breaks: CC_BREAKS,
+    value: p => p.cc_uplift_pct,
+    fmt: v => (v >= 0 ? '+' : '') + v.toFixed(0) + '%',
+    /* The EA publishes future extents for England only, so a zero outside
+       it is "not modelled", not "no change" — the distinction the
+       cc_covered flag exists to preserve. */
+    color: p => p.cc_covered
+      ? binColor({ ramp: RAMP_DIVERGING, breaks: CC_BREAKS },
+                 p.cc_uplift_pct)
+      : NOT_MAPPED,
+    rows: () => [[NOT_MAPPED, 'Not modelled — England only']].concat(
+      legendBands(RAMP_DIVERGING, CC_BREAKS,
+                  v => (v >= 0 ? '+' : '') + v.toFixed(0) + '%')),
+    tip: p => p.cc_covered
+      ? fmtGBP(p.premium) + ' → ' + fmtGBP(p.premium_cc) + ' ('
+        + (p.cc_uplift_pct >= 0 ? '+' : '')
+        + p.cc_uplift_pct.toFixed(0) + '%)'
+      : 'not modelled — EA future extents cover England only',
+  },
+  erosion: {
+    label: 'Coastal erosion (blight)',
+    legend: 'Land lost to erosion by 2105, planned defences — NOT insured',
+    ramp: RAMP_ROSE, breaks: EROSION_BREAKS,
+    value: p => p.er_smp105,
+    fmt: v => (100 * v).toFixed(2) + '%',
+    /* Four states, not two. A zero here means three different things and
+       conflating them misleads:
+         - outside England, NCERM simply does not map it (Wales, Scotland)
+           — a Welsh clifftop is not "no erosion risk", it is unmeasured;
+         - inland, there genuinely is no coastal erosion;
+         - on a defended coast the sea WOULD take land and the defences are
+           stopping it, which is the most interesting thing here.
+       Blackpool and Eastbourne sit in that last case and would read as
+       "no exposure" on a naive two-way split. */
+    color: p => notMapped(p) ? NOT_MAPPED
+      : (p.er_smp105 > 0
+        ? binColor({ ramp: RAMP_ROSE, breaks: EROSION_BREAKS }, p.er_smp105)
+        : (p.er_nfi105 > 0 ? DEFENDED : NO_EXPOSURE)),
+    rows: () => [[NOT_MAPPED, 'Not mapped — outside England'],
+                 [NO_EXPOSURE, 'Inland — no NCERM exposure'],
+                 [DEFENDED, 'Held at zero by planned defences']].concat(
+      legendBands(RAMP_ROSE, EROSION_BREAKS, v => (100 * v).toFixed(2) + '%')),
+    tip: p => notMapped(p)
+      ? 'not mapped — NCERM covers England only'
+      : (p.er_smp105 > 0
+        ? (100 * p.er_smp105).toFixed(2) + '% of area by 2105 · '
+          + (100 * p.er_nfi105).toFixed(2) + '% if undefended'
+        : (p.er_nfi105 > 0
+          ? 'fully defended · ' + (100 * p.er_nfi105).toFixed(2)
+            + '% would go if undefended'
+          : 'no coastal erosion exposure')),
+  },
 };
 
 function binColor(m, v) {
@@ -296,6 +420,9 @@ function popupHtml(p) {
     row('River/sea 1in1000', (100 * p.f_low).toFixed(1) + '% of area') +
     row('Surface water ≥1% AEP', (100 * p.sw_high).toFixed(1) + '% of area') +
     row('Surface water 1in1000', (100 * p.sw_low).toFixed(1) + '% of area') +
+    row('Mean surface-water depth', p.sw_depth_m > 0
+      ? p.sw_depth_m.toFixed(2) + ' m (severity ×' + p.sw_sev.toFixed(2) + ')'
+      : '<span style="color:var(--ink-muted)">no depth data</span>') +
     '<tr class="sect"><td>Groundwater score</td><td>' + p.gw_score.toFixed(2) + '</td></tr>' +
     row('In GW alert areas', (100 * p.gw_frac).toFixed(0) + '% of postcodes') +
     '<tr class="sect"><td>E[loss] subsidence</td><td>' + fmtGBP(p.el_sub) + '</td></tr>' +
@@ -305,6 +432,15 @@ function popupHtml(p) {
     '<tr class="sect"><td>Premium: expected loss</td><td>' + fmtGBP(p.el_total) + '</td></tr>' +
     row('Premium: capital charge', fmtGBP(p.capital)) +
     row('Allocated tail (Euler)', fmtGBP(p.tvar99_euler)) +
+    (p.cc_covered
+      ? '<tr class="sect"><td colspan="2" style="padding-top:6px">Under the EA future flood scenario</td></tr>'
+        + '<tr><td colspan="2" style="color:var(--ink-muted);font-size:10.5px">'
+        + 'A scenario, not a forecast: the EA\'s climate-change flood extents '
+        + 'with this model\'s calibration held fixed, so only the hazard moves.</td></tr>'
+        + row('Premium', fmtGBP(p.premium_cc) + '/yr &nbsp;<b>'
+              + (p.cc_uplift_pct >= 0 ? '+' : '') + p.cc_uplift_pct.toFixed(0) + '%</b>')
+        + row('E[loss]', fmtGBP(p.el_total_cc))
+      : '') +
     '<tr class="sect"><td colspan="2" style="color:var(--ink-muted);font-size:11px;padding-top:6px">Standalone tail — this home alone, no diversification</td></tr>' +
     row('1-in-200 loss (C-vine)', fmtGBP(p.var995_vine)) +
     row('TVaR 99% (C-vine)', fmtGBP(p.tvar99_vine)) +
@@ -314,7 +450,34 @@ function popupHtml(p) {
     row('θ weather–flood', p.theta_wf.toFixed(2) + ' (λᵤ ' + p.tail_dep_wf.toFixed(2) + ')') +
     row('θ weather–subsidence', p.theta_ws.toFixed(2) + ' (λᵤ ' + p.tail_dep_ws.toFixed(2) + ')') +
     row('θ weather–groundwater', p.theta_wg.toFixed(2) + ' (λᵤ ' + p.tail_dep_wg.toFixed(2) + ')') +
+    row('θ weather–erosion', p.theta_we.toFixed(2) + ' (λᵤ ' + p.tail_dep_we.toFixed(2) + ')') +
+    erosionBlock(p) +
     '</table></div>';
+}
+
+/* Coastal erosion is shown apart from everything above it, because it is
+   NOT part of the premium: standard household policies exclude gradual
+   coastal erosion, so this is blight and valuation exposure, not an
+   insured loss. Inland districts get nothing at all rather than a row of
+   zeroes. */
+function erosionBlock(p) {
+  const row = (k, v) => '<tr><td>' + k + '</td><td>' + v + '</td></tr>';
+  if (!(p.er_nfi105 > 0)) return '';
+  const defended = p.er_smp105 === 0;
+  return '<tr class="sect"><td colspan="2" style="padding-top:6px">' +
+    'Coastal erosion — <strong>not insured</strong></td></tr>' +
+    '<tr><td colspan="2" style="color:var(--ink-muted);font-size:10.5px">' +
+    'Gradual erosion is excluded from standard home cover. Shown as blight ' +
+    'and valuation exposure; it is not in the premium above.</td></tr>' +
+    (defended
+      ? '<tr><td colspan="2" style="font-size:11.5px">The adopted shoreline plan holds this coast at <strong>no projected loss</strong>. The figures below are what the sea would take if the defences were not maintained.</td></tr>'
+      : '') +
+    (defended ? '' : row('Lost by 2055 (planned)', (100 * p.er_smp55).toFixed(2) + '% of area')) +
+    (defended ? '' : row('Lost by 2105 (planned)', (100 * p.er_smp105).toFixed(2) + '% of area')) +
+    row('Lost by 2055 (undefended)', (100 * p.er_nfi55).toFixed(2) + '% of area') +
+    row('Lost by 2105 (undefended)', (100 * p.er_nfi105).toFixed(2) + '% of area') +
+    (p.er_gi > 0 ? row('Ground instability', (100 * p.er_gi).toFixed(2) + '% of area') : '') +
+    row('Notional E[loss] if covered', fmtGBP(p.el_er) + '/yr');
 }
 
 const layer = L.geoJSON(DATA, {

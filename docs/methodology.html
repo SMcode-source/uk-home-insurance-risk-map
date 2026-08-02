@@ -8,11 +8,11 @@
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
-<meta name="description" content="How the four peril scores are built from open data, how the C-vine copula joins them, why the risk measure is TVaR, and how to reproduce the whole pipeline.">
+<meta name="description" content="How the peril scores are built from open data, how the 5-dim C-vine copula joins them, why coastal erosion is modelled but not priced, why the risk measure is TVaR, and how to reproduce the whole pipeline.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="UK Home Insurance Risk Map">
 <meta property="og:title" content="Methodology — UK Home Insurance Risk Map">
-<meta property="og:description" content="How the four peril scores are built from open data, how the C-vine copula joins them, why the risk measure is TVaR, and how to reproduce the whole pipeline.">
+<meta property="og:description" content="How the peril scores are built from open data, how the 5-dim C-vine copula joins them, why coastal erosion is modelled but not priced, why the risk measure is TVaR, and how to reproduce the whole pipeline.">
 <meta property="og:url" content="https://smcode-source.github.io/uk-home-insurance-risk-map/methodology.html">
 <meta property="og:image" content="https://smcode-source.github.io/uk-home-insurance-risk-map/assets/social.png">
 <meta property="og:image:width" content="1200">
@@ -20,7 +20,7 @@
 <meta property="og:image:alt" content="Choropleth of Great Britain shaded by home-insurance rating group, with the title UK Home Insurance Risk Map">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Methodology — UK Home Insurance Risk Map">
-<meta name="twitter:description" content="How the four peril scores are built from open data, how the C-vine copula joins them, why the risk measure is TVaR, and how to reproduce the whole pipeline.">
+<meta name="twitter:description" content="How the peril scores are built from open data, how the 5-dim C-vine copula joins them, why coastal erosion is modelled but not priced, why the risk measure is TVaR, and how to reproduce the whole pipeline.">
 <meta name="twitter:image" content="https://smcode-source.github.io/uk-home-insurance-risk-map/assets/social.png">
 <style>
   .toc { display: flex; gap: 6px; flex-wrap: wrap; margin: 22px 0 0; }
@@ -62,7 +62,9 @@
     an assumption rather than a measurement.</p>
     <div class="toc">
       <a href="#pipeline">Pipeline</a>
-      <a href="#perils">The four perils</a>
+      <a href="#perils">The perils</a>
+      <a href="#erosion">Coastal erosion</a>
+      <a href="#climate">Climate repricing</a>
       <a href="#vine">Vine copula</a>
       <a href="#calibration">Calibration</a>
       <a href="#dependence-effect">Does it matter?</a>
@@ -100,7 +102,7 @@
 
           <rect x="446" y="30" width="126" height="54" rx="9" fill="var(--surface-1)" stroke="var(--accent)"/>
           <text class="step-label" x="509" y="52" text-anchor="middle">C-vine copula</text>
-          <text class="step-sub" x="509" y="67" text-anchor="middle">4-dimensional</text>
+          <text class="step-sub" x="509" y="67" text-anchor="middle">5-dimensional</text>
 
           <rect x="594" y="30" width="126" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border)"/>
           <text class="step-label" x="657" y="52" text-anchor="middle">Simulation</text>
@@ -123,7 +125,7 @@
   </section>
 
   <section class="doc" id="perils">
-    <h2>The four perils</h2>
+    <h2>The perils — four insured, and one that is not</h2>
     <p>Each peril is scored 0–1 per district from real hazard data, then converted to an
     annual loss distribution: <b>Bernoulli(p) × LogNormal(μ, σ)</b> — at most one claim per
     policy per year, which is adequate at district granularity.</p>
@@ -158,8 +160,18 @@
           <td>Share of unit postcodes inside a groundwater flood alert target area</td>
           <td class="num">to 0.8%/yr</td><td class="num">£20,000</td>
         </tr>
+        <tr>
+          <td><strong style="color:var(--er)">Erosion</strong> <span class="pill">not insured</span></td>
+          <td>EA NCERM National 2024</td>
+          <td>Share of district area projected lost to coastal erosion by 2105</td>
+          <td class="num">zone ÷ 80 yr</td><td class="num">£250,000</td>
+        </tr>
       </table>
     </div>
+    <p class="note">Coastal erosion is the odd one out and is treated as such: it is
+    modelled inside the vine but <b>excluded from the premium</b>, because standard UK
+    household policies do not cover gradual erosion. See
+    <a href="#erosion">Coastal erosion: modelled, not priced</a>.</p>
 
     <h3>Subsidence — from geology, not a lookup table</h3>
     <p>All 11,244 bedrock formations in the BGS 625k map are classified for shrink–swell
@@ -177,57 +189,179 @@
     separately: England's RoFSW layer only renders below 1:50,000, so it is fetched at 13 m
     per pixel with the three legend colours decoded per pixel into likelihood bands.
     Surface-water claims are modelled as more frequent but cheaper than fluvial ones.</p>
+
+    <h3>How deep, not just how wet</h3>
+    <p>Depth is the single strongest driver of flood damage to a house, and the same EA
+    service publishes five nested depth layers alongside the headline extent —
+    the parts of the surface-water envelope deeper than 0.2, 0.3, 0.6, 0.9 and 1.2 m.
+    Differencing them gives, for each district, the <b>distribution of depth within its own
+    flooded area</b>, which becomes an expected-damage relativity following the familiar
+    depth–damage shape: damage climbs steeply through the first half-metre as water passes
+    floor level and reaches sockets and plaster, then flattens once the ground floor is a
+    write-off either way.</p>
+    <p>The multiplier is deliberately <b>renormalised to an exposure-weighted mean of
+    1.0</b>. That keeps it doing one job — re-shaping severity <em>between</em> districts —
+    without moving the national level that the ABI calibration already fixes. It is the same
+    discipline the frequency calibration follows: the data decides the relativities, the
+    published aggregates decide the level.</p>
+    <p class="note">England only. Neither NRW nor SEPA publishes an equivalent depth
+    product, so Welsh and Scottish districts keep the flat severity. That is an asymmetry in
+    the spread of severity, not in its level.</p>
+  </section>
+
+  <section class="doc" id="erosion">
+    <h2>Coastal erosion: modelled, not priced</h2>
+    <p>The model carries a fifth peril, <b style="color:var(--er)">coastal erosion</b>, from
+    the Environment Agency's <b>NCERM National 2024</b> mapping of ~7,500 stretches of the
+    English coast. It is in the vine, and it is deliberately <b>not in the premium</b>.</p>
+
+    <h3>Why it is excluded from the premium</h3>
+    <p>Gradual coastal erosion is not covered by standard UK household policies. Pricing it
+    as an insured loss would charge for something no policy pays — and it would quietly
+    wreck the rating, because erosion is a <em>total</em> loss of the property rather than a
+    repair, so wherever it bites it dwarfs every other peril. It is carried instead as
+    <b>blight and valuation exposure</b>: the thing that actually drives mortgage and
+    insurability decisions on an eroding coast.</p>
+
+    <h3>Why it is still in the copula</h3>
+    <p>Erosion is storm-driven — cliffs and beaches retreat in a handful of surge events,
+    not on calm days. So it belongs in the dependence structure whether or not it is priced.
+    It enters as a fifth vine dimension with a Gumbel pair to weather, and, conditional on
+    weather, the <b>strongest</b> of the second-tree pairs to flood (ρ = 0.35): coastal
+    flooding and coastal erosion are driven by the same storms.</p>
+
+    <h3>Defences are most of the story</h3>
+    <p>NCERM publishes two policy scenarios — the adopted <b>Shoreline Management Plan</b>
+    (defences maintained as planned) and <b>No Further Intervention</b> (defences allowed to
+    lapse). The gap between them is the clearest result here: nationally the adopted plans
+    hold the 2105 land loss to <b>250 km²</b> against <b>435 km²</b> undefended, and several
+    major seafronts — Blackpool, Eastbourne, Bognor, Crosby — fall from substantial
+    unmanaged erosion to <b>exactly zero</b> under their "hold the line" plans. Where the
+    defences are not there, the fastest-eroding coastline in Europe shows up as you would
+    expect: Hornsea and Withernsea on Holderness lead, then Southwold on the Suffolk
+    coast.</p>
+
+    <h3>What the numbers assume</h3>
+    <p>A property inside the strip projected to be lost by 2105 is lost within that horizon,
+    so the annual hazard is the district's zone fraction spread over 80 years, at a
+    sum-insured severity. Two assumptions are worth stating plainly: households are taken as
+    spread evenly across the district, when coastal populations in fact cluster towards the
+    shore — so this if anything <em>understates</em> it — and the realistic SMP scenario is
+    the one used for the peril itself.</p>
+    <p class="note">Erosion is also absent from the good-vs-bad-years view, and from the
+    capital allocation. It is a chronic process, not an event: including it would add a
+    near-constant charge to every simulated year and blur exactly the contrast that view
+    exists to show.</p>
+  </section>
+
+  <section class="doc" id="climate">
+    <h2>What climate change does to the premium</h2>
+    <p>The Environment Agency publishes a climate-change edition of the two flood products
+    this model already uses. Running the model again on those extents — with the calibration
+    held <b>fixed</b>, so nothing moves except the hazard map — gives a per-district
+    repricing.</p>
+
+    <h3>Why the matched pair matters</h3>
+    <p>There are two candidate future products, and choosing wrongly would have produced a
+    number that looked fine and meant nothing. NaFRA2 publishes a
+    <code>rofrs_cc01_4band</code> layer, but it is derived differently from the present-day
+    extents this model holds, so comparing them would have mixed a <i>method</i> change in
+    with the <i>climate</i> change. The rivers-and-sea extents instead have a climate-change
+    sibling with identical layer names and a <code>_CCP1</code> suffix — same product, same
+    resolution, same service. That is the pair used.</p>
+
+    <h3>Three things it is not</h3>
+    <ul style="color:var(--ink-2); font-size:14px; line-height:1.7">
+      <li><b>Not a forecast.</b> It is the EA's climate allowance scenario. Read it as
+      "if the flood map looked like this", not "this will happen".</li>
+      <li><b>Not a strict uplift for rivers and sea.</b> The future layer is a separate
+      model run, so it does not simply contain the present one. On a Humber test tile at
+      13 m per pixel, <b>19.7%</b> of today's <i>pixels</i> fall outside the future extent;
+      across England at district level the effect is smaller but real — <b>61 districts
+      (2.9%)</b> see the 1-in-100/200 band shrink, worst −11.3pp. Surface water behaves far
+      more like a true uplift: only <b>10 districts (0.5%)</b> decrease. So the
+      surface-water half reads as a genuine climate delta, and the rivers/sea half is
+      better read as a scenario swap.</li>
+      <li><b>Not national.</b> Neither NRW nor SEPA publishes an equivalent, so Wales and
+      Scotland are not modelled at all. The headline is quoted over covered districts; a
+      national average would dilute it with two countries that cannot move.</li>
+    </ul>
+
+    <div class="callout" style="margin:16px 0">Over the <b>2,087</b> districts the EA
+    models, holding the calibration fixed and moving only the flood map changes the
+    exposure-weighted technical premium by <b>+10%</b>. The hardest-hit district
+    is <b>DN32</b> at <b>+256%</b>. Across England the 1-in-100/200
+    river/sea band grows <b>+37.4%</b> and the surface-water ≥1% AEP zone <b>+28.7%</b>.</div>
+
+    <h3>Holding the calibration still</h3>
+    <p>Two normalisations had to be pinned to the present day rather than recomputed, or the
+    exercise would have measured nothing. The depth severity multiplier is normalised to an
+    exposure-weighted mean of 1.0 — recomputing that on the future data would divide out
+    exactly the "water gets deeper everywhere" signal. The flood score is anchored to the
+    95th percentile of the <i>present-day</i> index for the same reason. Both runs also
+    share their random draws, so the comparison is paired rather than two independent
+    simulations differenced.</p>
   </section>
 
   <section class="doc" id="vine">
     <h2>The vine copula</h2>
-    <p>A single multivariate distribution would force one dependence shape on all four
+    <p>A single multivariate distribution would force one dependence shape on all five
     perils. A <b>vine</b> (pair-copula construction) instead builds the joint distribution
     from bivariate pieces, so each pair gets the dependence structure it deserves. This is a
     <b>C-vine with weather at the root</b>, because weather is the common driver: storms bring
-    the rain that floods rivers and recharges aquifers, and the same climate variability
-    produces the droughts that shrink clay.</p>
+    the rain that floods rivers and recharges aquifers, the same climate variability
+    produces the droughts that shrink clay, and the same surges strip the coast.</p>
 
     <div class="diagram-card">
-      <svg class="diagram" viewBox="0 0 860 210" role="img" aria-label="C-vine structure: tree 1 weather at root with Gumbel pairs to flood, groundwater and subsidence; tree 2 conditional Gaussian pairs; tree 3 independence">
+      <svg class="diagram" viewBox="0 0 860 210" role="img" aria-label="Five-dimensional C-vine structure: tree 1 has weather at the root with Gumbel pairs to flood, subsidence, groundwater and erosion; tree 2 has conditional Gaussian pairs from flood given weather to subsidence, erosion and groundwater; tree 3 is independence">
         <g>
           <text class="tree-title" x="8" y="16">TREE 1 — unconditional</text>
-          <line x1="120" y1="105" x2="120" y2="45" stroke="var(--axis)" stroke-width="1.5"/>
-          <line x1="120" y1="105" x2="55" y2="150" stroke="var(--axis)" stroke-width="1.5"/>
-          <line x1="120" y1="105" x2="185" y2="150" stroke="var(--axis)" stroke-width="1.5"/>
-          <circle cx="120" cy="105" r="26" fill="var(--wx)"/>
-          <text class="node-label" x="120" y="109" text-anchor="middle" fill="#fff">W</text>
-          <circle cx="120" cy="38" r="21" fill="var(--fl)"/>
-          <text class="node-label" x="120" y="42" text-anchor="middle" fill="#fff">F</text>
-          <circle cx="46" cy="158" r="21" fill="var(--gw)"/>
-          <text class="node-label" x="46" y="162" text-anchor="middle" fill="#fff">G</text>
-          <circle cx="194" cy="158" r="21" fill="var(--sub)"/>
-          <text class="node-label" x="194" y="162" text-anchor="middle" fill="#fff">S</text>
-          <text class="edge-label" x="130" y="72">Gumbel θ≤3.0</text>
-          <text class="edge-label" x="4" y="128">Gumbel θ≤2.4</text>
-          <text class="edge-label" x="158" y="128">Gumbel θ≤2.5</text>
+          <line x1="122" y1="112" x2="122" y2="52" stroke="var(--axis)" stroke-width="1.5"/>
+          <line x1="122" y1="112" x2="122" y2="172" stroke="var(--axis)" stroke-width="1.5"/>
+          <line x1="122" y1="112" x2="54" y2="112" stroke="var(--axis)" stroke-width="1.5"/>
+          <line x1="122" y1="112" x2="190" y2="112" stroke="var(--axis)" stroke-width="1.5"/>
+          <circle cx="122" cy="112" r="25" fill="var(--wx)"/>
+          <text class="node-label" x="122" y="116" text-anchor="middle" fill="#fff">W</text>
+          <circle cx="122" cy="45" r="19" fill="var(--fl)"/>
+          <text class="node-label" x="122" y="49" text-anchor="middle" fill="#fff">F</text>
+          <circle cx="122" cy="179" r="19" fill="var(--gw)"/>
+          <text class="node-label" x="122" y="183" text-anchor="middle" fill="#fff">G</text>
+          <circle cx="197" cy="112" r="19" fill="var(--sub)"/>
+          <text class="node-label" x="197" y="116" text-anchor="middle" fill="#fff">S</text>
+          <circle cx="47" cy="112" r="19" fill="var(--er)"/>
+          <text class="node-label" x="47" y="116" text-anchor="middle" fill="#fff">E</text>
+          <text class="edge-label" x="132" y="80">θ≤3.0</text>
+          <text class="edge-label" x="132" y="152">θ≤2.4</text>
+          <text class="edge-label" x="152" y="104">θ≤2.5</text>
+          <text class="edge-label" x="62" y="104">θ≤2.6</text>
+          <text class="edge-label" x="8" y="196">all Gumbel</text>
 
-          <line x1="286" y1="20" x2="286" y2="195" stroke="var(--grid)"/>
+          <line x1="270" y1="20" x2="270" y2="195" stroke="var(--grid)"/>
 
-          <text class="tree-title" x="310" y="16">TREE 2 — given weather</text>
-          <line x1="420" y1="80" x2="420" y2="150" stroke="var(--axis)" stroke-width="1.5"/>
-          <line x1="420" y1="80" x2="545" y2="80" stroke="var(--axis)" stroke-width="1.5"/>
-          <ellipse cx="420" cy="80" rx="46" ry="21" fill="var(--fl)"/>
-          <text class="node-label" x="420" y="84" text-anchor="middle" fill="#fff">F | W</text>
-          <ellipse cx="420" cy="170" rx="46" ry="21" fill="var(--gw)"/>
-          <text class="node-label" x="420" y="174" text-anchor="middle" fill="#fff">G | W</text>
-          <ellipse cx="591" cy="80" rx="46" ry="21" fill="var(--sub)"/>
-          <text class="node-label" x="591" y="84" text-anchor="middle" fill="#fff">S | W</text>
-          <text class="edge-label" x="428" y="122">Gaussian ρ = 0.25</text>
-          <text class="edge-label" x="452" y="72">Gaussian ρ = 0.15</text>
+          <text class="tree-title" x="292" y="16">TREE 2 — given weather</text>
+          <line x1="392" y1="112" x2="392" y2="176" stroke="var(--axis)" stroke-width="1.5"/>
+          <line x1="392" y1="112" x2="540" y2="52" stroke="var(--axis)" stroke-width="1.5"/>
+          <line x1="392" y1="112" x2="540" y2="140" stroke="var(--axis)" stroke-width="1.5"/>
+          <ellipse cx="392" cy="112" rx="44" ry="20" fill="var(--fl)"/>
+          <text class="node-label" x="392" y="116" text-anchor="middle" fill="#fff">F | W</text>
+          <ellipse cx="392" cy="180" rx="44" ry="20" fill="var(--gw)"/>
+          <text class="node-label" x="392" y="184" text-anchor="middle" fill="#fff">G | W</text>
+          <ellipse cx="574" cy="46" rx="44" ry="20" fill="var(--sub)"/>
+          <text class="node-label" x="574" y="50" text-anchor="middle" fill="#fff">S | W</text>
+          <ellipse cx="574" cy="146" rx="44" ry="20" fill="var(--er)"/>
+          <text class="node-label" x="574" y="150" text-anchor="middle" fill="#fff">E | W</text>
+          <text class="edge-label" x="400" y="152">ρ = 0.25</text>
+          <text class="edge-label" x="448" y="70">ρ = 0.15</text>
+          <text class="edge-label" x="448" y="140">ρ = 0.35</text>
+          <text class="edge-label" x="292" y="196">all Gaussian</text>
 
-          <line x1="662" y1="20" x2="662" y2="195" stroke="var(--grid)"/>
+          <line x1="656" y1="20" x2="656" y2="195" stroke="var(--grid)"/>
 
-          <text class="tree-title" x="686" y="16">TREE 3</text>
-          <ellipse cx="768" cy="80" rx="72" ry="21" fill="var(--surface-2)" stroke="var(--border)"/>
-          <text class="node-label" x="768" y="84" text-anchor="middle">G, S | W, F</text>
-          <text class="edge-label" x="768" y="126" text-anchor="middle">independence</text>
-          <text class="edge-label" x="768" y="145" text-anchor="middle">— nothing left to link</text>
+          <text class="tree-title" x="678" y="16">TREE 3</text>
+          <ellipse cx="762" cy="100" rx="82" ry="21" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="node-label" x="762" y="104" text-anchor="middle">G, S, E | W, F</text>
+          <text class="edge-label" x="762" y="142" text-anchor="middle">independence</text>
+          <text class="edge-label" x="762" y="161" text-anchor="middle">— nothing left to link</text>
         </g>
       </svg>
     </div>
@@ -239,13 +373,18 @@
     <p>and θ is not a constant — it rises with both districts' exposures, so a district that
     is both storm-exposed and flood-exposed gets a stronger joint tail than one that is
     neither:</p>
-    <div class="formula">θ<sub>WF</sub> = 1.40 + 1.60·√(s<sub>wx</sub>·s<sub>fl</sub>)      θ<sub>WG</sub> = 1.30 + 1.10·√(s<sub>wx</sub>·s<sub>gw</sub>)      θ<sub>WS</sub> = 1.25 + 1.25·√(s<sub>wx</sub>·s<sub>sub</sub>)</div>
+    <div class="formula">θ<sub>WF</sub> = 1.40 + 1.60·√(s<sub>wx</sub>·s<sub>fl</sub>)      θ<sub>WG</sub> = 1.30 + 1.10·√(s<sub>wx</sub>·s<sub>gw</sub>)      θ<sub>WS</sub> = 1.25 + 1.25·√(s<sub>wx</sub>·s<sub>sub</sub>)      θ<sub>WE</sub> = 1.35 + 1.30·√(s<sub>wx</sub>·s<sub>er</sub>)</div>
+    <p><b>Why flood–erosion is the strongest tree-2 pair.</b> Once weather is accounted for,
+    what is left linking two perils is whatever they share beyond general storminess.
+    Coastal flooding and coastal erosion share the specific thing that matters — the storm
+    surge — so their residual link (ρ = 0.35) is set above flood–groundwater (0.25) and
+    flood–subsidence (0.15). A test asserts the sampler actually reproduces that ordering.</p>
     <p><b>Sampling.</b> The root pair (weather, flood) is drawn by Marshall–Olkin sampling
     with a positive-stable frailty; the remaining margins are recovered by inverting the
     conditional distribution (h-function) — closed form for the Gaussian pairs in tree 2,
     numeric bisection for the Gumbel pairs in tree 1. Common random numbers are used
     throughout, so scenario comparisons differ only by the assumption being tested. Two
-    comparators run alongside every simulation: a <b>4-dimensional Gaussian copula</b> matched
+    comparators run alongside every simulation: a <b>5-dimensional Gaussian copula</b> matched
     pairwise to the same rank correlations (dependence without tail dependence) and a full
     <b>independence</b> run.</p>
   </section>
@@ -341,6 +480,29 @@
     a bad year</i>, not when it personally is. These allocations sum exactly to the
     portfolio TVaR, so diversification is credited rather than ignored — which is why
     premiums here are a fraction of what the standalone calculation produced.</p>
+
+    <h3>Averaging expectations, not accidents</h3>
+    <p>There is a trap hiding in that formula, and it took a seed test to find it. The
+    worst 1% of 20,000 simulated years is <b>200 draws</b>. At calibrated UK frequencies a
+    district claims in <b>one or two</b> of them. So averaging its <i>realised</i> loss over
+    that window is not measuring the district's risk — it is mostly measuring whether the
+    dice happened to land on it.</p>
+    <p>The symptom was unmistakable once looked for. Re-running with nothing changed but
+    the random seed, the allocation correlated just <b>0.49</b> with itself; and a <b>0.4%</b>
+    change in flood expected loss was enough to move one district <b>eight rating deciles</b>.
+    The published premium was substantially noise.</p>
+    <p>The fix costs nothing. The factor model already gives the claim probability in closed
+    form for any given year's systemic draw, so instead of averaging what happened, the
+    allocation averages what was <i>expected to</i> happen given that draw:</p>
+    <div class="formula">E[L<sub>i</sub> | year] = Φ( (√w·z − Φ⁻¹(1−p<sub>i</sub>)) / √(1−w) ) × E[severity<sub>i</sub>]</div>
+    <p>That removes the coin-flip entirely and keeps only the genuine year-to-year
+    variation. Seed-to-seed correlation goes from 0.49 to <b>0.9985</b> at full resolution.
+    It is exact rather than approximate, because the bad years are ranked by the same
+    smoothed quantity — so the choice of which years count depends only on the systemic
+    draws, and the tower property applies. A test now guards it.</p>
+    <p class="note">This is the same lesson as the deleted "copula uplift" layer, in a place
+    that mattered more: at these frequencies, any per-district Monte Carlo estimate of a
+    tail quantity is noise unless you condition on something.</p>
   </section>
 
   <section class="doc" id="dependence-effect">
@@ -381,9 +543,9 @@
     far worse years, pushing it <i>past</i> the 99.5% quantile. VaR only reads the height of the
     quantile, not what lies beyond it, and it is famously not monotone with respect to
     concordance ordering. Expected shortfall is.</p>
-    <div class="callout">Premiums and the uplift layer therefore use <b>TVaR 99%</b> — the mean
-    of the worst 1% of years. The 1-in-200 VaR is still reported in every district popup, so
-    both views are visible.</div>
+    <div class="callout">Premiums and every dependence comparison therefore use
+    <b>TVaR 99%</b> — the mean of the worst 1% of years. The 1-in-200 VaR is still reported
+    in every district popup, so both views are visible.</div>
     <div class="formula">technical premium = E[loss] + 6% × (TVaR₉₉ − E[loss])</div>
     <p>Districts are then ranked on that premium and banded into deciles — rating groups 1
     to 10.</p>
@@ -424,7 +586,9 @@
         <tr><td><strong>Natural Resources Wales</strong></td><td>FRAW rivers, sea and surface water (Wales)</td><td>Flood</td></tr>
         <tr><td><strong>SEPA</strong></td><td>River, coastal and surface-water flood maps (Scotland)</td><td>Flood</td></tr>
         <tr><td><strong>Environment Agency</strong></td><td>NaFRA2 Risk of Flooding from Surface Water (England)</td><td>Flood</td></tr>
+        <tr><td><strong>Environment Agency</strong></td><td>NaFRA2 surface-water <strong>depth</strong> bands &gt;0.2/0.3/0.6/0.9/1.2 m (England)</td><td>Flood severity</td></tr>
         <tr><td><strong>Environment Agency</strong></td><td>Flood-risk postcode data — groundwater alert-area flags</td><td>Groundwater</td></tr>
+        <tr><td><strong>Environment Agency</strong></td><td>NCERM National 2024 coastal erosion frontages (England)</td><td>Erosion (not priced)</td></tr>
         <tr><td><strong>OS / Wikipedia derived</strong></td><td>UK postcode district polygons (2,736 districts)</td><td>Geography</td></tr>
         <tr><td><strong>ONS</strong></td><td>Postcode → OA/LSOA best-fit lookup (2.6m postcodes)</td><td rowspan="3">Exposure weighting — 27.3m households</td></tr>
         <tr><td><strong>ONS</strong> (via NOMIS)</td><td>Census 2021 TS041 households by LSOA (England &amp; Wales)</td></tr>
@@ -490,6 +654,16 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
       the English one.</li>
       <li><b>Groundwater uses alert-area coverage</b>, not modelled emergence probability, and
       exists only for England.</li>
+      <li><b>Surface-water depth exists only for England.</b> Neither NRW nor SEPA publishes
+      an equivalent product, so Welsh and Scottish districts keep a flat severity. The
+      multiplier is renormalised to a national mean of 1.0, so this is an asymmetry in how
+      finely severity is differentiated, not in its overall level — but English districts
+      are separated on depth and the rest are not.</li>
+      <li><b>Coastal erosion is England-only, and rests on two stated assumptions</b>:
+      households are taken as spread evenly across a district when coastal populations
+      cluster towards the shore, and an 80-year projection is annualised into a flat yearly
+      hazard. It is reported separately from the premium throughout — see
+      <a href="#erosion">coastal erosion</a>.</li>
       <li><b>ERA5 underestimates local gust peaks</b> relative to station records. Serious storm
       pricing would fit to Met Office MIDAS station gusts or a licensed event set.</li>
       <li><b>Northern Ireland is out of scope</b> — the boundary set is GB-only and NI has no
