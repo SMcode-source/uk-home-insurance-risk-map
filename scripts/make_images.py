@@ -4,6 +4,9 @@ Both images are rendered from data/districts_risk.geojson, so the artwork
 IS the model output rather than a stock illustration:
 
   docs/assets/social.png        1200x630 Open Graph / Twitter card
+  docs/assets/social-github.png 1280x640 opaque copy of the same card, for
+                                GitHub's repository social preview, which
+                                wants that size and has to be set by hand
   docs/assets/favicon.svg       vector favicon (UK silhouette, peril colours)
   docs/assets/favicon-32.png    raster fallback
   docs/assets/apple-touch-icon.png  180x180 for iOS home screens
@@ -95,6 +98,42 @@ def social_card(gdf):
     fig.savefig(path, facecolor=SURFACE)
     plt.close(fig)
     print(f"  social.png  ({os.path.getsize(path) / 1e3:.0f} KB)")
+    _github_variant(path)
+
+
+def _github_variant(src):
+    """A 1280x640 opaque copy for GitHub's repository social preview.
+
+    The 1200x630 card above is the Open Graph / Twitter size and is what the
+    site's own pages reference. GitHub's repo setting asks for 1280x640 and
+    has to be uploaded by hand (no API exists), so a correctly sized copy is
+    generated here rather than being resized ad hoc each time it is needed.
+
+    Two differences that matter for that upload: the aspect ratio is padded
+    rather than stretched, so nothing distorts; and the alpha channel is
+    flattened, because GitHub's image processing has been known to reject
+    RGBA PNGs without reporting an error.
+    """
+    from PIL import Image
+    im = Image.open(src).convert("RGBA")
+    target = (1280, 640)
+    scale = min(target[0] / im.width, target[1] / im.height)
+    resized = im.resize((round(im.width * scale), round(im.height * scale)),
+                        Image.LANCZOS)
+    canvas = Image.new("RGB", target, _rgb(SURFACE))
+    canvas.paste(resized,
+                 ((target[0] - resized.width) // 2,
+                  (target[1] - resized.height) // 2),
+                 mask=resized.split()[-1])
+    out = os.path.join(OUT, "social-github.png")
+    canvas.save(out, "PNG", optimize=True)
+    print(f"  social-github.png  ({os.path.getsize(out) / 1e3:.0f} KB, "
+          f"1280x640, opaque - for the repo social preview)")
+
+
+def _rgb(hex_colour):
+    h = hex_colour.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
 
 
 def _band_edges(gdf):

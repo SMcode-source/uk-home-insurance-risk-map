@@ -532,8 +532,24 @@ Two notes on running it:
 GitHub Pages serves `main` + `/docs`, so a push deploys. The one thing that is
 **not** automated is the repository's own social preview image: GitHub exposes no
 API for it (`usesCustomOpenGraphImage` is read-only in GraphQL). Upload
-`docs/assets/social.png` by hand under **Settings → General → Social preview**.
-The site's pages carry their own Open Graph tags and preview correctly already.
+**`docs/assets/social-github.png`** by hand under **Settings → General → Social
+preview** — `Edit` opens a *menu*, and the file dialog is behind
+**"Upload an image…"** inside it. That file is generated at 1280×640 opaque RGB
+specifically for this: GitHub asks for that size, and its image processing has
+been seen to reject RGBA PNGs without reporting an error. (`social.png` stays
+1200×630 with alpha — the Open Graph size the site's own pages reference.)
+
+To check whether it took:
+
+```bash
+gh api graphql -f query='{repository(owner:"SMcode-source",name:"uk-home-insurance-risk-map"){usesCustomOpenGraphImage}}'
+```
+
+`false` means it did not stick; a custom image is also served from
+`repository-images.githubusercontent.com` rather than
+`opengraph.githubassets.com`. Either way this is cosmetic — the site's pages
+carry their own Open Graph tags and preview correctly already, so links to the
+map itself are unaffected.
 
 ## Caveats & production path
 
