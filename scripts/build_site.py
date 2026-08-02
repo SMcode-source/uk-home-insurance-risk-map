@@ -33,15 +33,16 @@ SITE_URL = "https://smcode-source.github.io/uk-home-insurance-risk-map/"
 META = {
     "index.html": (
         "UK Home Insurance Risk Map",
-        "Subsidence, weather, flood and groundwater risk for 2,736 UK postcode "
-        "districts, joined by a vine copula and calibrated to published ABI "
-        "payouts. Built entirely on open data."),
+        # Keep under ~200 chars: Twitter and LinkedIn truncate around there,
+        # so anything past it is lost from the shared preview.
+        "Subsidence, weather, flood, groundwater and coastal erosion across "
+        "2,736 UK postcode districts — a 5-dim vine copula calibrated to ABI "
+        "payouts, plus a climate-change repricing. All open data."),
     "map.html": (
         "Interactive map — UK Home Insurance Risk Map",
-        "Eleven switchable layers across 2,736 postcode districts: rating "
-        "group, technical premium, each peril score, surface-water depth, "
-        "coastal erosion, the climate repricing and the capital charge. "
-        "Click any district for its full risk breakdown."),
+        "Eleven layers across 2,736 postcode districts: rating group, "
+        "premium, each peril score, surface-water depth, coastal erosion "
+        "and the climate repricing. Click any district for its breakdown."),
     "years.html": (
         "Good years vs bad years — UK Home Insurance Risk Map",
         "What separates a quiet year from an expensive one: cost by peril, how "
@@ -50,9 +51,8 @@ META = {
     "methodology.html": (
         "Methodology — UK Home Insurance Risk Map",
         "How the peril scores are built from open data, how the 5-dim C-vine "
-        "copula joins them, why coastal erosion is modelled but not priced, "
-        "why the risk measure is TVaR, and how to reproduce the whole "
-        "pipeline."),
+        "joins them, why coastal erosion is modelled but not priced, why the "
+        "measure is TVaR, and how to reproduce it all."),
 }
 
 
