@@ -465,6 +465,84 @@ STATS_KEYS_NO_TEMPLATE_USES = {
 }
 
 
+def test_published_geojson_satisfies_the_models_own_identities():
+    """Catch a stale or half-written districts_risk.geojson in seconds.
+
+    A full rebuild is ~110 minutes, and everything published downstream -
+    the CSV, the map popups, the injected site figures - is derived from
+    this one file. These are the identities a rebuild would have to
+    reproduce, so checking them directly is the cheap half of that
+    guarantee.
+
+    Tolerances come from the write-time rounding, not from taste:
+    build_model writes el_*/premium/var/tvar at 1dp and most other columns
+    at 4dp.
+    """
+    import json
+    root = os.path.join(os.path.dirname(__file__), "..")
+    path = os.path.join(root, "data", "districts_risk.geojson")
+    if not os.path.exists(path):
+        pytest.skip("districts_risk.geojson not built")
+    with open(path, encoding="utf-8") as fh:
+        feats = [f["properties"] for f in json.load(fh)["features"]]
+    assert len(feats) > 2000, f"only {len(feats)} districts"
+
+    def col(name):
+        return np.array([f.get(name, np.nan) for f in feats], dtype=float)
+
+    premium, capital, el_total = col("premium"), col("capital"), col("el_total")
+
+    # premium arithmetic (1dp on each term)
+    assert np.abs(premium - (el_total + capital)).max() <= 0.15
+    assert np.abs(el_total - (col("el_sub") + col("el_wx") + col("el_fl")
+                              + col("el_gw"))).max() <= 0.25
+    assert np.abs(col("el_total5") - (el_total + col("el_er"))).max() <= 0.25
+    assert (capital >= -1e-9).all()
+
+    # rating groups: 10 balanced, monotone deciles
+    grp = col("group")
+    assert ((grp >= 1) & (grp <= 10)).all()
+    sizes = np.bincount(grp.astype(int), minlength=11)[1:]
+    assert sizes.max() - sizes.min() <= 2, f"unbalanced deciles {sizes}"
+    for g in range(1, 10):
+        assert premium[grp == g].max() <= premium[grp == g + 1].min() + 1e-6
+
+    # the Gumbel tail-dependence identity, on published values
+    for pair in ("wf", "ws", "wg", "we"):
+        th, td = col(f"theta_{pair}"), col(f"tail_dep_{pair}")
+        assert np.abs(td - (2 - 2 ** (1 / th))).max() <= 2e-4
+
+    # band nesting survives the write
+    assert (col("f_low") >= col("f_high") - 1e-9).all()
+    assert (col("sw_low") >= col("sw_high") - 1e-9).all()
+
+    # tail measures order correctly
+    assert (col("tvar99_vine") >= col("var995_vine") - 0.15).all()
+    assert (col("tvar99_vine5") >= col("tvar99_vine") - 0.15).all()
+
+    # climate repricing
+    cov = col("cc_covered") > 0
+    assert cov.any() and not cov.all()
+    pc = col("premium_cc")
+    assert np.abs(pc - (col("el_total_cc") + col("capital_cc"))).max() <= 0.15
+    assert (col("cc_uplift_pct")[~cov] == 0).all()
+
+    # cc_uplift_pct is computed from UNROUNDED premiums and written at 4dp,
+    # so recomputing it from the 1dp published pair carries an error that
+    # grows as the premium shrinks - at premium ~£25 a ±0.05 rounding is
+    # already ±0.2%. A flat tolerance flags ~70 districts spuriously; the
+    # honest bound is interval arithmetic over the two roundings.
+    p, pcc = premium[cov], pc[cov]
+    recomputed = 100.0 * (pcc / np.maximum(p, 1e-9) - 1)
+    hi = 100.0 * ((pcc + 0.05) / np.maximum(p - 0.05, 1e-9) - 1)
+    lo = 100.0 * ((pcc - 0.05) / np.maximum(p + 0.05, 1e-9) - 1)
+    bound = np.maximum(np.abs(hi - recomputed), np.abs(lo - recomputed))
+    resid = np.abs(col("cc_uplift_pct")[cov] - recomputed)
+    assert (resid <= bound + 1e-9).all(), (
+        f"{int((resid > bound).sum())} districts break the uplift identity "
+        f"by more than write-time rounding can explain")
+
+
 def test_site_placeholders_all_resolve():
     """A placeholder with no stats key ships as literal `__FOO__`.
 
