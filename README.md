@@ -569,10 +569,23 @@ SEPA flood maps, EA groundwater alert areas — all OGL), but this is still not 
 priced product:
 
 - the formation→susceptibility lookup is a public-literature approximation of
-  BGS **GeoSure** (the licensed product adds superficial deposits, tree cover and
-  drought interaction — and GeoClimate adds UKCP18 projections);
+  BGS **GeoSure** (the licensed product adds an integrated susceptibility
+  rating, tree cover and drought interaction — and GeoClimate adds UKCP18
+  projections);
 - 625k-scale geology is coarse: district edges inherit the dominant formation,
-  and superficial clays (e.g. till over chalk) are not counted;
+  and **superficial clays (e.g. till over chalk) are not counted — though not
+  for want of open data.** BGS publishes `bgsgeology625ksuperficial` on the
+  same open OGC API as the bedrock layer this model already uses: 10,651
+  features, same paging, carrying `lex_d`/`rock_d` in the same vocabulary the
+  classifier keys off (`TILL`, `ALLUVIUM`, `CLAY, SILT AND SAND`). What is
+  genuinely missing is **thickness**. Without it there is no principled way
+  to decide whether the superficial cover or the bedrock governs foundation
+  behaviour, and a thin gravel over London Clay would score like a thick one.
+  Peat is a further complication: a serious subsidence hazard, but through
+  consolidation and oxidation rather than shrink-swell, so folding it into
+  this peril would conflate two mechanisms. Adding the layer is therefore a
+  modelling decision, not a fetch — but it is not licence-blocked, and the
+  earlier wording here implied it was;
 - the weather blend now includes a Gumbel-fitted 1-in-50 gust from ERA5
   reanalysis, but ERA5 underestimates local gust peaks vs station records —
   for storm pricing, fit to Met Office MIDAS station gusts (CEDA login) or

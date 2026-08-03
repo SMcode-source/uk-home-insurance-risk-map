@@ -41,6 +41,22 @@ districts**, used as the exposure weight throughout.
    `https://ogcapi.bgs.ac.uk/collections/bgsgeology625kbedrock/items`
    (paged via `next` links, 500/page). BGS's old
    `/arcgis/rest`-style endpoints are dead.
+   - **A superficial sibling is open and unused: `bgsgeology625ksuperficial`.**
+     Same API, same paging, 10,651 features against bedrock's 11,244, and it
+     carries `lex_d` / `rock_d` in the vocabulary `classify_susceptibility()`
+     already keys off — a 500-feature sample is dominated by `TILL` (128),
+     `ALLUVIUM` (117), `GLACIAL SAND AND GRAVEL` and `PEAT`, with `rock_d`
+     values like `CLAY, SILT AND SAND`. It has `rcs_d` but **not**
+     `max_period`; the age fields are `max_system` = `QUATERNARY` throughout,
+     which is in `YOUNG_PERIODS`, so the `OLD_AGE_FACTOR` downscaling would
+     correctly never apply. Not fetched, and the reason is a modelling one
+     rather than a data one: 625k publishes no **thickness**, so there is no
+     principled way to decide whether superficial cover or bedrock governs
+     foundation behaviour — a thin gravel over London Clay would score like
+     a thick one. Peat compounds it, being a real subsidence hazard but via
+     consolidation and oxidation rather than shrink-swell. README's caveat
+     list previously implied superficial deposits were licence-blocked
+     behind GeoSure; they are not, and that has been corrected.
 3–6. **Met Office** — anonymous ArcGIS feature services under
    `https://services.arcgis.com/Lq3V5RFuTBC9I7kv/arcgis/rest/services/`:
    `Seasonal_Average_Wind_Speed_Projections_5km/FeatureServer/0`,
