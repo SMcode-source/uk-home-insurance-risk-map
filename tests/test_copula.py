@@ -465,6 +465,53 @@ STATS_KEYS_NO_TEMPLATE_USES = {
 }
 
 
+def test_thread_count_does_not_change_a_single_bit():
+    """Parallelism must be an optimisation, never a modelling choice.
+
+    The batch loop runs on threads. Batches are independent - the year-view
+    noise is seeded per batch from its OFFSET, not from execution order -
+    but the results are combined afterwards, and floating-point addition is
+    not associative. Accumulating `year` as batches happen to finish would
+    make the portfolio series depend on thread scheduling, i.e. on the
+    machine. Results must be bit-identical, not merely close, because a
+    last bit here propagates through 20,000 years into rating deciles.
+    """
+    import pandas as pd
+    rng = np.random.default_rng(99)
+    n = 120                       # >1 batch at the reduced BATCH below
+    df = pd.DataFrame({
+        "sub_score": rng.uniform(0.05, 1.0, n),
+        "wx_score": rng.uniform(0.05, 1.0, n),
+        "fl_score": rng.uniform(0.0, 1.0, n),
+        "gw_score": rng.uniform(0.0, 1.0, n),
+        "er_score": rng.uniform(0.0, 0.8, n),
+        "f_high": np.full(n, 0.05), "f_low": np.full(n, 0.10),
+        "sw_high": np.full(n, 0.02), "sw_low": np.full(n, 0.05),
+        "gw_frac": rng.uniform(0.0, 0.5, n),
+        "sw_sev": rng.uniform(0.6, 2.5, n),
+        "er_frac": rng.uniform(0.0, 0.05, n),
+        "households": rng.uniform(200, 40000, n),
+    })
+    keep = (bm.N_SIM, bm.BATCH, bm.N_THREADS)
+    bm.N_SIM, bm.BATCH = 400, 25          # 5 batches
+    try:
+        bm.N_THREADS = 1
+        serial, year_s = bm.simulate(df)
+        bm.N_THREADS = 4
+        threaded, year_t = bm.simulate(df)
+    finally:
+        bm.N_SIM, bm.BATCH, bm.N_THREADS = keep
+
+    assert set(serial) == set(threaded)
+    for k in serial:
+        assert np.array_equal(serial[k], threaded[k], equal_nan=True), (
+            f"{k} differs between 1 and 4 threads - the batch results are "
+            f"being combined in completion order, not batch order")
+    for k in year_s:
+        assert np.array_equal(np.asarray(year_s[k]), np.asarray(year_t[k]),
+                              equal_nan=True), f"year[{k}] is thread-dependent"
+
+
 def test_superficial_modifier_is_bounded_and_two_sided():
     """combine_subsidence must move relativities, not run away with them."""
     import scores_real as sr

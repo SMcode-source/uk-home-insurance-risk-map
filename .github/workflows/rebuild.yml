@@ -1,0 +1,123 @@
+name: rebuild model
+
+# Runs the full model off a laptop. Manual only - it is a ~20-minute job
+# and regenerating published premiums should be a decision, not something
+# that fires on every push.
+#
+# Everything the model reads is either committed (the derived per-district
+# CSVs) or refetched here (boundaries + the two BGS geology layers, which
+# are gitignored as large and refetchable). data/ea_postcode_risk.csv is a
+# manual download and is NOT needed: the derived data/gw_fractions.csv is
+# committed.
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit the regenerated model and site back to main"
+        type: boolean
+        default: false
+      threads:
+        description: "Worker threads (0 = auto, capped at 6)"
+        default: "0"
+
+concurrency:
+  group: rebuild
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    name: full model rebuild
+    runs-on: ubuntu-latest
+    # Two 20,000-year simulations (present-day + climate). Generous ceiling
+    # so a slow runner fails loudly rather than being killed at the default.
+    timeout-minutes: 240
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Clone postcode-district boundaries
+        run: |
+          git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git \
+            data/uk-postcode-polygons
+
+      # The two BGS layers are ~56 MB together and change about never, so
+      # cache them rather than re-downloading on every run.
+      - name: Cache BGS geology
+        id: bgs
+        uses: actions/cache@v4
+        with:
+          path: |
+            data/bgs_625k_bedrock.geojson
+            data/bgs_625k_superficial.geojson
+          key: bgs-625k-v2
+
+      - name: Fetch BGS bedrock
+        if: steps.bgs.outputs.cache-hit != 'true'
+        run: python -u scripts/fetch_bgs.py
+
+      - name: Fetch BGS superficial
+        if: steps.bgs.outputs.cache-hit != 'true'
+        run: python -u scripts/fetch_bgs.py --superficial
+
+      # A short geology fetch writes <name>.partial precisely so it cannot
+      # become model input. Fail here rather than silently rebuilding on a
+      # layer with holes in it, which would read as "no deposits here".
+      - name: Reject incomplete geology
+        run: |
+          if ls data/*.partial 2>/dev/null; then
+            echo "::error::a geology layer is incomplete (.partial) - refusing to build"
+            exit 1
+          fi
+
+      - name: Property tests
+        run: python -m pytest tests -q
+
+      - name: Rebuild model
+        env:
+          UKRISK_THREADS: ${{ inputs.threads }}
+        run: python -u scripts/build_model.py
+
+      - name: Rebuild map and site
+        run: |
+          python -u scripts/build_map.py
+          python -u scripts/build_site.py
+
+      - name: Check the output against the model's own identities
+        run: python -m pytest tests -q -k identities
+
+      - name: Show what changed
+        run: git --no-pager diff --stat
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model-output
+          path: |
+            data/districts_risk.geojson
+            data/year_analysis.json
+            docs/
+          retention-days: 14
+
+      - name: Commit regenerated output
+        if: ${{ inputs.commit }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/districts_risk.geojson data/year_analysis.json docs/
+          if git diff --cached --quiet; then
+            echo "model reproduced exactly - nothing to commit"
+          else
+            git commit -m "Rebuild model output (GitHub Actions run ${{ github.run_number }})"
+            git push
+          fi

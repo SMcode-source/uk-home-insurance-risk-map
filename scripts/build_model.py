@@ -45,6 +45,7 @@ assumptions — calibrate those to claims data for production use.
 import glob
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -69,6 +70,17 @@ N_SIM = 20_000          # simulated years per district
 # markedly faster in wall-clock terms despite more batches.
 BATCH = 80
 RNG_SEED = 42
+# Worker threads for the batch loop. Measured on a 10-core i7-1255U over
+# 12 production-shaped batches: 1 thread 136.2s, 4 threads 39.8s (3.4x),
+# 6 threads 30.7s (4.4x). Measure at REAL scale if you retune this - a
+# 3-batch micro-benchmark showed no gain at all and was simply too small
+# to fill the pool.
+#
+# Capped at 6 rather than the full core count because the loop is
+# memory-bound and this is a laptop that has to stay usable; adaptive so a
+# 4-vCPU GitHub Actions runner uses 4 rather than oversubscribing.
+N_THREADS = (int(os.environ.get("UKRISK_THREADS", "0"))
+             or min(6, os.cpu_count() or 1))
 
 # Columns written to districts_risk.geojson, in order. Kept at module level
 # so main() can check them BEFORE simulating: a missing column used to
@@ -474,22 +486,48 @@ def theta_we(wx, er):
     return np.clip(1.35 + 1.30 * np.sqrt(wx * er), 1.0, 2.6)
 
 
+def _h_gumbel_u_parts(u, th):
+    """The part of h_gumbel that depends only on (u, th).
+
+    Hoisted out of the bisection below, which calls h_gumbel 40 times with
+    u and th held fixed - so clipping u, taking its log and raising it to
+    both powers was being redone 40 times over. This is the model's hot
+    loop (the erosion conditional made it three per batch), so it is worth
+    the extra function.
+    """
+    u = np.clip(u, 1e-12, 1 - 1e-12)
+    lu = -np.log(u)
+    return u, lu ** th, lu ** (th - 1)
+
+
+def _h_gumbel_v(v, u, lu_th, lu_pow, th):
+    """h_gumbel given the precomputed u-side parts.
+
+    The expression is written to match the original operation order
+    EXACTLY - `... * lu_pow / u * ...`, not `... * (lu_pow / u) * ...`.
+    Floating-point multiply and divide are not associative, so regrouping
+    would shift the last bit, and a last bit here propagates through
+    20,000 simulated years into premiums and rating deciles.
+    """
+    v = np.clip(v, 1e-12, 1 - 1e-12)
+    lv = -np.log(v)
+    s = lu_th + lv ** th
+    return np.exp(-s ** (1 / th)) * lu_pow / u * s ** (1 / th - 1)
+
+
 def h_gumbel(v, u, th):
     """h(v|u) = dC(u,v)/du for the Gumbel copula (conditional CDF of v)."""
-    u = np.clip(u, 1e-12, 1 - 1e-12)
-    v = np.clip(v, 1e-12, 1 - 1e-12)
-    lu, lv = -np.log(u), -np.log(v)
-    s = lu ** th + lv ** th
-    return np.exp(-s ** (1 / th)) * lu ** (th - 1) / u * s ** (1 / th - 1)
+    return _h_gumbel_v(v, *_h_gumbel_u_parts(u, th), th)
 
 
 def hinv_gumbel(t, u, th, iters=40):
     """Invert h_gumbel in v by bisection (h is increasing in v)."""
+    u_c, lu_th, lu_pow = _h_gumbel_u_parts(u, th)
     lo = np.full(np.broadcast_shapes(t.shape, u.shape), 1e-9)
     hi = np.full_like(lo, 1 - 1e-9)
     for _ in range(iters):
         mid = 0.5 * (lo + hi)
-        below = h_gumbel(mid, u, th) < t
+        below = _h_gumbel_v(mid, u_c, lu_th, lu_pow, th) < t
         lo = np.where(below, mid, lo)
         hi = np.where(below, hi, mid)
     return 0.5 * (lo + hi)
@@ -660,7 +698,7 @@ def simulate(district_df):
         q = stats.norm.cdf((np.sqrt(w_sp) * z - thr) / np.sqrt(1 - w_sp))
         return q * np.exp(sev["mu"] + sev["sigma"] ** 2 / 2)
 
-    for start in range(0, len(district_df), BATCH):
+    def run_batch(start):
         chunk = district_df.iloc[start:start + BATCH]
         fld = {k: v[:, None] for k, v in _fields(chunk).items()}
         t_ws = theta_ws(fld["sub"], fld["wx"])
@@ -736,25 +774,28 @@ def simulate(district_df):
         ls_iy, _, lf_iy, lg_iy, _ = losses(uw_y, ufi_y, ugi_y, usi_y)
 
         ew = expo[start:start + len(chunk)][:, None]      # exposure weights
-        year["s_v"] += (ls_y * ew).sum(axis=0)
-        year["w_v"] += (lw_y * ew).sum(axis=0)
-        year["f_v"] += (lf_y * ew).sum(axis=0)
-        year["g_v"] += (lg_y * ew).sum(axis=0)
-        year["s_i"] += (ls_iy * ew).sum(axis=0)
-        year["f_i"] += (lf_iy * ew).sum(axis=0)
-        year["g_i"] += (lg_iy * ew).sum(axis=0)
-        year["inc_s"] += ((ls_y > 0) * ew).sum(axis=0)
-        year["inc_w"] += ((lw_y > 0) * ew).sum(axis=0)
-        year["inc_f"] += ((lf_y > 0) * ew).sum(axis=0)
-        year["inc_g"] += ((lg_y > 0) * ew).sum(axis=0)
+        yr = {
+            "s_v": (ls_y * ew).sum(axis=0),
+            "w_v": (lw_y * ew).sum(axis=0),
+            "f_v": (lf_y * ew).sum(axis=0),
+            "g_v": (lg_y * ew).sum(axis=0),
+            "s_i": (ls_iy * ew).sum(axis=0),
+            "f_i": (lf_iy * ew).sum(axis=0),
+            "g_i": (lg_iy * ew).sum(axis=0),
+            "inc_s": ((ls_y > 0) * ew).sum(axis=0),
+            "inc_w": ((lw_y > 0) * ew).sum(axis=0),
+            "inc_f": ((lf_y > 0) * ew).sum(axis=0),
+            "inc_g": ((lg_y > 0) * ew).sum(axis=0),
+        }
 
         q = lambda a: np.quantile(a, 0.995, axis=1)
         t_v, t_n, t_i = tvar(tot_v), tvar(tot_n), tvar(tot_i)
 
-        out["el_sub"].append(ls.mean(axis=1))
-        out["el_wx"].append(lw.mean(axis=1))
-        out["el_fl"].append(lf.mean(axis=1))
-        out["el_gw"].append(lg.mean(axis=1))
+        loc = {}
+        loc["el_sub"] = (ls.mean(axis=1))
+        loc["el_wx"] = (lw.mean(axis=1))
+        loc["el_fl"] = (lf.mean(axis=1))
+        loc["el_gw"] = (lg.mean(axis=1))
         # Erosion's expected loss is taken ANALYTICALLY, not from the draws.
         # Its annual probability is ~1.5e-5 for a typical coastal district,
         # so 20,000 years give well under one event: the simulated mean
@@ -766,9 +807,9 @@ def simulate(district_df):
         # (tvar99_vine5), where the dependence is the point.
         el_er = (m["p_er"] * np.exp(m["sev_er"]["mu"]
                                     + m["sev_er"]["sigma"] ** 2 / 2)).ravel()
-        out["el_er"].append(el_er)
-        out["el_total"].append(tot_v.mean(axis=1))
-        out["el_total5"].append(tot_v.mean(axis=1) + el_er)
+        loc["el_er"] = (el_er)
+        loc["el_total"] = (tot_v.mean(axis=1))
+        loc["el_total5"] = (tot_v.mean(axis=1) + el_er)
         # var995_vine is published; the gauss and indep siblings are NOT in
         # OUTPUT_COLUMNS and nothing downstream reads them. They are kept
         # anyway and this note exists so they are not mistaken for dead
@@ -776,24 +817,50 @@ def simulate(district_df):
         # "VaR can fall as dependence rises" finding, which is why premiums
         # use TVaR. Delete them and the claim can no longer be reproduced
         # from a run. They cost one np.partition each per batch.
-        out["var995_vine"].append(q(tot_v))
-        out["var995_gauss"].append(q(tot_n))
-        out["var995_indep"].append(q(tot_i))
-        out["tvar99_vine"].append(t_v)
-        out["tvar99_gauss"].append(t_n)
-        out["tvar99_indep"].append(t_i)
-        out["tvar99_vine5"].append(tvar(tot5_v))
-        out["tvar99_indep5"].append(tvar(tot5_i))
-        out["uplift_pct"].append(100.0 * (t_v - t_i) / np.maximum(t_i, 1e-9))
-        out["tail_dep_wf"].append((2.0 - 2.0 ** (1.0 / t_wf)).ravel())
-        out["tail_dep_ws"].append((2.0 - 2.0 ** (1.0 / t_ws)).ravel())
-        out["tail_dep_wg"].append((2.0 - 2.0 ** (1.0 / t_wg)).ravel())
-        out["tail_dep_we"].append((2.0 - 2.0 ** (1.0 / t_we)).ravel())
-        out["theta_wf"].append(t_wf.ravel())
-        out["theta_ws"].append(t_ws.ravel())
-        out["theta_wg"].append(t_wg.ravel())
-        out["theta_we"].append(t_we.ravel())
-        print(f"  simulated {min(start + BATCH, len(district_df))}/{len(district_df)} districts")
+        loc["var995_vine"] = (q(tot_v))
+        loc["var995_gauss"] = (q(tot_n))
+        loc["var995_indep"] = (q(tot_i))
+        loc["tvar99_vine"] = (t_v)
+        loc["tvar99_gauss"] = (t_n)
+        loc["tvar99_indep"] = (t_i)
+        loc["tvar99_vine5"] = (tvar(tot5_v))
+        loc["tvar99_indep5"] = (tvar(tot5_i))
+        loc["uplift_pct"] = (100.0 * (t_v - t_i) / np.maximum(t_i, 1e-9))
+        loc["tail_dep_wf"] = ((2.0 - 2.0 ** (1.0 / t_wf)).ravel())
+        loc["tail_dep_ws"] = ((2.0 - 2.0 ** (1.0 / t_ws)).ravel())
+        loc["tail_dep_wg"] = ((2.0 - 2.0 ** (1.0 / t_wg)).ravel())
+        loc["tail_dep_we"] = ((2.0 - 2.0 ** (1.0 / t_we)).ravel())
+        loc["theta_wf"] = (t_wf.ravel())
+        loc["theta_ws"] = (t_ws.ravel())
+        loc["theta_wg"] = (t_wg.ravel())
+        loc["theta_we"] = (t_we.ravel())
+        return start, loc, yr
+
+    # Batches are independent - the year-view noise is seeded per batch
+    # (RNG_SEED + 1000 + start), keyed to the batch OFFSET rather than to
+    # execution order - so they can run concurrently. numpy releases the
+    # GIL in its ufunc loops, so threads suffice: no pickling, no
+    # re-initialising module globals in a spawned interpreter, and one
+    # shared copy of `base` instead of one per process.
+    #
+    # Results are combined strictly IN BATCH ORDER below. That is the part
+    # that keeps this bit-identical: floating-point addition is not
+    # associative, so accumulating `year` as batches happen to finish
+    # would change the last bits of the portfolio series.
+    starts = list(range(0, len(district_df), BATCH))
+    if N_THREADS > 1 and len(starts) > 1:
+        with ThreadPoolExecutor(N_THREADS) as ex:
+            results = list(ex.map(run_batch, starts))
+    else:
+        results = [run_batch(s) for s in starts]
+    results.sort(key=lambda r: r[0])
+    for start, loc, yr in results:
+        for k, v in loc.items():
+            out[k].append(v)
+        for k, v in yr.items():
+            year[k] += v
+        print(f"  simulated {min(start + BATCH, len(district_df))}/"
+              f"{len(district_df)} districts")
 
     res = {k: np.concatenate(v) for k, v in out.items()}
 
