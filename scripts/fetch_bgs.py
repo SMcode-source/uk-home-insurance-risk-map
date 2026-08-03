@@ -42,20 +42,40 @@ LAYERS = {
 }
 
 
+# Retry policy, matching the raster fetchers: 6 attempts with EXPONENTIAL
+# backoff, not a flat sleep. This is not theoretical - the BGS API drops
+# the connection on the last page of the superficial layer specifically
+# ("Connection reset by peer" / WinError 10054 on page 21 of 21, the short
+# final page). Four attempts 10s apart rode it out locally by luck and
+# failed all four on a GitHub runner. Backing off to 10/20/40/80/160s
+# gives the server time to recover instead of hammering it while it is
+# still refusing.
+RETRIES = 6
+BACKOFF = 10
+
+
 def fetch(cfg):
     url = f"{BASE}/{cfg['collection']}/items?f=json&limit=500"
     features, page, matched = [], 0, None
     while url:
-        for attempt in range(4):
+        for attempt in range(RETRIES):
             try:
                 with urllib.request.urlopen(url, timeout=300) as r:
                     data = json.load(r)
                 break
             except Exception as e:
-                print(f"  page {page} attempt {attempt + 1} failed: {e}")
-                time.sleep(10)
+                wait = BACKOFF * (2 ** attempt)
+                last = attempt == RETRIES - 1
+                print(f"  page {page} attempt {attempt + 1}/{RETRIES} "
+                      f"failed: {e}" + ("" if last else f" - retrying in {wait}s"),
+                      flush=True)
+                if not last:
+                    time.sleep(wait)
         else:
-            raise SystemExit(f"giving up on page {page}")
+            raise SystemExit(
+                f"giving up on page {page} after {RETRIES} attempts. "
+                f"Nothing is written, so no partial layer can reach the "
+                f"model - rerun when the endpoint recovers.")
 
         if matched is None:
             matched = data.get("numberMatched")
