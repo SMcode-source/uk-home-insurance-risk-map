@@ -45,7 +45,7 @@ assumptions — calibrate those to claims data for production use.
 import glob
 import json
 import os
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import pandas as pd
@@ -848,19 +848,38 @@ def simulate(district_df):
     # associative, so accumulating `year` as batches happen to finish
     # would change the last bits of the portfolio series.
     starts = list(range(0, len(district_df), BATCH))
+    done = {}
+
+    def note(start):
+        # Progress must appear AS batches finish. Collecting with
+        # list(ex.map(...)) drains the whole iterator first, so the log
+        # stayed silent for the entire simulation and then dumped every
+        # line at once - which removes the only reliable way to tell a
+        # slow run from a hung one on a machine that sleeps.
+        n = sum(len(district_df.iloc[s:s + BATCH]) for s in done)
+        print(f"  simulated {n}/{len(district_df)} districts", flush=True)
+
     if N_THREADS > 1 and len(starts) > 1:
         with ThreadPoolExecutor(N_THREADS) as ex:
-            results = list(ex.map(run_batch, starts))
+            futures = [ex.submit(run_batch, s) for s in starts]
+            for fut in as_completed(futures):
+                start, loc, yr = fut.result()
+                done[start] = (loc, yr)
+                note(start)
     else:
-        results = [run_batch(s) for s in starts]
-    results.sort(key=lambda r: r[0])
-    for start, loc, yr in results:
+        for s in starts:
+            start, loc, yr = run_batch(s)
+            done[start] = (loc, yr)
+            note(start)
+
+    # Combined in BATCH order, not completion order - see the note above
+    # on floating-point addition not being associative.
+    for start in starts:
+        loc, yr = done[start]
         for k, v in loc.items():
             out[k].append(v)
         for k, v in yr.items():
             year[k] += v
-        print(f"  simulated {min(start + BATCH, len(district_df))}/"
-              f"{len(district_df)} districts")
 
     res = {k: np.concatenate(v) for k, v in out.items()}
 
