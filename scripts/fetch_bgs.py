@@ -42,64 +42,99 @@ LAYERS = {
 }
 
 
-# Retry policy, matching the raster fetchers: 6 attempts with EXPONENTIAL
-# backoff, not a flat sleep. This is not theoretical - the BGS API drops
-# the connection on the last page of the superficial layer specifically
-# ("Connection reset by peer" / WinError 10054 on page 21 of 21, the short
-# final page). Four attempts 10s apart rode it out locally by luck and
-# failed all four on a GitHub runner. Backing off to 10/20/40/80/160s
-# gives the server time to recover instead of hammering it while it is
-# still refusing.
+# The BGS endpoint throttles sustained paging. It is not a bad page and it
+# is not random: a run gets ~19-20 rapid pages in, then starts resetting
+# the connection, and a 160-second backoff does NOT clear it - one Actions
+# run recovered on page 19 after five attempts and then lost page 20 to
+# all six. It fails wherever the run happens to be by then, which is why
+# it first looked like "the last page is broken".
+#
+# So: pace the requests to stay under the limit, back off exponentially
+# when refused anyway, and - the part that actually matters - CHECKPOINT,
+# so a run that is throttled at page 20 of 23 resumes there instead of
+# starting over. That is the same rule fetch_sw_depth.py follows, and the
+# reason it survives this machine going to sleep mid-fetch.
 RETRIES = 6
 BACKOFF = 10
+PAGE = 500
+PACE = 1.0          # seconds between successful pages
+
+
+def _page_url(cfg, offset):
+    # Explicit offsets rather than following `next` links: a link cannot be
+    # resumed from, an offset can. Verified to give byte-identical ordering
+    # to the next-link paging that produced the committed layers, which
+    # matters because the dominant-formation tie-break depends on order.
+    return (f"{BASE}/{cfg['collection']}/items"
+            f"?f=json&limit={PAGE}&offset={offset}")
+
+
+def _get(url):
+    for attempt in range(RETRIES):
+        try:
+            req = urllib.request.Request(
+                url, headers={"User-Agent": "uk-risk-map/1.0 (+github.com/"
+                                            "SMcode-source)"})
+            with urllib.request.urlopen(req, timeout=300) as r:
+                return json.load(r)
+        except Exception as e:
+            wait = BACKOFF * (2 ** attempt)
+            last = attempt == RETRIES - 1
+            print(f"    attempt {attempt + 1}/{RETRIES} failed: {e}"
+                  + ("" if last else f" - retrying in {wait}s"), flush=True)
+            if not last:
+                time.sleep(wait)
+    return None
 
 
 def fetch(cfg):
-    url = f"{BASE}/{cfg['collection']}/items?f=json&limit=500"
-    features, page, matched = [], 0, None
-    while url:
-        for attempt in range(RETRIES):
-            try:
-                with urllib.request.urlopen(url, timeout=300) as r:
-                    data = json.load(r)
+    ckpt = cfg["out"] + ".progress.jsonl"
+    features = []
+    if os.path.exists(ckpt):
+        with open(ckpt, encoding="utf-8") as fh:
+            features = [json.loads(line) for line in fh if line.strip()]
+        print(f"  resuming from {ckpt}: {len(features)} features already "
+              f"fetched", flush=True)
+
+    matched, stalled = None, False
+    with open(ckpt, "a", encoding="utf-8") as ck:
+        while True:
+            offset = len(features)
+            if matched is not None and offset >= matched:
                 break
-            except Exception as e:
-                wait = BACKOFF * (2 ** attempt)
-                last = attempt == RETRIES - 1
-                print(f"  page {page} attempt {attempt + 1}/{RETRIES} "
-                      f"failed: {e}" + ("" if last else f" - retrying in {wait}s"),
-                      flush=True)
-                if not last:
-                    time.sleep(wait)
-        else:
-            raise SystemExit(
-                f"giving up on page {page} after {RETRIES} attempts. "
-                f"Nothing is written, so no partial layer can reach the "
-                f"model - rerun when the endpoint recovers.")
-
-        if matched is None:
-            matched = data.get("numberMatched")
-        for f in data.get("features", []):
-            props = f.get("properties", {})
-            features.append({
-                "type": "Feature",
-                "properties": {k: props.get(k) for k in cfg["keep"]},
-                "geometry": f.get("geometry"),
-            })
-        page += 1
-        print(f"page {page}: total {len(features)}/{matched}")
-
-        url = None
-        for link in data.get("links", []):
-            if link.get("rel") == "next":
-                url = link["href"]
+            data = _get(_page_url(cfg, offset))
+            if data is None:
+                print(f"  throttled at offset {offset} after {RETRIES} "
+                      f"attempts - progress is checkpointed, so rerunning "
+                      f"resumes here rather than restarting", flush=True)
+                stalled = True
+                break
+            if matched is None:
+                matched = data.get("numberMatched")
+            got = data.get("features", [])
+            if not got:
+                break
+            for f in got:
+                props = f.get("properties", {})
+                rec = {
+                    "type": "Feature",
+                    "properties": {k: props.get(k) for k in cfg["keep"]},
+                    "geometry": f.get("geometry"),
+                }
+                features.append(rec)
+                ck.write(json.dumps(rec) + "\n")
+            ck.flush()
+            print(f"  {len(features)}/{matched}", flush=True)
+            if len(features) < matched:
+                time.sleep(PACE)
 
     # A short geology fetch is invisible downstream - missing polygons read
     # as "no data here" and quietly change district scores, the same trap
     # the raster fetchers guard with .partial. Do the same rather than
     # letting an incomplete layer become model input.
     out = cfg["out"]
-    if matched is not None and len(features) != matched:
+    incomplete = matched is not None and len(features) != matched
+    if incomplete:
         out += ".partial"
         print(f"INCOMPLETE: {len(features)} of {matched} features "
               f"-> writing {out} so it cannot be used as input")
@@ -107,7 +142,16 @@ def fetch(cfg):
         json.dump({"type": "FeatureCollection", "features": features}, fh)
     size = os.path.getsize(out) / 1e6
     print(f"wrote {out}: {len(features)} features ({size:.1f} MB)")
-    return out.endswith(".partial")
+
+    if incomplete:
+        # Keep the checkpoint - that is the whole point, the rerun resumes
+        # from it. Also drop any stale complete copy, so a half layer can
+        # never sit next to a full one and get picked up by mistake.
+        if os.path.exists(cfg["out"]):
+            os.remove(cfg["out"])
+    else:
+        os.remove(ckpt)
+    return incomplete
 
 
 def main():
