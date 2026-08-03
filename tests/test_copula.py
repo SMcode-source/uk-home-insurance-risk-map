@@ -23,6 +23,29 @@ N = 40_000
 SEED = 7
 
 
+@pytest.fixture(autouse=True)
+def _reset_pinned_references():
+    """Keep the suite order-independent.
+
+    scores_real pins two module-level normalisation references the first
+    time a present-day call sets them (`_FLOOD_REF`, `_DEPTH_REF`), so the
+    climate run can be expressed on the present-day scale instead of
+    renormalising its own signal away. That is right in production, where
+    build_model runs present-day then climate in one process.
+
+    In a test process it means state leaks between tests. Nothing reads it
+    today - no test passes climate=True - but the first one that does would
+    inherit whichever test happened to run before it, and fail only inside
+    the suite while passing alone. Resetting is free; debugging that is not.
+    """
+    import scores_real as sr
+    sr._FLOOD_REF = None
+    sr._DEPTH_REF = None
+    yield
+    sr._FLOOD_REF = None
+    sr._DEPTH_REF = None
+
+
 @pytest.fixture(scope="module")
 def base():
     rng = np.random.default_rng(SEED)

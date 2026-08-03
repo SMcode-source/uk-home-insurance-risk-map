@@ -90,6 +90,17 @@ districts**, used as the exposure weight throughout.
     RoFRS and RoFSW per address — *not* per-source — so the model only uses
     `GWTR_RISK` (groundwater alert-area flag, England only). Product
     description PDF is on dataset page `53cba123-71f8-417a-8441-4c7ba111e8e1`.
+    - **This is the one England-only layer whose coverage is taken from the
+      data rather than the boundary**, and that is safe here — checked, not
+      assumed. `groundwater_from_ea` gives any district missing from
+      `gw_fractions.csv` a nominal 0.02 background, so unlike the depth and
+      climate layers an absent district reads as "background", never as
+      "no risk". The table is also England-complete: of 2,087 districts at
+      ≥95% English share, **0** are missing from it, so the background never
+      lands on an English district. The 26 rows that are in the table but
+      below the 95% threshold are the known straddlers (Portishead, Chester,
+      Knighton, Presteigne, Chepstow, the Dumfriesshire border…) and get a
+      partial reading, the same residual limitation noted in #22.
 
 14. **ERA5 gusts** — `https://archive-api.open-meteo.com/v1/archive` with
     `daily=wind_gusts_10m_max`, multi-location batches. **Quirk:** the free
