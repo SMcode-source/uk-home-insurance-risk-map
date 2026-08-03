@@ -392,10 +392,18 @@ def test_simulate_returns_the_columns_the_map_and_site_read():
         sim, year = m.simulate(df)
     finally:
         m.N_SIM, m.BATCH = n_sim, batch
-    for key in ("el_sub", "el_wx", "el_fl", "el_gw", "el_er", "el_total",
-                "el_total5", "tvar99_vine", "tvar99_vine5", "tvar99_indep5",
-                "tvar99_euler", "el_year", "theta_we", "tail_dep_we"):
-        assert key in sim, f"simulate() no longer returns {key}"
+    # Assert the DECLARED contract, not a hand-picked subset. The list this
+    # replaced named 14 of the 26 columns simulate() promises, so losing
+    # var995_vine, tvar99_gauss, uplift_pct or any of the theta_*/tail_dep_*
+    # pairs passed the tests and failed at the GeoJSON write instead - after
+    # both simulations, i.e. ~110 minutes in. Driving it from
+    # SIMULATED_COLUMNS means the two cannot drift apart again.
+    missing = sorted(m.SIMULATED_COLUMNS - set(sim))
+    assert not missing, f"simulate() no longer returns {missing}"
+    # and nothing may claim to be simulated that main() actually computes
+    assert not (m.SIMULATED_COLUMNS & m.MAIN_COLUMNS)
+    # every published column must come from scoring, simulate() or main()
+    assert m.DERIVED_COLUMNS == m.SIMULATED_COLUMNS | m.MAIN_COLUMNS
     # the year view stays on the four insured perils
     assert "g_v" in year and "expo_total" in year
 

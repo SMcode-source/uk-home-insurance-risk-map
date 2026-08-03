@@ -91,23 +91,41 @@ OUTPUT_COLUMNS = [
     "premium", "group", "geometry",
 ]
 
-# Everything above that is produced later, by simulate() or by main()'s own
-# premium/capital/climate arithmetic. Anything NOT in here must already be
-# on the frame once scoring finishes.
-DERIVED_COLUMNS = {
+# Everything above that is produced later. Split by WHO produces it, because
+# that is what makes the contract checkable: the two halves fail in different
+# places and only one of them can be caught before the run starts.
+#
+# Returned by simulate(). Several of these are not in OUTPUT_COLUMNS and are
+# deliberately kept anyway - see the note on var995_* in simulate().
+SIMULATED_COLUMNS = {
     "el_sub", "el_wx", "el_fl", "el_gw", "el_er", "el_total", "el_total5",
     "var995_vine", "var995_gauss", "var995_indep", "tvar99_vine",
     "tvar99_gauss", "tvar99_indep", "tvar99_vine5", "tvar99_indep5",
     "tvar99_euler", "el_year", "uplift_pct",
     "tail_dep_wf", "tail_dep_ws", "tail_dep_wg", "tail_dep_we",
     "theta_wf", "theta_ws", "theta_wg", "theta_we",
+}
+# Computed by main() itself, after simulating: the premium arithmetic and
+# the climate-change repricing.
+MAIN_COLUMNS = {
     "capital", "premium", "group",
     "el_total_cc", "capital_cc", "premium_cc", "cc_uplift_pct", "cc_covered",
 }
+DERIVED_COLUMNS = SIMULATED_COLUMNS | MAIN_COLUMNS
 
 
 def check_scored_columns(gdf):
-    """Fail fast if scoring did not produce everything the output needs."""
+    """Fail fast if scoring did not produce everything the output needs.
+
+    Only covers the SCORED half. The derived half cannot be checked here -
+    nothing has simulated yet - so it is guarded instead by
+    test_simulate_returns_the_columns_the_map_and_site_read, which runs the
+    real simulate() on a one-district frame in about a second. That matters:
+    a mistyped derived column surfaces only at the final GeoJSON write,
+    which now comes after BOTH the present-day and the climate simulation,
+    so it costs the whole ~110-minute run rather than the 55 that motivated
+    this guard originally.
+    """
     need = [c for c in OUTPUT_COLUMNS if c not in DERIVED_COLUMNS]
     missing = [c for c in need if c not in gdf.columns]
     if missing:
@@ -119,6 +137,21 @@ def check_scored_columns(gdf):
     print(f"  output contract: {len(need)} scored columns present, "
           f"{len(DERIVED_COLUMNS & set(OUTPUT_COLUMNS))} to come from the "
           f"simulation")
+
+
+def check_simulated_columns(sim):
+    """Fail as soon as the first simulation returns, not at the final write.
+
+    Belt and braces behind the unit test: if the present-day run comes back
+    short, stopping here costs 55 minutes instead of letting the climate run
+    double it before the GeoJSON write notices.
+    """
+    missing = sorted(SIMULATED_COLUMNS - set(sim))
+    if missing:
+        raise SystemExit(
+            f"simulate() returned no {missing}.\n"
+            "SIMULATED_COLUMNS and simulate()'s `out` dict have drifted "
+            "apart - add the column to both, or drop it from both.")
 
 # ---------------------------------------------------------------- load
 
@@ -729,6 +762,13 @@ def simulate(district_df):
         out["el_er"].append(el_er)
         out["el_total"].append(tot_v.mean(axis=1))
         out["el_total5"].append(tot_v.mean(axis=1) + el_er)
+        # var995_vine is published; the gauss and indep siblings are NOT in
+        # OUTPUT_COLUMNS and nothing downstream reads them. They are kept
+        # anyway and this note exists so they are not mistaken for dead
+        # code: the three together are the evidence for the README's
+        # "VaR can fall as dependence rises" finding, which is why premiums
+        # use TVaR. Delete them and the claim can no longer be reproduced
+        # from a run. They cost one np.partition each per batch.
         out["var995_vine"].append(q(tot_v))
         out["var995_gauss"].append(q(tot_n))
         out["var995_indep"].append(q(tot_i))
@@ -868,9 +908,6 @@ def main():
     gdf = load_districts()
     print(f"  {len(gdf)} districts across {gdf['area'].nunique()} postcode areas")
 
-    pts = gdf.geometry.representative_point()
-    gdf["lon"], gdf["lat"] = pts.x, pts.y
-
     bng = gdf.to_crs(27700)
     bng_pts = bng.geometry.representative_point()
     targets = np.column_stack([bng_pts.x.values, bng_pts.y.values])
@@ -920,6 +957,7 @@ def main():
 
     print(f"running copula simulation ({N_SIM:,} years/district)...")
     sim, year = simulate(gdf)
+    check_simulated_columns(sim)
     for k, v in sim.items():
         gdf[k] = v
 
