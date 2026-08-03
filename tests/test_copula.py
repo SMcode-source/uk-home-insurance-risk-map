@@ -374,6 +374,68 @@ def test_capital_allocation_is_stable_across_seeds():
     assert np.median(rel) < 0.12, f"median move {np.median(rel):.1%} across seeds"
 
 
+def test_the_map_and_site_only_read_columns_the_model_writes():
+    """The other half of the GeoJSON contract, and the silent half.
+
+    The test below guarantees simulate() produces what OUTPUT_COLUMNS
+    promises. Nothing guaranteed the reverse: that the front end only reads
+    what OUTPUT_COLUMNS actually ships. Both consumers fail quietly if it
+    does not -
+
+      * map/template.html reads `p.<col>` off the GeoJSON properties, so a
+        dropped column renders as `undefined` in the district popup;
+      * build_site.py builds the published CSV with `p.get(c, "")`, so a
+        dropped column becomes a silently EMPTY column in
+        docs/assets/uk_district_risk.csv.
+
+    Neither raises. Both ship.
+    """
+    import ast
+    import re
+    root = os.path.join(os.path.dirname(__file__), "..")
+    published = set(bm.OUTPUT_COLUMNS)
+
+    with open(os.path.join(root, "map", "template.html"),
+              encoding="utf-8") as fh:
+        tpl = fh.read()
+    # \b matters: without it `ramp.length` and `tooltip.district-tip` match
+    # as `p.length` / `p.district` and the test drowns in false positives.
+    read_by_map = set(re.findall(r"\bp\.([A-Za-z_][A-Za-z_0-9]*)", tpl))
+    read_by_map |= set(re.findall(
+        r"\.properties\.([A-Za-z_][A-Za-z_0-9]*)", tpl))
+    stray = sorted(read_by_map - published)
+    assert not stray, (
+        f"map/template.html reads {stray}, which build_model.py does not "
+        f"write - these render as `undefined` in the popup")
+
+    # A guard that stops finding anything is worse than no guard, so pin the
+    # scale: if a template rewrite changes the access pattern this fails
+    # loudly instead of passing vacuously.
+    assert len(read_by_map) > 40, (
+        f"only {len(read_by_map)} property reads found in map/template.html "
+        f"- the extraction pattern has stopped matching, not the template "
+        f"stopped reading")
+
+    # build_site.py's published-CSV column list
+    with open(os.path.join(root, "scripts", "build_site.py"),
+              encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+    site_cols = None
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Assign) and node.targets
+                and getattr(node.targets[0], "id", None) == "cols"
+                and isinstance(node.value, ast.List)):
+            vals = [e.value for e in node.value.elts
+                    if isinstance(e, ast.Constant)]
+            if len(vals) > 20:
+                site_cols = vals
+    assert site_cols, "could not find build_site.py's CSV `cols` list"
+    stray = sorted(set(site_cols) - published)
+    assert not stray, (
+        f"build_site.py publishes {stray}, which build_model.py does not "
+        f"write - p.get(c, '') makes these silently empty CSV columns")
+
+
 def test_simulate_returns_the_columns_the_map_and_site_read():
     """The GeoJSON contract: build_map.py and build_site.py index these by
     name, so losing one breaks the published pages rather than the tests."""
