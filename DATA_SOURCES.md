@@ -202,6 +202,23 @@ districts**, used as the exposure weight throughout.
       Shoreline Management Plan (defences maintained as planned); NFI = no
       further intervention (defences lapse). We use the 70th-percentile
       climate-change allowance.
+    - **`Ground_Instability_Zone` and `_Recession` are not duplicates**, and
+      the second is not a subset of the first. Both carry 80 features with
+      byte-identical attributes, which makes them look redundant. The
+      geometry says otherwise: the two unions overlap by 0.01% of the
+      recession area (700 m² of 5.39 km²) while all 80 recession polygons
+      *touch* their zone at distance 0.00 m. `_Zone` (27.18 km²) is the
+      cliff that is unstable **today**; `_Recession` (5.39 km²) is the strip
+      the rear scarp is projected to retreat into, lying immediately
+      landward. They are adjacent and **additive**, not nested. Consistent
+      with that, polygon area ÷ `rearscarpr` recovers the frontage length to
+      within 3% (median ratio 0.971 against half the perimeter), so unlike
+      the SMP/NFI frontages this layer's area *is* trustworthy — it really
+      is a strip of width `rearscarpr` ∈ {0, 10, 50, 100} m.
+      Only `_Zone` is fetched (`er_gi`); `_Recession` is left unfetched
+      deliberately, because `er_gi` is a published descriptive column that
+      does not feed `er_score` (only `er_smp105` does), so a second such
+      column would cost a full rebuild to change nothing that is priced.
     - **The polygon area is not a reliable measure of land lost.** For most
       of the ~7,500 frontages the polygon is the recession strip and its
       area ≈ `shape_leng × recession`, but 2–10% of records — concentrated
@@ -264,6 +281,14 @@ districts**, used as the exposure weight throughout.
 - NCERM via `/ogc/features/v1/collections/<id>/items`: HTTP 500. WFS works.
 - `nafra2-risk-of-flooding-from-surface-water-depth` as its own dataset slug:
   404. The depth layers live inside the existing surface-water WMS.
+- **A second climate epoch or allowance for either flood product**: does not
+  exist. `GetCapabilities` on both climate services returns one future layer
+  each — `Rivers_1in{100,1000}_Sea_1in{200,1000}_{defended,undefended}_extents_CCP1`
+  and `rofsw_cc01` with its five depth bands — with no `CCP2`/`cc02` sibling
+  and no percentile variants. (The duplicate `..._28_11_2025` names on both
+  the present-day and climate services are edition stamps of the same
+  layers, not epochs.) A climate *ladder* is therefore unavailable from the
+  EA flood extents, though NCERM does publish one for erosion.
 - **Postcode-sector boundaries for England & Wales**: not open. Only Scotland
   publishes sector polygons; E&W publish postcode→sector *lookups* only, so
   sector-level geography would mean deriving polygons from ONSPD centroids.

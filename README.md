@@ -332,9 +332,15 @@ measured nothing: the depth multiplier (renormalising on future data divides out
 "water gets deeper everywhere") and the flood score's 95th-percentile anchor. Both runs
 share their random draws, so it is a paired comparison.
 
-Stated plainly, three limits:
+Stated plainly, four limits:
 
 - **A scenario, not a forecast** — the EA's climate allowance, not a prediction.
+- **One rung, not a ladder.** There is no choice of epoch or allowance to make: a
+  `GetCapabilities` sweep of both climate services returns exactly one future layer
+  per product — `..._CCP1` for rivers/sea and `rofsw_cc01` (plus its five depth bands)
+  for surface water. So the model cannot show a 2050-vs-2080 or central-vs-upper
+  progression the way the NCERM erosion columns do, where the EA really does publish
+  two epochs and three allowances. This is a publishing limit, not a modelling choice.
 - **Rivers/sea is not a strict uplift.** The future layer is a separate model run, so
   it does not simply contain the present one. On a Humber test tile at 13 m/px,
   **19.7%** of today's *pixels* fall outside the future extent; across England at
