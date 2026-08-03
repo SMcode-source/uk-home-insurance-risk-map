@@ -127,6 +127,18 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
      mudstone keywords down-weighted ×0.3 for pre-Mesozoic indurated rocks), then
      **area-weighted onto each district** by polygon intersection in British
      National Grid. This mirrors how BGS GeoSure's shrink–swell layer is derived.
+     The **625k superficial map** (`--superficial`) is then blended in as a
+     modifier, because shrink–swell happens in the soil shallow foundations bear
+     on and drift covers ~58% of GB: `sub = (1 − W·cover)·bedrock + W·cover·drift`
+     with **W = 0.5**. Its 14 deposits are enumerated explicitly rather than
+     keyword-matched (lacustrine clay 0.75, clay-with-flints 0.70, brickearth
+     0.60, alluvium 0.50, till 0.45, granular deposits 0.05), so an unrecognised
+     one raises instead of defaulting. **Peat is excluded** — it subsides by
+     consolidation and oxidation, not shrink–swell — as is unmapped drift, and
+     both fall back to bedrock. The half weight is the honest treatment of the
+     one thing 625k does not publish: **thickness**. Effect: 1,452 districts
+     raised, 749 lowered, exposure-weighted premium −0.2% (the ABI calibration
+     re-pins the level), but **42.5% change rating group**.
    - *Weather*: **Met Office** grids (Climate Data Portal ArcGIS services,
      fetched by `scripts/fetch_metoffice.py`), interpolated to district
      centroids by inverse-distance weighting: winter mean wind speed 5 km (UKCP18

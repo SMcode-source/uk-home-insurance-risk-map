@@ -181,6 +181,21 @@
     district's score is the <b>area-weighted</b> susceptibility of the formations beneath it,
     computed by polygon intersection in British National Grid. This mirrors how BGS's own
     GeoSure shrink–swell layer is derived, using only the open 625k mapping.</p>
+    <p>Bedrock is not the whole story, though: shrink–swell happens in the soil shallow
+    foundations actually bear on, and over about <b>58% of Great Britain</b> that is
+    <b>superficial deposits</b> lying on top. The 625k superficial map is blended in as a
+    modifier — lacustrine clay, clay-with-flints and brickearth pull a district's score up,
+    glacial sand and gravel and river terrace deposits pull it down, because a granular
+    layer genuinely buffers the seasonal moisture change that drives shrink–swell. It cuts
+    both ways: Vale of York lake clays over benign bedrock rise, while the City of London,
+    sitting on metres of terrace gravel above London Clay, falls — which is why insurers'
+    subsidence maps light up the outer-London clay outcrop rather than the centre.</p>
+    <p class="note">Two deliberate limits. The blend is <b>capped at half weight</b> because
+    625k publishes no <b>thickness</b>, so a 0.5 m gravel skin and a 20 m clay sequence look
+    identical in this data — drift can shift the ranking but never override mapped bedrock
+    outright. And <b>peat is excluded</b>: it subsides badly, but by consolidation and
+    oxidation rather than shrink–swell, so pricing it inside this peril would conflate two
+    mechanisms under one calibration.</p>
 
     <h3>Flood — rasterised official extents</h3>
     <p>The published flood maps are rendered as images at 13–100 m per pixel and the painted
@@ -289,8 +304,8 @@
 
     <div class="callout" style="margin:16px 0">Over the <b>2,087</b> districts the EA
     models, holding the calibration fixed and moving only the flood map changes the
-    exposure-weighted technical premium by <b>+10%</b>. The hardest-hit district
-    is <b>DN32</b> at <b>+257%</b>. Across England the 1-in-100/200
+    exposure-weighted technical premium by <b>+11%</b>. The hardest-hit district
+    is <b>DN32</b> at <b>+207%</b>. Across England the 1-in-100/200
     river/sea band grows <b>+37.4%</b> and the surface-water ≥1% AEP zone <b>+28.7%</b>.</div>
 
     <h3>Holding the calibration still</h3>
@@ -516,7 +531,7 @@
     claims on any of these perils in well under 1% of years, so its own 99% TVaR is
     essentially "the average claim, if one happens" — a statistic almost blind to
     dependence. Measured, the vine-versus-independence difference on a single policy's
-    TVaR₉₉ is <b>+2.7%, with a 95% bootstrap interval of -9.2% to +12.9%</b>:
+    TVaR₉₉ is <b>+2.8%, with a 95% bootstrap interval of -9.0% to +12.8%</b>:
     indistinguishable from zero, exactly as it should be. The interval straddling zero is
     the finding; the point estimate wanders between runs precisely because it is noise,
     which is why nothing is priced off it.</p>
@@ -526,7 +541,7 @@
     Removing it is the finding, not a retreat from it.</div>
     <p><b>For the portfolio, it shows up where capital is set.</b> Aggregate over 2,736
     districts and the rare joint events stop cancelling: catastrophic years cost
-    <b>5.2%</b> more under the vine than under independence. That is the number
+    <b>5.7%</b> more under the vine than under independence. That is the number
     that matters for solvency, and it is the reason the vine is here.</p>
     <p class="note">Measured by <code>scripts/dependence_check.py</code>: 60 districts ×
     400,000 simulated years, with a bootstrap interval on the TVaR comparison so the noise

@@ -165,6 +165,21 @@ __NAV__
     district's score is the <b>area-weighted</b> susceptibility of the formations beneath it,
     computed by polygon intersection in British National Grid. This mirrors how BGS's own
     GeoSure shrink–swell layer is derived, using only the open 625k mapping.</p>
+    <p>Bedrock is not the whole story, though: shrink–swell happens in the soil shallow
+    foundations actually bear on, and over about <b>58% of Great Britain</b> that is
+    <b>superficial deposits</b> lying on top. The 625k superficial map is blended in as a
+    modifier — lacustrine clay, clay-with-flints and brickearth pull a district's score up,
+    glacial sand and gravel and river terrace deposits pull it down, because a granular
+    layer genuinely buffers the seasonal moisture change that drives shrink–swell. It cuts
+    both ways: Vale of York lake clays over benign bedrock rise, while the City of London,
+    sitting on metres of terrace gravel above London Clay, falls — which is why insurers'
+    subsidence maps light up the outer-London clay outcrop rather than the centre.</p>
+    <p class="note">Two deliberate limits. The blend is <b>capped at half weight</b> because
+    625k publishes no <b>thickness</b>, so a 0.5 m gravel skin and a 20 m clay sequence look
+    identical in this data — drift can shift the ranking but never override mapped bedrock
+    outright. And <b>peat is excluded</b>: it subsides badly, but by consolidation and
+    oxidation rather than shrink–swell, so pricing it inside this peril would conflate two
+    mechanisms under one calibration.</p>
 
     <h3>Flood — rasterised official extents</h3>
     <p>The published flood maps are rendered as images at 13–100 m per pixel and the painted
