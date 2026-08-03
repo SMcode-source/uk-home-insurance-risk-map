@@ -453,6 +453,62 @@ def test_climate_scenario_does_not_clamp_away_the_districts_that_improve():
     assert grew > 1.2, f"national high-band growth only {grew:.2f}x"
 
 
+STATS_KEYS_NO_TEMPLATE_USES = {
+    # Computed by build_site.load_stats() and read by no template. Listed
+    # rather than deleted: the per-district uplift layer was removed on
+    # purpose (it is Monte Carlo noise at calibrated frequencies), and the
+    # capital/catastrophe figures are still worth having available. Pinned
+    # so the set cannot grow silently - a NEW unused key almost always
+    # means a figure was meant to be shown and the placeholder was lost.
+    "__CAT_COST__", "__CAT_INDEP__", "__CAT_UPLIFT__", "__DIST_UPLIFT__",
+    "__MEAN_CAPITAL__", "__MEAN_STANDALONE__", "__PORT_TVAR__",
+}
+
+
+def test_site_placeholders_all_resolve():
+    """A placeholder with no stats key ships as literal `__FOO__`.
+
+    render_template() does a plain str.replace per stats key, so an
+    unmatched placeholder is not an error - the raw token goes straight to
+    the published page. Checked statically (regex over build_site.py and
+    the templates) so the test needs neither the 5 MB GeoJSON nor a build.
+    """
+    import re
+    root = os.path.join(os.path.dirname(__file__), "..")
+    token = re.compile(r"__[A-Z][A-Z_0-9]*__")
+
+    with open(os.path.join(root, "scripts", "build_site.py"),
+              encoding="utf-8") as fh:
+        keys = set(re.findall(r'"(__[A-Z][A-Z_0-9]*__)"', fh.read()))
+    assert len(keys) > 30, f"only {len(keys)} stats keys found - regex stale"
+
+    used = set()
+    for tpl in ("index.template.html", "methodology.template.html"):
+        with open(os.path.join(root, "site", tpl), encoding="utf-8") as fh:
+            found = set(token.findall(fh.read()))
+        assert found, f"{tpl} has no placeholders - extraction is stale"
+        unknown = sorted(found - keys)
+        assert not unknown, (
+            f"{tpl} uses {unknown}, which build_site.py never defines - "
+            f"these ship to the live page as literal text")
+        used |= found
+
+    unused = keys - used - {"__NAV__", "__HEAD__"}
+    assert unused == STATS_KEYS_NO_TEMPLATE_USES, (
+        f"the set of stats keys no template uses has changed: "
+        f"unexpected {sorted(unused - STATS_KEYS_NO_TEMPLATE_USES)}, "
+        f"no longer unused {sorted(STATS_KEYS_NO_TEMPLATE_USES - unused)}")
+
+    # and nothing survived into the built pages
+    docs = os.path.join(root, "docs")
+    for page in sorted(os.listdir(docs)):
+        if not page.endswith(".html"):
+            continue
+        with open(os.path.join(docs, page), encoding="utf-8") as fh:
+            left = sorted(set(token.findall(fh.read())))
+        assert not left, f"docs/{page} still contains {left}"
+
+
 def test_every_asset_the_published_site_references_exists():
     """No broken links or missing assets in docs/, checked offline.
 
