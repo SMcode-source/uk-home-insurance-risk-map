@@ -465,6 +465,63 @@ STATS_KEYS_NO_TEMPLATE_USES = {
 }
 
 
+def test_superficial_modifier_is_bounded_and_two_sided():
+    """combine_subsidence must move relativities, not run away with them."""
+    import scores_real as sr
+    bed = np.array([1.00, 1.00, 0.08, 0.08, 0.50, 0.90])
+    sup = np.array([0.05, 0.05, 0.75, 0.75, 0.50, 0.45])
+    cov = np.array([1.00, 0.00, 1.00, 0.00, 1.00, 0.50])
+    out = sr.combine_subsidence(bed, sup, cov)
+
+    # zero cover is exactly a no-op: a district with no mapped drift must
+    # come out at its bedrock score, not merely close to it
+    assert out[1] == bed[1] and out[3] == bed[3]
+    # it cuts both ways
+    assert out[0] < bed[0], "granular drift over clay must lower"
+    assert out[2] > bed[2], "clay drift over benign bedrock must raise"
+    # and is bounded by SUP_WEIGHT even at full cover - drift can never
+    # override mapped bedrock outright, because thickness is unknown
+    assert out[0] >= (1 - sr.SUP_WEIGHT) * bed[0]
+    assert abs(out[0] - ((1 - sr.SUP_WEIGHT) * 1.00
+                         + sr.SUP_WEIGHT * 0.05)) < 1e-12
+    # equal scores are a fixed point regardless of cover
+    assert abs(out[4] - 0.50) < 1e-12
+    # stays in range for any input
+    rng = np.random.default_rng(3)
+    r = sr.combine_subsidence(rng.uniform(0, 1, 500), rng.uniform(0, 1, 500),
+                              rng.uniform(0, 1, 500))
+    assert r.min() >= 0.0 and r.max() <= 1.0
+
+
+def test_superficial_vocabulary_is_fully_enumerated():
+    """Every 625k deposit is classified or explicitly excluded.
+
+    SUP_SUSCEP is a closed table rather than keyword-matching with a
+    default, so an unrecognised deposit means the layer changed and must
+    be a loud failure - a silent default would quietly rescore districts.
+    """
+    import json
+    import scores_real as sr
+    both = set(sr.SUP_SUSCEP) | sr.SUP_EXCLUDED
+    assert not (set(sr.SUP_SUSCEP) & sr.SUP_EXCLUDED), "peat cannot be both"
+    assert "PEAT" in sr.SUP_EXCLUDED, "peat is excluded on purpose"
+    assert all(0.0 <= v <= 1.0 for v in sr.SUP_SUSCEP.values())
+
+    path = os.path.join(os.path.dirname(__file__), "..", "data",
+                        "bgs_625k_superficial.geojson")
+    if not os.path.exists(path):
+        pytest.skip("superficial layer not fetched")
+    with open(path, encoding="utf-8") as fh:
+        feats = json.load(fh)["features"]
+    seen = {(f["properties"].get("lex_d") or "").strip().upper()
+            for f in feats}
+    seen.discard("")
+    unknown = sorted(seen - both)
+    assert not unknown, (
+        f"unclassified superficial deposits {unknown} - classify them in "
+        f"SUP_SUSCEP or SUP_EXCLUDED rather than letting them default")
+
+
 def test_published_geojson_satisfies_the_models_own_identities():
     """Catch a stale or half-written districts_risk.geojson in seconds.
 

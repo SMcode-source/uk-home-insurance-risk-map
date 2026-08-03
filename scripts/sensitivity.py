@@ -37,7 +37,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_model as bm  # noqa: E402
-from scores_real import (subsidence_from_bgs, weather_from_metoffice,  # noqa: E402
+from scores_real import (subsidence_score, weather_from_metoffice,  # noqa: E402
                          flood_from_agencies, groundwater_from_ea,
                          erosion_from_ncerm, sw_depth_severity)
 
@@ -154,7 +154,7 @@ def main():
     bng = gdf.to_crs(27700)
     bng_pts = bng.geometry.representative_point()
     targets = np.column_stack([bng_pts.x.values, bng_pts.y.values])
-    gdf["sub_score"], gdf["geol"] = subsidence_from_bgs(bng)
+    gdf["sub_score"], gdf["geol"], _, _ = subsidence_score(bng)
     gdf["wx_score"], _ = weather_from_metoffice(targets)
     (gdf["fl_score"], gdf["f_high"], gdf["f_low"],
      gdf["sw_high"], gdf["sw_low"]) = flood_from_agencies(gdf["name"].values)

@@ -7,6 +7,8 @@ __pycache__/
 # See DATA_SOURCES.md for every endpoint, licence and manual-download URL.
 # data/bgs_625k_bedrock.geojson  (~32 MB) -> scripts/fetch_bgs.py
 data/bgs_625k_bedrock.geojson
+# data/bgs_625k_superficial.geojson (~24 MB) -> scripts/fetch_bgs.py --superficial
+data/bgs_625k_superficial.geojson
 # data/ea_postcode_risk.csv      (~34 MB) -> manual download, DATA_SOURCES.md #13
 data/ea_postcode_risk.csv
 # boundary polygons -> git clone, see README

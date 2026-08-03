@@ -125,6 +125,157 @@ def subsidence_from_bgs(districts_bng: gpd.GeoDataFrame):
     return score, dom
 
 
+# ------------------------------------------- superficial (drift) deposits
+# Superficial deposits overlie the bedrock and, where clay-rich, govern the
+# soil domestic foundations actually bear on. The 625k superficial
+# vocabulary is small and fully enumerable - 14 lex_d values over
+# 132,391 km2, about 58% of GB - so every deposit is classified explicitly
+# rather than keyword-matched with a catch-all. An unrecognised value is a
+# fetch or schema change and should be noticed, not silently defaulted.
+#
+# Values are on the same 0-1 shrink-swell scale as the bedrock table.
+SUP_SUSCEP = {
+    "LACUSTRINE DEPOSITS (UNDIFFERENTIATED)": 0.75,   # soft plastic lake clay
+    "CLAY-WITH-FLINTS": 0.70,       # the "clay over chalk" case exactly
+    "BRICKEARTH": 0.60,             # clayey silt, shrink-swell and collapse
+    "LANDSLIP": 0.55,               # remoulded, and landslips happen in clay
+    "ALLUVIUM": 0.50,               # rock_d "CLAY, SILT AND SAND"; variable
+    "TILL": 0.45,                   # clay matrix but over-consolidated
+    "RAISED MARINE DEPOSITS (UNDIFFERENTIATED)": 0.30,
+    "CRAG GROUP": 0.10,             # sandy shelly marine, East Anglia
+    "GLACIAL SAND AND GRAVEL": 0.05,
+    "RIVER TERRACE DEPOSITS (UNDIFFERENTIATED)": 0.05,
+    "SAND AND GRAVEL OF UNCERTAIN AGE AND ORIGIN": 0.05,
+    "BLOWN SAND": 0.05,
+}
+# Deposits deliberately left out of the cover fraction entirely, so the
+# ground beneath them falls back to bedrock rather than being scored.
+SUP_EXCLUDED = {
+    # Peat subsides, badly - but by consolidation and oxidation, not
+    # shrink-swell. Pricing it inside this peril would conflate two
+    # mechanisms under one calibration. 15,728 km2, 11.9% of cover.
+    "PEAT",
+    # Not a deposit, an absence of survey. Scoring it would invent data.
+    "DRIFT GEOLOGY NOT MAPPED [FOR DIGITAL MAP USE ONLY]",
+}
+
+# How much weight superficial cover may take from bedrock where it is
+# present. NOT 1.0, and the reason is the whole difficulty: 625k publishes
+# no THICKNESS, so a 0.5 m gravel skin and a 20 m clay sequence look
+# identical here. Half-weight says "where drift covers the ground it
+# probably governs, but we cannot show it does" - it shifts relativities
+# without letting an unmeasured layer override mapped bedrock.
+SUP_WEIGHT = 0.5
+
+
+def superficial_from_bgs(districts_bng: gpd.GeoDataFrame):
+    """Area-weighted superficial susceptibility and cover per district.
+
+    Returns (score, cover_fraction, dominant_deposit). `cover_fraction`
+    counts only CLASSIFIED deposits - peat and unmapped drift are excluded,
+    so those areas fall through to bedrock instead of being scored.
+
+    Missing layer -> zero cover, which makes combine_subsidence() a no-op
+    and leaves the bedrock score exactly as it was.
+    """
+    n = len(districts_bng)
+    path = os.path.join(DATA, "bgs_625k_superficial.geojson")
+    if not os.path.exists(path):
+        print("  bgs_625k_superficial.geojson missing -> bedrock only "
+              "(run scripts/fetch_bgs.py --superficial)")
+        return np.zeros(n), np.zeros(n), np.array([""] * n, dtype=object)
+
+    geo = gpd.read_file(path)
+    geo = geo.set_crs(4326, allow_override=True).to_crs(27700)
+    geo["geometry"] = shapely.make_valid(geo.geometry.values)
+
+    names = np.array([(v or "").strip().upper() for v in geo["lex_d"].values])
+    unknown = sorted({v for v in names
+                      if v and v not in SUP_SUSCEP and v not in SUP_EXCLUDED})
+    if unknown:
+        raise SystemExit(
+            f"unclassified superficial deposits: {unknown}\n"
+            "SUP_SUSCEP enumerates the whole 625k vocabulary on purpose - a "
+            "new value means the layer changed, so classify it rather than "
+            "letting it default silently.")
+    keep = np.array([bool(v) and v in SUP_SUSCEP for v in names])
+    susc = np.array([SUP_SUSCEP.get(v, 0.0) for v in names])
+
+    dist_geoms = districts_bng.geometry.values
+    tree = shapely.STRtree(geo.geometry.values[keep])
+    pairs = tree.query(dist_geoms, predicate="intersects")
+    idx = np.nonzero(keep)[0][pairs[1]]
+
+    inter = shapely.intersection(dist_geoms[pairs[0]],
+                                 geo.geometry.values[idx])
+    w = shapely.area(inter)
+    s = susc[idx]
+
+    dist_area = np.maximum(shapely.area(dist_geoms), 1.0)
+    wsum = np.bincount(pairs[0], weights=w, minlength=n)
+    ssum = np.bincount(pairs[0], weights=w * s, minlength=n)
+    score = np.zeros(n)
+    ok = wsum > 0
+    score[ok] = ssum[ok] / wsum[ok]
+    # cover cannot exceed the district: 625k polygons overlap slightly at
+    # shared boundaries after make_valid, which would otherwise push a
+    # fully-drift-covered district just above 1.0
+    cover = np.clip(wsum / dist_area, 0.0, 1.0)
+
+    dom = np.array([""] * n, dtype=object)
+    dom_w = np.zeros(n)
+    lex = names[idx]
+    for i in np.argsort(w):
+        d = pairs[0][i]
+        if w[i] >= dom_w[d]:
+            dom_w[d] = w[i]
+            dom[d] = lex[i].title()
+    dom[dom_w == 0] = "none mapped"
+
+    print(f"  superficial: {int((cover > 0.01).sum())}/{n} districts with "
+          f"mapped drift; cover {cover.mean():.1%} mean, "
+          f"susceptibility {score[ok].min():.2f}..{score[ok].max():.2f}")
+    return score, cover, dom
+
+
+def subsidence_score(districts_bng: gpd.GeoDataFrame):
+    """The subsidence susceptibility the model actually prices.
+
+    THE single entry point - build_model, sensitivity and dependence_check
+    all call this rather than assembling bedrock + superficial themselves.
+    They used to call subsidence_from_bgs() directly, which was fine while
+    bedrock was the whole story; the moment superficial arrived, three
+    copies of the same three steps meant the sensitivity and dependence
+    runs could silently model a different subsidence surface from the one
+    published. One path, no drift.
+
+    Returns (score, bedrock_formation, superficial_cover, superficial_name).
+    """
+    bedrock, geol = subsidence_from_bgs(districts_bng)
+    sup, cover, sup_geol = superficial_from_bgs(districts_bng)
+    return combine_subsidence(bedrock, sup, cover), geol, cover, sup_geol
+
+
+def combine_subsidence(bedrock, sup_score, sup_cover):
+    """Blend the superficial modifier into the bedrock susceptibility.
+
+        sub = (1 - W*cover)*bedrock + W*cover*superficial
+
+    so drift pulls the score towards its own susceptibility in proportion
+    to how much of the district it covers, capped at SUP_WEIGHT. It cuts
+    both ways by design: clay-with-flints over chalk raises a district that
+    bedrock alone reads as benign, and glacial sand over London Clay lowers
+    one that bedrock alone reads as severe - a granular skin genuinely does
+    buffer the seasonal moisture change that drives shrink-swell.
+
+    Only relativities move. calibrate_frequency() pins the national level
+    to the ABI subsidence payout afterwards, so this cannot change the
+    calibrated loss cost, only which districts carry it.
+    """
+    k = SUP_WEIGHT * np.clip(sup_cover, 0.0, 1.0)
+    return np.clip((1.0 - k) * bedrock + k * sup_score, 0.0, 1.0)
+
+
 # ---------------------------------------------------------------- weather
 
 

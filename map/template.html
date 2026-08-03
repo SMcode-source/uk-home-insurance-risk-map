@@ -430,6 +430,10 @@ function popupHtml(p) {
     row('Technical premium', fmtGBP(p.premium) + '/yr') +
     '<tr class="sect"><td>Subsidence score</td><td>' + p.sub_score.toFixed(2) + '</td></tr>' +
     row('Bedrock (BGS)', '<span style="font-size:11px">' + p.geol + '</span>') +
+    (p.sup_frac > 0.01
+      ? row('Superficial (BGS)', '<span style="font-size:11px">' + p.sup_geol
+            + ' · ' + (100 * p.sup_frac).toFixed(0) + '% of area</span>')
+      : '') +
     '<tr class="sect"><td>Weather score</td><td>' + p.wx_score.toFixed(2) + '</td></tr>' +
     row('Winter wind (5km)', p.wind_ms.toFixed(1) + ' m/s') +
     row('1-in-50 gust (ERA5)', p.gust_rp50 != null ? p.gust_rp50.toFixed(0) + ' km/h' : 'pending fetch') +

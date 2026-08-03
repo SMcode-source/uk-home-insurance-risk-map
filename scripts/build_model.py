@@ -5,7 +5,13 @@ Pipeline:
   2. Score each district on five perils from REAL open data (see
      scores_real.py):
        - subsidence  : BGS 625k bedrock geology classified for shrink-swell
-                       susceptibility, area-weighted per district
+                       susceptibility, area-weighted per district, then
+                       modified by the 625k SUPERFICIAL deposits that
+                       overlie it (clay-with-flints and lacustrine clay
+                       raise it, glacial sand and gravel lower it) at a
+                       bounded weight, because 625k publishes no thickness.
+                       Peat is excluded: it subsides by consolidation and
+                       oxidation, not shrink-swell.
        - weather     : Met Office grids (winter wind, wind-driven rain
                        index, >=10mm rain days, annual precipitation)
                        interpolated to district centroids
@@ -46,7 +52,7 @@ import geopandas as gpd
 import shapely
 from scipy import stats
 
-from scores_real import (subsidence_from_bgs, weather_from_metoffice,
+from scores_real import (subsidence_score, weather_from_metoffice,
                          flood_from_agencies, groundwater_from_ea,
                          erosion_from_ncerm, sw_depth_severity, load_country,
                          flood_future, flood_score_from_fractions,
@@ -71,7 +77,8 @@ RNG_SEED = 42
 OUTPUT_COLUMNS = [
     "name", "area", "country", "households",
     "sub_score", "wx_score", "fl_score", "gw_score",
-    "geol", "wind_ms", "wdr_idx", "rain10_days", "precip_mm",
+    "geol", "sup_geol", "sup_frac",
+    "wind_ms", "wdr_idx", "rain10_days", "precip_mm",
     "gust_rp50",
     "f_high", "f_low", "sw_high", "sw_low", "gw_frac",
     "sw_sev", "sw_depth_m",
@@ -913,7 +920,11 @@ def main():
     targets = np.column_stack([bng_pts.x.values, bng_pts.y.values])
 
     print("scoring subsidence from BGS 625k geology...")
-    gdf["sub_score"], gdf["geol"] = subsidence_from_bgs(bng)
+    # Bedrock blended with the superficial deposits that overlie it, at a
+    # bounded weight because 625k publishes no thickness - see
+    # subsidence_score() / combine_subsidence() in scores_real.
+    (gdf["sub_score"], gdf["geol"],
+     gdf["sup_frac"], gdf["sup_geol"]) = subsidence_score(bng)
 
     print("scoring weather from Met Office grids...")
     gdf["wx_score"], wx_raw = weather_from_metoffice(targets)
@@ -1053,7 +1064,8 @@ def main():
     round1 = {"wind_ms": 1, "wdr_idx": 1, "rain10_days": 1, "precip_mm": 0,
               "gust_rp50": 0, "households": 0, "sw_depth_m": 2}
     for col in keep:
-        if col in ("name", "area", "country", "geometry", "group", "geol"):
+        if col in ("name", "area", "country", "geometry", "group", "geol",
+                   "sup_geol"):
             continue
         if col in round1:
             out[col] = out[col].round(round1[col])

@@ -406,7 +406,7 @@ def main():
             # climate scenario: zero outside England, where the EA
             # publishes no future extents - cc_covered says which
             "cc_covered", "premium_cc", "el_total_cc", "cc_uplift_pct",
-            "country", "geol"]
+            "country", "geol", "sup_geol", "sup_frac"]
     out = io.StringIO()
     w = csv.writer(out, lineterminator="\n")
     w.writerow(cols)
