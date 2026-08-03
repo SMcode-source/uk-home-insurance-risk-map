@@ -374,6 +374,69 @@ def test_capital_allocation_is_stable_across_seeds():
     assert np.median(rel) < 0.12, f"median move {np.median(rel):.1%} across seeds"
 
 
+def test_every_asset_the_published_site_references_exists():
+    """No broken links or missing assets in docs/, checked offline.
+
+    A 404 on Pages is invisible until someone clicks. The three reference
+    styles all have to be covered, because this site genuinely uses all
+    three and checking only the obvious one misses two of them:
+
+      href=/src=   stylesheets, favicons, page-to-page nav
+      content=     the og:image social card, in a <meta> tag
+      fetch('..')  assets/districts.json, loaded by the postcode lookup
+
+    A scan for href/src alone passes while the social card and the
+    postcode search are both broken.
+    """
+    import re
+    docs = os.path.join(os.path.dirname(__file__), "..", "docs")
+    pages = [f for f in sorted(os.listdir(docs)) if f.endswith(".html")]
+    assert pages, "docs/ has no built pages"
+
+    patterns = [
+        re.compile(r'(?:href|src)\s*=\s*["\']([^"\']+)["\']', re.I),
+        re.compile(r'content\s*=\s*["\']([^"\']+)["\']', re.I),
+        re.compile(r'fetch\(\s*["\']([^"\']+)["\']'),
+    ]
+    external = ("http://", "https://", "//", "#", "data:", "mailto:",
+                "javascript:")
+    site_root = "https://smcode-source.github.io/uk-home-insurance-risk-map/"
+
+    missing, checked = [], set()
+    for page in pages:
+        with open(os.path.join(docs, page), encoding="utf-8") as fh:
+            html = fh.read()
+        for pat in patterns:
+            for ref in set(pat.findall(html)):
+                # the og:image is absolute, but it points back at our own
+                # site, so it still has to exist in docs/
+                if ref.startswith(site_root):
+                    ref = ref[len(site_root):]
+                elif ref.startswith(external):
+                    continue
+                target = ref.split("#")[0].split("?")[0]
+                # <meta content="..."> is mostly prose and numbers; only
+                # treat it as a reference if it looks like a local file
+                if not target or "." not in os.path.basename(target):
+                    continue
+                if not re.fullmatch(r"[\w./-]+", target):
+                    continue
+                checked.add(target)
+                if not os.path.exists(os.path.join(docs, target.lstrip("/"))):
+                    missing.append((page, ref))
+
+    assert not missing, f"docs/ references files that do not exist: {missing}"
+    # again, pin the scale so a template rewrite cannot silently empty this
+    assert len(checked) >= 8, (
+        f"only {len(checked)} local references found across {len(pages)} "
+        f"pages - the extraction has stopped matching")
+    for required in ("assets/site.css", "assets/districts.json",
+                     "assets/social.png"):
+        assert required in checked, (
+            f"{required} is no longer referenced by any page - if that is "
+            f"deliberate, stop building it too")
+
+
 def test_the_map_and_site_only_read_columns_the_model_writes():
     """The other half of the GeoJSON contract, and the silent half.
 
