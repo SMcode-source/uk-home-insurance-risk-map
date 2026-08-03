@@ -560,9 +560,20 @@ def flood_future(names, f_high, f_low, sw_high, sw_low):
             out[0][i], out[1][i] = tfl[n]
         if n in tsw:
             out[2][i], out[3][i] = tsw[n]
-    # the future extent should contain the present one; enforce the nesting
-    # the products should already satisfy rather than letting a rasterising
-    # difference produce a negative "improvement"
+    # Enforce the BAND nesting within the future: the 1-in-1000 envelope
+    # contains the 1-in-100/200 zone, and the surface-water envelope
+    # contains its >=1% AEP zone. Purely defensive against a rasterising
+    # difference between the two layers - on the current data neither
+    # clamp fires for a single district.
+    #
+    # It deliberately says NOTHING about present vs future, and must not be
+    # "corrected" into np.maximum(future, present). The future is a separate
+    # EA model run, not an uplift of the present one, and 52 of the 2,087
+    # covered districts (2.5%) genuinely see the 1-in-100/200 band shrink,
+    # worst -11.2pp. Clamping that away would silently rewrite them and
+    # delete the finding README states under "Rivers/sea is not a strict
+    # uplift" - while leaving the +37.7% national growth looking unchanged,
+    # so nothing would appear to break.
     out[1] = np.maximum(out[1], out[0])
     out[3] = np.maximum(out[3], out[2])
     print(f"  climate-change flood: {int(covered.sum())} districts repriced "

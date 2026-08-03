@@ -374,6 +374,62 @@ def test_capital_allocation_is_stable_across_seeds():
     assert np.median(rel) < 0.12, f"median move {np.median(rel):.1%} across seeds"
 
 
+def test_climate_scenario_does_not_clamp_away_the_districts_that_improve():
+    """The rivers/sea future is a separate EA model run, not an uplift.
+
+    flood_future() clamps f_low >= f_high to enforce BAND nesting inside
+    the future. It is easy to misread that as "the future should contain
+    the present" and extend it to np.maximum(future, present) - which
+    would silently rewrite every district whose flood band shrinks and
+    delete the finding README states under "Rivers/sea is not a strict
+    uplift". Nothing else would look wrong: the national +37% growth is
+    unaffected, so the headline would still read correctly.
+
+    So assert the decreases survive the function.
+    """
+    import scores_real as sr
+    data = os.path.join(os.path.dirname(__file__), "..", "data")
+    if not os.path.exists(os.path.join(data, "flood_fractions_cc.csv")):
+        pytest.skip("climate flood fractions not fetched")
+
+    names, f_high, f_low, sw_high, sw_low = [], [], [], [], []
+    with open(os.path.join(data, "flood_fractions.csv"), newline="") as fh:
+        import csv as _csv
+        for row in _csv.DictReader(fh):
+            names.append(row["name"])
+            f_high.append(float(row["f_high"]))
+            f_low.append(float(row["f_low"]))
+    sw = {}
+    with open(os.path.join(data, "sw_fractions.csv"), newline="") as fh:
+        import csv as _csv
+        for row in _csv.DictReader(fh):
+            sw[row["name"]] = (float(row["sw_high"]), float(row["sw_low"]))
+    sw_high = [sw.get(n, (0.0, 0.0))[0] for n in names]
+    sw_low = [sw.get(n, (0.0, 0.0))[1] for n in names]
+
+    names = np.array(names)
+    out = sr.flood_future(names, np.array(f_high), np.array(f_low),
+                          np.array(sw_high), np.array(sw_low))
+    assert out is not None
+    fh_cc, fl_cc, swh_cc, swl_cc, covered = out
+
+    # the band nesting the clamp DOES enforce
+    assert (fl_cc >= fh_cc - 1e-12).all(), "1-in-1000 envelope lost its zone"
+    assert (swl_cc >= swh_cc - 1e-12).all(), "surface-water envelope broke"
+
+    # and the decreases that must NOT be clamped away
+    shrank = int((fh_cc[covered] < np.array(f_high)[covered] - 1e-9).sum())
+    assert shrank > 0, (
+        "no covered district's 1-in-100/200 band shrinks under the climate "
+        "scenario - the future has been clamped to contain the present, "
+        "which is exactly what flood_future must not do")
+    # comparison is only meaningful where the EA actually models a future
+    assert 0 < covered.sum() < len(names), "coverage mask looks wrong"
+    # and it must still be a large national increase overall
+    grew = fh_cc[covered].sum() / max(np.array(f_high)[covered].sum(), 1e-9)
+    assert grew > 1.2, f"national high-band growth only {grew:.2f}x"
+
+
 def test_every_asset_the_published_site_references_exists():
     """No broken links or missing assets in docs/, checked offline.
 
