@@ -75,7 +75,7 @@ jobs:
           path: |
             data/bgs_625k_bedrock.geojson
             data/bgs_625k_superficial.geojson
-          key: bgs-625k-v2
+          key: bgs-625k-v3
 
       # BGS throttles sustained paging and is markedly harsher on GitHub's
       # shared IP ranges than on a home connection: the same fetch that
@@ -115,17 +115,23 @@ jobs:
           path: |
             data/bgs_625k_bedrock.geojson
             data/bgs_625k_superficial.geojson
-          key: bgs-625k-v2
+          key: bgs-625k-v3
 
-      # A short geology fetch writes <name>.partial precisely so it cannot
-      # become model input. Fail here rather than silently rebuilding on a
-      # layer with holes in it, which would read as "no deposits here".
+      # Two separate checks, because they catch different things.
+      #
+      # .partial catches a fetch that knew it fell short. The feature-count
+      # check catches everything else - including a layer restored from
+      # CACHE, which skips the fetcher and so is never validated by it. A
+      # truncated superficial layer got cached exactly once and would have
+      # rebuilt the model with half the country's drift cover missing.
+      # Validate the file, not the process that produced it.
       - name: Reject incomplete geology
         run: |
           if ls data/*.partial 2>/dev/null; then
             echo "::error::a geology layer is incomplete (.partial) - refusing to build"
             exit 1
           fi
+          python -u scripts/fetch_bgs.py --verify
 
       # Again with the geology present, so the superficial-vocabulary test
       # runs for real instead of skipping on a missing layer.

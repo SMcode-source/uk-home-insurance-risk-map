@@ -30,6 +30,7 @@ LAYERS = {
         collection="bgsgeology625kbedrock",
         out="data/bgs_625k_bedrock.geojson",
         keep=["lex", "lex_d", "rcs_d", "gp_eq_d", "max_period"],
+        expect=11244,
     ),
     "superficial": dict(
         collection="bgsgeology625ksuperficial",
@@ -38,6 +39,7 @@ LAYERS = {
         # is what the superficial classifier keys off; max_system stands in
         # for the absent max_period.
         keep=["lex", "lex_d", "rcs_d", "rock_d", "max_system"],
+        expect=10651,
     ),
 }
 
@@ -184,8 +186,37 @@ def fetch(cfg):
     return incomplete
 
 
+def verify(cfg):
+    """Check a layer on disk has every feature, however it got there.
+
+    The fetcher validates its own downloads, but a CACHED layer skips the
+    fetcher entirely and is never checked - which is how a truncated
+    superficial layer, restored from cache, could silently rebuild the
+    model with a fifth of the country's drift cover missing. Validate the
+    file, not the process that produced it.
+    """
+    path = cfg["out"]
+    if not os.path.exists(path):
+        print(f"MISSING: {path}")
+        return False
+    with open(path, encoding="utf-8") as fh:
+        n = len(json.load(fh).get("features", []))
+    ok = n == cfg["expect"]
+    print(f"{'ok  ' if ok else 'BAD '} {path}: {n} features "
+          f"(expected {cfg['expect']})")
+    return ok
+
+
 def main():
-    which = "superficial" if "--superficial" in sys.argv[1:] else "bedrock"
+    args = sys.argv[1:]
+    which = "superficial" if "--superficial" in args else "bedrock"
+    if "--verify" in args:
+        # verify BOTH layers regardless of which flag was passed - the
+        # caller wants to know the inputs are sound, not one of them
+        if not all(verify(c) for c in LAYERS.values()):
+            raise SystemExit("geology layers are incomplete - refusing to "
+                             "let them reach the model")
+        return
     print(f"BGS 625k {which} -> {LAYERS[which]['out']}")
     if fetch(LAYERS[which]):
         raise SystemExit(1)
