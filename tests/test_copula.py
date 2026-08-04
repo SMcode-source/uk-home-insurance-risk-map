@@ -460,8 +460,11 @@ STATS_KEYS_NO_TEMPLATE_USES = {
     # capital/catastrophe figures are still worth having available. Pinned
     # so the set cannot grow silently - a NEW unused key almost always
     # means a figure was meant to be shown and the placeholder was lost.
+    # __MEAN_STANDALONE__ and __PORT_TVAR__ left here on 2026-08-04: the
+    # methodology page now uses them to show the standalone-vs-allocated
+    # tail gap. This guard is doing its job when the set SHRINKS.
     "__CAT_COST__", "__CAT_INDEP__", "__CAT_UPLIFT__", "__DIST_UPLIFT__",
-    "__MEAN_CAPITAL__", "__MEAN_STANDALONE__", "__PORT_TVAR__",
+    "__MEAN_CAPITAL__",
 }
 
 

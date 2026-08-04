@@ -177,6 +177,11 @@ def load_stats():
             f'<td>{drivers(p)}</td>'
             "</tr>")
 
+    _w = np.array([p.get('households', 1) for p in feats], dtype=float)
+    _prem = np.array([p['premium'] for p in feats], dtype=float)
+    _el = np.array([p['el_total'] for p in feats], dtype=float)
+    _cap = np.array([p.get('capital', 0) for p in feats], dtype=float)
+
     mult = lambda a, b: f"{(a / b):.1f}" if b else "—"
 
     dep_path = os.path.join(ROOT, "data", "dependence.json")
@@ -263,6 +268,14 @@ def load_stats():
         "__PREM_MAX__": f"{prem[-1]:,.0f}",
         "__CAT_UPLIFT__": f"{100 * (cat['mean_total'] - cat['indep_mean_total']) / cat['indep_mean_total']:.0f}",
         "__DIST_UPLIFT__": f"{np.mean([p['uplift_pct'] for p in feats]):.0f}",
+        # The premium split, exposure-weighted because that is what
+        # "nationally" means everywhere else in this model. It is the
+        # crispest answer to "what does the copula actually change":
+        # expected loss is copula-independent by construction, so the
+        # dependence structure can only reach price through the capital
+        # charge - and only via the PORTFOLIO tail, never a district's own.
+        "__EL_SHARE__": f"{100 * np.average(_el, weights=_w) / np.average(_prem, weights=_w):.0f}",
+        "__CAPITAL_SHARE__": f"{100 * np.average(_cap, weights=_w) / np.average(_prem, weights=_w):.0f}",
         "__MEAN_EL__": f"{np.mean([p['el_total'] for p in feats]):,.0f}",
         "__MEAN_CAPITAL__": f"{np.mean([p.get('capital', 0) for p in feats]):,.0f}",
         "__MEAN_STANDALONE__": f"{np.mean([p['tvar99_vine'] for p in feats]):,.0f}",

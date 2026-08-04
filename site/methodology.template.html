@@ -508,6 +508,37 @@ __NAV__
     <h2>So how much does the copula actually change?</h2>
     <p>Worth asking bluntly of any model that spends this much effort on dependence. Once
     frequencies are calibrated to real levels, the answer splits in two.</p>
+
+    <h3>First, what the copula is and is not joining</h3>
+    <p>The vine joins the <b>five perils of one district</b> — whether that home's bad
+    subsidence year is also its bad storm year. It says nothing about whether Croydon and
+    Hull flood in the <i>same</i> year. That is a <b>separate mechanism</b>: each district
+    mixes the national state of a peril with its own local luck,</p>
+    <div class="formula">u<sub>district</sub> = Φ( √w · Φ⁻¹(u<sub>systemic</sub>) + √(1−w) · ε )</div>
+    <p>with the loading <i>w</i> set per peril — droughts and windstorms are national
+    (subsidence 0.60, groundwater 0.70, weather 0.50), flooding more localised (0.40) — and
+    then scaled so a 1-in-100 year claims twice as widely as an average one. The two
+    mechanisms meet because the vine draws <i>are</i> the systemic factors: the vine decides
+    that a bad national storm year is also likely a bad flood year, and the loading decides
+    how much of that reaches any particular district. Marginals are preserved exactly either
+    way, so this changes who claims together, never how often anyone claims.</p>
+
+    <h3>Where it can reach the price at all</h3>
+    <p>Only one place, and it is a small one. The technical premium is
+    <b>__EL_SHARE__% expected loss and __CAPITAL_SHARE__% cost of capital</b>, and the
+    expected-loss part is <b>dependence-free by construction</b> — the mean of a sum is the
+    sum of the means whatever the copula does. So the entire effect of the dependence
+    structure on what a household pays runs through that __CAPITAL_SHARE__% capital charge.</p>
+    <p>And that charge is an <i>aggregate</i> quantity, not a personal one: it is
+    <b>6% of the district's Euler-allocated share of the portfolio's</b> worst 1% of years,
+    not of its own. The gap is the whole point — a single policy's standalone TVaR₉₉ is
+    about <b>£__MEAN_STANDALONE__</b>, while its allocated share of the portfolio tail is
+    about <b>£__PORT_TVAR__</b>, a <b>__DIVERSIFICATION__% diversification credit</b>. An
+    earlier version charged 6% of the standalone figure and inflated premiums roughly
+    tenfold.</p>
+    <div class="callout">So the copula is doing real work, but only where many policies are
+    added together. That is not a limitation of this implementation — it follows from the
+    frequencies. It is also why the two halves below say such different things.</div>
     <p><b>For a single home, dependence transforms the rare case and barely touches the
     typical one.</b> Modelling the perils jointly makes it <b>__MULTI_RATIO__ times</b> more
     likely that one property suffers two or more perils in the same year — __MULTI_VINE__%
