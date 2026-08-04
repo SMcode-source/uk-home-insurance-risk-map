@@ -17,6 +17,7 @@ is therefore per collection, and bedrock's is unchanged so its output
 stays byte-identical to the committed file.
 """
 
+import gzip
 import json
 import os
 import sys
@@ -58,7 +59,15 @@ LAYERS = {
 # reason it survives this machine going to sleep mid-fetch.
 RETRIES = 6
 BACKOFF = 10
-PAGE = 500
+# 2000 features per page, not 500. The quota that blocks GitHub runners
+# bites after ~20 requests (every failed run died at offset 10000/10500 -
+# 20-21 pages of 500 - regardless of pacing). At 2000/page each layer is
+# 6 requests, so both together fit inside one window. The server accepts
+# it and returns the same features in the same order - verified by hash
+# against layers fetched at 500/page. If a future run still dies at the
+# same FEATURE count despite the bigger pages, the quota is bytes, not
+# requests, and no page size will fix it.
+PAGE = 2000
 # Seconds between successful pages. Once BGS decides a client is abusive
 # it blocks the IP for longer than any backoff worth waiting - a GitHub
 # run hit the same offset 24 consecutive times over 35 minutes - so the
@@ -82,9 +91,13 @@ def _get(url):
         try:
             req = urllib.request.Request(
                 url, headers={"User-Agent": "uk-risk-map/1.0 (+github.com/"
-                                            "SMcode-source)"})
+                                            "SMcode-source)",
+                              "Accept-Encoding": "gzip"})
             with urllib.request.urlopen(req, timeout=300) as r:
-                return json.load(r)
+                raw = r.read()
+                if r.headers.get("Content-Encoding") == "gzip":
+                    raw = gzip.decompress(raw)
+                return json.loads(raw)
         except Exception as e:
             wait = BACKOFF * (2 ** attempt)
             last = attempt == RETRIES - 1
