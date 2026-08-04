@@ -465,6 +465,77 @@ STATS_KEYS_NO_TEMPLATE_USES = {
 }
 
 
+def test_truncated_geology_fetch_can_never_be_written_as_complete(tmp_path,
+                                                                  monkeypatch):
+    """A short geology layer must never wear the real filename.
+
+    This is the project's worst failure mode, not a hypothetical: missing
+    polygons read as "no deposits here" and silently change subsidence
+    scores, with nothing in the log. A GitHub run shipped 10,500 of 10,651
+    superficial polygons *as complete* and moved sub_score on 1,560
+    districts, because a resumed run whose first request was refused never
+    learned numberMatched, and the completeness test was written as
+    `matched is not None and len != matched` - which passes when the total
+    is unknown.
+
+    Unknown must count as incomplete. Checked for both the cold-start and
+    the resumed path, since only the resumed one had the hole.
+    """
+    import json
+
+    import fetch_bgs
+
+    out = tmp_path / "layer.geojson"
+    cfg = dict(collection="x", out=str(out), keep=["lex_d"])
+    monkeypatch.setattr(fetch_bgs, "PACE", 0)
+    monkeypatch.setattr(fetch_bgs, "PAGE", 200)
+
+    def feat(i):
+        return {"type": "Feature", "properties": {"lex_d": f"TILL{i}"},
+                "geometry": None}
+
+    # --- cold start, server dies after one page of three ---------------
+    calls = {"n": 0}
+
+    def one_then_dead(url):
+        calls["n"] += 1
+        return ({"numberMatched": 600,
+                 "features": [feat(i) for i in range(200)]}
+                if calls["n"] == 1 else None)
+
+    monkeypatch.setattr(fetch_bgs, "_get", one_then_dead)
+    assert fetch_bgs.fetch(cfg) is True, "short fetch must report incomplete"
+    assert not out.exists(), "a truncated layer must not wear the real name"
+    assert (tmp_path / "layer.geojson.partial").exists()
+
+    # --- resume whose FIRST request is refused, total NOT yet known ----
+    # Exactly the shape that shipped a truncated layer: delete the meta
+    # sidecar so numberMatched is unknown for this run.
+    (tmp_path / "layer.geojson.progress.json").unlink(missing_ok=True)
+    (tmp_path / "layer.geojson.partial").unlink()
+    monkeypatch.setattr(fetch_bgs, "_get", lambda url: None)
+    assert fetch_bgs.fetch(cfg) is True, (
+        "unknown total must count as INCOMPLETE - this is the bug that "
+        "shipped 10,500 of 10,651 polygons as complete")
+    assert not out.exists()
+    assert (tmp_path / "layer.geojson.partial").exists()
+
+    # --- and the happy path still completes and cleans up --------------
+    def all_pages(url):
+        off = int(url.split("offset=")[1])
+        return {"numberMatched": 600,
+                "features": [feat(i) for i in range(off, min(off + 200, 600))]}
+
+    monkeypatch.setattr(fetch_bgs, "_get", all_pages)
+    assert fetch_bgs.fetch(cfg) is False
+    assert out.exists()
+    assert not (tmp_path / "layer.geojson.partial").exists(), (
+        "a completed resume must clear the earlier .partial, or the "
+        "workflow's own geology guard trips on a layer that is fine")
+    assert not (tmp_path / "layer.geojson.progress.jsonl").exists()
+    assert len(json.loads(out.read_text())["features"]) == 600
+
+
 def test_thread_count_does_not_change_a_single_bit():
     """Parallelism must be an optimisation, never a modelling choice.
 

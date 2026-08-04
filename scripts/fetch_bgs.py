@@ -89,6 +89,7 @@ def _get(url):
 
 def fetch(cfg):
     ckpt = cfg["out"] + ".progress.jsonl"
+    meta = cfg["out"] + ".progress.json"
     features = []
     if os.path.exists(ckpt):
         with open(ckpt, encoding="utf-8") as fh:
@@ -96,7 +97,20 @@ def fetch(cfg):
         print(f"  resuming from {ckpt}: {len(features)} features already "
               f"fetched", flush=True)
 
-    matched, stalled = None, False
+    # numberMatched has to survive a resume. Without it, a resumed run
+    # whose FIRST request is refused never learns the expected total, and
+    # a "matched is not None" completeness test then silently passes: the
+    # run writes a truncated layer under the real filename and clears the
+    # .partial guard. That happened - a GitHub run shipped 10,500 of
+    # 10,651 superficial polygons as if complete, and the missing 151 read
+    # as "no deposits here", moving sub_score on 1,560 districts.
+    matched = None
+    if os.path.exists(meta):
+        try:
+            with open(meta, encoding="utf-8") as fh:
+                matched = json.load(fh).get("numberMatched")
+        except (OSError, ValueError):
+            matched = None
     with open(ckpt, "a", encoding="utf-8") as ck:
         while True:
             offset = len(features)
@@ -111,6 +125,8 @@ def fetch(cfg):
                 break
             if matched is None:
                 matched = data.get("numberMatched")
+                with open(meta, "w", encoding="utf-8") as mh:
+                    json.dump({"numberMatched": matched}, mh)
             got = data.get("features", [])
             if not got:
                 break
@@ -133,10 +149,14 @@ def fetch(cfg):
     # the raster fetchers guard with .partial. Do the same rather than
     # letting an incomplete layer become model input.
     out = cfg["out"]
-    incomplete = matched is not None and len(features) != matched
+    # Unknown total counts as incomplete. "We could not check" must never
+    # be treated as "it is fine" for a layer whose absence is invisible
+    # downstream.
+    incomplete = matched is None or len(features) != matched
     if incomplete:
         out += ".partial"
-        print(f"INCOMPLETE: {len(features)} of {matched} features "
+        print(f"INCOMPLETE: {len(features)} of "
+              f"{matched if matched is not None else 'unknown'} features "
               f"-> writing {out} so it cannot be used as input")
     with open(out, "w", encoding="utf-8") as fh:
         json.dump({"type": "FeatureCollection", "features": features}, fh)
@@ -151,6 +171,8 @@ def fetch(cfg):
             os.remove(cfg["out"])
     else:
         os.remove(ckpt)
+        if os.path.exists(meta):
+            os.remove(meta)
         # And clear the .partial left by the attempt that got throttled.
         # Without this a successful resume still trips the workflow's
         # "reject incomplete geology" guard, which globs for *.partial -
