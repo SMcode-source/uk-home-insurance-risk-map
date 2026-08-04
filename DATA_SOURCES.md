@@ -8,7 +8,8 @@ dates: 2026-07-29/30, plus 2026-08-01 for sources 20–21.
 | # | Dataset | Publisher | Fetched by | Local file(s) |
 |---|---------|-----------|------------|---------------|
 | 1 | UK postcode district polygons | missinglink/uk-postcode-polygons (OS/Wikipedia-derived) | `git clone` | `data/uk-postcode-polygons/` (120 GeoJSONs, 2,736 districts) |
-| 2 | BGS Geology 625k bedrock | British Geological Survey | `scripts/fetch_bgs.py` | `data/bgs_625k_bedrock.geojson` (~32 MB, 11,244 formations) |
+| 2 | BGS Geology 625k bedrock | British Geological Survey | `scripts/fetch_bgs.py` | `data/bgs_625k_bedrock.geojson` (~34 MB, 11,244 formations) |
+| 2b | BGS Geology 625k superficial | British Geological Survey | `scripts/fetch_bgs.py --superficial` | `data/bgs_625k_superficial.geojson` (~24 MB, 10,651 deposits) |
 | 3 | Winter mean wind speed 5 km (UKCP18 baseline) | Met Office Climate Data Portal | `scripts/fetch_metoffice.py` | `data/metoffice/wind.csv` |
 | 4 | Annual wind-driven rain index, SW walls, 5 km (UKCP18 baseline) | Met Office Climate Data Portal | `scripts/fetch_metoffice.py` | `data/metoffice/wdr.csv` |
 | 5 | Annual count of ≥10 mm rain days 1991–2020 (HadUK-Grid obs) | Met Office Climate Data Portal | `scripts/fetch_metoffice.py` | `data/metoffice/rain10.csv` |
@@ -39,24 +40,33 @@ districts**, used as the exposure weight throughout.
    (clone; GB only, no BT/Northern Ireland).
 2. **BGS bedrock** — OGC API Features:
    `https://ogcapi.bgs.ac.uk/collections/bgsgeology625kbedrock/items`
-   (paged via `next` links, 500/page). BGS's old
+   (explicit `offset` paging, 2000/page). BGS's old
    `/arcgis/rest`-style endpoints are dead.
-   - **A superficial sibling is open and unused: `bgsgeology625ksuperficial`.**
-     Same API, same paging, 10,651 features against bedrock's 11,244, and it
-     carries `lex_d` / `rock_d` in the vocabulary `classify_susceptibility()`
-     already keys off — a 500-feature sample is dominated by `TILL` (128),
-     `ALLUVIUM` (117), `GLACIAL SAND AND GRAVEL` and `PEAT`, with `rock_d`
-     values like `CLAY, SILT AND SAND`. It has `rcs_d` but **not**
-     `max_period`; the age fields are `max_system` = `QUATERNARY` throughout,
-     which is in `YOUNG_PERIODS`, so the `OLD_AGE_FACTOR` downscaling would
-     correctly never apply. Not fetched, and the reason is a modelling one
-     rather than a data one: 625k publishes no **thickness**, so there is no
-     principled way to decide whether superficial cover or bedrock governs
-     foundation behaviour — a thin gravel over London Clay would score like
-     a thick one. Peat compounds it, being a real subsidence hazard but via
-     consolidation and oxidation rather than shrink-swell. README's caveat
-     list previously implied superficial deposits were licence-blocked
-     behind GeoSure; they are not, and that has been corrected.
+   - **The endpoint blocks GitHub Actions.** From a residential connection
+     the full fetch completes every time; from runner IPs it first
+     throttled (~20 requests per window, at any pacing — nine runs, every
+     one dying around offset 10000) and then escalated to dropping packets
+     on the *first* request while the same call answered in 0.3 s locally.
+     CI therefore fetches **neither layer from BGS**: both are mirrored as
+     release assets on this repo (`data-bgs-625k-v1`, OGL v3 with
+     attribution, sha256-pinned in the workflow). Refresh the mirror from
+     a laptop: `fetch_bgs.py` (+ `--superficial`), `--verify`, then
+     `gh release upload data-bgs-625k-v1 --clobber` and update the pinned
+     hashes in `rebuild.yml` if the layers changed.
+   - **The superficial sibling `bgsgeology625ksuperficial` is fetched too**
+     (`--superficial`, 10,651 deposits) and feeds the subsidence score as a
+     bounded modifier — see README's methodology section. It carries `lex_d`
+     / `rock_d` in the vocabulary the classifier keys off, but `max_system`
+     instead of `max_period` (QUATERNARY throughout, so `OLD_AGE_FACTOR`
+     correctly never applies). Its 14-deposit vocabulary is enumerated
+     exhaustively in `SUP_SUSCEP`/`SUP_EXCLUDED`; an unrecognised deposit
+     raises rather than defaulting. **Peat and unmapped drift are excluded**
+     (consolidation/oxidation is not shrink-swell; unmapped is an absence of
+     survey), and the blend is capped at half weight because 625k publishes
+     no **thickness** — a thin gravel over London Clay would otherwise score
+     like a thick one. An earlier note here called this layer unused, and
+     README once implied it was licence-blocked behind GeoSure; both were
+     corrected when it went into the model on 2026-08-03.
 3–6. **Met Office** — anonymous ArcGIS feature services under
    `https://services.arcgis.com/Lq3V5RFuTBC9I7kv/arcgis/rest/services/`:
    `Seasonal_Average_Wind_Speed_Projections_5km/FeatureServer/0`,

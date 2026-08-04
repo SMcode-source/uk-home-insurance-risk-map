@@ -5,6 +5,12 @@ the fields needed for shrink-swell classification, and writes GeoJSON.
 
     python scripts/fetch_bgs.py                # bedrock     (default)
     python scripts/fetch_bgs.py --superficial  # superficial
+    python scripts/fetch_bgs.py --verify       # check both layers on disk
+
+This talks to BGS and is for LOCAL use. CI never runs it: the endpoint
+drops packets from GitHub's IP ranges, so the workflow downloads both
+layers from the repo's data mirror (release `data-bgs-625k-v1`) instead.
+After refetching here, refresh the mirror - see DATA_SOURCES.md #2.
 
 Bedrock is the base layer. Superficial deposits overlie it and, where
 clay-rich, govern the near-surface behaviour domestic foundations actually

@@ -58,68 +58,31 @@ jobs:
           git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git \
             data/uk-postcode-polygons
 
-      # The two BGS layers are ~56 MB together and change about never, so
-      # cache them rather than re-downloading - which matters more than
-      # usual here, because BGS throttles this runner hard enough that
-      # fetching both costs ~35 minutes of retries and resumes.
+      # The geology comes from the repo's own data mirror, not from BGS.
+      # Nine consecutive runs established that the BGS endpoint first
+      # throttles and now outright drops packets from GitHub's IP ranges
+      # (connection timeouts on the FIRST request, while the same call
+      # answers in 0.3s from a residential connection), so CI cannot fetch
+      # it directly at any pace or page size. The mirror is a GitHub
+      # release - same infrastructure as the runner, fast, never blocked -
+      # published under OGL v3 with attribution; see the release notes and
+      # DATA_SOURCES.md. Refresh it from a laptop via fetch_bgs.py, which
+      # remains the tool for talking to BGS itself.
       #
-      # Deliberately restore/save rather than actions/cache: the combined
-      # action saves in a post step that did NOT persist when a later step
-      # failed, so four consecutive runs each re-paid the full fetch. Save
-      # explicitly, straight after the fetch succeeds, so the layers are
-      # banked regardless of what breaks downstream.
-      - name: Restore cached BGS geology
-        id: bgs
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            data/bgs_625k_bedrock.geojson
-            data/bgs_625k_superficial.geojson
-          key: bgs-625k-v3
-
-      # BGS throttles sustained paging and is markedly harsher on GitHub's
-      # shared IP ranges than on a home connection: the same fetch that
-      # completes locally dies around 10,000-10,500 features here, and a
-      # 160-second client-side backoff does not clear it.
-      #
-      # The fetcher checkpoints, so each attempt RESUMES rather than
-      # restarting - a throttled run that got 10,500 of 10,651 features
-      # only needs one more page next time. Looping the step is therefore
-      # cheap and converges, where retrying inside the process does not.
-      - name: Fetch BGS bedrock
-        if: steps.bgs.outputs.cache-hit != 'true'
+      # sha256 pinned: the model's subsidence surface is built from these
+      # files, and a truncated layer once shipped a silently wrong model.
+      # Verify bytes, then let --verify check feature counts as a second,
+      # independent opinion.
+      - name: Download BGS geology from the data mirror
         env:
-          UKRISK_FETCH_PACE: "4"
+          GH_TOKEN: ${{ github.token }}
         run: |
-          for i in 1 2 3 4; do
-            python -u scripts/fetch_bgs.py && exit 0
-            echo "attempt $i throttled - resuming after backoff"
-            sleep 300
-          done
-          echo "::error::bedrock still incomplete after 4 resumes"
-          exit 1
-
-      - name: Fetch BGS superficial
-        if: steps.bgs.outputs.cache-hit != 'true'
-        env:
-          UKRISK_FETCH_PACE: "4"
-        run: |
-          for i in 1 2 3 4; do
-            python -u scripts/fetch_bgs.py --superficial && exit 0
-            echo "attempt $i throttled - resuming after backoff"
-            sleep 300
-          done
-          echo "::error::superficial still incomplete after 4 resumes"
-          exit 1
-
-      - name: Save BGS geology to cache
-        if: steps.bgs.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            data/bgs_625k_bedrock.geojson
-            data/bgs_625k_superficial.geojson
-          key: bgs-625k-v3
+          gh release download data-bgs-625k-v1 --dir data             --pattern 'bgs_625k_*.geojson.gz'
+          gunzip data/bgs_625k_bedrock.geojson.gz                  data/bgs_625k_superficial.geojson.gz
+          sha256sum -c <<'SUMS'
+          66524b94dfeb491a746994dfa5e334b52a9b15a42f82c15977df1d5c100c3fb7  data/bgs_625k_bedrock.geojson
+          a029e2ab61190c7103983c33d77c24743c7bb2c9fcfcd25ebd063ab9f3c38aee  data/bgs_625k_superficial.geojson
+          SUMS
 
       # Two separate checks, because they catch different things.
       #
