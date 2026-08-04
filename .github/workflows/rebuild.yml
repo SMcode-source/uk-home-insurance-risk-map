@@ -69,13 +69,36 @@ jobs:
             data/bgs_625k_superficial.geojson
           key: bgs-625k-v2
 
+      # BGS throttles sustained paging and is markedly harsher on GitHub's
+      # shared IP ranges than on a home connection: the same fetch that
+      # completes locally dies around 10,000-10,500 features here, and a
+      # 160-second client-side backoff does not clear it.
+      #
+      # The fetcher checkpoints, so each attempt RESUMES rather than
+      # restarting - a throttled run that got 10,500 of 10,651 features
+      # only needs one more page next time. Looping the step is therefore
+      # cheap and converges, where retrying inside the process does not.
       - name: Fetch BGS bedrock
         if: steps.bgs.outputs.cache-hit != 'true'
-        run: python -u scripts/fetch_bgs.py
+        run: |
+          for i in 1 2 3 4; do
+            python -u scripts/fetch_bgs.py && exit 0
+            echo "attempt $i throttled - resuming after backoff"
+            sleep 90
+          done
+          echo "::error::bedrock still incomplete after 4 resumes"
+          exit 1
 
       - name: Fetch BGS superficial
         if: steps.bgs.outputs.cache-hit != 'true'
-        run: python -u scripts/fetch_bgs.py --superficial
+        run: |
+          for i in 1 2 3 4; do
+            python -u scripts/fetch_bgs.py --superficial && exit 0
+            echo "attempt $i throttled - resuming after backoff"
+            sleep 90
+          done
+          echo "::error::superficial still incomplete after 4 resumes"
+          exit 1
 
       # A short geology fetch writes <name>.partial precisely so it cannot
       # become model input. Fail here rather than silently rebuilding on a

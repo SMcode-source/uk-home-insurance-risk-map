@@ -151,6 +151,14 @@ def fetch(cfg):
             os.remove(cfg["out"])
     else:
         os.remove(ckpt)
+        # And clear the .partial left by the attempt that got throttled.
+        # Without this a successful resume still trips the workflow's
+        # "reject incomplete geology" guard, which globs for *.partial -
+        # the layer would be complete and the build would refuse to start.
+        stale = cfg["out"] + ".partial"
+        if os.path.exists(stale):
+            os.remove(stale)
+            print(f"  cleared {stale} from the earlier throttled attempt")
     return incomplete
 
 
