@@ -59,10 +59,18 @@ jobs:
             data/uk-postcode-polygons
 
       # The two BGS layers are ~56 MB together and change about never, so
-      # cache them rather than re-downloading on every run.
-      - name: Cache BGS geology
+      # cache them rather than re-downloading - which matters more than
+      # usual here, because BGS throttles this runner hard enough that
+      # fetching both costs ~35 minutes of retries and resumes.
+      #
+      # Deliberately restore/save rather than actions/cache: the combined
+      # action saves in a post step that did NOT persist when a later step
+      # failed, so four consecutive runs each re-paid the full fetch. Save
+      # explicitly, straight after the fetch succeeds, so the layers are
+      # banked regardless of what breaks downstream.
+      - name: Restore cached BGS geology
         id: bgs
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             data/bgs_625k_bedrock.geojson
@@ -100,6 +108,15 @@ jobs:
           echo "::error::superficial still incomplete after 4 resumes"
           exit 1
 
+      - name: Save BGS geology to cache
+        if: steps.bgs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/bgs_625k_bedrock.geojson
+            data/bgs_625k_superficial.geojson
+          key: bgs-625k-v2
+
       # A short geology fetch writes <name>.partial precisely so it cannot
       # become model input. Fail here rather than silently rebuilding on a
       # layer with holes in it, which would read as "no deposits here".
@@ -120,9 +137,18 @@ jobs:
           UKRISK_THREADS: ${{ inputs.threads }}
         run: python -u scripts/build_model.py
 
-      - name: Rebuild map and site
+      # Order matters and is not obvious: build_site.py wraps outputs that
+      # build_map.py and build_analysis.py produce, and both of those are
+      # gitignored, so on a fresh checkout they simply do not exist.
+      # make_images.py renders the favicon and social card FROM the model
+      # output, so it has to follow the rebuild too. This is the canonical
+      # order from README's rebuild section - I had already tripped over
+      # the missing build_analysis.py step once locally.
+      - name: Rebuild images, map, analysis and site
         run: |
+          python -u scripts/make_images.py
           python -u scripts/build_map.py
+          python -u scripts/build_analysis.py
           python -u scripts/build_site.py
 
       - name: Check the output against the model's own identities
