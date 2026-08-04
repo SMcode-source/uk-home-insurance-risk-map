@@ -59,7 +59,13 @@ LAYERS = {
 RETRIES = 6
 BACKOFF = 10
 PAGE = 500
-PACE = 1.0          # seconds between successful pages
+# Seconds between successful pages. Once BGS decides a client is abusive
+# it blocks the IP for longer than any backoff worth waiting - a GitHub
+# run hit the same offset 24 consecutive times over 35 minutes - so the
+# only thing that works is not tripping it. A home connection is fine at
+# 1s; GitHub's ranges evidently are not, hence the env override the
+# workflow uses.
+PACE = float(os.environ.get("UKRISK_FETCH_PACE", "1.0"))
 
 
 def _page_url(cfg, offset):

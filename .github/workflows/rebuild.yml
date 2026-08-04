@@ -88,22 +88,26 @@ jobs:
       # cheap and converges, where retrying inside the process does not.
       - name: Fetch BGS bedrock
         if: steps.bgs.outputs.cache-hit != 'true'
+        env:
+          UKRISK_FETCH_PACE: "4"
         run: |
           for i in 1 2 3 4; do
             python -u scripts/fetch_bgs.py && exit 0
             echo "attempt $i throttled - resuming after backoff"
-            sleep 90
+            sleep 300
           done
           echo "::error::bedrock still incomplete after 4 resumes"
           exit 1
 
       - name: Fetch BGS superficial
         if: steps.bgs.outputs.cache-hit != 'true'
+        env:
+          UKRISK_FETCH_PACE: "4"
         run: |
           for i in 1 2 3 4; do
             python -u scripts/fetch_bgs.py --superficial && exit 0
             echo "attempt $i throttled - resuming after backoff"
-            sleep 90
+            sleep 300
           done
           echo "::error::superficial still incomplete after 4 resumes"
           exit 1
