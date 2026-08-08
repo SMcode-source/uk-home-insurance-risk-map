@@ -54,17 +54,12 @@
   .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
   .sw.line { width: 16px; height: 2px; border-radius: 1px; }
   svg { display: block; width: 100%; height: auto; }
-  /* Every chart here is drawn on a 900-unit canvas with 11px labels, which
-     is close to 1:1 on a desktop card. Scaled into a phone-width card the
-     whole drawing renders at a third of that, putting each axis label at
-     about 3.6px - present, laid out correctly, and unreadable. Below the
-     design width, scroll the chart at its native size instead. That is
-     already how the wide tables on this page behave, so it is the pattern
-     the reader has met rather than a new one. */
-  @media (max-width: 940px) {
-    .chart { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .chart > svg { min-width: 900px; }
-  }
+  /* Charts size their own canvas to the card (see geom() below), so they
+     fit without scrolling. overflow-x stays as a safety net only - if a
+     chart ever did exceed its card it should scroll inside itself rather
+     than push the page sideways. No min-width: that would force the
+     scrollbar back and defeat the responsive drawing. */
+  .chart { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   svg text { font-family: inherit; }
   .axis-label { fill: var(--ink-muted); font-size: 11px; }
   .tick-label { fill: var(--ink-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
@@ -211,6 +206,74 @@ function el(tag, attrs, parent) {
 
 document.getElementById('nsim').textContent = A.n_sim.toLocaleString('en-GB');
 
+/* ---- responsive chart geometry ----------------------------------------
+   Every chart is drawn in viewBox units and stretched to the card width.
+   On a desktop card that is roughly 1:1, so an 11px label reads as 11px.
+   Squeeze the same 900-unit canvas into a ~300px phone card and the whole
+   drawing scales by 0.33 - correct layout, 3.6px text, unreadable.
+
+   So below a breakpoint we draw on a canvas the width of the card. viewBox
+   units become CSS pixels again, type comes back to full size, and the
+   plot is genuinely smaller - which means the tick and label density has
+   to come down with it, or the labels collide instead of shrinking. Each
+   chart passes its own narrow overrides for that.
+
+   Charts re-draw on resize (and orientation change) rather than only at
+   load, so rotating the phone does not leave a chart laid out for the
+   other orientation. */
+const NARROW_AT = 560;
+function geom(mount, wide, narrow) {
+  const avail = Math.max(document.getElementById(mount).clientWidth || 0, 260);
+  return avail >= NARROW_AT
+    ? Object.assign({ narrow: false }, wide)
+    : Object.assign({ narrow: true }, wide, { W: Math.round(avail) }, narrow);
+}
+/* £1,000 is six glyphs of axis label; on a narrow plot that is most of the
+   left margin, so compact it. */
+const GBPk = v => v >= 1000 ? '£' + (v / 1000).toFixed(v % 1000 ? 1 : 0) + 'k'
+                            : '£' + Math.round(v);
+/* "catastrophic" does not fit a quarter of a phone-width plot. */
+const SHORT = { good: 'good', typical: 'typical', bad: 'bad', catastrophic: 'worst 1%' };
+
+const CHARTS = [];
+function chart(mount, draw) { CHARTS.push({ mount, draw, key: null }); }
+/* Which canvas width the current card calls for. Redraws are keyed on this
+   rather than on the pixel width, so a 1px reflow does not rebuild four
+   charts - and, more importantly, redrawing cannot re-trigger itself,
+   because a redraw never changes the card's WIDTH. */
+function widthKey(m) {
+  const avail = Math.max(m.clientWidth || 0, 260);
+  return avail >= NARROW_AT ? 'wide' : Math.round(avail);
+}
+function renderCharts(force) {
+  for (const c of CHARTS) {
+    const m = document.getElementById(c.mount);
+    if (!m) continue;
+    const k = widthKey(m);
+    if (!force && k === c.key) continue;
+    c.key = k;
+    m.textContent = '';
+    c.draw(m);
+  }
+}
+/* Observe the cards, not the window. A ResizeObserver fires whenever the
+   container's box changes for ANY reason - rotation, a font finally
+   loading, the page being embedded somewhere narrower - whereas a window
+   resize listener only catches one of those. It also catches viewport
+   changes that never dispatch a window resize event at all, which is
+   exactly what happens under an automated browser. Both are wired up; the
+   width key makes the duplicate harmless. */
+if (typeof ResizeObserver !== 'undefined') {
+  const ro = new ResizeObserver(() => renderCharts());
+  // after this script finishes, so every chart has registered
+  queueMicrotask(() => CHARTS.forEach(c => {
+    const m = document.getElementById(c.mount);
+    if (m) ro.observe(m);
+  }));
+}
+let _rt;
+addEventListener('resize', () => { clearTimeout(_rt); _rt = setTimeout(renderCharts, 150); });
+
 /* ---- stat tiles ---- */
 const bk = Object.fromEntries(A.buckets.map(b => [b.label, b]));
 const cat = bk.catastrophic, bad = bk.bad, typ = bk.typical;
@@ -225,26 +288,31 @@ document.getElementById('tiles').innerHTML = tiles.map(t =>
   `<div class="tile"><div class="k">${t[0]}</div><div class="v">${t[1]}</div><div class="d">${t[2]}</div></div>`).join('');
 
 /* ---- exceedance chart ---- */
-(function () {
-  const W = 900, H = 340, L = 64, R = 20, T = 16, B = 44;
-  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, document.getElementById('exceedance'));
+chart('exceedance', function (mount) {
+  const g = geom('exceedance', { W: 900, H: 340, L: 64, R: 20, T: 16, B: 44 },
+                                { H: 250, L: 40, R: 12, T: 12, B: 40 });
+  const { W, H, L, R, T, B } = g;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
   const vine = A.exceedance.vine.filter(d => d[0] >= 2 && d[0] <= 1000);
   const ind = A.exceedance.indep.filter(d => d[0] >= 2 && d[0] <= 1000);
   const ymax = Math.max(...vine.map(d => d[1])) * 1.08;
   const x = rp => L + (Math.log10(rp) - Math.log10(2)) / (3 - Math.log10(2)) * (W - L - R);
   const y = v => T + (1 - v / ymax) * (H - T - B);
-  for (const rp of [2, 5, 10, 20, 50, 100, 200, 500, 1000]) {
+  for (const rp of (g.narrow ? [2, 10, 100, 1000]
+                             : [2, 5, 10, 20, 50, 100, 200, 500, 1000])) {
     el('line', { x1: x(rp), x2: x(rp), y1: T, y2: H - B, stroke: css('--grid'), 'stroke-width': 1 }, svg);
     el('text', { x: x(rp), y: H - B + 16, 'text-anchor': 'middle', class: 'tick-label' }, svg).textContent = rp;
   }
   const ystep = ymax > 4000 ? 1000 : ymax > 2000 ? 500 : 250;
   for (let v = 0; v <= ymax; v += ystep) {
     el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: css('--grid'), 'stroke-width': 1 }, svg);
-    el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg).textContent = GBP(v);
+    el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = g.narrow ? GBPk(v) : GBP(v);
   }
   el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: css('--axis'), 'stroke-width': 1 }, svg);
   el('text', { x: (L + W - R) / 2, y: H - 6, 'text-anchor': 'middle', class: 'axis-label' }, svg)
-    .textContent = 'return period (years) — log scale';
+    .textContent = g.narrow ? 'return period (yrs, log)'
+                            : 'return period (years) — log scale';
   const path = pts => pts.map((d, i) => (i ? 'L' : 'M') + x(d[0]).toFixed(1) + ' ' + y(d[1]).toFixed(1)).join(' ');
   el('path', { d: path(ind), fill: 'none', stroke: css('--indep'), 'stroke-width': 2, 'stroke-dasharray': '5 4' }, svg);
   el('path', { d: path(vine), fill: 'none', stroke: css('--wx'), 'stroke-width': 2 }, svg);
@@ -265,20 +333,26 @@ document.getElementById('tiles').innerHTML = tiles.map(t =>
     showTip(`<b>1-in-${Math.round(v[0])} year</b><br>C-vine: <b>${GBP(v[1])}</b><br>independent: ${GBP(n[1])}<br>gap: +${GBP(v[1] - n[1])}`, ev.clientX, ev.clientY);
   });
   hit.addEventListener('mouseleave', () => { [cross, dotV, dotI].forEach(e => e.setAttribute('visibility', 'hidden')); hideTip(); });
-})();
+});
 
 /* ---- stacked bars ---- */
-(function () {
-  const W = 900, H = 300, L = 64, R = 20, T = 24, B = 34;
-  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, document.getElementById('stacked'));
+chart('stacked', function (mount) {
+  const g = geom('stacked', { W: 900, H: 300, L: 64, R: 20, T: 24, B: 34 },
+                            { H: 240, L: 40, R: 10, T: 20, B: 32 });
+  const { W, H, L, R, T, B } = g;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
   const perils = [['mean_wx', '--wx', 'Weather'], ['mean_sub', '--sub', 'Subsidence'], ['mean_fl', '--fl', 'Flood'], ['mean_gw', '--gw', 'Groundwater']];
   const ymax = Math.max(...A.buckets.map(b => b.mean_total)) * 1.15;
   const y = v => T + (1 - v / ymax) * (H - T - B);
-  const bw = 64, slot = (W - L - R) / A.buckets.length;
+  const slot = (W - L - R) / A.buckets.length;
+  // 64 units is wider than a whole slot once the canvas is phone-width, so
+  // the bars would overlap each other. Scale to the slot and keep a gap.
+  const bw = Math.min(64, slot * 0.62);
   const ystep = ymax > 4000 ? 1000 : ymax > 1500 ? 500 : 200;
   for (let v = 0; v <= ymax; v += ystep) {
     el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: css('--grid'), 'stroke-width': 1 }, svg);
-    el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg).textContent = GBP(v);
+    el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = g.narrow ? GBPk(v) : GBP(v);
   }
   el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: css('--axis'), 'stroke-width': 1 }, svg);
   A.buckets.forEach((b, i) => {
@@ -296,23 +370,33 @@ document.getElementById('tiles').innerHTML = tiles.map(t =>
       rect.addEventListener('mouseleave', hideTip);
       acc += v;
     }
-    el('text', { x: cx, y: y(acc) - 7, 'text-anchor': 'middle', class: 'direct-label' }, svg).textContent = GBP(b.mean_total);
-    el('text', { x: cx, y: H - B + 17, 'text-anchor': 'middle', class: 'tick-label' }, svg).textContent = b.label;
+    el('text', { x: cx, y: y(acc) - 7, 'text-anchor': 'middle', class: 'direct-label' }, svg)
+      .textContent = g.narrow ? GBPk(b.mean_total) : GBP(b.mean_total);
+    el('text', { x: cx, y: H - B + 17, 'text-anchor': 'middle', class: 'tick-label' }, svg)
+      .textContent = g.narrow ? (SHORT[b.label] || b.label) : b.label;
   });
-})();
+});
 
 /* ---- incidence ---- */
-(function () {
-  const W = 900, H = 280, L = 64, R = 20, T = 18, B = 34;
-  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, document.getElementById('incidence'));
+chart('incidence', function (mount) {
+  const g = geom('incidence', { W: 900, H: 280, L: 64, R: 20, T: 18, B: 34 },
+                              { H: 225, L: 32, R: 10, T: 14, B: 32 });
+  const { W, H, L, R, T, B } = g;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
   const perils = [['inc_wx_pct', '--wx', 'Weather'], ['inc_sub_pct', '--sub', 'Subsidence'], ['inc_fl_pct', '--fl', 'Flood'], ['inc_gw_pct', '--gw', 'Groundwater']];
   const ymax = Math.max(...A.buckets.map(b => Math.max(b.inc_wx_pct, b.inc_sub_pct, b.inc_fl_pct, b.inc_gw_pct))) * 1.2;
   const y = v => T + (1 - v / ymax) * (H - T - B);
-  const slot = (W - L - R) / A.buckets.length, bw = 30, gap = 6;
+  const slot = (W - L - R) / A.buckets.length;
+  // Four bars and three gaps have to fit inside one slot: at 900 units that
+  // is 30+6, on a phone canvas the same numbers would need more than twice
+  // the slot, so derive both from the slot instead of hard-coding them.
+  const gap = g.narrow ? 2 : 6;
+  const bw = Math.min(30, (slot * 0.86 - 3 * gap) / 4);
   const ystep = ymax > 40 ? 10 : ymax > 16 ? 5 : 2;
   for (let v = 0; v <= ymax; v += ystep) {
     el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: css('--grid'), 'stroke-width': 1 }, svg);
-    el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg).textContent = v + '%';
+    el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = v + '%';
   }
   el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: css('--axis'), 'stroke-width': 1 }, svg);
   A.buckets.forEach((b, i) => {
@@ -325,9 +409,10 @@ document.getElementById('tiles').innerHTML = tiles.map(t =>
         showTip(`<b>${b.label}</b> · ${name}<br><b>${v}%</b> of districts claim`, ev.clientX, ev.clientY));
       rect.addEventListener('mouseleave', hideTip);
     });
-    el('text', { x: cx, y: H - B + 17, 'text-anchor': 'middle', class: 'tick-label' }, svg).textContent = b.label;
+    el('text', { x: cx, y: H - B + 17, 'text-anchor': 'middle', class: 'tick-label' }, svg)
+      .textContent = g.narrow ? (SHORT[b.label] || b.label) : b.label;
   });
-})();
+});
 
 /* ---- table ---- */
 (function () {
@@ -365,9 +450,12 @@ document.getElementById('tiles').innerHTML = tiles.map(t =>
     2024: 'Storms Henk & Bert',
   };
 
-  const W = 900, H = 240, L = 52, R = 14, T = 14, B = 30, GAP = 22;
+  chart('histchart', function (mount) {
+  const g = geom('histchart', { W: 900, H: 240, L: 52, R: 14, T: 14, B: 30, GAP: 22 },
+                              { H: 215, L: 34, R: 8, T: 12, B: 28, GAP: 18 });
+  const { W, H, L, R, T, B, GAP } = g;
   const panelH = (H - T - B - GAP) / 2;
-  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, document.getElementById('histchart'));
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
   const bw = (W - L - R) / HIST.length;
 
   function panel(key, colour, y0, label) {
@@ -397,13 +485,26 @@ document.getElementById('tiles').innerHTML = tiles.map(t =>
       .textContent = Math.round(lo);
   }
 
-  panel('storm_days', '--wx', T + 10, 'storm days per year');
-  panel('jja_deficit', '--sub', T + panelH + GAP + 12, 'summer rainfall deficit (mm)');
+  panel('storm_days', '--wx', T + 10,
+        g.narrow ? 'storm days / yr' : 'storm days per year');
+  panel('jja_deficit', '--sub', T + panelH + GAP + 12,
+        g.narrow ? 'summer deficit (mm)' : 'summer rainfall deficit (mm)');
   HIST.forEach((d, i) => {
-    if (+d.year % 5) return;
-    el('text', { x: L + i * bw + bw / 2, y: H - 8, 'text-anchor': 'middle', class: 'tick-label' }, svg)
-      .textContent = d.year;
+    // every 5th year at 900 units; every 10th once the canvas is a third
+    // of that, or the year labels run into each other
+    if (+d.year % (g.narrow ? 10 : 5)) return;
+    // A year centred on the first or last bar hangs outside the plot and
+    // lands on the y-axis value beside it - at phone width "1990" sat on
+    // top of "-139". Measure the label rather than guessing a margin, and
+    // anchor the edge ones inward.
+    const cx = L + i * bw + bw / 2;
+    const t = el('text', { x: cx, y: H - 8, 'text-anchor': 'middle', class: 'tick-label' }, svg);
+    t.textContent = d.year;
+    const half = t.getComputedTextLength() / 2;
+    if (cx - half < L) { t.setAttribute('x', L); t.setAttribute('text-anchor', 'start'); }
+    else if (cx + half > W - R) { t.setAttribute('x', W - R); t.setAttribute('text-anchor', 'end'); }
   });
+  });   /* end chart('histchart') */
 
   const top = (key, n) => [...HIST].sort((a, b) => b[key] - a[key]).slice(0, n);
   const fmtRow = d => `<tr><td class="hl">${d.year}</td>
@@ -452,6 +553,10 @@ document.getElementById('tiles').innerHTML = tiles.map(t =>
      <th>Erosion (not priced)</th>
      <th>Cat-year cost</th><th>Cat vs independence</th><th>Group churn</th></tr>` + rows;
 })();
+
+/* Every chart registered itself above; draw them all now, after the
+   conditional backtest block has had its chance to register too. */
+renderCharts();
 </script>
 </body>
 </html>
