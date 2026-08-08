@@ -476,6 +476,22 @@ runs when the depth product is absent, as it is outside England.
 CI additionally rebuilds the whole site from committed data and fails if
 `docs/` has drifted from its templates.
 
+**Layout regression tests** (`tests/test_layout.py`) render the built site in
+headless Chromium and assert what static checks cannot see: no page scrolls
+sideways at phone or laptop width, no SVG text *renders* below 9px (an SVG
+scales its type down with its viewBox — "nothing overflows" is not "it is
+readable"), the map's zoom/layer/popup-close controls actually **receive a
+tap at their own centre** (`elementFromPoint`, which is how two controls were
+once found buried under panels), the district popup stays inside the map and
+scrolls when it overflows, and the map page keeps its accessible routes to
+the data. They need extra dependencies and skip cleanly without them:
+
+```bash
+.venv/Scripts/python -m pip install pytest playwright
+.venv/Scripts/python -m playwright install chromium
+.venv/Scripts/python -m pytest tests/test_layout.py -q
+```
+
 ## Rebuild from scratch
 
 ```bash
@@ -512,7 +528,9 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
                                                      # h-inverse bisection for erosion is the dominant cost)
 .venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs -> data/sensitivity.json (~25 min, optional)
 .venv/Scripts/python scripts/make_images.py          # favicon + 1200x630 social card, rendered from the data
-.venv/Scripts/python scripts/build_map.py            # -> map/uk_home_insurance_risk_map.html
+.venv/Scripts/python scripts/build_map.py            # -> map/uk_home_insurance_risk_map.html + map/map_data.geojson
+                                                     # (the district GeoJSON is fetched by the page, not inlined -
+                                                     # so map.html needs HTTP: `python -m http.server` inside docs/)
 .venv/Scripts/python scripts/build_analysis.py       # -> analysis/uk_risk_year_analysis.html
 ```
 

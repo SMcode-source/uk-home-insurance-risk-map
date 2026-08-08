@@ -1,6 +1,8 @@
 # Python 3.13 — create venv then: pip install -r requirements.txt
 # (xarray/netCDF4 are optional: only needed if you switch to CEDA NetCDF
 # downloads, which require a CEDA account; the pipeline as shipped does not.)
+# The layout tests need extras (they skip without them):
+#   pip install pytest playwright && python -m playwright install chromium
 numpy==2.5.1
 scipy==1.18.0
 pandas==3.0.5
