@@ -360,6 +360,17 @@ body { overflow: hidden; }
   }
   #legend .legend-row span { font-size: 11px; }
   #about { left: 8px; right: 8px; bottom: 8px; max-width: none; max-height: 40vh; overflow-y: auto; }
+
+  /* Leaflet puts the zoom buttons at the map's top-left, which on a phone
+     is exactly where #controls sits. They were not merely hidden - they
+     were unreachable, and a tap on "zoom out" landed on the metric button
+     underneath, silently switching the map's layer instead of zooming.
+
+     #controls starts 8px into the map and is capped at 34vh, so the band
+     below that is free until #legend begins. Put the zoom there, and lift
+     it above the panels (which sit at z-index 1000) so a panel growing
+     can never bury it again. */
+  .leaflet-top.leaflet-left { top: calc(34vh + 18px); z-index: 1100; }
 }
 """
 
