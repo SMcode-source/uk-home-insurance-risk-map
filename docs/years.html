@@ -72,6 +72,17 @@
   .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
   .sw.line { width: 16px; height: 2px; border-radius: 1px; }
   svg { display: block; width: 100%; height: auto; }
+  /* Every chart here is drawn on a 900-unit canvas with 11px labels, which
+     is close to 1:1 on a desktop card. Scaled into a phone-width card the
+     whole drawing renders at a third of that, putting each axis label at
+     about 3.6px - present, laid out correctly, and unreadable. Below the
+     design width, scroll the chart at its native size instead. That is
+     already how the wide tables on this page behave, so it is the pattern
+     the reader has met rather than a new one. */
+  @media (max-width: 940px) {
+    .chart { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .chart > svg { min-width: 900px; }
+  }
   svg text { font-family: inherit; }
   .axis-label { fill: var(--ink-muted); font-size: 11px; }
   .tick-label { fill: var(--ink-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
@@ -114,7 +125,7 @@
       <span><span class="sw line" style="background:var(--wx)"></span>C-vine (modelled dependence)</span>
       <span><span class="sw line" style="background:var(--indep)"></span>Perils independent</span>
     </div>
-    <div id="exceedance"></div>
+    <div id="exceedance" class="chart"></div>
   </div>
 
   <h2>What drives the cost, year by year</h2>
@@ -128,7 +139,7 @@
       <span><span class="sw" style="background:var(--fl)"></span>Flood</span>
       <span><span class="sw" style="background:var(--gw)"></span>Groundwater</span>
     </div>
-    <div id="stacked"></div>
+    <div id="stacked" class="chart"></div>
   </div>
 
   <h2>How widespread are claims in each kind of year?</h2>
@@ -145,7 +156,7 @@
       <span><span class="sw" style="background:var(--fl)"></span>Flood</span>
       <span><span class="sw" style="background:var(--gw)"></span>Groundwater</span>
     </div>
-    <div id="incidence"></div>
+    <div id="incidence" class="chart"></div>
   </div>
 
   <h2>The numbers</h2>
@@ -165,7 +176,7 @@
         <span><span class="sw" style="background:var(--wx)"></span>Storm days (gusts ≥ 70 km/h)</span>
         <span><span class="sw" style="background:var(--sub)"></span>Summer rainfall deficit (subsidence driver)</span>
       </div>
-      <div id="histchart"></div>
+      <div id="histchart" class="chart"></div>
     </div>
     <div class="card" style="margin-top:14px; overflow-x:auto">
       <table class="buckets" id="histtable"></table>
