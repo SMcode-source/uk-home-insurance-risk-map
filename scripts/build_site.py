@@ -7,9 +7,10 @@
   docs/assets/site.css   shared styles
   docs/.nojekyll         stop Pages running Jekyll over the output
 
-The map/years pages are the self-contained artefacts produced by
-build_map.py / build_analysis.py; this script only wraps them in the site
-chrome so the whole thing navigates as one website.
+The map/years pages are the artefacts produced by build_map.py /
+build_analysis.py; this script only wraps them in the site chrome so the
+whole thing navigates as one website. (years is self-contained; the map
+fetches assets/map_data.geojson at runtime, copied in below.)
 """
 
 import csv
@@ -350,12 +351,12 @@ body { overflow: hidden; }
    over the panels and hides them. The popup is kept clear of the panels
    by panning instead; see keepPopupClear() in the map template. */
 
-/* A district popup runs to 48 rows. That is over 1,000px on a data-rich
-   district - taller than an 800px laptop viewport, let alone a phone -
-   and Leaflet adds overflow handling only when given a maxHeight, which
-   it never was. So it simply overflowed the screen with no way to reach
-   the rest. Cap it and let it scroll everywhere; the phone rule below
-   tightens this further to the gap between the floating panels. */
+/* The popup opens compact (headline, scores, disclosures), but a reader
+   who unfolds everything is back to ~1,000px of content - taller than an
+   800px laptop viewport - and Leaflet adds overflow handling only when
+   given a maxHeight, which it never was. Cap it and let it scroll
+   everywhere; the phone rule below tightens this to the gap between the
+   floating panels. */
 .leaflet-popup-content { max-height: 60vh; overflow-y: auto; }
 
 /* Phones: the three floating panels have to share one small screen.
@@ -388,19 +389,18 @@ body { overflow: hidden; }
      can never bury it again. */
   .leaflet-top.leaflet-left { top: calc(34vh + 18px); z-index: 1100; }
 
-  /* A district popup runs to 48 rows and about 1,076px - taller than the
-     whole map area on a phone. Leaflet's autoPan cannot rescue a popup
-     bigger than the viewport it pans within, so it was drawn with ~430px
-     of itself above the top of the screen (name, premium and rating group
-     among the casualties) and no way to scroll to them: Leaflet only adds
-     overflow when a maxHeight option is set, and none was.
-     Cap the height so it scrolls, and the width so it stops hanging off
-     the right edge - both in vw/vh so rotation is handled without JS. */
-  /* Fit the gap between #controls (top: 60px, max-height 34vh) and
-     #legend (bottom: 62px, max-height 24vh), less the ~28px of wrapper
-     padding and tip - derived from those same constants rather than
-     guessed, so the three stay consistent if any is retuned. */
-  .leaflet-popup-content { max-height: calc(42vh - 165px); overflow-y: auto; max-width: calc(100vw - 64px); }
+  /* The popup must FIT the free band between #controls (top: 60px,
+     max-height 34vh) and #legend (bottom: 62px, max-height 24vh), or
+     keepPopupClear() has no clear position to move it to and leaves it
+     under a panel - which is how the close button ended up untappable
+     under the metric buttons (caught by the layout tests; the old cap of
+     42vh - 165px plus Leaflet's ~35px of wrapper margins and tip was
+     taller than the band by construction).
+     Band = 100vh - (60 + 34vh) - (62 + 24vh) = 42vh - 122px. Less 2x8px
+     keep-clear padding and ~35px chrome: content cap = 42vh - 173px.
+     -180 leaves slack for font rounding. Width in vw so rotation is
+     handled without JS. */
+  .leaflet-popup-content { max-height: calc(42vh - 180px); overflow-y: auto; max-width: calc(100vw - 64px); }
   .leaflet-popup-content-wrapper { max-width: calc(100vw - 40px); }
 }
 """
@@ -426,6 +426,13 @@ def main():
     shutil.copy(os.path.join(SITE, "assets", "site.css"),
                 os.path.join(DOCS, "assets", "site.css"))
     print("  assets/site.css")
+
+    # the map's district geometry+properties, fetched by map.html at
+    # runtime rather than inlined into it (5.08 MB page -> 209 KB page)
+    shutil.copy(os.path.join(ROOT, "map", "map_data.geojson"),
+                os.path.join(DOCS, "assets", "map_data.geojson"))
+    print(f"  assets/map_data.geojson  "
+          f"({os.path.getsize(os.path.join(DOCS, 'assets', 'map_data.geojson')) / 1e6:.1f} MB)")
 
     # compact per-district lookup for the landing-page search (no geometry)
     with open(os.path.join(ROOT, "data", "districts_risk.geojson"),

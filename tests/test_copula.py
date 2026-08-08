@@ -822,7 +822,7 @@ def test_every_asset_the_published_site_references_exists():
         f"only {len(checked)} local references found across {len(pages)} "
         f"pages - the extraction has stopped matching")
     for required in ("assets/site.css", "assets/districts.json",
-                     "assets/social.png"):
+                     "assets/social.png", "assets/map_data.geojson"):
         assert required in checked, (
             f"{required} is no longer referenced by any page - if that is "
             f"deliberate, stop building it too")

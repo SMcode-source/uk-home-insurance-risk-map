@@ -25,6 +25,7 @@ data/sw_wales20.csv
 
 # Build outputs — the published copies live in docs/ (built by build_site.py)
 map/uk_home_insurance_risk_map.html
+map/map_data.geojson
 analysis/uk_risk_year_analysis.html
 # fetch_bgs.py resume checkpoints (deleted on a complete fetch)
 data/*.progress.jsonl
