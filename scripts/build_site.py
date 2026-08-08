@@ -342,6 +342,22 @@ MAP_CSS = """
 #legend, #about { bottom: 22px; }
 body { overflow: hidden; }
 
+/* NOTE - do not try to fix popup/panel overlap with z-index. Leaflet's
+   .leaflet-map-pane carries a transform, which makes it a stacking
+   context, so every pane inside it (popups included) is trapped below
+   whatever that pane resolves to. Raising .leaflet-popup-pane changes
+   nothing - measured - and raising .leaflet-map-pane lifts the whole map
+   over the panels and hides them. The popup is kept clear of the panels
+   by panning instead; see keepPopupClear() in the map template. */
+
+/* A district popup runs to 48 rows. That is over 1,000px on a data-rich
+   district - taller than an 800px laptop viewport, let alone a phone -
+   and Leaflet adds overflow handling only when given a maxHeight, which
+   it never was. So it simply overflowed the screen with no way to reach
+   the rest. Cap it and let it scroll everywhere; the phone rule below
+   tightens this further to the gap between the floating panels. */
+.leaflet-popup-content { max-height: 60vh; overflow-y: auto; }
+
 /* Phones: the three floating panels have to share one small screen.
    Full-width stacked panels, each capped and internally scrollable, so
    they never overlap each other and always leave map visible between. */
@@ -371,6 +387,21 @@ body { overflow: hidden; }
      it above the panels (which sit at z-index 1000) so a panel growing
      can never bury it again. */
   .leaflet-top.leaflet-left { top: calc(34vh + 18px); z-index: 1100; }
+
+  /* A district popup runs to 48 rows and about 1,076px - taller than the
+     whole map area on a phone. Leaflet's autoPan cannot rescue a popup
+     bigger than the viewport it pans within, so it was drawn with ~430px
+     of itself above the top of the screen (name, premium and rating group
+     among the casualties) and no way to scroll to them: Leaflet only adds
+     overflow when a maxHeight option is set, and none was.
+     Cap the height so it scrolls, and the width so it stops hanging off
+     the right edge - both in vw/vh so rotation is handled without JS. */
+  /* Fit the gap between #controls (top: 60px, max-height 34vh) and
+     #legend (bottom: 62px, max-height 24vh), less the ~28px of wrapper
+     padding and tip - derived from those same constants rather than
+     guessed, so the three stay consistent if any is retuned. */
+  .leaflet-popup-content { max-height: calc(42vh - 165px); overflow-y: auto; max-width: calc(100vw - 64px); }
+  .leaflet-popup-content-wrapper { max-width: calc(100vw - 40px); }
 }
 """
 

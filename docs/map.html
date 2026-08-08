@@ -792,6 +792,22 @@ svg.leaflet-image-layer.leaflet-interactive path {
 #legend, #about { bottom: 22px; }
 body { overflow: hidden; }
 
+/* NOTE - do not try to fix popup/panel overlap with z-index. Leaflet's
+   .leaflet-map-pane carries a transform, which makes it a stacking
+   context, so every pane inside it (popups included) is trapped below
+   whatever that pane resolves to. Raising .leaflet-popup-pane changes
+   nothing - measured - and raising .leaflet-map-pane lifts the whole map
+   over the panels and hides them. The popup is kept clear of the panels
+   by panning instead; see keepPopupClear() in the map template. */
+
+/* A district popup runs to 48 rows. That is over 1,000px on a data-rich
+   district - taller than an 800px laptop viewport, let alone a phone -
+   and Leaflet adds overflow handling only when given a maxHeight, which
+   it never was. So it simply overflowed the screen with no way to reach
+   the rest. Cap it and let it scroll everywhere; the phone rule below
+   tightens this further to the gap between the floating panels. */
+.leaflet-popup-content { max-height: 60vh; overflow-y: auto; }
+
 /* Phones: the three floating panels have to share one small screen.
    Full-width stacked panels, each capped and internally scrollable, so
    they never overlap each other and always leave map visible between. */
@@ -821,6 +837,21 @@ body { overflow: hidden; }
      it above the panels (which sit at z-index 1000) so a panel growing
      can never bury it again. */
   .leaflet-top.leaflet-left { top: calc(34vh + 18px); z-index: 1100; }
+
+  /* A district popup runs to 48 rows and about 1,076px - taller than the
+     whole map area on a phone. Leaflet's autoPan cannot rescue a popup
+     bigger than the viewport it pans within, so it was drawn with ~430px
+     of itself above the top of the screen (name, premium and rating group
+     among the casualties) and no way to scroll to them: Leaflet only adds
+     overflow when a maxHeight option is set, and none was.
+     Cap the height so it scrolls, and the width so it stops hanging off
+     the right edge - both in vw/vh so rotation is handled without JS. */
+  /* Fit the gap between #controls (top: 60px, max-height 34vh) and
+     #legend (bottom: 62px, max-height 24vh), less the ~28px of wrapper
+     padding and tip - derived from those same constants rather than
+     guessed, so the three stay consistent if any is retuned. */
+  .leaflet-popup-content { max-height: calc(42vh - 165px); overflow-y: auto; max-width: calc(100vw - 64px); }
+  .leaflet-popup-content-wrapper { max-width: calc(100vw - 40px); }
 }
 </style>
 </head>
@@ -1303,6 +1334,72 @@ setMetric('group');
   target.setStyle({ weight: 3, opacity: 1, color: '#0b0b0b' });
   setTimeout(() => target.setStyle({ weight: 0.5, opacity: 0.55, color: '#ffffff' }), 4000);
 })();
+/* Keep an opened popup clear of the floating panels.
+
+   Leaflet's autoPan keeps a popup inside the MAP; it knows nothing about
+   #controls, #legend and #about floating on top of it. This cannot be
+   solved with z-index: .leaflet-map-pane carries a transform, so it is a
+   stacking context and every pane inside it - popups included - is
+   trapped below whatever that pane resolves to. Raising
+   .leaflet-popup-pane changes nothing (measured); raising the map pane
+   hides the panels behind the map. So nudge the map instead.
+
+   Two rules learned the hard way, both from getting this wrong first:
+   only dodge a panel the popup ACTUALLY overlaps (an earlier version
+   compared vertical bands only, so a popup one pixel from the desktop
+   controls panel was shoved 490px down and off the bottom of the
+   screen), and never accept a dodge that pushes the popup off screen -
+   an overlapped popup you can scroll beats a tidy one you cannot see.
+
+   panBy with animate:false, so this also works where rAF does not run. */
+function keepPopupClear(popup) {
+  const el = popup.getElement();
+  if (!el) return;
+  const pad = 8;
+  // Clamp to the MAP box, not the window. The site nav is fixed across the
+  // top and the map starts below it, so clamping to the viewport tucked
+  // the popup under the nav - close button included, which then received
+  // the tap. Anything the map does not own is not free space.
+  const m = map.getContainer().getBoundingClientRect();
+  const minX = m.left + pad, maxX = m.right - pad;
+  const minY = m.top + pad, maxY = m.bottom - pad;
+  const vw = innerWidth, vh = innerHeight;
+  const r = el.getBoundingClientRect();
+  let mx = 0, my = 0;                       // how far to move the POPUP
+
+  if (r.right > maxX) mx = maxX - r.right;
+  if (r.left + mx < minX) mx = minX - r.left;
+  if (r.bottom > maxY) my = maxY - r.bottom;
+  if (r.top + my < minY) my = minY - r.top;
+
+  const hits = (a, p) => a.left < p.right && a.right > p.left &&
+                         a.top < p.bottom && a.bottom > p.top;
+  for (const id of ['controls', 'legend', 'about']) {
+    const e = document.getElementById(id);
+    if (!e || e.offsetParent === null) continue;
+    const p = e.getBoundingClientRect();
+    const now = {left: r.left + mx, right: r.right + mx,
+                 top: r.top + my, bottom: r.bottom + my};
+    if (!hits(now, p)) continue;
+    // Try all four ways out and take the smallest that stays on screen.
+    // Which one is available depends entirely on the layout: on a phone
+    // the panels are full-width so only up/down can work, while on a
+    // desktop they hug the right edge and sliding left clears them
+    // without squeezing the popup vertically at all.
+    const fitsY = d => now.top + d >= minY && now.bottom + d <= maxY;
+    const fitsX = d => now.left + d >= minX && now.right + d <= maxX;
+    const moves = [
+      { axis: 'y', d: (p.bottom + pad) - now.top, ok: fitsY },
+      { axis: 'y', d: (p.top - pad) - now.bottom, ok: fitsY },
+      { axis: 'x', d: (p.left - pad) - now.right, ok: fitsX },
+      { axis: 'x', d: (p.right + pad) - now.left, ok: fitsX },
+    ].filter(m => m.ok(m.d)).sort((a, b) => Math.abs(a.d) - Math.abs(b.d));
+    if (moves.length) { if (moves[0].axis === 'y') my += moves[0].d; else mx += moves[0].d; }
+    // otherwise leave it: better overlapped and readable than off screen
+  }
+  if (mx || my) map.panBy([-mx, -my], { animate: false });
+}
+map.on('popupopen', e => keepPopupClear(e.popup));
 </script>
 </body>
 </html>
