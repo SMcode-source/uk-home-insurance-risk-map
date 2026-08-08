@@ -292,6 +292,63 @@ def test_map_page_has_accessible_data_routes(browser, site_url):
         page.context.close()
 
 
+def test_keyboard_route_search_esc_and_arrows(browser, site_url):
+    """The full keyboard path through the map, end to end: type a district
+    into the search box and commit it (popup opens, focus lands inside so
+    a reader starts reading), Ctrl+Arrow walks to a neighbouring district,
+    Escape closes and focus comes back to the search box.
+
+    This exercises the ONLY non-pointer route to the district data — the
+    polygons are canvas pixels, so if this path breaks there is no
+    keyboard access at all, and no static check can tell.
+    """
+    page = open_page(browser, site_url, "map.html", DESKTOP)
+    try:
+        page.wait_for_selector("#districtSearch:not([disabled])")
+        page.fill("#districtSearch", "YO25")
+        page.press("#districtSearch", "Enter")
+        page.wait_for_selector(".leaflet-popup-content")
+        page.wait_for_timeout(1000)  # settle pass
+
+        state = page.evaluate("""() => ({
+          name: document.querySelector('.pop .hd').textContent,
+          role: document.querySelector('.leaflet-popup').getAttribute('role'),
+          focusInside: document.querySelector('.leaflet-popup')
+                        .contains(document.activeElement),
+          contentFocusable: document.querySelector('.leaflet-popup-content')
+                        .tabIndex >= 0,
+          closeLabel: document.querySelector('.leaflet-popup-close-button')
+                        .getAttribute('aria-label'),
+        })""")
+        assert state["name"] == "YO25"
+        assert state["role"] == "dialog", "popup is not exposed as a dialog"
+        assert state["focusInside"], "focus did not move into the popup"
+        assert state["contentFocusable"], (
+            "scrollable popup content is not keyboard-reachable")
+        assert state["closeLabel"], "close button has no accessible name"
+
+        # Ctrl+Arrow walks to a different district
+        page.keyboard.press("Control+ArrowDown")
+        page.wait_for_function(
+            "prev => document.querySelector('.pop .hd') && "
+            "document.querySelector('.pop .hd').textContent !== prev",
+            arg="YO25", timeout=5000)
+        neighbour = page.evaluate(
+            "() => document.querySelector('.pop .hd').textContent")
+        assert neighbour and neighbour != "YO25"
+
+        # Escape closes; focus must not be dropped on <body>
+        page.keyboard.press("Escape")
+        page.wait_for_selector(".leaflet-popup", state="detached")
+        page.wait_for_timeout(100)
+        active = page.evaluate(
+            "() => document.activeElement === document.body ? 'body' "
+            "      : document.activeElement.id || document.activeElement.tagName")
+        assert active != "body", "focus was dropped when the popup closed"
+    finally:
+        page.context.close()
+
+
 @pytest.mark.parametrize("viewport_name", VIEWPORTS)
 def test_switching_metric_updates_legend(browser, site_url, viewport_name):
     """Clicking a metric button must actually switch the legend — the layer

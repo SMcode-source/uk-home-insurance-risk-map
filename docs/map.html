@@ -746,6 +746,14 @@ svg.leaflet-image-layer.leaflet-interactive path {
   #controls { top: 12px; right: 12px; }
   #controls h1 { font-size: 15px; margin: 0 0 2px; color: var(--ink-1); font-weight: 650; }
   #controls .sub { font-size: 11.5px; color: var(--ink-muted); margin-bottom: 10px; }
+  .search-row { margin: 2px 0 4px; }
+  #districtSearch {
+    width: 100%; font: inherit; font-size: 12.5px; color: var(--ink-1);
+    background: var(--page); border: 1px solid var(--border);
+    border-radius: 7px; padding: 6px 9px;
+  }
+  #districtSearch:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #searchHint { margin-bottom: 8px; }
   .metric-btns { display: flex; flex-direction: column; gap: 4px; }
   .metric-btns button {
     text-align: left; font: inherit; font-size: 12.5px;
@@ -904,9 +912,11 @@ body { overflow: hidden; }
      the pointer for a screen reader or keyboard — no per-district DOM at
      all. Until that changes, say so up front and point at the two
      accessible routes to the same numbers. -->
-<p class="visually-hidden">The map draws its 2,736 districts on a canvas
-and cannot be read district-by-district with a screen reader. The same
-numbers are available as a
+<p class="visually-hidden">The map draws its 2,736 districts on a canvas,
+so they cannot be tabbed through. Use the district search box in the
+controls panel to open any district's full details (Escape closes them,
+and Control plus an arrow key walks to the neighbouring district in that
+direction). The same numbers are also available as a
 <a href="assets/uk_district_risk.csv">downloadable CSV</a> and through the
 <a href="index.html#lookup">postcode district lookup on the overview
 page</a>.</p>
@@ -915,11 +925,25 @@ page</a>.</p>
 <div id="controls" class="panel">
   <h1>UK home insurance risk map</h1>
   <div class="sub">2,736 postcode districts &middot; subsidence &times; weather &times; flood &times; groundwater &middot; C-vine copula</div>
+  <!-- The keyboard route to any district: the polygons render to one
+       canvas, so this box is the only non-pointer way in. A native
+       datalist, because it gets combobox keyboard/reader behaviour right
+       for free where a hand-rolled ARIA combobox usually gets something
+       wrong. Options are filled once the data arrives. -->
+  <div class="search-row">
+    <input type="search" id="districtSearch" list="districtList"
+           placeholder="Find a district — e.g. YO25"
+           aria-label="Find a postcode district" autocomplete="off"
+           disabled>
+    <datalist id="districtList"></datalist>
+  </div>
+  <div class="sub" id="searchHint">Enter opens a district &middot; Esc closes it &middot; Ctrl+arrows walk to the neighbour in that direction</div>
   <div class="metric-btns" id="metricBtns" role="group" aria-label="Map layer"></div>
 </div>
 
 <div id="legend" class="panel">
-  <div class="title" id="legendTitle"></div>
+  <!-- aria-live so switching layers announces what the map now shows -->
+  <div class="title" id="legendTitle" aria-live="polite"></div>
   <div id="legendRows"></div>
 </div>
 
@@ -1435,7 +1459,115 @@ setMetric('group');
    deep-linked popups shipped un-dodged while click-opened ones behaved -
    found by the layout tests, which open the popup through the deep
    link. */
+/* ---- keyboard access ----------------------------------------------
+
+   The districts are painted onto one canvas, so there is no per-district
+   DOM to Tab through — the only keyboard routes in are built here:
+
+     search box  -> any district by name (native datalist combobox)
+     Esc         -> close the open popup, focus returns where it came from
+     Ctrl+arrow  -> walk from the open district to its neighbour in that
+                    direction (plain arrows are left alone: they scroll
+                    the popup content, which is the focused element)
+
+   The popup itself becomes a labelled dialog whose scrollable content is
+   focusable — a scrollable region you cannot reach by keyboard is its
+   own WCAG failure, and focusing it is also what makes a screen reader
+   start reading the district's numbers. */
+
+function findDistrict(name) {
+  const want = (name || '').trim().toUpperCase();
+  if (!want) return null;
+  let target = null;
+  layer.eachLayer(l => { if (l.feature.properties.name === want) target = l; });
+  return target;
+}
+
+function goToDistrict(target, flash) {
+  map.fitBounds(target.getBounds(), { maxZoom: 11, padding: [40, 40] });
+  target.openPopup();
+  if (flash) {
+    target.setStyle({ weight: 3, opacity: 1, color: '#0b0b0b' });
+    setTimeout(() => target.setStyle({ weight: 0.5, opacity: 0.55, color: '#ffffff' }), 4000);
+  }
+}
+
+const search = document.getElementById('districtSearch');
+/* one string, one parse: 2,736 createElement calls are visibly slower */
+document.getElementById('districtList').innerHTML =
+  feats.map(f => '<option value="' + f.properties.name + '">').join('');
+search.disabled = false;
+
+let returnFocusTo = null;   // who gets focus back when the popup closes
+let openPopupRef = null;    // which popup is currently open, if any
+
+/* 'change', not 'input': district names nest (YO2 is a district and a
+   prefix of YO25), so acting per keystroke would hijack the box halfway
+   through typing. 'change' fires on Enter and on picking a datalist
+   option — both are commitments. */
+search.addEventListener('change', () => {
+  const target = findDistrict(search.value);
+  if (!target) return;
+  returnFocusTo = search;
+  goToDistrict(target, true);
+});
+
+const ARROWS = { ArrowUp: [0, -1], ArrowDown: [0, 1],
+                 ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+
+/* Nearest district centre inside a 90-degree cone in the pressed
+   direction, preferring straight-ahead (off-axis drift counts double).
+   A linear scan over 2,736 cached bounds is well under a millisecond —
+   no adjacency graph needed. */
+function stepToNeighbour(fromPopup, dir) {
+  const origin = map.latLngToLayerPoint(fromPopup.getLatLng());
+  let best = null, bestScore = Infinity;
+  layer.eachLayer(l => {
+    if (l.getPopup() === fromPopup) return;
+    const at = map.latLngToLayerPoint(l.getBounds().getCenter());
+    const dx = at.x - origin.x, dy = at.y - origin.y;
+    const along = dx * dir[0] + dy * dir[1];
+    if (along <= 0) return;                              // behind us
+    const across = Math.abs(dx * dir[1]) + Math.abs(dy * dir[0]);
+    if (across > along) return;                          // outside the cone
+    const score = along + 2 * across;
+    if (score < bestScore) { bestScore = score; best = l; }
+  });
+  if (best) goToDistrict(best, false);
+}
+
+function wireDialog(popup) {
+  const el = popup.getElement();
+  if (!el) return;
+  const box = el.querySelector('.leaflet-popup-content');
+  const hd = el.querySelector('.pop .hd');
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-label',
+    (hd ? hd.textContent + ' — ' : '') + 'district details');
+  const closer = el.querySelector('.leaflet-popup-close-button');
+  if (closer) closer.setAttribute('aria-label', 'Close district details');
+  box.setAttribute('tabindex', '0');
+  box.focus({ preventScroll: true });
+  el.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape') {
+      ev.stopPropagation();
+      /* Restore focus HERE, not in the popupclose handler: the popup's
+         DOM teardown is not synchronous with closePopup(), so a
+         focus-fell-to-body check races it (and lost, in the tests). On
+         Escape the right target is known without guessing. */
+      const back = returnFocusTo || map.getContainer();
+      returnFocusTo = null;
+      map.closePopup();
+      back.focus({ preventScroll: true });
+    } else if ((ev.ctrlKey || ev.altKey) && ARROWS[ev.key]) {
+      ev.preventDefault();
+      stepToNeighbour(popup, ARROWS[ev.key]);
+    }
+  });
+}
+
 map.on('popupopen', e => {
+  openPopupRef = e.popup;
   keepClearWhenSettled(e.popup);
   // Opening a <details> fold grows the popup upward from its anchor, so
   // it can slide back under a panel after the open-time pass. 'toggle'
@@ -1443,6 +1575,26 @@ map.on('popupopen', e => {
   // it.
   const el = e.popup.getElement();
   if (el) el.addEventListener('toggle', () => keepPopupClear(e.popup), true);
+  wireDialog(e.popup);
+});
+
+/* Fallback for every OTHER way a popup closes (map click, a new popup
+   replacing it): if the teardown dropped focus on <body>, put it back on
+   the map. Deferred beyond the teardown, which is not synchronous with
+   the close; the Escape path above restores focus itself, exactly
+   because this check is a race. Walking to a neighbour is safe here:
+   by the time this runs, the new popup owns openPopupRef and has taken
+   focus anyway. */
+map.on('popupclose', e => {
+  setTimeout(() => {
+    if (openPopupRef !== e.popup) return;
+    openPopupRef = null;
+    if (document.activeElement === document.body) {
+      const back = returnFocusTo || map.getContainer();
+      returnFocusTo = null;
+      back.focus({ preventScroll: true });
+    }
+  }, 60);
 });
 
 /* ---- deep link: map.html?d=SW1 (and ?m=metric) ---- */
@@ -1450,15 +1602,8 @@ map.on('popupopen', e => {
   const q = new URLSearchParams(location.search);
   const m = q.get('m');
   if (m && METRICS[m]) setMetric(m);
-  const want = (q.get('d') || '').trim().toUpperCase();
-  if (!want) return;
-  let target = null;
-  layer.eachLayer(l => { if (l.feature.properties.name === want) target = l; });
-  if (!target) return;
-  map.fitBounds(target.getBounds(), { maxZoom: 11, padding: [40, 40] });
-  target.openPopup();
-  target.setStyle({ weight: 3, opacity: 1, color: '#0b0b0b' });
-  setTimeout(() => target.setStyle({ weight: 0.5, opacity: 0.55, color: '#ffffff' }), 4000);
+  const target = findDistrict(q.get('d'));
+  if (target) goToDistrict(target, true);
 })();
 /* Keep an opened popup clear of the floating panels.
 
