@@ -165,7 +165,7 @@ SUP_EXCLUDED = {
 # identical here. Half-weight says "where drift covers the ground it
 # probably governs, but we cannot show it does" - it shifts relativities
 # without letting an unmeasured layer override mapped bedrock.
-SUP_WEIGHT = 0.5
+SUP_WEIGHT = 0.35
 
 
 def superficial_from_bgs(districts_bng: gpd.GeoDataFrame):
