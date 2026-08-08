@@ -1004,9 +1004,14 @@ page</a>.</p>
    separate asset it caches independently of the page. The cost is that
    this page needs HTTP (fetch does not work from file:// — serve docs/
    with `python -m http.server` locally, see the README).
-   The fetch URL must stay a LITERAL in the fetch() call: the site asset
-   test extracts fetch('...') references, and routing it through a const
-   hides it from that guard (which failed loudly, as designed). */
+   The fetch URL must stay a LITERAL inside the fetch call below: the
+   site asset test extracts quoted fetch arguments, and routing the URL
+   through a const hides it from that guard (which failed loudly, as
+   designed). Do not write a quoted example of such a call in a comment
+   either - the guard reads this file as text and will chase the example
+   as if it were a reference. It did: a '...' placeholder in this very
+   comment passed on Windows, where trailing dots vanish in paths, and
+   failed on Linux CI, where they do not. */
 
 /* ---- palette (dataviz reference instance) ---- */
 const RAMP_BLUE = ['#cde2fb','#9ec5f4','#6da7ec','#3987e5','#256abf','#184f95','#0d366b'];
