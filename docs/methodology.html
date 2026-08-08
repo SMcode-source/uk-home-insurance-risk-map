@@ -42,11 +42,39 @@
     background: var(--surface-1); border: 1px solid var(--border);
     border-radius: 14px; padding: 20px; margin: 18px 0;
   }
-  .node-label { font-size: 12px; fill: var(--ink-1); font-weight: 600; }
-  .edge-label { font-size: 10.5px; fill: var(--ink-muted); }
-  .tree-title { font-size: 11.5px; fill: var(--ink-muted); font-weight: 600; letter-spacing: .04em; }
-  .step-label { font-size: 11.5px; fill: var(--ink-1); font-weight: 600; }
-  .step-sub { font-size: 10px; fill: var(--ink-muted); }
+  /* Diagram type is sized for its RENDERED size, not its viewBox size.
+     A fixed viewBox scales text down with everything else: at the content
+     column's ~0.75 scale a 10px label renders at 7.5px, and on a phone at
+     ~0.34 it rendered at 3.4px — measured, and guarded by the layout tests.
+     So: fonts big enough to survive the desktop scale, and below 640px the
+     diagrams restack (vertical pipeline, vine panels stacked) instead of
+     shrinking. */
+  .node-label { font-size: 13.5px; fill: var(--ink-1); font-weight: 600; }
+  .edge-label { font-size: 12.5px; fill: var(--ink-muted); }
+  .tree-title { font-size: 13px; fill: var(--ink-muted); font-weight: 600; letter-spacing: .04em; }
+  .step-label { font-size: 13.5px; fill: var(--ink-1); font-weight: 600; }
+  .step-sub { font-size: 12.5px; fill: var(--ink-muted); }
+  .diagram-v { display: none; }
+  .vine-row { display: flex; gap: 16px; align-items: flex-start; }
+  .vine-row svg { display: block; height: auto; width: 100%; }
+  /* flex-grow proportional to each panel's viewBox width, so all three
+     panels render at the SAME scale side by side */
+  .vine-row .vine-t1 { flex: 270 1 0; }
+  .vine-row .vine-t2 { flex: 386 1 0; }
+  .vine-row .vine-t3 { flex: 204 1 0; }
+  @media (max-width: 640px) {
+    /* svg.diagram in site.css sets display:block at (0,1,1); a bare
+       .diagram-h at (0,1,0) loses to it, so match the element too */
+    svg.diagram-h { display: none; }
+    .diagram-v { display: block; max-width: 250px; margin: 0 auto; }
+    .vine-row { flex-direction: column; gap: 4px; align-items: center; }
+    /* stacked: the row layout's flex-basis 0 now applies to HEIGHT and
+       collapses every panel to zero (measured), so reset it — then cap
+       each panel near its native size so the type does not balloon */
+    .vine-row .vine-t1 { flex: 0 0 auto; width: 100%; max-width: 280px; }
+    .vine-row .vine-t2 { flex: 0 0 auto; width: 100%; max-width: 390px; }
+    .vine-row .vine-t3 { flex: 0 0 auto; width: 100%; max-width: 215px; }
+  }
 </style>
 </head>
 <body>
@@ -81,7 +109,7 @@
     <p>Six stages, each a script in the repository. Everything is seeded, so a rebuild
     reproduces the published numbers exactly.</p>
     <div class="diagram-card">
-      <svg class="diagram" viewBox="0 0 860 132" role="img" aria-label="Pipeline: open data to peril scores to marginals to vine copula to simulation to premium">
+      <svg class="diagram diagram-h" viewBox="0 0 860 132" role="img" aria-label="Pipeline: open data to peril scores to marginals to vine copula to simulation to premium">
         <defs>
           <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
             <path d="M0 0 L10 5 L0 10 z" fill="var(--axis)"/>
@@ -115,6 +143,46 @@
           <g stroke="var(--axis)" stroke-width="1.4" marker-end="url(#ar)" fill="none">
             <path d="M130 57 h14"/><path d="M278 57 h14"/><path d="M426 57 h14"/>
             <path d="M574 57 h14"/><path d="M722 57 h14"/>
+          </g>
+        </g>
+      </svg>
+      <!-- Same pipeline, stacked, for narrow screens: at phone width the
+           horizontal variant scales its type to ~34% (3.4px), which is not
+           text any more. The two variants are toggled by CSS only. -->
+      <svg class="diagram-v" viewBox="0 0 240 496" role="img" aria-label="Pipeline: open data to peril scores to marginals to vine copula to simulation to premium">
+        <defs>
+          <marker id="arv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--axis)"/>
+          </marker>
+        </defs>
+        <g>
+          <rect x="25" y="4" width="190" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="step-label" x="120" y="26" text-anchor="middle">Open data</text>
+          <text class="step-sub" x="120" y="43" text-anchor="middle">14 sources · OGL</text>
+
+          <rect x="25" y="90" width="190" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="step-label" x="120" y="112" text-anchor="middle">Peril scores</text>
+          <text class="step-sub" x="120" y="129" text-anchor="middle">per district, 0–1</text>
+
+          <rect x="25" y="176" width="190" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="step-label" x="120" y="198" text-anchor="middle">Marginals</text>
+          <text class="step-sub" x="120" y="215" text-anchor="middle">freq × severity</text>
+
+          <rect x="25" y="262" width="190" height="54" rx="9" fill="var(--surface-1)" stroke="var(--accent)"/>
+          <text class="step-label" x="120" y="284" text-anchor="middle">C-vine copula</text>
+          <text class="step-sub" x="120" y="301" text-anchor="middle">5-dimensional</text>
+
+          <rect x="25" y="348" width="190" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="step-label" x="120" y="370" text-anchor="middle">Simulation</text>
+          <text class="step-sub" x="120" y="387" text-anchor="middle">20,000 years</text>
+
+          <rect x="25" y="434" width="190" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="step-label" x="120" y="456" text-anchor="middle">Premium</text>
+          <text class="step-sub" x="120" y="473" text-anchor="middle">10 rating groups</text>
+
+          <g stroke="var(--axis)" stroke-width="1.4" marker-end="url(#arv)" fill="none">
+            <path d="M120 62 v22"/><path d="M120 148 v22"/><path d="M120 234 v22"/>
+            <path d="M120 320 v22"/><path d="M120 406 v22"/>
           </g>
         </g>
       </svg>
@@ -328,8 +396,13 @@
     produces the droughts that shrink clay, and the same surges strip the coast.</p>
 
     <div class="diagram-card">
-      <svg class="diagram" viewBox="0 0 860 210" role="img" aria-label="Five-dimensional C-vine structure: tree 1 has weather at the root with Gumbel pairs to flood, subsidence, groundwater and erosion; tree 2 has conditional Gaussian pairs from flood given weather to subsidence, erosion and groundwater; tree 3 is independence">
-        <g>
+      <!-- Three panels, one per tree, so they can sit in a row on a wide
+           screen and STACK on a phone. As one 860-unit SVG this scaled its
+           type to ~34% at phone width — unreadable, and exactly the bug the
+           year charts had. The wrapper carries the accessible name; the
+           panels are presentational parts of it. -->
+      <div class="vine-row" role="img" aria-label="Five-dimensional C-vine structure: tree 1 has weather at the root with Gumbel pairs to flood, subsidence, groundwater and erosion; tree 2 has conditional Gaussian pairs from flood given weather to subsidence, erosion and groundwater; tree 3 is independence">
+        <svg class="vine-t1" viewBox="0 0 270 210" aria-hidden="true" focusable="false">
           <text class="tree-title" x="8" y="16">TREE 1 — unconditional</text>
           <line x1="122" y1="112" x2="122" y2="52" stroke="var(--axis)" stroke-width="1.5"/>
           <line x1="122" y1="112" x2="122" y2="172" stroke="var(--axis)" stroke-width="1.5"/>
@@ -350,35 +423,33 @@
           <text class="edge-label" x="152" y="104">θ≤2.5</text>
           <text class="edge-label" x="62" y="104">θ≤2.6</text>
           <text class="edge-label" x="8" y="196">all Gumbel</text>
-
-          <line x1="270" y1="20" x2="270" y2="195" stroke="var(--grid)"/>
-
-          <text class="tree-title" x="292" y="16">TREE 2 — given weather</text>
-          <line x1="392" y1="112" x2="392" y2="176" stroke="var(--axis)" stroke-width="1.5"/>
-          <line x1="392" y1="112" x2="540" y2="52" stroke="var(--axis)" stroke-width="1.5"/>
-          <line x1="392" y1="112" x2="540" y2="140" stroke="var(--axis)" stroke-width="1.5"/>
-          <ellipse cx="392" cy="112" rx="44" ry="20" fill="var(--fl)"/>
-          <text class="node-label" x="392" y="116" text-anchor="middle" fill="#fff">F | W</text>
-          <ellipse cx="392" cy="180" rx="44" ry="20" fill="var(--gw)"/>
-          <text class="node-label" x="392" y="184" text-anchor="middle" fill="#fff">G | W</text>
-          <ellipse cx="574" cy="46" rx="44" ry="20" fill="var(--sub)"/>
-          <text class="node-label" x="574" y="50" text-anchor="middle" fill="#fff">S | W</text>
-          <ellipse cx="574" cy="146" rx="44" ry="20" fill="var(--er)"/>
-          <text class="node-label" x="574" y="150" text-anchor="middle" fill="#fff">E | W</text>
-          <text class="edge-label" x="400" y="152">ρ = 0.25</text>
-          <text class="edge-label" x="448" y="70">ρ = 0.15</text>
-          <text class="edge-label" x="448" y="140">ρ = 0.35</text>
-          <text class="edge-label" x="292" y="196">all Gaussian</text>
-
-          <line x1="656" y1="20" x2="656" y2="195" stroke="var(--grid)"/>
-
-          <text class="tree-title" x="678" y="16">TREE 3</text>
-          <ellipse cx="762" cy="100" rx="82" ry="21" fill="var(--surface-2)" stroke="var(--border)"/>
-          <text class="node-label" x="762" y="104" text-anchor="middle">G, S, E | W, F</text>
-          <text class="edge-label" x="762" y="142" text-anchor="middle">independence</text>
-          <text class="edge-label" x="762" y="161" text-anchor="middle">— nothing left to link</text>
-        </g>
-      </svg>
+        </svg>
+        <svg class="vine-t2" viewBox="0 0 386 210" aria-hidden="true" focusable="false">
+          <text class="tree-title" x="22" y="16">TREE 2 — given weather</text>
+          <line x1="122" y1="112" x2="122" y2="176" stroke="var(--axis)" stroke-width="1.5"/>
+          <line x1="122" y1="112" x2="270" y2="52" stroke="var(--axis)" stroke-width="1.5"/>
+          <line x1="122" y1="112" x2="270" y2="140" stroke="var(--axis)" stroke-width="1.5"/>
+          <ellipse cx="122" cy="112" rx="44" ry="20" fill="var(--fl)"/>
+          <text class="node-label" x="122" y="116" text-anchor="middle" fill="#fff">F | W</text>
+          <ellipse cx="122" cy="180" rx="44" ry="20" fill="var(--gw)"/>
+          <text class="node-label" x="122" y="184" text-anchor="middle" fill="#fff">G | W</text>
+          <ellipse cx="304" cy="46" rx="44" ry="20" fill="var(--sub)"/>
+          <text class="node-label" x="304" y="50" text-anchor="middle" fill="#fff">S | W</text>
+          <ellipse cx="304" cy="146" rx="44" ry="20" fill="var(--er)"/>
+          <text class="node-label" x="304" y="150" text-anchor="middle" fill="#fff">E | W</text>
+          <text class="edge-label" x="130" y="152">ρ = 0.25</text>
+          <text class="edge-label" x="178" y="70">ρ = 0.15</text>
+          <text class="edge-label" x="178" y="140">ρ = 0.35</text>
+          <text class="edge-label" x="22" y="196">all Gaussian</text>
+        </svg>
+        <svg class="vine-t3" viewBox="0 0 204 210" aria-hidden="true" focusable="false">
+          <text class="tree-title" x="22" y="16">TREE 3</text>
+          <ellipse cx="106" cy="100" rx="82" ry="21" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="node-label" x="106" y="104" text-anchor="middle">G, S, E | W, F</text>
+          <text class="edge-label" x="106" y="142" text-anchor="middle">independence</text>
+          <text class="edge-label" x="106" y="161" text-anchor="middle">— nothing left to link</text>
+        </svg>
+      </div>
     </div>
 
     <p><b>Why Gumbel in tree 1.</b> The Gumbel copula has <i>upper-tail dependence</i>: as one
