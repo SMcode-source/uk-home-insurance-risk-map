@@ -512,16 +512,14 @@ __NAV__
     <h3>First, what the copula is and is not joining</h3>
     <p>The vine joins the <b>five perils of one district</b> — whether that home's bad
     subsidence year is also its bad storm year. It says nothing about whether Croydon and
-    Hull flood in the <i>same</i> year. That is a <b>separate mechanism</b>: each district
-    mixes the national state of a peril with its own local luck,</p>
-    <div class="formula">u<sub>district</sub> = Φ( √w · Φ⁻¹(u<sub>systemic</sub>) + √(1−w) · ε )</div>
-    <p>with the loading <i>w</i> set per peril — droughts and windstorms are national
-    (subsidence 0.60, groundwater 0.70, weather 0.50), flooding more localised (0.40) — and
-    then scaled so a 1-in-100 year claims twice as widely as an average one. The two
-    mechanisms meet because the vine draws <i>are</i> the systemic factors: the vine decides
-    that a bad national storm year is also likely a bad flood year, and the loading decides
-    how much of that reaches any particular district. Marginals are preserved exactly either
-    way, so this changes who claims together, never how often anyone claims.</p>
+    Hull flood in the <i>same</i> year. Dependence <i>across the map</i> is a
+    <b>separate mechanism</b>, a Gaussian factor model described under
+    <a href="#years">good years vs bad years</a>.</p>
+    <p>The two meet at one point: the vine draws <i>are</i> the systemic factors that model
+    mixes in. So the vine decides that a bad national storm year is also likely a bad flood
+    year, and the spatial loading decides how much of that reaches any particular district.
+    Keeping them apart is what lets each be calibrated against something real — the vine
+    against per-peril physics, the loading against how widely a 1-in-100 year claims.</p>
 
     <h3>Where it can reach the price at all</h3>
     <p>Only one place, and it is a small one. The technical premium is
@@ -595,9 +593,16 @@ __NAV__
     <div class="formula">u<sub>district</sub> = Φ( √w · Φ⁻¹(u<sub>systemic</sub>) + √(1−w) · ε )</div>
     <p>The loading <b>w</b> sets how national each peril is: weather 50%, flood 40%,
     subsidence 60%, groundwater 70% — storms, droughts and aquifer recharge are large-scale
-    phenomena, while flooding is more localised. This transformation preserves each
-    district's marginal distribution exactly, so premiums are untouched; it only changes how
-    claims cluster across the map within a year.</p>
+    phenomena, while flooding is more localised. Those base ratios are then scaled by a
+    single multiplier, solved analytically so that a 1-in-100 year claims twice as widely as
+    an average one.</p>
+    <p>The transformation preserves each district's marginal distribution exactly, so
+    <b>expected loss is untouched</b> — bit-for-bit, whatever the loading. But it is not
+    cosmetic: <b>capital is allocated from the portfolio tail measured in this view</b>, so
+    the loading does move the cost-of-capital component. Raising it eightfold leaves every
+    expected loss unchanged while raising the capital charge fourfold and the premium by
+    about a fifth. That is precisely why the multiplier is calibrated against how widely a
+    bad year claims, rather than picked.</p>
     <p><a href="years.html">See the resulting analysis →</a></p>
   </section>
 
