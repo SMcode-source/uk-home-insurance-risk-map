@@ -322,9 +322,17 @@ districts**, used as the exposure weight throughout.
     `https://catalogue.ceda.ac.uk/uuid/91cb9985a6c2453d99084bde4ff5f314`
     (`uk-mean-wind-obs`), OGL, **but downloads need a CEDA account** —
     free, human registration at
-    `https://services.ceda.ac.uk/cedasite/register/info/`; anonymous
-    "downloads" are 8 KB HTML login pages (same wall as the HadUK
-    NetCDFs above). Once a copy is on disk,
+    `https://services.ceda.ac.uk/cedasite/register/info/`; directory
+    listings are anonymous but every file GET 302s to "Unauthenticated"
+    (same wall as the HadUK NetCDFs above). **Fetch route:** the account
+    holder creates an access token at
+    `https://services.ceda.ac.uk/account/token/` (~72 h validity) and
+    saves it as the only line of `~/.ceda_token`;
+    `scripts/fetch_midas.py` then mirrors the latest dataset-version
+    (qcv-1, ≥1970) into `data/midas/`, validating every body starts
+    `Conventions,G,BADC-CSV` — an expired token otherwise saves
+    thousands of login pages under `.csv` names, discovered only at
+    parse time. Once the mirror is on disk,
     `scripts/gusts_from_midas.py <download-root>` reduces it to the
     exact `data/gusts.csv` contract (per-station daily-gust p98 +
     Gumbel 1-in-50, knots→km/h) and refuses to emit fewer than 50

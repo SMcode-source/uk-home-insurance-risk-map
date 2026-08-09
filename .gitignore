@@ -25,6 +25,9 @@ data/sw_wales20.csv
 # Derived sector polygons (~tens of MB; rebuild: fetch_codepoint.py then
 # derive_sectors.py, ~15 min). Not a model input yet - see DATA_SOURCES.
 data/sectors_gb.gpkg
+# MIDAS Open mirror (needs a CEDA token; refetch: fetch_midas.py).
+# The derived data/gusts_midas.csv IS committed once produced.
+data/midas/
 
 # Build outputs — the published copies live in docs/ (built by build_site.py)
 map/uk_home_insurance_risk_map.html
