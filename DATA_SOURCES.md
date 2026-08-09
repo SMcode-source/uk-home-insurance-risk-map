@@ -303,6 +303,58 @@ districts**, used as the exposure weight throughout.
       `Countries_December_2025_Boundaries_UK_BGC`); list the services
       rather than guessing the pattern.
 
+23. **OS Code-Point Open — unit-postcode centroids** (for the derived
+    postcode-sector polygons, not a model input yet):
+    `https://api.os.uk/downloads/v1/products/CodePointOpen/downloads?area=GB&format=CSV&redirect`
+    — keyless, ~1.7 M current GB postcodes with 1 m-resolution BNG
+    centroids. OS OpenData licence (OGL-compatible; attribution
+    "Contains OS data © Crown copyright and database right", plus Royal
+    Mail/ONS for the postcode data). Fetched by
+    `scripts/fetch_codepoint.py`. **Quirks:** the CSVs have *no header
+    row* (column names live in `Doc/Code-Point_Open_Column_Headers.csv`
+    inside the zip); postcodes come space-padded to 7 characters
+    (`"YO1 1AA"`, `"YO25 6QP"` both occur) — normalise by stripping
+    spaces, inward code is always the last 3 characters; `quality=90`
+    rows have **no coordinates** (0,0) and must be dropped.
+
+24. **Met Office MIDAS Open — station wind/gust observations** (the
+    intended upgrade for the gust component): catalogue
+    `https://catalogue.ceda.ac.uk/uuid/91cb9985a6c2453d99084bde4ff5f314`
+    (`uk-mean-wind-obs`), OGL, **but downloads need a CEDA account** —
+    free, human registration at
+    `https://services.ceda.ac.uk/cedasite/register/info/`; anonymous
+    "downloads" are 8 KB HTML login pages (same wall as the HadUK
+    NetCDFs above). Once a copy is on disk,
+    `scripts/gusts_from_midas.py <download-root>` reduces it to the
+    exact `data/gusts.csv` contract (per-station daily-gust p98 +
+    Gumbel 1-in-50, knots→km/h) and refuses to emit fewer than 50
+    stations. Use **qcv-1** files only; the processor ignores qcv-0.
+
+## Blocked on non-open data — what each would unblock
+
+Kept here so nobody re-derives the shopping list. None of these have an
+open substitute; every open path was checked (see dead ends below).
+
+- **A claims triangle** (insurer bordereaux or ABI member-level data;
+  not published at any price — it needs a data-sharing agreement with an
+  insurer). Unblocks: fitting the pair-copulas from data
+  (`pyvinecopulib` replaces the assumed θ(s) forms), and real
+  frequency/severity distributions instead of ABI-calibrated compound
+  Bernoulli×LogNormal. This is the single highest-value dataset the
+  model lacks.
+- **PAF / AddressBase** (Royal Mail licence via a reseller, or OS
+  AddressBase Premium — both licensed, hundreds to thousands of £/yr
+  depending on tier). Unblocks: real dwelling counts below district
+  level, sum insured proxies (property type/age), construction type —
+  i.e. exposure that is currently census households uniformly smeared
+  over each district.
+- **BGS superficial thickness** (licensed BGS product; the open 625k
+  layer publishes extent only). Unblocks: making `SUP_WEIGHT` physical
+  instead of a bounded 0.5 prior — see the dose-response runs in the
+  project notes.
+- **MIDAS Open** is *not* money-blocked — it is one free registration
+  away (#24). Everything downstream of the download is already built.
+
 ## Not used / dead ends (so you don't repeat them)
 
 - `environment.data.gov.uk/arcgis/rest/...` — EA's old ArcGIS root: gone.
@@ -326,6 +378,15 @@ districts**, used as the exposure weight throughout.
   the present-day and climate services are edition stamps of the same
   layers, not epochs.) A climate *ladder* is therefore unavailable from the
   EA flood extents, though NCERM does publish one for erosion.
-- **Postcode-sector boundaries for England & Wales**: not open. Only Scotland
-  publishes sector polygons; E&W publish postcode→sector *lookups* only, so
-  sector-level geography would mean deriving polygons from ONSPD centroids.
+- **Postcode-sector boundaries for England & Wales**: not published. Only
+  Scotland has official sector polygons; E&W publish postcode→sector
+  *lookups* only. **Derived instead (2026-08-08)**: sectors nest inside
+  districts by definition, so `derive_sectors.py` Voronoi-partitions each
+  modelled district's own Code-Point Open centroids (#23) and dissolves by
+  inward digit — 10,398 sectors over all 2,736 districts, each district's
+  partition exact by construction (asserted, not assumed). Output
+  `data/sectors_gb.gpkg` (25 MB, gitignored; ~5 min to rebuild). Not a
+  model input: that would mean re-rasterising every hazard over ~10k
+  geometries (~4× the raster work) and re-validating exposure — a decision,
+  not a step. Validation against Scotland's official sectors is the obvious
+  next probe if sector-level modelling is ever green-lit.

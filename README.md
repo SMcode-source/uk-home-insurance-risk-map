@@ -522,6 +522,14 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
                                                      # next day; the weather blend auto-includes gusts once >=60
                                                      # grid points exist, and falls back to 4 components until then)
 .venv/Scripts/python scripts/fetch_history.py        # 35yr ERA5 hazard drivers -> data/history.csv (backtest)
+# Optional upgrade for the gust component, once you have a (free) CEDA account
+# and a local download of MIDAS Open uk-mean-wind-obs (DATA_SOURCES.md #24):
+#   .venv/Scripts/python scripts/gusts_from_midas.py <download-root>
+#   -> data/gusts_midas.csv; compare, then copy over data/gusts.csv and rebuild
+# Optional, not a model input: derive postcode-SECTOR polygons (open data;
+# only Scotland publishes official ones) - DATA_SOURCES.md #23:
+#   .venv/Scripts/python scripts/fetch_codepoint.py
+#   .venv/Scripts/python -u scripts/derive_sectors.py   # -> data/sectors_gb.gpkg
 .venv/Scripts/python scripts/fetch_households.py     # ONS lookup + census -> data/households.csv (exposure, ~22MB dl)
 .venv/Scripts/python scripts/build_model.py          # calibrate + vine sim -> districts_risk.geojson + year_analysis.json (~55 min;
                                                      # the 5th vine dimension roughly doubled this - the extra Gumbel
