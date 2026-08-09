@@ -56,6 +56,15 @@ MAX_PLAUSIBLE_KMH = 300.0
 # days observed or its "maximum" is just the maximum of a gap.
 MIN_YEARS = 20
 MIN_DAYS_PER_YEAR = 300
+# Stations measure where THEY stand, not where homes do. The first real
+# run's top extremes were Cairngorm summit (1,237 m, rp50 283 km/h) and
+# Great Dun Fell (847 m) — true measurements of a climate no dwelling is
+# exposed to, and IDW smeared them across the valley districts nearby
+# (every top-10 mover vs ERA5 was a Sheffield district downwind of a
+# 395 m moor). Highest sizeable UK settlements sit near 400 m; 300 m
+# keeps every town while dropping summit stations. Stations with no
+# height in their header are kept but counted.
+MAX_STATION_ALTITUDE_M = 300.0
 
 
 def parse_badc_csv(text):
@@ -153,9 +162,17 @@ def collect_daily_maxima(root):
                    or re.sub(r"^0+", "", name.split("_")[-3]
                              if name.count("_") >= 3 else ""))
             sid = str(int(sid)) if sid.isdigit() else (sid or name)
-            st = stations.setdefault(sid, {"days": {}, "latlon": None})
+            st = stations.setdefault(sid, {"days": {}, "latlon": None,
+                                           "alt": None})
             if st["latlon"] is None:
                 st["latlon"] = meta.get(sid) or station_location(header)
+            if st["alt"] is None:
+                hrow = header.get("height")
+                if hrow:
+                    try:
+                        st["alt"] = float(hrow[0])
+                    except ValueError:
+                        pass
             days = st["days"]
             for row in rows:
                 v = row.get("max_gust_speed", "").strip()
@@ -201,7 +218,7 @@ def main(root, out_path):
             f"right directory? Expected files like midas-open_uk-mean-"
             f"wind-obs_dv-202407_..._qcv-1_1995.csv")
 
-    kept, thin, unlocated = 0, 0, 0
+    kept, thin, unlocated, high, no_alt = 0, 0, 0, 0, 0
     with open(out_path, "w", newline="") as fh:
         w = csv.writer(fh)
         w.writerow(["x", "y", "gust_p98", "gust_rp50"])
@@ -209,6 +226,11 @@ def main(root, out_path):
             st = stations[sid]
             if st["latlon"] is None:
                 unlocated += 1
+                continue
+            if st["alt"] is None:
+                no_alt += 1
+            elif st["alt"] > MAX_STATION_ALTITUDE_M:
+                high += 1
                 continue
             reduced = reduce_station(st["days"])
             if reduced is None:
@@ -221,7 +243,9 @@ def main(root, out_path):
             kept += 1
     print(f"kept {kept} stations "
           f"({thin} below {MIN_YEARS}y/{MIN_DAYS_PER_YEAR}d coverage, "
-          f"{unlocated} without coordinates)", flush=True)
+          f"{high} above {MAX_STATION_ALTITUDE_M:.0f} m, "
+          f"{unlocated} without coordinates, "
+          f"{no_alt} kept without a height record)", flush=True)
     # A "successful" run that kept a handful of stations would IDW a few
     # points across the whole country and silently degrade the weather
     # score. Refuse instead - the ERA5 grid stays in place until the
@@ -242,6 +266,7 @@ SELFTEST_STATION = """Conventions,G,BADC-CSV,1
 title,G,synthetic test station
 midas_station_id,G,{sid}
 location,G,{lat},{lon}
+height,G,{alt},m
 data
 ob_end_time,id,max_gust_speed,max_gust_speed_q
 {rows}
@@ -262,10 +287,12 @@ def _selftest():
     rng = np.random.default_rng(42)
     with tempfile.TemporaryDirectory() as tmp:
         os.makedirs(os.path.join(tmp, "qc-version-1"))
-        # 25 years x 365 days x 2 obs/day for the good station; the thin
-        # station gets 5 years and must be dropped.
-        for sid, lat, lon, years in (("901", 51.5, -0.1, 25),
-                                     ("902", 53.0, -1.5, 5)):
+        # 25 years for the good station; the thin station gets 5 years
+        # and must be dropped; the summit station parses a 1200 m height
+        # (the altitude gate itself lives in main's loop).
+        for sid, lat, lon, alt, years in (("901", 51.5, -0.1, 25.0, 25),
+                                          ("902", 53.0, -1.5, 80.0, 5),
+                                          ("903", 57.1, -3.6, 1200.0, 25)):
             rows = []
             # 12 months x 28 days = 336 distinct dates per year, above
             # the 300-day coverage gate, with no invalid calendar dates
@@ -281,12 +308,16 @@ def _selftest():
                 f"{sid.zfill(5)}_x_qcv-1_{sid}.csv")
             with open(path, "w") as fh:
                 fh.write(SELFTEST_STATION.format(
-                    sid=sid, lat=lat, lon=lon, rows="\n".join(rows)))
+                    sid=sid, lat=lat, lon=lon, alt=alt,
+                    rows="\n".join(rows)))
 
         stations, n_files = collect_daily_maxima(tmp)
-        assert n_files == 2, f"expected 2 files, saw {n_files}"
+        assert n_files == 3, f"expected 3 files, saw {n_files}"
         good = stations["901"]
         assert good["latlon"] == (51.5, -0.1)
+        assert good["alt"] == 25.0, f"height row not parsed: {good['alt']}"
+        assert stations["903"]["alt"] > MAX_STATION_ALTITUDE_M, (
+            "the summit station must parse as above the altitude gate")
         # two obs per day must collapse to one daily maximum
         assert len(good["days"]) == 336 * 25, len(good["days"])
         reduced = reduce_station(good["days"])
