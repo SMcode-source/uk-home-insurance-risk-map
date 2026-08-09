@@ -66,7 +66,11 @@ scripts/
   fetch_erosion.py            EA NCERM coastal frontages -> erosion.csv (England)
   fetch_countries.py          ONS country boundaries -> country.csv, the
                               coverage mask for every England-only dataset
-  fetch_gusts.py              ERA5 gust extremes -> 1-in-50 gust per grid point
+  fetch_midas.py              mirrors MIDAS Open station wind obs from CEDA
+  gusts_from_midas.py         station obs -> 1-in-50 gust per station (the
+                              model's gust source since 2026-08-10)
+  fetch_gusts.py              ERA5 gust extremes (fallback without a CEDA
+                              account; the model's source before 2026-08-10)
   fetch_history.py            35 years of ERA5 hazard drivers -> backtest
   fetch_households.py         ONS/NRS census households per district (exposure)
   scores_real.py              data -> per-district peril scores
@@ -146,8 +150,14 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
      baseline), annual count of ≥10 mm rain days and annual precipitation
      (**HadUK-Grid observations 1991–2020**) — plus a true extreme-value
      component: the **1-in-50-year gust** per district, from Gumbel fits to
-     35 years of ERA5 daily gust maxima (`scripts/fetch_gusts.py`; ECMWF
-     reanalysis via Open-Meteo, the one non-Met-Office weather input).
+     annual gust maxima at **191 Met Office MIDAS stations** (1970–2025,
+     ≥20 years' coverage, stations above 300 m excluded — Cairngorm summit
+     measures a climate nobody lives in; `scripts/fetch_midas.py` +
+     `gusts_from_midas.py`, CEDA account needed). Before 2026-08-10 this
+     component was ERA5 reanalysis (`scripts/fetch_gusts.py`, kept as the
+     no-account fallback); stations move the relativities toward measured
+     coastal exposure — Fraserburgh, Blyth and the Whitby/Norfolk coasts
+     up, sheltered Welsh valleys down — at an unchanged national level.
      Score = 0.30·wind + 0.25·WDR + 0.20·gust₅₀ + 0.15·rain days +
      0.10·precipitation, each normalised 5th–95th percentile.
 2. **Flood — rivers & sea** (`scripts/fetch_flood.py`). Official flood-extent
@@ -517,15 +527,16 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
                                                      # while sharing the machine. Resumable, so interrupt freely.)
 # download Postcodes_Risk_Assessment_All.csv (see DATA_SOURCES.md #13) to data/ea_postcode_risk.csv, then:
 .venv/Scripts/python scripts/fetch_groundwater.py    # groundwater flags -> data/gw_fractions.csv
-.venv/Scripts/python scripts/fetch_gusts.py          # ERA5 gust extremes -> data/gusts.csv (resumable; the free
-                                                     # Open-Meteo tier has a daily volume quota - if it 429s, rerun
-                                                     # next day; the weather blend auto-includes gusts once >=60
-                                                     # grid points exist, and falls back to 4 components until then)
+# Gusts - data/gusts.csv is MIDAS station extremes (since 2026-08-10). To
+# refresh it you need a (free) CEDA account and token (DATA_SOURCES.md #24):
+.venv/Scripts/python -u scripts/fetch_midas.py       # mirror uk-mean-wind-obs -> data/midas/ (~8 GB, resumable)
+.venv/Scripts/python scripts/gusts_from_midas.py data/midas/uk-mean-wind-obs
+#                                                    # -> data/gusts_midas.csv; copy over data/gusts.csv
+# No CEDA account? The previous source still works as a fallback:
+#   .venv/Scripts/python scripts/fetch_gusts.py      # ERA5 -> data/gusts.csv (Open-Meteo free tier has a daily
+#                                                    # quota - if it 429s, rerun next day; the weather blend
+#                                                    # auto-includes gusts once >=60 points exist)
 .venv/Scripts/python scripts/fetch_history.py        # 35yr ERA5 hazard drivers -> data/history.csv (backtest)
-# Optional upgrade for the gust component, once you have a (free) CEDA account
-# and a local download of MIDAS Open uk-mean-wind-obs (DATA_SOURCES.md #24):
-#   .venv/Scripts/python scripts/gusts_from_midas.py <download-root>
-#   -> data/gusts_midas.csv; compare, then copy over data/gusts.csv and rebuild
 # Optional, not a model input: derive postcode-SECTOR polygons (open data;
 # only Scotland publishes official ones) - DATA_SOURCES.md #23:
 #   .venv/Scripts/python scripts/fetch_codepoint.py
@@ -624,10 +635,10 @@ priced product:
   this peril would conflate two mechanisms. Adding the layer is therefore a
   modelling decision, not a fetch — but it is not licence-blocked, and the
   earlier wording here implied it was;
-- the weather blend now includes a Gumbel-fitted 1-in-50 gust from ERA5
-  reanalysis, but ERA5 underestimates local gust peaks vs station records —
-  for storm pricing, fit to Met Office MIDAS station gusts (CEDA login) or
-  licensed event sets;
+- the 1-in-50 gust is fitted per MIDAS station and IDW-interpolated from
+  191 points (median 15 km to the nearest station), so station siting still
+  leaves local noise a licensed storm event set would not; stations above
+  300 m are excluded because they measure summits, not homes;
 - the flood fractions are area-based (13–100 m rasters) from *defended*
   present-day extents — property-level receptor counts and defence-failure
   scenarios are not included; FRAW (Wales) is notably more conservative than

@@ -330,8 +330,11 @@ def weather_from_metoffice(targets_bng):
     """targets_bng: (n, 2) array of district centroids in EPSG:27700.
 
     Returns (score in [0,1], dict of raw interpolated variables).
-    Blends Met Office climatologies with an ERA5 extreme-gust component
-    (1-in-50-year gust, Gumbel-fitted annual maxima — see fetch_gusts.py).
+    Blends Met Office climatologies with an extreme-gust component
+    (1-in-50-year gust, Gumbel-fitted annual maxima). Since 2026-08-10
+    gusts.csv holds MIDAS station extremes (gusts_from_midas.py); before
+    that, ERA5 grid points (fetch_gusts.py, still the no-CEDA fallback).
+    Either way it is scattered (x, y, rp50) points and IDW below.
     """
     raw = {}
     for name in ["wind", "wdr", "rain10", "precip"]:

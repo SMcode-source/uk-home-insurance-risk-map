@@ -212,7 +212,7 @@
         </tr>
         <tr>
           <td><strong style="color:var(--wx)">Weather</strong></td>
-          <td>Met Office (+ ERA5 gusts)</td>
+          <td>Met Office (incl. MIDAS station gusts)</td>
           <td>Winter wind, wind-driven rain index, 1-in-50 gust, ≥10 mm rain days, annual rainfall</td>
           <td class="num">to 10.0%/yr</td><td class="num">£3,500</td>
         </tr>
@@ -705,7 +705,7 @@
         <tr><td><strong>British Geological Survey</strong></td><td>Geology 625k bedrock (11,244 formations)</td><td>Subsidence</td></tr>
         <tr><td><strong>Met Office</strong></td><td>Winter wind speed 5 km; wind-driven rain index 5 km (UKCP18 baseline)</td><td>Weather</td></tr>
         <tr><td><strong>Met Office</strong></td><td>HadUK-Grid 1991–2020: ≥10 mm rain days, annual precipitation</td><td>Weather</td></tr>
-        <tr><td><strong>ECMWF</strong> (via Open-Meteo)</td><td>ERA5 daily gust maxima 1990–2024 → Gumbel-fitted 1-in-50 gust</td><td>Weather extremes</td></tr>
+        <tr><td><strong>Met Office MIDAS Open</strong> (via CEDA)</td><td>Station gust observations 1970–2025 → Gumbel-fitted 1-in-50 gust at 191 stations ≤300 m</td><td>Weather extremes</td></tr>
         <tr><td><strong>Environment Agency</strong></td><td>NaFRA2 rivers &amp; sea defended flood extents (England)</td><td>Flood</td></tr>
         <tr><td><strong>Natural Resources Wales</strong></td><td>FRAW rivers, sea and surface water (Wales)</td><td>Flood</td></tr>
         <tr><td><strong>SEPA</strong></td><td>River, coastal and surface-water flood maps (Scotland)</td><td>Flood</td></tr>
@@ -722,8 +722,9 @@
     </div>
     <p class="note">A note on honesty in sourcing: HadUK-Grid's NetCDF files on CEDA require a
     login, so the same HadUK-derived climatologies are taken from the Met Office's anonymous
-    Climate Data Portal instead. The gust extremes are ERA5 (ECMWF reanalysis), not a Met
-    Office product — the one non-Met-Office weather input, flagged as such wherever it appears.</p>
+    Climate Data Portal instead. The gust extremes DO come from behind that login — MIDAS
+    Open needs a (free) CEDA account to download; without one, the repo's ERA5 fallback
+    (<code>fetch_gusts.py</code>) reproduces the pre-2026-08-10 gust surface instead.</p>
   </section>
 
   <section class="doc" id="repro">
@@ -739,7 +740,7 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 .venv/Scripts/python scripts/fetch_flood.py          # river/sea flood extents   (~20 min)
 .venv/Scripts/python scripts/fetch_surface_water.py  # surface-water extents     (~60 min)
 .venv/Scripts/python scripts/fetch_groundwater.py    # groundwater alert flags
-.venv/Scripts/python scripts/fetch_gusts.py          # ERA5 gust extremes (resumable)
+.venv/Scripts/python scripts/fetch_midas.py          # MIDAS station gusts (CEDA token; ERA5 fetch_gusts.py = fallback)
 .venv/Scripts/python scripts/fetch_history.py        # 35yr ERA5 drivers, for the backtest
 .venv/Scripts/python scripts/fetch_households.py     # census households -> exposure weights
 
@@ -788,8 +789,13 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
       cluster towards the shore, and an 80-year projection is annualised into a flat yearly
       hazard. It is reported separately from the premium throughout — see
       <a href="#erosion">coastal erosion</a>.</li>
-      <li><b>ERA5 underestimates local gust peaks</b> relative to station records. Serious storm
-      pricing would fit to Met Office MIDAS station gusts or a licensed event set.</li>
+      <li><b>The 1-in-50 gust is fitted at 191 MIDAS stations</b> (≥20 years' coverage,
+      stations above 300&nbsp;m excluded — a summit anemometer measures a climate nobody
+      lives in) and interpolated between them, median 15&nbsp;km to the nearest station —
+      so station siting still leaves local noise a licensed storm event set would not.
+      Until 2026-08-10 this component was ERA5 reanalysis, which smooths coastal gust
+      peaks; the swap moved coastal districts up and sheltered valleys down at an
+      unchanged national level.</li>
       <li><b>Northern Ireland is out of scope</b> — the boundary set is GB-only and NI has no
       anonymous flood service.</li>
     </ul>

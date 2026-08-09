@@ -21,7 +21,7 @@ dates: 2026-07-29/30, plus 2026-08-01 for sources 20–21.
 | 11 | FRAW surface water & small watercourses | Natural Resources Wales | `scripts/fetch_surface_water.py` | ↳ same (+ `data/sw_wales20.csv` via `merge_sw_wales.py`) |
 | 12 | Surface water flood maps (medium/low likelihood) | SEPA | `scripts/fetch_surface_water.py` | ↳ same |
 | 13 | Flood risk: postcode search tool data (incl. GWTR_RISK groundwater flag) | Environment Agency | manual download (URL below) | `data/ea_postcode_risk.csv` (36 MB) → `data/gw_fractions.csv` via `scripts/fetch_groundwater.py` |
-| 14 | Daily 10 m wind-gust maxima 1990–2024 (ERA5 reanalysis) | ECMWF via Open-Meteo archive API (CC-BY 4.0; **not** Met Office) | `scripts/fetch_gusts.py` | `data/gusts.csv` (90 grid points, p98 + Gumbel-fitted 1-in-50 gust: 124–196 km/h) |
+| 14 | Daily 10 m wind-gust maxima 1990–2024 (ERA5 reanalysis) | ECMWF via Open-Meteo archive API (CC-BY 4.0; **not** Met Office) | `scripts/fetch_gusts.py` | **fallback only since 2026-08-10** — regenerates an ERA5 `data/gusts.csv` without a CEDA account (90 grid points, rp50 124–196 km/h) |
 | 15 | Daily gusts, precipitation and max temperature 1990–2024 (ERA5) | ECMWF via Open-Meteo (CC-BY 4.0) | `scripts/fetch_history.py` | `data/history.csv` (12 points → per-year storm days, peak gust, wettest 5-day, JJA deficit) — the backtest |
 | 16 | UK domestic claims by peril, 2025 | Association of British Insurers (published statistics) | manual (figures embedded in `build_model.py`) | Calibration anchors: storm £244m @ £2,450 avg; flood £312m @ £30,000; subsidence £307m @ £17,820; ~15.5m policies; £3.4bn / 560,000 all-perils home claims for context |
 | 17 | Postcode → OA / LSOA / MSOA / LAD best-fit lookup (Aug 2023) | ONS Open Geography Portal | `scripts/fetch_households.py` | 2.6m postcodes → census small areas (22 MB zip, cached) |
@@ -30,6 +30,8 @@ dates: 2026-07-29/30, plus 2026-08-01 for sources 20–21.
 | 20 | Surface-water flood **depth** bands (NaFRA2 RoFSW, >0.2/0.3/0.6/0.9/1.2 m) | Environment Agency | `scripts/fetch_sw_depth.py` | `data/sw_depth.csv` (derived; England only) |
 | 21 | National Coastal Erosion Risk Mapping (NCERM) National 2024 | Environment Agency | `scripts/fetch_erosion.py` | `data/erosion.csv` (derived; England only) |
 | 22 | Countries (December 2025) UK BGC boundaries | ONS Open Geography Portal | `scripts/fetch_countries.py` | `data/country.csv` — the coverage mask for every England-only dataset |
+| 23 | Code-Point Open (GB unit-postcode centroids) | Ordnance Survey (OS OpenData) | `scripts/fetch_codepoint.py` | `data/cache/codepoint_open.zip` → `data/sectors_gb.gpkg` via `derive_sectors.py` (derived sector polygons; **not a model input**) |
+| 24 | MIDAS Open uk-mean-wind-obs (station wind/gust observations 1970–2025) | Met Office via CEDA (OGL; account needed to download) | `scripts/fetch_midas.py` + `gusts_from_midas.py` | `data/gusts_midas.csv` → **`data/gusts.csv` (the model's gust source since 2026-08-10)**: 191 stations ≥20 y coverage, ≤300 m altitude, rp50 105–211 km/h |
 
 Together 17–19 produce `data/households.csv` — **27.3m households across 2,995
 districts**, used as the exposure weight throughout.
@@ -332,7 +334,12 @@ districts**, used as the exposure weight throughout.
     (qcv-1, ≥1970) into `data/midas/`, validating every body starts
     `Conventions,G,BADC-CSV` — an expired token otherwise saves
     thousands of login pages under `.csv` names, discovered only at
-    parse time. Once the mirror is on disk,
+    parse time. **This is the model's gust source since 2026-08-10**
+    (mirror fetched 2026-08-09: 10,983 files, 8.4 GB). The processor
+    excludes stations above 300 m — the first run kept Cairngorm summit
+    (1,237 m) and its rp50 of 283 km/h smeared across valley districts;
+    summit anemometers measure a climate nobody lives in. Once a mirror
+    is on disk,
     `scripts/gusts_from_midas.py <download-root>` reduces it to the
     exact `data/gusts.csv` contract (per-station daily-gust p98 +
     Gumbel 1-in-50, knots→km/h) and refuses to emit fewer than 50
@@ -360,8 +367,10 @@ open substitute; every open path was checked (see dead ends below).
   layer publishes extent only). Unblocks: making `SUP_WEIGHT` physical
   instead of a bounded 0.5 prior — see the dose-response runs in the
   project notes.
-- **MIDAS Open** is *not* money-blocked — it is one free registration
-  away (#24). Everything downstream of the download is already built.
+- ~~MIDAS Open~~ **unblocked and LIVE since 2026-08-10** (#24): the user
+  registered, the mirror was fetched and the model's gust component now
+  runs on station extremes. Kept here so the pattern is remembered: it
+  was never money-blocked, only one registration away.
 
 ## Not used / dead ends (so you don't repeat them)
 
