@@ -1,0 +1,162 @@
+name: sector model
+
+# NOTE (main branch copy): this workflow only makes sense dispatched
+# with --ref sector-model - that branch carries the sector geometry and
+# seam. It lives on main solely because GitHub only registers
+# dispatchable workflows from the default branch.
+
+# The whole sector-level pipeline, off the laptop: fetch the four
+# geometry-keyed hazard datasets over the 10,398 derived sector polygons
+# (in parallel - they are independent services), then build the model
+# and COMMIT the results to this branch, so nothing depends on a machine
+# that sleeps or on 14-day artifact expiry.
+#
+# This branch is an experiment pipeline: the full test preflight is NOT
+# run here (several tests read the committed district outputs, which
+# this branch deliberately deletes). The model's own identity suite
+# runs against the freshly built sector output instead.
+#
+# Known risk, accepted: EA/NRW/SEPA have never been fetched from GitHub
+# runner IPs before (BGS famously blocks them; that is why the geology
+# comes from this repo's mirror). If a service throttles runners the
+# fetch job fails loudly and the fallback is a slow local resume.
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_fetch:
+        description: "Reuse committed sector hazard CSVs; just rebuild"
+        type: boolean
+        default: false
+
+concurrency:
+  group: sector-model
+  cancel-in-progress: false
+
+jobs:
+  erosion:
+    if: ${{ !inputs.skip_fetch }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - run: python -u scripts/fetch_erosion.py
+      - uses: actions/upload-artifact@v4
+        with: { name: sector-erosion, path: data/erosion.csv, retention-days: 14 }
+
+  flood:
+    if: ${{ !inputs.skip_fetch }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - run: python -u scripts/fetch_flood.py
+      - uses: actions/upload-artifact@v4
+        with: { name: sector-flood, path: data/flood_fractions.csv, retention-days: 14 }
+
+  surface-water:
+    if: ${{ !inputs.skip_fetch }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - run: python -u scripts/fetch_surface_water.py
+      - uses: actions/upload-artifact@v4
+        with: { name: sector-sw, path: data/sw_fractions.csv, retention-days: 14 }
+
+  depth:
+    if: ${{ !inputs.skip_fetch }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - run: python -u scripts/fetch_sw_depth.py
+      - uses: actions/upload-artifact@v4
+        with: { name: sector-depth, path: data/sw_depth.csv, retention-days: 14 }
+
+  model:
+    # needs: all four, but tolerate the skip_fetch path where none ran
+    needs: [erosion, flood, surface-water, depth]
+    if: ${{ always() && !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Overlay fetched hazard data
+        if: ${{ !inputs.skip_fetch }}
+        uses: actions/download-artifact@v4
+        with:
+          path: data
+          merge-multiple: true
+
+      # Geology from the repo's own mirror - BGS blocks runner IPs
+      # (same block and hashes as rebuild.yml; see DATA_SOURCES.md #2).
+      - name: Download BGS geology from the data mirror
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download data-bgs-625k-v1 --dir data             --pattern 'bgs_625k_*.geojson.gz'
+          gunzip data/bgs_625k_bedrock.geojson.gz                  data/bgs_625k_superficial.geojson.gz
+          sha256sum -c <<'SUMS'
+          66524b94dfeb491a746994dfa5e334b52a9b15a42f82c15977df1d5c100c3fb7  data/bgs_625k_bedrock.geojson
+          a029e2ab61190c7103983c33d77c24743c7bb2c9fcfcd25ebd063ab9f3c38aee  data/bgs_625k_superficial.geojson
+          SUMS
+          python -u scripts/fetch_bgs.py --verify
+
+      - name: Build the sector model
+        env:
+          UKRISK_THREADS: "0"
+        run: python -u scripts/build_model.py
+
+      - name: Check the output against the model's own identities
+        run: python -m pytest tests -q -k identities
+
+      - name: Commit sector outputs to this branch
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/erosion.csv data/flood_fractions.csv \
+                  data/sw_fractions.csv data/sw_depth.csv \
+                  data/districts_risk.geojson data/year_analysis.json
+          if git diff --cached --quiet; then
+            echo "nothing new to commit"
+          else
+            git commit -m "Sector model: cloud fetch + build (run ${{ github.run_number }})"
+            git push origin HEAD
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sector-model-output
+          path: |
+            data/districts_risk.geojson
+            data/year_analysis.json
+          retention-days: 14
