@@ -67,7 +67,10 @@ def fetch_official():
             break
         for f in feats:
             name = " ".join(f["properties"]["sector"].split()).upper()
-            g = shapely.geometry.shape(f["geometry"])
+            # make_valid BEFORE any set op: 1 m-rounded coastline rings
+            # self-touch, and GEOS throws "side location conflict" on
+            # the first intersection with them (it did)
+            g = shapely.make_valid(shapely.geometry.shape(f["geometry"]))
             geoms[name] = (shapely.union_all([geoms[name], g])
                            if name in geoms else g)
         offset += len(feats)
@@ -84,6 +87,7 @@ def main():
     mine = gpd.read_file(os.path.join(ROOT, "data", "sectors_gb.gpkg"))
     mine = mine[mine["sector"].str.match(r"^(AB|DD|DG|EH|FK|G|HS|IV|KA|KW|"
                                          r"KY|ML|PA|PH|TD|ZE)\d")]
+    mine = mine.assign(geometry=shapely.make_valid(mine.geometry.values))
     print(f"{len(mine):,} derived Scottish sectors", flush=True)
 
     # sector-level IoU over the shared names
