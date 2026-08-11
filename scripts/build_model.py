@@ -176,15 +176,22 @@ def check_simulated_columns(sim):
 
 
 def load_districts() -> gpd.GeoDataFrame:
-    frames = []
-    for path in sorted(glob.glob(os.path.join(DATA, "uk-postcode-polygons", "geojson", "*.geojson"))):
-        gdf = gpd.read_file(path)
-        gdf["area"] = os.path.splitext(os.path.basename(path))[0]
-        frames.append(gdf[["name", "area", "geometry"]])
-    gdf = pd.concat(frames, ignore_index=True)
-    gdf = gpd.GeoDataFrame(gdf, crs="EPSG:4326")
+    """SECTOR-MODEL BRANCH: the geography atom is the postcode sector.
+
+    Same signature and column contract as the district loader on main —
+    `name` is the unit key (now e.g. "YO25 6", with a space), `area` the
+    postcode area — so every consumer downstream is unchanged. The
+    polygons are the derived sector partition (derive_sectors.py):
+    10,398 sectors nested exactly inside the 2,736 districts, which is
+    what makes sector results aggregable back to the published district
+    model for validation. `district` and `n_units` ride along for that.
+    """
+    gdf = gpd.read_file(os.path.join(DATA, "sectors_gb.gpkg"))
+    gdf = gdf.rename(columns={"sector": "name"})
+    gdf["area"] = gdf["name"].str.extract(r"^([A-Z]{1,2})", expand=False)
+    gdf = gdf.to_crs(4326)
     gdf["geometry"] = shapely.make_valid(gdf.geometry.values)
-    return gdf
+    return gdf[["name", "area", "district", "n_units", "geometry"]]
 
 
 # ------------------------------------------------- marginal loss models

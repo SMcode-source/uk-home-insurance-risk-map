@@ -127,9 +127,14 @@ def postcode_rows():
                 pc, area = row[pc_i].strip(), row[area_i].strip()
                 if not pc or not area or area.startswith("N"):
                     continue
-                out = pc.split()[0] if " " in pc else pc[:-3].strip()
-                if out:
-                    yield out.upper(), area
+                # sector-model branch: key on "OUTWARD D". The inward
+                # code is ALWAYS the last three characters, however the
+                # column pads ("YO25 6QP", "S1  1AA", fixed-width pcd7).
+                compact = pc.replace(" ", "")
+                if len(compact) < 5:
+                    continue
+                out, inward = compact[:-3], compact[-3:]
+                yield f"{out.upper()} {inward[0]}", area
 
 
 def main():
