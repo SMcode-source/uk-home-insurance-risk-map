@@ -3,7 +3,7 @@
 Every external dataset used by the model: what it is, where it comes from, how
 it is fetched, its licence, and any access quirks discovered along the way. All
 sources are **open data** (Open Government Licence v3 unless noted). Access
-dates: 2026-07-29/30, plus 2026-08-01 for sources 20–21.
+dates: 2026-07-29/30; 2026-08-01 for sources 20–21; 2026-08-08/09 for 23–24.
 
 | # | Dataset | Publisher | Fetched by | Local file(s) |
 |---|---------|-----------|------------|---------------|
