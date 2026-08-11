@@ -39,14 +39,16 @@ def load(path):
 def main(district_path):
     sectors = load(os.path.join(ROOT, "data", "districts_risk.geojson"))
     districts = {d["name"]: d for d in load(district_path)}
-    if "district" not in sectors[0]:
-        raise SystemExit("this branch's geojson has no `district` column - "
-                         "is data/districts_risk.geojson really the sector "
+    if " " not in sectors[0]["name"]:
+        raise SystemExit("names carry no sector digit - is this branch's "
+                         "data/districts_risk.geojson really the sector "
                          "build?")
 
+    # OUTPUT_COLUMNS does not carry `district`; the sector name encodes
+    # it ("AB10 1" -> AB10) by construction of the derivation
     by_dist = defaultdict(list)
     for s in sectors:
-        by_dist[s["district"]].append(s)
+        by_dist[s["name"].rsplit(" ", 1)[0]].append(s)
     print(f"{len(sectors):,} sectors over {len(by_dist):,} districts "
           f"({len(districts):,} in the published model)")
 
