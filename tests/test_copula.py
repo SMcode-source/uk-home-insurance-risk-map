@@ -698,9 +698,22 @@ def test_published_geojson_satisfies_the_models_own_identities():
     assert (col("tvar99_vine") >= col("var995_vine") - 0.15).all()
     assert (col("tvar99_vine5") >= col("tvar99_vine") - 0.15).all()
 
-    # climate repricing
+    # climate repricing. SECTOR-MODEL BRANCH: the climate fetches are
+    # deliberately deferred (see the branch's first commit), so the
+    # coverage identity only applies when the climate inputs exist -
+    # a guard on an input that was intentionally not provided is not a
+    # guard, it is a veto on the phase plan. Everything else about the
+    # cc columns must still hold in the all-absent state.
     cov = col("cc_covered") > 0
-    assert cov.any() and not cov.all()
+    has_climate_inputs = os.path.exists(
+        os.path.join(os.path.dirname(__file__), "..", "data",
+                     "flood_fractions_cc.csv"))
+    if has_climate_inputs:
+        assert cov.any() and not cov.all()
+    else:
+        assert not cov.any(), (
+            "cc_covered set without climate inputs on disk - where did "
+            "the coverage come from?")
     pc = col("premium_cc")
     assert np.abs(pc - (col("el_total_cc") + col("capital_cc"))).max() <= 0.15
     assert (col("cc_uplift_pct")[~cov] == 0).all()

@@ -131,6 +131,18 @@ jobs:
           UKRISK_THREADS: "0"
         run: python -u scripts/build_model.py
 
+      # Artifact BEFORE the identity gate: a failed assertion should
+      # leave the 14-minute build inspectable, not vaporise it with the
+      # runner (run 31536995030 did exactly that).
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: sector-model-output-raw
+          path: |
+            data/districts_risk.geojson
+            data/year_analysis.json
+          retention-days: 14
+
       - name: Check the output against the model's own identities
         run: python -m pytest tests -q -k identities
 
