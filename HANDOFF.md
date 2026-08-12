@@ -56,6 +56,32 @@ premium **£59.07** over 27.26m households. All figures re-verified from
 the committed output on 2026-08-12, after the gust swap and the
 exposure fix.
 
+## Added 2026-08-12: the climate layer at sector resolution
+
+Both maps now carry every layer. The EA's climate-change editions were
+re-rasterised over the 10,398 sectors - surface water and depth bands
+on runners (~66 min via the workflow's `climate=true` pass), rivers/sea
+from the laptop because the EA 403s runner IPs for that WMS - and both
+simulations rebuilt in the cloud. 8,730 of 10,398 sectors are covered.
+
+National agreement holds (**+11.2%** exposure-weighted over covered
+sectors vs **+10.5%** over covered districts) but the tails diverge:
+worst district **DN32 +200%**, worst sector **PO6 9 +308%**, and where
+the district model finds **one** district whose flood risk falls under
+the scenario, the sector model finds **184**. The EA's future run is a
+separate model, not a uniform uplift, so those improvements were always
+in the data - district-level averaging just cancelled them against
+worsening neighbours.
+
+**Two traps this pass cost:** a workflow run checks out the SHA it was
+DISPATCHED with, so a job cannot see a commit you push after
+dispatching (a model job was building a no-climate model for exactly
+this reason - cancel and take its artifacts instead). And
+`flood_future()` needs the flood AND surface-water climate editions
+together, returning no repricing view if either is missing, which is
+why a partial pass degrades safely instead of publishing half a
+scenario.
+
 ## Fixed 2026-08-12: households were apportioned to DEAD postcodes
 
 ONSPD retains terminated postcodes - **897,835 of 2,694,205 rows, 33%**
@@ -205,12 +231,6 @@ remains the no-account fallback and regenerates the pre-swap surface.
 
 ## What remains, honestly
 
-- **The sector map has no climate scenario.** Everything else was
-  re-aggregated over the 10,398 sectors; the EA's future flood extents
-  were not, so that one layer is omitted there. Closing it means
-  re-running `fetch_flood.py --climate`, `fetch_surface_water.py
-  --climate` and `fetch_sw_depth.py --climate` at sector resolution -
-  cloud-friendly except rivers/sea, which the EA 403s from runners.
 - **Sector geometry is derived, not official**, and always will be for
   England & Wales. Measured cost: none beyond the district outlines it
   inherits (NRS Scotland, sector IoU 0.706 vs district IoU 0.689) - but

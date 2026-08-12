@@ -411,9 +411,8 @@ open substitute; every open path was checked (see dead ends below).
   locally). Validated against Scotland's official sectors by
   `scripts/validate_sectors_scotland.py`: sector IoU **0.706** vs
   district IoU **0.689**, i.e. the Voronoi step adds no error beyond the
-  district outlines it inherits. Two things the sector build does NOT
-  have: the climate-change extents (not re-rasterised at this
-  resolution, so that layer is omitted from the sector map rather than
-  drawn blank) and the ~2.7% of exposure that ONSPD allocates to
-  terminated postcodes, which have no Code-Point centroid and so no
-  sector polygon.
+  district outlines it inherits. The climate-change editions were
+  re-rasterised over the sectors too (2026-08-12): surface water and
+  depth on runners, rivers/sea from a laptop - the EA 403s runner IPs
+  for that WMS after ~3.5 h, the same block BGS applies. 8,730 of
+  10,398 sectors fall inside EA climate coverage.
