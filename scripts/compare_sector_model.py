@@ -3,11 +3,12 @@
 Sectors nest exactly inside districts (derive_sectors.py), so the
 sector model can be aggregated back and compared like-for-like:
 
-  python scripts/compare_sector_model.py <district districts_risk.geojson>
+  python scripts/compare_sector_model.py [sectors.geojson] [districts.geojson]
 
-where the argument is the PUBLISHED district model (main's
-data/districts_risk.geojson) and this branch's data/districts_risk.geojson
-holds the sector build. Three questions, in order of importance:
+Defaults to the two published outputs on main - data/sectors_risk.geojson
+and data/districts_risk.geojson. (On the sector-model branch the sector
+build is itself data/districts_risk.geojson, so pass it explicitly there.)
+Three questions, in order of importance:
 
 1. CONSISTENCY - do household-weighted sector premiums aggregate back
    to roughly the district premium? Large systematic drift would mean
@@ -36,8 +37,8 @@ def load(path):
     return [f["properties"] for f in gj["features"]]
 
 
-def main(district_path):
-    sectors = load(os.path.join(ROOT, "data", "districts_risk.geojson"))
+def main(sector_path, district_path):
+    sectors = load(sector_path)
     districts = {d["name"]: d for d in load(district_path)}
     if " " not in sectors[0]["name"]:
         raise SystemExit("names carry no sector digit - is this branch's "
@@ -112,6 +113,8 @@ def main(district_path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        raise SystemExit(__doc__)
-    main(sys.argv[1])
+    args = sys.argv[1:]
+    sec = args[0] if args else os.path.join(ROOT, "data", "sectors_risk.geojson")
+    dis = args[1] if len(args) > 1 else os.path.join(
+        ROOT, "data", "districts_risk.geojson")
+    main(sec, dis)

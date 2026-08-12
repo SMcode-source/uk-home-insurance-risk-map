@@ -872,25 +872,21 @@ def test_the_sector_model_nests_inside_the_district_model():
         f"{len(uncovered)} modelled districts have no sectors, first "
         f"{uncovered[:5]} - the partition is incomplete")
 
-    # Exposure agrees to within a few per cent, and the gap has a KNOWN
-    # cause worth stating rather than tolerating blindly: ONSPD retains
-    # terminated postcodes (897,835 of 2.69m rows, 33%) and
-    # fetch_households.py apportions LSOA households across all of them.
-    # Code-Point Open carries only live postcodes, so a sector whose
-    # postcodes are all dead gets no polygon - and the ~730k homes that
-    # ONSPD allocated to those dead sectors have nowhere to land. They
-    # are phantom homes in the district model too; the sector build is
-    # simply where the phantom becomes visible. Fixing it properly means
-    # filtering on `doterm`, which moves every exposure weight and so
-    # every published premium - a model change, not a publication
-    # detail. See HANDOFF.md.
+    # Exposure must now agree to a fraction of a per cent. It did NOT
+    # before 2026-08-12: the sector build ran 2.7% light because ONSPD
+    # retains terminated postcodes (a third of its rows) and households
+    # were apportioned across them, so wholly-dead sectors were credited
+    # ~730k homes but had no Code-Point centroid and hence no polygon.
+    # Excluding terminated postcodes closed the gap to -0.06%, which is
+    # the residue of districts whose sectors are not all in the boundary
+    # set. Keep this tight: a re-widening means phantom exposure is back.
     hh_d = sum(p.get("households", 0) for p in districts.values())
     hh_s = sum(p.get("households", 0) for p in sectors)
-    assert -0.04 < hh_s / hh_d - 1 <= 0.0, (
-        f"exposure mismatch outside the known terminated-postcode gap: "
-        f"{hh_d:,.0f} households across districts vs {hh_s:,.0f} across "
-        f"sectors ({100 * (hh_s / hh_d - 1):+.1f}%) - a NEW cause of "
-        f"exposure loss, or exposure invented at sector level")
+    assert abs(hh_s / hh_d - 1) < 0.005, (
+        f"exposure diverged between scales: {hh_d:,.0f} households across "
+        f"districts vs {hh_s:,.0f} across sectors "
+        f"({100 * (hh_s / hh_d - 1):+.2f}%) - phantom exposure is back, or "
+        f"a new cause of loss has appeared")
 
     num = den = 0.0
     for name, group in by_district.items():

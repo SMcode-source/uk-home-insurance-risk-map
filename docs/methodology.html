@@ -735,7 +735,7 @@
         <h3>One district, two very different risks</h3>
         <p>Of the <b>2,248</b> districts holding more than one sector, the
         median contains sectors whose technical premiums differ by
-        <b>1.42&times;</b>; in <b>437</b> of them the gap exceeds
+        <b>1.42&times;</b>; in <b>438</b> of them the gap exceeds
         twofold. The widest is <b>CB8</b> at <b>8.1&times;</b> —
         £29 to £237 across 5 sectors.
         The pattern is physical, not noise: the extremes are flood-led districts split by
@@ -753,11 +753,13 @@
       <li><b>Rating groups are deciles of each map's own units</b>, so a group 7 sector
       and a group 7 district describe different populations. Compare premiums, not
       group numbers.</li>
-      <li><b>Exposure is ~2.7% lower</b> than the district model's. ONSPD retains
-      terminated postcodes — a third of its rows — and household counts are apportioned
-      across all of them, so sectors whose postcodes are all dead receive homes but no
-      polygon. Those homes are phantom in both models; the sector map is where they
-      become visible.</li>
+      <li><b>Exposure now matches the district model to 0.06%.</b> It was 2.7% short
+      until this map found the reason: ONSPD retains terminated postcodes — a third of
+      its rows — and household counts were being apportioned across them, so roughly
+      730,000 homes sat on addresses that no longer exist. Those phantom homes were in
+      the district model too; sectors are simply where they became visible, because a
+      dead postcode has no Code-Point centroid and so no polygon to land in. Both
+      models were rebuilt without them on 2026-08-12.</li>
     </ul>
     <p><a href="sectors.html">Open the sector map →</a> &middot;
     <a href="assets/uk_sector_risk.csv">download every sector as CSV</a></p>
