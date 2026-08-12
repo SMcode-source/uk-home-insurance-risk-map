@@ -182,10 +182,12 @@ the auto-memory; these are the NEW ones:
   diff. `build_map.web_asset` sorts its columns; verified by building
   twice in separate processes and comparing md5.
 - **A layer with no data is OMITTED, not drawn blank.** The sector map
-  has no climate scenario (the EA extents were never re-rasterised at
-  that resolution), and offering the layer would paint the country grey
-  under a legend saying "not modelled — England only", which is a false
-  statement about *why* it is empty. `OMIT_METRICS` in the template.
+  shipped without the climate layer until its EA extents were fetched
+  (they since have been, so `OMIT_METRICS` is empty again) - because
+  offering it would have painted the country grey under a legend
+  reading "not modelled — England only", a false statement about *why*
+  it was empty. Keep the mechanism: the next dataset to arrive late
+  will need it.
 - **The EA WMS throttles GitHub runners like BGS does.** Surface water,
   depth and erosion all fetched fine from Actions over the 10,398
   sectors, but rivers/sea served ~3.5 h and then 403'd every request at
