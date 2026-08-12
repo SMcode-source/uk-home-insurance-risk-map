@@ -21,8 +21,8 @@ charges both halves of a district the average of a risk only one half
 has. The splits are physical: a river through half a district, a clay
 boundary under the other.
 
-Open decision left on the table: **whether to fix the exposure bug
-below**, which would move every published premium slightly.
+That work also turned up a real bug in the exposure weights, which is
+now fixed in both models - see below. Nothing is outstanding.
 
 ## Previously (2026-08-10): the model's gust source changed
 
@@ -49,30 +49,35 @@ is in the vine but deliberately outside the premium. A climate scenario
 reprices on the EA's future flood extents: +10% exposure-weighted over
 2,087 English districts.
 
-## Open finding: households are apportioned to DEAD postcodes
+## Fixed 2026-08-12: households were apportioned to DEAD postcodes
 
 ONSPD retains terminated postcodes - **897,835 of 2,694,205 rows, 33%**
-- and `fetch_households.py` spreads LSOA household counts across all of
-them. Live postcodes are therefore diluted, and ~730k homes are
-credited to addresses that no longer exist. It surfaced only because
-Code-Point Open (live postcodes only) gave those dead sectors no
-polygon, so the sector build is 2.7% lighter on exposure than the
-district build.
+- and `fetch_households.py` spread LSOA household counts across all of
+them, crediting roughly 730,000 homes to addresses that no longer
+exist. Every exposure weight in the model was slightly wrong, and had
+been from the start.
 
-**Priced on `exp/live-postcodes`** (one-line `doterm` filter, then
-regenerate households.csv): exposure-weighted premium **-0.25%**, **40
-districts (1.5%) change rating group**, none by more than one; the
-movers are rural/remote (EX38, CA9, KW16, IV40, HS2), i.e. exactly the
-places with the most postcode churn per live address. The national
-total is unchanged - LSOA totals are fixed, only their apportionment
-moves.
+It surfaced only because of the sector build: a dead postcode has no
+Code-Point centroid, so wholly-dead sectors got no polygon and 2.7% of
+exposure had nowhere to land. That mismatch was the symptom; the
+phantom homes were the disease, and they were in the district model
+too.
 
-It is a genuine correction and cheap to take; it is left as the user's
-call because it moves every published premium. **Trap:** `rebuild.yml`
-does NOT run `fetch_households.py`, it reads the committed CSV - the
-first dispatch of this experiment patched only the fetcher and
-reproduced main exactly, which looks like "no impact" and is actually a
-void run. Regenerate and commit the CSV, then dispatch.
+Fixed by filtering on `doterm`, priced first on `exp/live-postcodes`
+(now deleted) and then applied to both resolutions: premium level
+**-0.25%**, **40 districts (1.5%) change rating group**, none by more
+than one, movers concentrated in rural/remote districts with the most
+postcode churn per live address. National total unchanged - LSOA
+totals are fixed, only their apportionment moved. **The sector/district
+exposure gap closed from -2.75% to -0.06%**, and the nesting test's
+tolerance was tightened from 4% to 0.5% so phantom exposure cannot
+creep back.
+
+**Trap worth remembering:** `rebuild.yml` does NOT run
+`fetch_households.py` - it reads the committed CSV. The first attempt
+to price this patched only the fetcher, reproduced main byte-for-byte,
+and looked exactly like "no impact". Regenerate and commit the CSV,
+then dispatch.
 
 ## The experiment-branch pattern (how model decisions get made here)
 
