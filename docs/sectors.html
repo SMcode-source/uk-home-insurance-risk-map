@@ -5,23 +5,23 @@
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
-<meta name="description" content="Eleven layers across 2,736 postcode districts: rating group, premium, each peril score, surface-water depth, coastal erosion and the climate repricing. Click any district for its breakdown.">
+<meta name="description" content="The same model at postcode-sector resolution: 10,398 units instead of 2,736. Nineteen per cent of districts turn out to hold sectors that differ by more than 2x in premium.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="UK Home Insurance Risk Map">
-<meta property="og:title" content="Interactive map — UK Home Insurance Risk Map">
-<meta property="og:description" content="Eleven layers across 2,736 postcode districts: rating group, premium, each peril score, surface-water depth, coastal erosion and the climate repricing. Click any district for its breakdown.">
-<meta property="og:url" content="https://smcode-source.github.io/uk-home-insurance-risk-map/map.html">
+<meta property="og:title" content="Sector map — UK Home Insurance Risk Map">
+<meta property="og:description" content="The same model at postcode-sector resolution: 10,398 units instead of 2,736. Nineteen per cent of districts turn out to hold sectors that differ by more than 2x in premium.">
+<meta property="og:url" content="https://smcode-source.github.io/uk-home-insurance-risk-map/sectors.html">
 <meta property="og:image" content="https://smcode-source.github.io/uk-home-insurance-risk-map/assets/social.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Choropleth of Great Britain shaded by home-insurance rating group, with the title UK Home Insurance Risk Map">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Interactive map — UK Home Insurance Risk Map">
-<meta name="twitter:description" content="Eleven layers across 2,736 postcode districts: rating group, premium, each peril score, surface-water depth, coastal erosion and the climate repricing. Click any district for its breakdown.">
+<meta name="twitter:title" content="Sector map — UK Home Insurance Risk Map">
+<meta name="twitter:description" content="The same model at postcode-sector resolution: 10,398 units instead of 2,736. Nineteen per cent of districts turn out to hold sectors that differ by more than 2x in premium.">
 <meta name="twitter:image" content="https://smcode-source.github.io/uk-home-insurance-risk-map/assets/social.png">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Interactive map — UK Home Insurance Risk Map</title>
+<title>Sector map — UK Home Insurance Risk Map</title>
 <style>/* required styles */
 
 .leaflet-pane,
@@ -909,42 +909,42 @@ body { overflow: hidden; }
 </style>
 </head>
 <body>
-<nav class="site-nav"><a class="brand" href="index.html"><span class="dots"><i style="background:var(--sub)"></i><i style="background:var(--wx)"></i><i style="background:var(--fl)"></i><i style="background:var(--gw)"></i></span><span class="txt">UK Home Insurance Risk Map</span></a><a class="navlink" href="index.html">Overview</a><a class="navlink" href="map.html" aria-current="page">Map</a><a class="navlink" href="sectors.html"><span class="nav-full">Sector map</span><span class="nav-short">Sectors</span></a><a class="navlink" href="years.html"><span class="nav-full">Good vs bad years</span><span class="nav-short">Years</span></a><a class="navlink" href="methodology.html"><span class="nav-full">Methodology</span><span class="nav-short">Method</span></a><span class="spacer"></span><a class="ghlink" href="https://github.com/SMcode-source/uk-home-insurance-risk-map">GitHub ↗</a></nav>
+<nav class="site-nav"><a class="brand" href="index.html"><span class="dots"><i style="background:var(--sub)"></i><i style="background:var(--wx)"></i><i style="background:var(--fl)"></i><i style="background:var(--gw)"></i></span><span class="txt">UK Home Insurance Risk Map</span></a><a class="navlink" href="index.html">Overview</a><a class="navlink" href="map.html">Map</a><a class="navlink" href="sectors.html" aria-current="page"><span class="nav-full">Sector map</span><span class="nav-short">Sectors</span></a><a class="navlink" href="years.html"><span class="nav-full">Good vs bad years</span><span class="nav-short">Years</span></a><a class="navlink" href="methodology.html"><span class="nav-full">Methodology</span><span class="nav-short">Method</span></a><span class="spacer"></span><a class="ghlink" href="https://github.com/SMcode-source/uk-home-insurance-risk-map">GitHub ↗</a></nav>
 <main aria-label="Interactive risk map">
 <!-- The districts render to a single canvas, so there is nothing under
      the pointer for a screen reader or keyboard — no per-district DOM at
      all. Until that changes, say so up front and point at the two
      accessible routes to the same numbers. -->
-<p class="visually-hidden">The map draws its 2,736 districts on a canvas,
-so they cannot be tabbed through. Use the district search box in the
-controls panel to open any district's full details (Escape closes them,
-and Control plus an arrow key walks to the neighbouring district in that
+<p class="visually-hidden">The map draws its 10,398 sectors on a canvas,
+so they cannot be tabbed through. Use the sector search box in the
+controls panel to open any sector's full details (Escape closes them,
+and Control plus an arrow key walks to the neighbouring sector in that
 direction). The same numbers are also available as a
-<a href="assets/uk_district_risk.csv">downloadable CSV</a> and through the
+<a href="assets/uk_sector_risk.csv">downloadable CSV</a> and through the
 <a href="index.html#lookup">postcode district lookup on the overview
 page</a>.</p>
 <div id="map"></div>
 
 <div id="controls" class="panel">
   <h1>UK home insurance risk map</h1>
-  <div class="sub">2,736 postcode districts &middot; subsidence &times; weather &times; flood &times; groundwater &middot; C-vine copula</div>
+  <div class="sub">10,398 postcode sectors &middot; subsidence &times; weather &times; flood &times; groundwater &middot; C-vine copula</div>
   <!-- Two resolutions of the same model, published side by side. Each
        map links to the other, because "there is a finer view of this"
        is invisible from inside a map. -->
-  <div class="sub scale-switch">Districts &middot; <a href="sectors.html">switch to the finer postcode-sector map &rarr;</a></div>
-  <!-- The keyboard route to any district: the polygons render to one
+  <div class="sub scale-switch">Sectors &middot; <a href="map.html">back to the postcode-district map &rarr;</a></div>
+  <!-- The keyboard route to any sector: the polygons render to one
        canvas, so this box is the only non-pointer way in. A native
        datalist, because it gets combobox keyboard/reader behaviour right
        for free where a hand-rolled ARIA combobox usually gets something
        wrong. Options are filled once the data arrives. -->
   <div class="search-row">
     <input type="search" id="districtSearch" list="districtList"
-           placeholder="Find a district — e.g. YO25"
-           aria-label="Find a postcode district" autocomplete="off"
+           placeholder="Find a sector — e.g. YO25 6"
+           aria-label="Find a postcode sector" autocomplete="off"
            disabled>
     <datalist id="districtList"></datalist>
   </div>
-  <div class="sub" id="searchHint">Enter opens a district &middot; Esc closes it &middot; Ctrl+arrows walk to the neighbour in that direction</div>
+  <div class="sub" id="searchHint">Enter opens a sector &middot; Esc closes it &middot; Ctrl+arrows walk to the neighbour in that direction</div>
   <div class="metric-btns" id="metricBtns" role="group" aria-label="Map layer"></div>
 </div>
 
@@ -1005,22 +1005,22 @@ page</a>.</p>
   policy also covers escape of water, theft, fire and accidental damage, plus expenses and
   profit. What is <i>not</i> fitted is the geography and the dependence.</p>
   <p><b>Rating groups.</b> Technical premium = expected loss + 6% cost-of-capital on the
-  district's <b>Euler-allocated</b> share of <i>portfolio</i> tail risk &mdash; its expected
-  loss given the whole book is in its worst 1% of years &mdash; so cross-district
+  sector's <b>Euler-allocated</b> share of <i>portfolio</i> tail risk &mdash; its expected
+  loss given the whole book is in its worst 1% of years &mdash; so cross-sector
   diversification is credited rather than charging every home for its own private worst
   year. TVaR (expected shortfall) rather than VaR: with rare compound losses, tail
   dependence concentrates claims into fewer, worse years, so VaR can move the wrong way
   while TVaR stays monotone in dependence. <b>Rating groups are deciles of THIS map's
   own units</b>, so a group 7 sector and a group 7 district are not the same
   population &mdash; compare the premiums, not the group numbers.</p>
-  
+  <p><b>Geography.</b> Postcode-sector boundaries are not published for England &amp; Wales, so these are <b>derived</b>: each district is partitioned between its own unit-postcode centroids (OS Code-Point Open) and the cells dissolved by sector digit. Scored against the one published set &mdash; NRS&rsquo;s official Scottish sectors &mdash; the derivation adds no measurable error beyond the district outlines it inherits (median IoU 0.706 vs 0.689). <b>The climate-change repricing is not modelled at this resolution yet</b>; use the district map for that layer.</p>
   <p class="note">Hazard data: BGS Geology 625k, Met Office HadUK-Grid / Climate
   Data Portal, EA / NRW / SEPA flood maps, EA flood-risk postcode data (all OGL).
   Loss frequencies/severities and copula parameters are illustrative assumptions,
   not calibrated to claims. Boundaries: uk-postcode-polygons. See DATA_SOURCES.md
   in the repo for every endpoint, licence and access date.</p>
-  <p><b>The data behind this map:</b> every district and column as a
-  <a href="assets/uk_district_risk.csv">CSV download</a>, or look up a single
+  <p><b>The data behind this map:</b> every sector and column as a
+  <a href="assets/uk_sector_risk.csv">CSV download</a>, or look up a single
   district with the <a href="index.html#lookup">postcode search</a>.</p>
 </details>
 </main>
@@ -1352,7 +1352,7 @@ function popupHtml(p) {
     row('θ weather–erosion', p.theta_we.toFixed(2) + ' (λᵤ ' + p.tail_dep_we.toFixed(2) + ')'));
 
   return '<div class="pop"><div class="hd">' + p.name + '</div>' +
-    '<div style="color:var(--ink-muted);font-size:11.5px">postcode district · area ' + p.area +
+    '<div style="color:var(--ink-muted);font-size:11.5px">postcode sector · area ' + p.area +
     ' · ' + Math.round(p.households).toLocaleString('en-GB') + ' households</div>' +
     '<div class="pop-headline">' +
     '<span class="pill">Group ' + p.group + ' of 10</span>' +
@@ -1425,7 +1425,7 @@ const btnBox = document.getElementById('metricBtns');
    sector with the "not modelled - England only" grey and caption it as
    a coverage limit, which is a false statement about WHY it is blank.
    Substituted by build_map.py; empty for the district build. */
-const OMIT_METRICS = new Set([]);
+const OMIT_METRICS = new Set(["cc_uplift"]);
 for (const key of Object.keys(METRICS)) {
   if (OMIT_METRICS.has(key)) continue;
   const b = document.createElement('button');
@@ -1721,7 +1721,7 @@ function keepClearWhenSettled(popup) {
 
 } /* end initMap */
 
-fetch('assets/map_data.geojson')
+fetch('assets/sector_data.geojson')
   .then(r => {
     if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + r.url);
     return r.json();

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Interactive map — UK Home Insurance Risk Map</title>
+<title>__PAGE_TITLE__</title>
 <style>__LEAFLET_CSS__</style>
 <style>
   :root {
@@ -75,6 +75,9 @@
   }
   #districtSearch:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   #searchHint { margin-bottom: 8px; }
+  .scale-switch { margin: -4px 0 8px; }
+  .scale-switch a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  .scale-switch a:hover { text-decoration: underline; }
   .metric-btns { display: flex; flex-direction: column; gap: 4px; }
   .metric-btns button {
     text-align: left; font: inherit; font-size: 12.5px;
@@ -163,32 +166,36 @@
      the pointer for a screen reader or keyboard — no per-district DOM at
      all. Until that changes, say so up front and point at the two
      accessible routes to the same numbers. -->
-<p class="visually-hidden">The map draws its 2,736 districts on a canvas,
-so they cannot be tabbed through. Use the district search box in the
-controls panel to open any district's full details (Escape closes them,
-and Control plus an arrow key walks to the neighbouring district in that
+<p class="visually-hidden">The map draws its __N_UNITS__ __UNIT_PLURAL__ on a canvas,
+so they cannot be tabbed through. Use the __UNIT__ search box in the
+controls panel to open any __UNIT__'s full details (Escape closes them,
+and Control plus an arrow key walks to the neighbouring __UNIT__ in that
 direction). The same numbers are also available as a
-<a href="assets/uk_district_risk.csv">downloadable CSV</a> and through the
+<a href="__CSV_ASSET__">downloadable CSV</a> and through the
 <a href="index.html#lookup">postcode district lookup on the overview
 page</a>.</p>
 <div id="map"></div>
 
 <div id="controls" class="panel">
   <h1>UK home insurance risk map</h1>
-  <div class="sub">2,736 postcode districts &middot; subsidence &times; weather &times; flood &times; groundwater &middot; C-vine copula</div>
-  <!-- The keyboard route to any district: the polygons render to one
+  <div class="sub">__N_UNITS__ postcode __UNIT_PLURAL__ &middot; subsidence &times; weather &times; flood &times; groundwater &middot; C-vine copula</div>
+  <!-- Two resolutions of the same model, published side by side. Each
+       map links to the other, because "there is a finer view of this"
+       is invisible from inside a map. -->
+  <div class="sub scale-switch">__SIBLING_LINK__</div>
+  <!-- The keyboard route to any __UNIT__: the polygons render to one
        canvas, so this box is the only non-pointer way in. A native
        datalist, because it gets combobox keyboard/reader behaviour right
        for free where a hand-rolled ARIA combobox usually gets something
        wrong. Options are filled once the data arrives. -->
   <div class="search-row">
     <input type="search" id="districtSearch" list="districtList"
-           placeholder="Find a district — e.g. YO25"
-           aria-label="Find a postcode district" autocomplete="off"
+           placeholder="Find a __UNIT__ — e.g. __EXAMPLE__"
+           aria-label="Find a postcode __UNIT__" autocomplete="off"
            disabled>
     <datalist id="districtList"></datalist>
   </div>
-  <div class="sub" id="searchHint">Enter opens a district &middot; Esc closes it &middot; Ctrl+arrows walk to the neighbour in that direction</div>
+  <div class="sub" id="searchHint">Enter opens a __UNIT__ &middot; Esc closes it &middot; Ctrl+arrows walk to the neighbour in that direction</div>
   <div class="metric-btns" id="metricBtns" role="group" aria-label="Map layer"></div>
 </div>
 
@@ -249,19 +256,22 @@ page</a>.</p>
   policy also covers escape of water, theft, fire and accidental damage, plus expenses and
   profit. What is <i>not</i> fitted is the geography and the dependence.</p>
   <p><b>Rating groups.</b> Technical premium = expected loss + 6% cost-of-capital on the
-  district's <b>Euler-allocated</b> share of <i>portfolio</i> tail risk &mdash; its expected
-  loss given the whole book is in its worst 1% of years &mdash; so cross-district
+  __UNIT__'s <b>Euler-allocated</b> share of <i>portfolio</i> tail risk &mdash; its expected
+  loss given the whole book is in its worst 1% of years &mdash; so cross-__UNIT__
   diversification is credited rather than charging every home for its own private worst
   year. TVaR (expected shortfall) rather than VaR: with rare compound losses, tail
   dependence concentrates claims into fewer, worse years, so VaR can move the wrong way
-  while TVaR stays monotone in dependence.</p>
+  while TVaR stays monotone in dependence. <b>Rating groups are deciles of THIS map's
+  own units</b>, so a group 7 sector and a group 7 district are not the same
+  population &mdash; compare the premiums, not the group numbers.</p>
+  __GEOGRAPHY_NOTE__
   <p class="note">Hazard data: BGS Geology 625k, Met Office HadUK-Grid / Climate
   Data Portal, EA / NRW / SEPA flood maps, EA flood-risk postcode data (all OGL).
   Loss frequencies/severities and copula parameters are illustrative assumptions,
   not calibrated to claims. Boundaries: uk-postcode-polygons. See DATA_SOURCES.md
   in the repo for every endpoint, licence and access date.</p>
-  <p><b>The data behind this map:</b> every district and column as a
-  <a href="assets/uk_district_risk.csv">CSV download</a>, or look up a single
+  <p><b>The data behind this map:</b> every __UNIT__ and column as a
+  <a href="__CSV_ASSET__">CSV download</a>, or look up a single
   district with the <a href="index.html#lookup">postcode search</a>.</p>
 </details>
 </main>
@@ -588,7 +598,7 @@ function popupHtml(p) {
     row('θ weather–erosion', p.theta_we.toFixed(2) + ' (λᵤ ' + p.tail_dep_we.toFixed(2) + ')'));
 
   return '<div class="pop"><div class="hd">' + p.name + '</div>' +
-    '<div style="color:var(--ink-muted);font-size:11.5px">postcode district · area ' + p.area +
+    '<div style="color:var(--ink-muted);font-size:11.5px">postcode __UNIT__ · area ' + p.area +
     ' · ' + Math.round(p.households).toLocaleString('en-GB') + ' households</div>' +
     '<div class="pop-headline">' +
     '<span class="pill">Group ' + p.group + ' of 10</span>' +
@@ -656,7 +666,14 @@ const layer = L.geoJSON(DATA, {
 
 /* ---- controls & legend ---- */
 const btnBox = document.getElementById('metricBtns');
+/* Layers this build has no data for. Offering one anyway is worse than
+   omitting it: the climate layer at sector resolution would paint every
+   sector with the "not modelled - England only" grey and caption it as
+   a coverage limit, which is a false statement about WHY it is blank.
+   Substituted by build_map.py; empty for the district build. */
+const OMIT_METRICS = new Set(__OMIT_METRICS__);
 for (const key of Object.keys(METRICS)) {
+  if (OMIT_METRICS.has(key)) continue;
   const b = document.createElement('button');
   b.textContent = METRICS[key].label;
   b.dataset.key = key;
@@ -739,7 +756,7 @@ function goToDistrict(target, flash) {
 }
 
 const search = document.getElementById('districtSearch');
-/* one string, one parse: 2,736 createElement calls are visibly slower */
+/* one string, one parse: 10k createElement calls are visibly slower */
 document.getElementById('districtList').innerHTML =
   feats.map(f => '<option value="' + f.properties.name + '">').join('');
 search.disabled = false;
@@ -763,7 +780,7 @@ const ARROWS = { ArrowUp: [0, -1], ArrowDown: [0, 1],
 
 /* Nearest district centre inside a 90-degree cone in the pressed
    direction, preferring straight-ahead (off-axis drift counts double).
-   A linear scan over 2,736 cached bounds is well under a millisecond —
+   A linear scan over every cached bound is well under a millisecond —
    no adjacency graph needed. */
 function stepToNeighbour(fromPopup, dir) {
   const origin = map.latLngToLayerPoint(fromPopup.getLatLng());
@@ -847,7 +864,7 @@ map.on('popupclose', e => {
 (function () {
   const q = new URLSearchParams(location.search);
   const m = q.get('m');
-  if (m && METRICS[m]) setMetric(m);
+  if (m && METRICS[m] && !OMIT_METRICS.has(m)) setMetric(m);
   const target = findDistrict(q.get('d'));
   if (target) goToDistrict(target, true);
 })();
@@ -950,7 +967,7 @@ function keepClearWhenSettled(popup) {
 
 } /* end initMap */
 
-fetch('assets/map_data.geojson')
+fetch('__DATA_ASSET__')
   .then(r => {
     if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + r.url);
     return r.json();

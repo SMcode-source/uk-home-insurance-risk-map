@@ -1,0 +1,8 @@
+{
+  "n_official": 959,
+  "n_compared": 959,
+  "sector_iou_median": 0.706,
+  "district_iou_median": 0.689,
+  "pct_above_50": 82,
+  "pct_above_70": 51
+}

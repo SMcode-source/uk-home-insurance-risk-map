@@ -402,8 +402,18 @@ open substitute; every open path was checked (see dead ends below).
   modelled district's own Code-Point Open centroids (#23) and dissolves by
   inward digit — 10,398 sectors over all 2,736 districts, each district's
   partition exact by construction (asserted, not assumed). Output
-  `data/sectors_gb.gpkg` (25 MB, gitignored; ~5 min to rebuild). Not a
-  model input: that would mean re-rasterising every hazard over ~10k
-  geometries (~4× the raster work) and re-validating exposure — a decision,
-  not a step. Validation against Scotland's official sectors is the obvious
-  next probe if sector-level modelling is ever green-lit.
+  `data/sectors_gb.gpkg` (25 MB, gitignored; ~5 min to rebuild).
+  **No longer just geometry (2026-08-12): the model was rebuilt on them and
+  is PUBLISHED alongside the district one** — `/sectors.html`, output
+  `data/sectors_risk.geojson`. Every hazard was re-aggregated over the
+  10,398 sectors (three of the four raster fetches ran on GitHub runners;
+  the EA 403'd them for rivers/sea after ~3.5 h, so that one was fetched
+  locally). Validated against Scotland's official sectors by
+  `scripts/validate_sectors_scotland.py`: sector IoU **0.706** vs
+  district IoU **0.689**, i.e. the Voronoi step adds no error beyond the
+  district outlines it inherits. Two things the sector build does NOT
+  have: the climate-change extents (not re-rasterised at this
+  resolution, so that layer is omitted from the sector map rather than
+  drawn blank) and the ~2.7% of exposure that ONSPD allocates to
+  terminated postcodes, which have no Code-Point centroid and so no
+  sector polygon.

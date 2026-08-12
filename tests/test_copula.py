@@ -828,6 +828,134 @@ def test_every_asset_the_published_site_references_exists():
             f"deliberate, stop building it too")
 
 
+def test_the_sector_model_nests_inside_the_district_model():
+    """Sectors are the district model at finer grain, not a second model.
+
+    Publishing both invites the reader to compare them, so the two must
+    actually be comparable:
+
+      * every sector's name is its district plus one digit, and every
+        modelled district is covered - the nesting the whole derivation
+        rests on (derive_sectors.py partitions each district);
+      * household exposure is conserved - the sector build must not
+        invent or lose homes against the district build;
+      * household-weighted sector premiums must aggregate back to the
+        district level. Not exactly: different geography means different
+        hazard aggregation and a separately-fitted decile split. But a
+        LARGE drift would mean the geography change moved the model
+        rather than resolving it, which is the one thing that would
+        make publishing them side by side dishonest.
+    """
+    import json
+    from collections import defaultdict
+    root = os.path.join(os.path.dirname(__file__), "..")
+
+    def props(name):
+        with open(os.path.join(root, "data", name), encoding="utf-8") as fh:
+            return [f["properties"] for f in json.load(fh)["features"]]
+
+    districts = {p["name"]: p for p in props("districts_risk.geojson")}
+    sectors = props("sectors_risk.geojson")
+    assert len(sectors) > 10000, f"only {len(sectors)} sectors"
+
+    by_district = defaultdict(list)
+    for s in sectors:
+        assert " " in s["name"], f"{s['name']} carries no sector digit"
+        outward, digit = s["name"].rsplit(" ", 1)
+        assert len(digit) == 1 and digit.isalnum(), s["name"]
+        by_district[outward].append(s)
+
+    orphans = sorted(set(by_district) - set(districts))
+    assert not orphans, f"sectors outside any modelled district: {orphans[:5]}"
+    uncovered = sorted(set(districts) - set(by_district))
+    assert not uncovered, (
+        f"{len(uncovered)} modelled districts have no sectors, first "
+        f"{uncovered[:5]} - the partition is incomplete")
+
+    # Exposure agrees to within a few per cent, and the gap has a KNOWN
+    # cause worth stating rather than tolerating blindly: ONSPD retains
+    # terminated postcodes (897,835 of 2.69m rows, 33%) and
+    # fetch_households.py apportions LSOA households across all of them.
+    # Code-Point Open carries only live postcodes, so a sector whose
+    # postcodes are all dead gets no polygon - and the ~730k homes that
+    # ONSPD allocated to those dead sectors have nowhere to land. They
+    # are phantom homes in the district model too; the sector build is
+    # simply where the phantom becomes visible. Fixing it properly means
+    # filtering on `doterm`, which moves every exposure weight and so
+    # every published premium - a model change, not a publication
+    # detail. See HANDOFF.md.
+    hh_d = sum(p.get("households", 0) for p in districts.values())
+    hh_s = sum(p.get("households", 0) for p in sectors)
+    assert -0.04 < hh_s / hh_d - 1 <= 0.0, (
+        f"exposure mismatch outside the known terminated-postcode gap: "
+        f"{hh_d:,.0f} households across districts vs {hh_s:,.0f} across "
+        f"sectors ({100 * (hh_s / hh_d - 1):+.1f}%) - a NEW cause of "
+        f"exposure loss, or exposure invented at sector level")
+
+    num = den = 0.0
+    for name, group in by_district.items():
+        for s in group:
+            w = s.get("households", 0)
+            num += w * s["premium"]
+            den += w
+    sector_level = num / den
+    district_level = (sum(p.get("households", 0) * p["premium"]
+                          for p in districts.values()) / hh_d)
+    assert abs(sector_level / district_level - 1) < 0.05, (
+        f"exposure-weighted premium differs by "
+        f"{100 * (sector_level / district_level - 1):+.1f}% between scales "
+        f"(£{district_level:.2f} vs £{sector_level:.2f}) - the geography "
+        f"change moved the model, it did not just resolve it")
+
+
+def test_every_published_map_asset_carries_the_columns_its_page_reads():
+    """The third direction of the column contract, added with sectors.
+
+    The pages no longer fetch the model output whole: build_map.py trims
+    each web asset to the columns the template reads (15.8 MB -> 13.4 MB
+    for sectors) and rounds them. That trim is a new way to ship a
+    silently broken popup - drop a column the template reads and it
+    renders `undefined`, with nothing raising anywhere. So: every column
+    the template reads must be present in EVERY published asset, and the
+    assets must agree with each other (the same template drives both, so
+    a column present in one and missing from the other is a bug by
+    construction).
+    """
+    import json
+    import build_map
+    root = os.path.join(os.path.dirname(__file__), "..")
+    needed = build_map.columns_read_by_template()
+    assert len(needed) > 40, "extractor went stale"
+
+    seen = {}
+    for asset, min_units in (("map_data.geojson", 2700),
+                             ("sector_data.geojson", 10000)):
+        path = os.path.join(root, "docs", "assets", asset)
+        assert os.path.exists(path), f"docs/assets/{asset} was not built"
+        with open(path, encoding="utf-8") as fh:
+            feats = json.load(fh)["features"]
+        assert len(feats) >= min_units, (
+            f"{asset} has only {len(feats)} units")
+        cols = set(feats[0]["properties"])
+        missing = sorted(needed - cols)
+        assert not missing, (
+            f"docs/assets/{asset} lacks {missing}, which the map template "
+            f"reads - the popup renders `undefined` for them")
+        # every feature, not just the first: a column present on one unit
+        # and absent on another is the same bug, one district deep
+        ragged = [f["properties"]["name"] for f in feats
+                  if set(f["properties"]) != cols]
+        assert not ragged, (
+            f"{asset}: {len(ragged)} units have a different column set, "
+            f"first {ragged[:3]}")
+        seen[asset] = cols
+
+    a, b = seen.values()
+    assert a == b, (
+        f"the two map assets disagree on columns (only in one: "
+        f"{sorted(a ^ b)}) - both are built from one template")
+
+
 def test_the_map_and_site_only_read_columns_the_model_writes():
     """The other half of the GeoJSON contract, and the silent half.
 
@@ -845,18 +973,14 @@ def test_the_map_and_site_only_read_columns_the_model_writes():
     Neither raises. Both ship.
     """
     import ast
-    import re
+    import build_map
     root = os.path.join(os.path.dirname(__file__), "..")
     published = set(bm.OUTPUT_COLUMNS)
 
-    with open(os.path.join(root, "map", "template.html"),
-              encoding="utf-8") as fh:
-        tpl = fh.read()
-    # \b matters: without it `ramp.length` and `tooltip.district-tip` match
-    # as `p.length` / `p.district` and the test drowns in false positives.
-    read_by_map = set(re.findall(r"\bp\.([A-Za-z_][A-Za-z_0-9]*)", tpl))
-    read_by_map |= set(re.findall(
-        r"\.properties\.([A-Za-z_][A-Za-z_0-9]*)", tpl))
+    # ONE extractor, shared with the asset writer that trims the shipped
+    # GeoJSON to these same columns - if the two disagreed, the writer
+    # would drop a column this test swears is safe.
+    read_by_map = build_map.columns_read_by_template()
     stray = sorted(read_by_map - published)
     assert not stray, (
         f"map/template.html reads {stray}, which build_model.py does not "

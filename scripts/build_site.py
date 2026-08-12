@@ -44,6 +44,11 @@ META = {
         "Eleven layers across 2,736 postcode districts: rating group, "
         "premium, each peril score, surface-water depth, coastal erosion "
         "and the climate repricing. Click any district for its breakdown."),
+    "sectors.html": (
+        "Sector map — UK Home Insurance Risk Map",
+        "The same model at postcode-sector resolution: 10,398 units "
+        "instead of 2,736. Nineteen per cent of districts turn out to "
+        "hold sectors that differ by more than 2x in premium."),
     "years.html": (
         "Good years vs bad years — UK Home Insurance Risk Map",
         "What separates a quiet year from an expensive one: cost by peril, how "
@@ -83,6 +88,7 @@ def head_tags(page):
 # (href, full label, short label for narrow screens)
 PAGES = [("index.html", "Overview", "Overview"),
          ("map.html", "Map", "Map"),
+         ("sectors.html", "Sector map", "Sectors"),
          ("years.html", "Good vs bad years", "Years"),
          ("methodology.html", "Methodology", "Method")]
 
@@ -255,8 +261,49 @@ def load_stats():
         cc_bits = {"__CC_N__": "0", "__CC_UPLIFT__": "n/a",
                    "__CC_WORST__": "n/a", "__CC_WORST_PCT__": "n/a"}
 
+    # Sector resolution: the spread a district price averages away, and
+    # how well the derived boundaries score against Scotland's official
+    # ones. Computed here so the published claims cannot drift from the
+    # published data - the same rule the dependence uplift follows.
+    with open(os.path.join(ROOT, "data", "sectors_risk.geojson"),
+              encoding="utf-8") as fh:
+        secs = [f["properties"] for f in json.load(fh)["features"]]
+    grouped = {}
+    for s in secs:
+        grouped.setdefault(s["name"].rsplit(" ", 1)[0], []).append(s)
+    multi = {d: g for d, g in grouped.items() if len(g) > 1}
+    ratios = {}
+    for d, g in multi.items():
+        prem = [s["premium"] for s in g]
+        ratios[d] = max(prem) / max(min(prem), 1e-9)
+    worst = max(ratios, key=ratios.get)
+    worst_prem = [s["premium"] for s in grouped[worst]]
+    wide = sum(1 for r in ratios.values() if r > 2)
+    sector_bits = {
+        "__SECTOR_N__": f"{len(secs):,}",
+        "__SECTOR_MULTI_N__": f"{len(multi):,}",
+        "__SECTOR_SPREAD__": f"{np.median(list(ratios.values())):.2f}",
+        "__SECTOR_WIDE_N__": f"{wide:,}",
+        "__SECTOR_WIDE_PCT__": f"{100 * wide / len(ratios):.0f}",
+        "__SECTOR_WORST__": worst,
+        "__SECTOR_WORST_RATIO__": f"{ratios[worst]:.1f}",
+        "__SECTOR_WORST_LO__": f"{min(worst_prem):,.0f}",
+        "__SECTOR_WORST_HI__": f"{max(worst_prem):,.0f}",
+        "__SECTOR_WORST_N__": f"{len(grouped[worst])}",
+    }
+    val_path = os.path.join(ROOT, "data", "sector_validation.json")
+    with open(val_path) as fh:
+        val = json.load(fh)
+    sector_bits.update({
+        "__SECTOR_IOU__": f"{val['sector_iou_median']:.3f}",
+        "__DISTRICT_IOU__": f"{val['district_iou_median']:.3f}",
+        "__SECTOR_IOU_50__": str(val["pct_above_50"]),
+        "__SECTOR_IOU_70__": str(val["pct_above_70"]),
+    })
+
     return {
         **cc_bits,
+        **sector_bits,
         "__SENS_FINDING__": sens_finding,
         "__EROSION_N__": f"{len(er_exposed):,}",
         "__EROSION_SAVED__": f"{len(er_saved):,}",
@@ -419,6 +466,8 @@ def main():
     render_template("methodology.template.html", "methodology.html", stats)
     wrap_generated(os.path.join(ROOT, "map", "uk_home_insurance_risk_map.html"),
                    "map.html", MAP_CSS)
+    wrap_generated(os.path.join(ROOT, "map", "uk_sector_risk_map.html"),
+                   "sectors.html", MAP_CSS)
     wrap_generated(os.path.join(ROOT, "analysis", "uk_risk_year_analysis.html"),
                    "years.html", YEARS_CSS)
 
@@ -427,12 +476,15 @@ def main():
                 os.path.join(DOCS, "assets", "site.css"))
     print("  assets/site.css")
 
-    # the map's district geometry+properties, fetched by map.html at
-    # runtime rather than inlined into it (5.08 MB page -> 209 KB page)
-    shutil.copy(os.path.join(ROOT, "map", "map_data.geojson"),
-                os.path.join(DOCS, "assets", "map_data.geojson"))
-    print(f"  assets/map_data.geojson  "
-          f"({os.path.getsize(os.path.join(DOCS, 'assets', 'map_data.geojson')) / 1e6:.1f} MB)")
+    # Each map's geometry+properties, fetched at runtime rather than
+    # inlined (which made the district page 5.08 MB; the sector data is
+    # three times that again). build_map.py trims these to the columns
+    # the template reads - do not copy the raw model output here.
+    for asset in ("map_data.geojson", "sector_data.geojson"):
+        shutil.copy(os.path.join(ROOT, "map", asset),
+                    os.path.join(DOCS, "assets", asset))
+        print(f"  assets/{asset}  ("
+              f"{os.path.getsize(os.path.join(DOCS, 'assets', asset)) / 1e6:.1f} MB)")
 
     # compact per-district lookup for the landing-page search (no geometry)
     with open(os.path.join(ROOT, "data", "districts_risk.geojson"),
@@ -469,12 +521,24 @@ def main():
             # publishes no future extents - cc_covered says which
             "cc_covered", "premium_cc", "el_total_cc", "cc_uplift_pct",
             "country", "geol", "sup_geol", "sup_frac"]
-    out = io.StringIO()
-    w = csv.writer(out, lineterminator="\n")
-    w.writerow(cols)
-    for p in sorted(feats, key=lambda d: d["name"]):
-        w.writerow([p.get(c, "") for c in cols])
-    write("assets/uk_district_risk.csv", out.getvalue())
+    def csv_bytes(rows):
+        out = io.StringIO()
+        w = csv.writer(out, lineterminator="\n")
+        w.writerow(cols)
+        for p in sorted(rows, key=lambda d: d["name"]):
+            w.writerow([p.get(c, "") for c in cols])
+        return out.getvalue()
+
+    write("assets/uk_district_risk.csv", csv_bytes(feats))
+
+    # the same table at sector resolution. Same columns on purpose: the
+    # model writes the same OUTPUT_COLUMNS at both scales, so anything
+    # written against one CSV reads the other unchanged.
+    with open(os.path.join(ROOT, "data", "sectors_risk.geojson"),
+              encoding="utf-8") as fh:
+        sector_feats = [f["properties"] for f in json.load(fh)["features"]]
+    write("assets/uk_sector_risk.csv", csv_bytes(sector_feats))
+
     open(os.path.join(DOCS, ".nojekyll"), "w").close()
     print("  .nojekyll")
     print("done")

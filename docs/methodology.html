@@ -78,7 +78,7 @@
 </style>
 </head>
 <body>
-<nav class="site-nav"><a class="brand" href="index.html"><span class="dots"><i style="background:var(--sub)"></i><i style="background:var(--wx)"></i><i style="background:var(--fl)"></i><i style="background:var(--gw)"></i></span><span class="txt">UK Home Insurance Risk Map</span></a><a class="navlink" href="index.html">Overview</a><a class="navlink" href="map.html">Map</a><a class="navlink" href="years.html"><span class="nav-full">Good vs bad years</span><span class="nav-short">Years</span></a><a class="navlink" href="methodology.html" aria-current="page"><span class="nav-full">Methodology</span><span class="nav-short">Method</span></a><span class="spacer"></span><a class="ghlink" href="https://github.com/SMcode-source/uk-home-insurance-risk-map">GitHub ↗</a></nav>
+<nav class="site-nav"><a class="brand" href="index.html"><span class="dots"><i style="background:var(--sub)"></i><i style="background:var(--wx)"></i><i style="background:var(--fl)"></i><i style="background:var(--gw)"></i></span><span class="txt">UK Home Insurance Risk Map</span></a><a class="navlink" href="index.html">Overview</a><a class="navlink" href="map.html">Map</a><a class="navlink" href="sectors.html"><span class="nav-full">Sector map</span><span class="nav-short">Sectors</span></a><a class="navlink" href="years.html"><span class="nav-full">Good vs bad years</span><span class="nav-short">Years</span></a><a class="navlink" href="methodology.html" aria-current="page"><span class="nav-full">Methodology</span><span class="nav-short">Method</span></a><span class="spacer"></span><a class="ghlink" href="https://github.com/SMcode-source/uk-home-insurance-risk-map">GitHub ↗</a></nav>
 
 <div class="wrap narrow">
 
@@ -98,6 +98,7 @@
       <a href="#dependence-effect">Does it matter?</a>
       <a href="#tvar">Why TVaR</a>
       <a href="#years">Good vs bad years</a>
+      <a href="#sectors">Two resolutions</a>
       <a href="#data">Data sources</a>
       <a href="#repro">Reproduce it</a>
       <a href="#caveats">Caveats</a>
@@ -691,6 +692,75 @@
     about a fifth. That is precisely why the multiplier is calibrated against how widely a
     bad year claims, rather than picked.</p>
     <p><a href="years.html">See the resulting analysis →</a></p>
+  </section>
+
+  <section class="doc" id="sectors">
+    <h2>Two resolutions: districts and sectors</h2>
+    <p>The same model is published at two grains — <b>2,736 postcode districts</b>
+    (<a href="map.html">the map</a>) and <b>10,398 postcode sectors</b>
+    (<a href="sectors.html">the sector map</a>). Same perils, same C-vine, same ABI
+    calibration; only the unit of geography changes. Sectors matter because a district
+    can be large enough to average away the thing being priced: a river runs through
+    some of its sectors and not others.</p>
+
+    <h3>Where the sector boundaries come from</h3>
+    <p>They are <b>derived, not published</b>. Only Scotland releases postcode-sector
+    polygons; England &amp; Wales publish lookups. But a sector is a district plus one
+    inward digit, so sectors <i>nest</i> inside districts by definition — which turns one
+    national problem into 2,736 small independent ones. For each district we take its own
+    unit-postcode centroids (OS <b>Code-Point Open</b>, 1.75m live GB postcodes),
+    partition the district between them with a Voronoi diagram, and dissolve the cells by
+    sector digit. The result is an exact partition of every district, by construction.</p>
+
+    <p><b>How wrong is that?</b> Scotland is the one place the answer can be measured, so
+    we scored the derivation against the National Records of Scotland's official sector
+    polygons. Two numbers matter, and the gap between them is the honest one:</p>
+    <div class="formula">district-level IoU (boundary sets only) &nbsp; 0.689<br>
+    sector-level IoU (boundaries + derivation) &nbsp; 0.706</div>
+    <p>Sector agreement is <i>no worse</i> than district agreement, so the Voronoi step
+    adds no measurable error: essentially all the disagreement with NRS already exists in
+    the underlying district outlines, which this project has always used. (Those outlines
+    are community-maintained approximations — that is the number, now measured, behind the
+    boundary caveat below.) 82% of derived Scottish sectors exceed 0.5 IoU
+    against the official ones, 51% exceed 0.7.</p>
+
+    <h3>What the finer grain reveals</h3>
+    <p>Aggregating sector premiums back to their districts by household weight reproduces
+    the district model closely — <b>0.964 correlation</b>, exposure-weighted level within
+    <b>0.6%</b> — so this is the same model resolved more finely, not a different one.
+    Within districts, though, it is not close at all:</p>
+    <div class="finding" style="margin:14px 0">
+      <div class="num">19%<small>of districts hide a &gt;2&times; premium spread</small></div>
+      <div>
+        <h3>One district, two very different risks</h3>
+        <p>Of the <b>2,248</b> districts holding more than one sector, the
+        median contains sectors whose technical premiums differ by
+        <b>1.42&times;</b>; in <b>437</b> of them the gap exceeds
+        twofold. The widest is <b>CB8</b> at <b>8.1&times;</b> —
+        £29 to £237 across 5 sectors.
+        The pattern is physical, not noise: the extremes are flood-led districts split by
+        a river or estuary (Maidenhead SL6, Leeds LS1 and LS7, Wells BA5, the Dee at CH64)
+        and subsidence-led ones split by a clay boundary (WV5, PO7, RG8, PE7). A single
+        district price charges both halves the average of a risk only one of them has.</p>
+      </div>
+    </div>
+
+    <h3>What the sector map does not do</h3>
+    <ul>
+      <li><b>No climate repricing.</b> The EA's future flood extents have not been
+      re-rasterised at sector resolution, so that layer is absent from the sector map
+      rather than shown blank. Use the district map for the climate scenario.</li>
+      <li><b>Rating groups are deciles of each map's own units</b>, so a group 7 sector
+      and a group 7 district describe different populations. Compare premiums, not
+      group numbers.</li>
+      <li><b>Exposure is ~2.7% lower</b> than the district model's. ONSPD retains
+      terminated postcodes — a third of its rows — and household counts are apportioned
+      across all of them, so sectors whose postcodes are all dead receive homes but no
+      polygon. Those homes are phantom in both models; the sector map is where they
+      become visible.</li>
+    </ul>
+    <p><a href="sectors.html">Open the sector map →</a> &middot;
+    <a href="assets/uk_sector_risk.csv">download every sector as CSV</a></p>
   </section>
 
   <section class="doc" id="data">

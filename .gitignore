@@ -22,8 +22,9 @@ data/cache/
 
 # Intermediate artefacts
 data/sw_wales20.csv
-# Derived sector polygons (~tens of MB; rebuild: fetch_codepoint.py then
-# derive_sectors.py, ~15 min). Not a model input yet - see DATA_SOURCES.
+# Derived sector polygons (~25 MB; rebuild: fetch_codepoint.py then
+# derive_sectors.py, ~5 min). The MODEL OUTPUT built on them
+# (data/sectors_risk.geojson) IS committed - it is a published product.
 data/sectors_gb.gpkg
 # MIDAS Open mirror (needs a CEDA token; refetch: fetch_midas.py).
 # The derived data/gusts_midas.csv IS committed once produced.
@@ -31,7 +32,9 @@ data/midas/
 
 # Build outputs — the published copies live in docs/ (built by build_site.py)
 map/uk_home_insurance_risk_map.html
+map/uk_sector_risk_map.html
 map/map_data.geojson
+map/sector_data.geojson
 analysis/uk_risk_year_analysis.html
 # fetch_bgs.py resume checkpoints (deleted on a complete fetch)
 data/*.progress.jsonl

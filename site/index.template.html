@@ -108,7 +108,22 @@ __NAV__
 
   <section>
     <h2>What the model says</h2>
-    <p class="lede" style="margin-bottom:8px">Four findings that fall out of the simulation.</p>
+    <p class="lede" style="margin-bottom:8px">Five findings that fall out of the simulation.</p>
+
+    <div class="finding">
+      <div class="num">__SECTOR_WIDE_PCT__%<small>of districts hide a &gt;2× spread</small></div>
+      <div>
+        <h3>A postcode district can be two different risks</h3>
+        <p>Re-running the whole model at <b>postcode-sector</b> resolution —
+        <b>__SECTOR_N__</b> units instead of __N_DISTRICTS__ — reproduces the district
+        answer when aggregated back, but shows what the district average was hiding:
+        in <b>__SECTOR_WIDE_N__ districts</b> (__SECTOR_WIDE_PCT__%) the cheapest and
+        dearest sectors differ by more than <b>2×</b>, and in __SECTOR_WORST__ by
+        <b>__SECTOR_WORST_RATIO__×</b> (£__SECTOR_WORST_LO__–£__SECTOR_WORST_HI__). The
+        splits are physical: a river through half a district, a clay boundary under the
+        other. <a href="sectors.html">See the sector map →</a></p>
+      </div>
+    </div>
 
     <div class="finding">
       <div class="num">×__MULTI_RATIO__<small>multi-peril years</small></div>

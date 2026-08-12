@@ -10,6 +10,8 @@
 ![Perils: 4 insured + 1](https://img.shields.io/badge/perils-4_insured_%2B_1-52514e?style=flat-square)
 
 **[Interactive map](https://smcode-source.github.io/uk-home-insurance-risk-map/map.html)** ·
+**[Sector map](https://smcode-source.github.io/uk-home-insurance-risk-map/sectors.html)** ·
+**[Sector map](https://smcode-source.github.io/uk-home-insurance-risk-map/sectors.html)** ·
 **[Good vs bad years](https://smcode-source.github.io/uk-home-insurance-risk-map/years.html)** ·
 **[Methodology](https://smcode-source.github.io/uk-home-insurance-risk-map/methodology.html)**
 
@@ -47,7 +49,8 @@ pipeline below to produce them).
 ```
 docs/                         the published website (GitHub Pages source)
   index.html                  landing page: findings + top-risk districts
-  map.html                    interactive map, site nav injected
+  map.html                    interactive map (districts), site nav injected
+  sectors.html                the same map at postcode-sector resolution
   years.html                  good-vs-bad-years analysis
   methodology.html            full methodology write-up
 site/                         page templates + shared stylesheet for docs/
@@ -77,7 +80,10 @@ scripts/
   build_model.py              scores -> marginals -> 5-dim C-vine Monte Carlo ->
                               districts_risk.geojson + year_analysis.json
   sensitivity.py              perturbed re-runs -> data/sensitivity.json
-  build_map.py                -> map/uk_home_insurance_risk_map.html
+  derive_sectors.py           Code-Point centroids -> postcode-SECTOR polygons
+  validate_sectors_scotland.py scores them against NRS's official Scottish set
+  compare_sector_model.py     sector model vs the published district one
+  build_map.py                -> both map pages (district + sector) + assets
   build_analysis.py           -> analysis/uk_risk_year_analysis.html
   build_site.py               wraps both + templates -> docs/
   make_images.py              favicon + social card, rendered from the geojson
@@ -547,9 +553,9 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
                                                      # h-inverse bisection for erosion is the dominant cost)
 .venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs -> data/sensitivity.json (~25 min, optional)
 .venv/Scripts/python scripts/make_images.py          # favicon + 1200x630 social card, rendered from the data
-.venv/Scripts/python scripts/build_map.py            # -> map/uk_home_insurance_risk_map.html + map/map_data.geojson
-                                                     # (the district GeoJSON is fetched by the page, not inlined -
-                                                     # so map.html needs HTTP: `python -m http.server` inside docs/)
+.venv/Scripts/python scripts/build_map.py            # -> both map pages + both data assets (district and sector).
+                                                     # The GeoJSON is fetched by the pages, not inlined, so they
+                                                     # need HTTP: `python -m http.server` inside docs/
 .venv/Scripts/python scripts/build_analysis.py       # -> analysis/uk_risk_year_analysis.html
 ```
 
