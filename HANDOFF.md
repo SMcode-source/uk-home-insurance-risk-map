@@ -5,6 +5,25 @@ old `%TEMP%\uk-risk-map-handoff.md`, which is now just a pointer here)
 **Repo:** https://github.com/SMcode-source/uk-home-insurance-risk-map ·
 **Live:** https://smcode-source.github.io/uk-home-insurance-risk-map/
 
+## Status: complete, deployed, TWO resolutions published (2026-08-12)
+
+The site now publishes the model at **two grains side by side**:
+`/map.html` over 2,736 postcode districts and `/sectors.html` over
+10,398 derived postcode sectors. One template builds both pages, so
+they cannot drift; the layout suite runs every map invariant against
+both. **71 tests**, CI green, Pages live.
+
+Why it was worth doing: aggregated back to districts the sector model
+reproduces the published one (0.964 correlation, level within 0.6%),
+but **19% of districts hide sectors that differ by more than 2x** in
+premium - worst CB8 at 8.1x (GBP 29 to GBP 237). A district price
+charges both halves of a district the average of a risk only one half
+has. The splits are physical: a river through half a district, a clay
+boundary under the other.
+
+Open decision left on the table: **whether to fix the exposure bug
+below**, which would move every published premium slightly.
+
 ## Status: complete, deployed, and the model CHANGED on 2026-08-10
 
 CI green (both jobs), Pages live, **61 tests** passing, tree clean.
@@ -32,6 +51,31 @@ Euler-allocated from the portfolio, premiums on TVaR₉₉. Coastal erosion
 is in the vine but deliberately outside the premium. A climate scenario
 reprices on the EA's future flood extents: +10% exposure-weighted over
 2,087 English districts.
+
+## Open finding: households are apportioned to DEAD postcodes
+
+ONSPD retains terminated postcodes - **897,835 of 2,694,205 rows, 33%**
+- and `fetch_households.py` spreads LSOA household counts across all of
+them. Live postcodes are therefore diluted, and ~730k homes are
+credited to addresses that no longer exist. It surfaced only because
+Code-Point Open (live postcodes only) gave those dead sectors no
+polygon, so the sector build is 2.7% lighter on exposure than the
+district build.
+
+**Priced on `exp/live-postcodes`** (one-line `doterm` filter, then
+regenerate households.csv): exposure-weighted premium **-0.25%**, **40
+districts (1.5%) change rating group**, none by more than one; the
+movers are rural/remote (EX38, CA9, KW16, IV40, HS2), i.e. exactly the
+places with the most postcode churn per live address. The national
+total is unchanged - LSOA totals are fixed, only their apportionment
+moves.
+
+It is a genuine correction and cheap to take; it is left as the user's
+call because it moves every published premium. **Trap:** `rebuild.yml`
+does NOT run `fetch_households.py`, it reads the committed CSV - the
+first dispatch of this experiment patched only the fetcher and
+reproduced main exactly, which looks like "no impact" and is actually a
+void run. Regenerate and commit the CSV, then dispatch.
 
 ## The experiment-branch pattern (how model decisions get made here)
 
