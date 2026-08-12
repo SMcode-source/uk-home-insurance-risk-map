@@ -56,11 +56,19 @@ def columns_read_by_template(template=None):
 
 
 def web_asset(geojson_path, keep):
-    """Minified GeoJSON carrying only `keep`, rounded for the wire."""
+    """Minified GeoJSON carrying only `keep`, rounded for the wire.
+
+    `keep` must be SORTED, not a set: Python randomises string hashing
+    per process, so iterating a set of column names writes the JSON keys
+    in a different order on every run. The bytes then differ between a
+    laptop build and a CI build of identical inputs, and CI's
+    docs/-is-stale check fails with a diff nobody can see (it did).
+    """
+    keep = sorted(keep)
     with open(os.path.join(ROOT, geojson_path), encoding="utf-8") as f:
         gj = json.load(f)
 
-    missing = keep - set(gj["features"][0]["properties"])
+    missing = set(keep) - set(gj["features"][0]["properties"])
     if missing:
         raise SystemExit(
             f"{geojson_path} lacks {sorted(missing)}, which the map template "
