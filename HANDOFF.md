@@ -1,6 +1,6 @@
 # Handoff — UK Home Insurance Risk Map
 
-**Written:** 2026-08-10 · lives in the repo from now on (supersedes the
+**Written:** 2026-08-12 · lives in the repo from now on (supersedes the
 old `%TEMP%\uk-risk-map-handoff.md`, which is now just a pointer here)
 **Repo:** https://github.com/SMcode-source/uk-home-insurance-risk-map ·
 **Live:** https://smcode-source.github.io/uk-home-insurance-risk-map/
@@ -24,12 +24,9 @@ boundary under the other.
 Open decision left on the table: **whether to fix the exposure bug
 below**, which would move every published premium slightly.
 
-## Status: complete, deployed, and the model CHANGED on 2026-08-10
+## Previously (2026-08-10): the model's gust source changed
 
-CI green (both jobs), Pages live, **61 tests** passing, tree clean.
-Nothing is half-finished and nothing is waiting on anyone.
-
-The headline since the last handoff: **the gust component now runs on
+**The gust component now runs on
 Met Office MIDAS station observations**, not ERA5 reanalysis — the first
 model change since `a1cacd0`, user-approved on priced evidence
 (commit `de19471`, published by Actions run 15). Everything else from
