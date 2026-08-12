@@ -117,6 +117,9 @@ def postcode_rows():
             area_i = next((cols[c] for c in
                            ("lsoa21cd", "lsoa11cd", "lsoa21nm", "oa21cd")
                            if c in cols), None)
+            # see main: ONSPD keeps terminated postcodes (33% of rows)
+            # and apportioning households across them invents homes
+            term_i = cols.get("doterm")
             if pc_i is None or area_i is None:
                 print(f"    skipping {member}: columns {header[:6]}",
                       flush=True)
@@ -127,6 +130,8 @@ def postcode_rows():
                 pc, area = row[pc_i].strip(), row[area_i].strip()
                 if not pc or not area or area.startswith("N"):
                     continue
+                if term_i is not None and (row[term_i] or "").strip():
+                    continue          # terminated: not a home
                 # sector-model branch: key on "OUTWARD D". The inward
                 # code is ALWAYS the last three characters, however the
                 # column pads ("YO25 6QP", "S1  1AA", fixed-width pcd7).
