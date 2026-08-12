@@ -1013,7 +1013,7 @@ page</a>.</p>
   while TVaR stays monotone in dependence. <b>Rating groups are deciles of THIS map's
   own units</b>, so a group 7 sector and a group 7 district are not the same
   population &mdash; compare the premiums, not the group numbers.</p>
-  <p><b>Geography.</b> Postcode-sector boundaries are not published for England &amp; Wales, so these are <b>derived</b>: each district is partitioned between its own unit-postcode centroids (OS Code-Point Open) and the cells dissolved by sector digit. Scored against the one published set &mdash; NRS&rsquo;s official Scottish sectors &mdash; the derivation adds no measurable error beyond the district outlines it inherits (median IoU 0.706 vs 0.689). <b>The climate-change repricing is not modelled at this resolution yet</b>; use the district map for that layer.</p>
+  <p><b>Geography.</b> Postcode-sector boundaries are not published for England &amp; Wales, so these are <b>derived</b>: each district is partitioned between its own unit-postcode centroids (OS Code-Point Open) and the cells dissolved by sector digit. Scored against the one published set &mdash; NRS&rsquo;s official Scottish sectors &mdash; the derivation adds no measurable error beyond the district outlines it inherits (median IoU 0.706 vs 0.689).</p>
   <p class="note">Hazard data: BGS Geology 625k, Met Office HadUK-Grid / Climate
   Data Portal, EA / NRW / SEPA flood maps, EA flood-risk postcode data (all OGL).
   Loss frequencies/severities and copula parameters are illustrative assumptions,
@@ -1425,7 +1425,7 @@ const btnBox = document.getElementById('metricBtns');
    sector with the "not modelled - England only" grey and caption it as
    a coverage limit, which is a false statement about WHY it is blank.
    Substituted by build_map.py; empty for the district build. */
-const OMIT_METRICS = new Set(["cc_uplift"]);
+const OMIT_METRICS = new Set([]);
 for (const key of Object.keys(METRICS)) {
   if (OMIT_METRICS.has(key)) continue;
   const b = document.createElement('button');

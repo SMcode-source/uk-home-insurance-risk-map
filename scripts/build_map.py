@@ -111,9 +111,10 @@ BUILDS = [
         asset="sector_data.geojson",
         unit="sector", unit_plural="sectors", example="YO25 6",
         csv="assets/uk_sector_risk.csv",
-        # the EA climate extents have not been fetched at sector
-        # resolution, so cc_covered is 0 everywhere; see the note below
-        omit=["cc_uplift"],
+        # nothing omitted: the EA climate editions were re-fetched over
+        # the sectors on 2026-08-12, so this map carries every layer the
+        # district map does
+        omit=[],
         title="Sector map — UK Home Insurance Risk Map",
         sibling='Sectors &middot; <a href="map.html">back to the '
                 'postcode-district map &rarr;</a>',
@@ -124,9 +125,7 @@ BUILDS = [
              'sector digit. Scored against the one published set '
              '&mdash; NRS&rsquo;s official Scottish sectors &mdash; the '
              'derivation adds no measurable error beyond the district '
-             'outlines it inherits (median IoU 0.706 vs 0.689). '
-             '<b>The climate-change repricing is not modelled at this '
-             'resolution yet</b>; use the district map for that layer.</p>',
+             'outlines it inherits (median IoU 0.706 vs 0.689).</p>',
     ),
 ]
 

@@ -291,6 +291,23 @@ def load_stats():
         "__SECTOR_WORST_HI__": f"{max(worst_prem):,.0f}",
         "__SECTOR_WORST_N__": f"{len(grouped[worst])}",
     }
+    # the climate scenario at sector resolution, and the district figure
+    # it should be compared against
+    scc = [q for q in secs if q.get("cc_covered")]
+    if scc:
+        wcc = np.array([q.get("households", 1) for q in scc], float)
+        s_pct = 100 * (np.average([q["premium_cc"] for q in scc], weights=wcc)
+                       / np.average([q["premium"] for q in scc], weights=wcc) - 1)
+        s_worst = max(scc, key=lambda q: q.get("cc_uplift_pct", 0))
+        sector_bits.update({
+            "__SECTOR_CC_N__": f"{len(scc):,}",
+            "__SECTOR_CC_UPLIFT__": f"{s_pct:+.1f}",
+            "__SECTOR_CC_WORST__": s_worst["name"],
+            "__SECTOR_CC_WORST_PCT__": f"{s_worst['cc_uplift_pct']:+.0f}",
+            "__SECTOR_CC_DOWN__": f"{sum(1 for q in scc if q['cc_uplift_pct'] < 0):,}",
+            "__CC_DOWN__": f"{sum(1 for q in cc if q['cc_uplift_pct'] < 0):,}",
+        })
+
     val_path = os.path.join(ROOT, "data", "sector_validation.json")
     with open(val_path) as fh:
         val = json.load(fh)
