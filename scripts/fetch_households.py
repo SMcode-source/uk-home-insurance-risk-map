@@ -117,6 +117,16 @@ def postcode_rows():
             area_i = next((cols[c] for c in
                            ("lsoa21cd", "lsoa11cd", "lsoa21nm", "oa21cd")
                            if c in cols), None)
+            # ONSPD retains TERMINATED postcodes - 897,835 of 2,694,205
+            # rows, 33%. Apportioning LSOA household counts across them
+            # dilutes every live postcode and credits ~730k homes to
+            # addresses that no longer exist; the distortion is worst
+            # where postcode churn is highest (rural and remote), which
+            # is exactly where it showed up when the fix was priced.
+            # Found via the sector build: dead postcodes have no
+            # Code-Point centroid, so dead sectors got no polygon and
+            # 2.7% of exposure had nowhere to land.
+            term_i = cols.get("doterm")
             if pc_i is None or area_i is None:
                 print(f"    skipping {member}: columns {header[:6]}",
                       flush=True)
@@ -127,6 +137,8 @@ def postcode_rows():
                 pc, area = row[pc_i].strip(), row[area_i].strip()
                 if not pc or not area or area.startswith("N"):
                     continue
+                if term_i is not None and (row[term_i] or "").strip():
+                    continue          # terminated: not a home, see above
                 out = pc.split()[0] if " " in pc else pc[:-3].strip()
                 if out:
                     yield out.upper(), area
