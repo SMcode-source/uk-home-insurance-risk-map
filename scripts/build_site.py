@@ -157,6 +157,130 @@ def drivers(props):
     return f"{lead.capitalize()} ({named[0][1]:.0%} / {named[1][1]:.0%})"
 
 
+
+# The climate ramp, mirrored from map/template.html so the methodology
+# figure and the live map say the same thing in the same colours. A test
+# asserts the two stay identical - if you retune one, retune both.
+CC_RAMP = ["#1c5cab", "#5598e7", "#b7d3f6", "#f0efec",
+           "#f2b8b7", "#e34948", "#9c2b2a"]
+CC_BREAKS = [-20, -5, -1, 1, 15, 50]
+CC_NO_DATA = "#e4e2dd"
+
+FOCUS = "HU8"          # the one district that FALLS under the scenario
+
+
+def _polys(geom):
+    """Every ring list in a geometry, whatever its type.
+
+    GeometryCollection is not hypothetical here: make_valid emits two of
+    them in the sector set, and a naive geom["coordinates"] raises.
+    """
+    if not geom:
+        return []
+    t = geom.get("type")
+    if t == "Polygon":
+        return [geom["coordinates"]]
+    if t == "MultiPolygon":
+        return list(geom["coordinates"])
+    if t == "GeometryCollection":
+        return [r for g in geom.get("geometries", []) for r in _polys(g)]
+    return []
+
+
+def _bbox(geom):
+    pts = [pt for poly in _polys(geom) for ring in poly for pt in ring]
+    if not pts:
+        return None
+    xs = [q[0] for q in pts]
+    ys = [q[1] for q in pts]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _cc_colour(props):
+    if not props.get("cc_covered"):
+        return CC_NO_DATA
+    v = props.get("cc_uplift_pct", 0.0)
+    i = 0
+    while i < len(CC_BREAKS) and v >= CC_BREAKS[i]:
+        i += 1
+    return CC_RAMP[i]
+
+
+def _panel(feats, frame, title, focus_prefix, w=330, h=365, head=24):
+    """One choropleth panel over `frame`, focus units outlined."""
+    x0, y0, x1, y1 = frame
+    # equirectangular is fine over 20 km; scale x by cos(lat) so the
+    # coastline is not stretched
+    import math
+    kx = math.cos(math.radians((y0 + y1) / 2))
+    sx = w / ((x1 - x0) * kx)
+    sy = h / (y1 - y0)
+    sc = min(sx, sy)
+    ox = (w - (x1 - x0) * kx * sc) / 2
+    oy = (h - (y1 - y0) * sc) / 2
+
+    def pt(x, y):
+        return (ox + (x - x0) * kx * sc, head + h - oy - (y - y0) * sc)
+
+    body, focus_paths, focus_pts = [], [], []
+    for f in feats:
+        props = f["properties"]
+        d = []
+        for poly in _polys(f["geometry"]):
+            for ring in poly:
+                if len(ring) < 3:
+                    continue
+                d.append("M" + "L".join(
+                    f"{a:.1f} {b:.1f}" for a, b in (pt(x, y) for x, y in ring)) + "Z")
+        if not d:
+            continue
+        path = " ".join(d)
+        body.append(f'<path d="{path}" fill="{_cc_colour(props)}" '
+                    f'stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/>')
+        name = props["name"]
+        if name == focus_prefix or name.startswith(focus_prefix + " "):
+            focus_paths.append(f'<path d="{path}" fill="none" stroke="var(--ink-1)" '
+                               f'stroke-width="1.6"/>')
+            b = _bbox(f["geometry"])
+            focus_pts.append(pt((b[0] + b[2]) / 2, (b[1] + b[3]) / 2))
+
+    lx = sum(q[0] for q in focus_pts) / len(focus_pts) if focus_pts else w / 2
+    ly = sum(q[1] for q in focus_pts) / len(focus_pts) if focus_pts else h / 2
+    return f"""<svg viewBox="0 0 {w} {head + h}" role="img" aria-label="{title}">
+      <text class="panel-title" x="0" y="14">{title}</text>
+      <g clip-path="url(#frameclip)">{''.join(body)}{''.join(focus_paths)}</g>
+      <text class="focus-label" x="{lx:.0f}" y="{ly:.0f}" text-anchor="middle"
+            paint-order="stroke" stroke="var(--surface-1)" stroke-width="3.5"
+            stroke-linejoin="round">{focus_prefix}</text>
+      <clipPath id="frameclip"><rect x="0" y="{head}" width="{w}" height="{h}"/></clipPath>
+    </svg>"""
+
+
+def resolution_figure(districts, sectors):
+    """Districts vs sectors over the same ground, on the climate layer.
+
+    Built from the published GeoJSON at build time rather than pasted in
+    as a screenshot: a screenshot of a map goes stale the next time the
+    model is rebuilt, and this one cannot.
+    """
+    focus = next((f for f in districts if f["properties"]["name"] == FOCUS), None)
+    if focus is None:
+        return ""
+    x0, y0, x1, y1 = _bbox(focus["geometry"])
+    px, py = (x1 - x0) * 1.5, (y1 - y0) * 1.5
+    frame = (x0 - px, y0 - py, x1 + px, y1 + py)
+
+    def inside(f):
+        b = _bbox(f["geometry"])
+        return b and not (b[2] < frame[0] or b[0] > frame[2]
+                          or b[3] < frame[1] or b[1] > frame[3])
+
+    left = _panel([f for f in districts if inside(f)], frame,
+                  "Districts", FOCUS)
+    right = _panel([f for f in sectors if inside(f)], frame,
+                   "Sectors", FOCUS)
+    return f'<div class="res-figure">{left}{right}</div>'
+
 def load_stats():
     with open(os.path.join(ROOT, "data", "year_analysis.json")) as fh:
         ya = json.load(fh)
@@ -307,6 +431,27 @@ def load_stats():
             "__SECTOR_CC_DOWN__": f"{sum(1 for q in scc if q['cc_uplift_pct'] < 0):,}",
             "__CC_DOWN__": f"{sum(1 for q in cc if q['cc_uplift_pct'] < 0):,}",
         })
+
+    # the districts-vs-sectors figure, drawn from the published geometry
+    with open(os.path.join(ROOT, "data", "districts_risk.geojson"),
+              encoding="utf-8") as fh:
+        dfeats = json.load(fh)["features"]
+    with open(os.path.join(ROOT, "data", "sectors_risk.geojson"),
+              encoding="utf-8") as fh:
+        sfeats = json.load(fh)["features"]
+    sector_bits["__RES_FIGURE__"] = resolution_figure(dfeats, sfeats)
+    fdist = next(q for q in feats if q["name"] == FOCUS)
+    fsec = sorted((q for q in secs if q["name"].startswith(FOCUS + " ")),
+                  key=lambda q: q["cc_uplift_pct"])
+    sector_bits.update({
+        "__FOCUS__": FOCUS,
+        "__FOCUS_PCT__": f"{fdist.get('cc_uplift_pct', 0):+.0f}",
+        "__FOCUS_LO__": f"{fsec[0]['cc_uplift_pct']:+.0f}",
+        "__FOCUS_HI__": f"{fsec[-1]['cc_uplift_pct']:+.0f}",
+        "__FOCUS_LO_NAME__": fsec[0]["name"],
+        "__FOCUS_HI_NAME__": fsec[-1]["name"],
+        "__FOCUS_N__": str(len(fsec)),
+    })
 
     val_path = os.path.join(ROOT, "data", "sector_validation.json")
     with open(val_path) as fh:

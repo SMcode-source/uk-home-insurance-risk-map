@@ -38,6 +38,17 @@ __HEAD__
   .tree-title { font-size: 13px; fill: var(--ink-muted); font-weight: 600; letter-spacing: .04em; }
   .step-label { font-size: 13.5px; fill: var(--ink-1); font-weight: 600; }
   .step-sub { font-size: 12.5px; fill: var(--ink-muted); }
+  /* districts-vs-sectors figure: two panels of the same ground */
+  .res-figure { display: flex; gap: 14px; align-items: flex-start; }
+  .res-figure svg { display: block; width: 100%; height: auto; flex: 1 1 0; }
+  .panel-title { font-size: 13px; fill: var(--ink-1); font-weight: 650; }
+  .focus-label { font-size: 12.5px; fill: var(--ink-1); font-weight: 700; }
+  @media (max-width: 640px) {
+    /* stack, and reset the row's flex-basis - in a column it applies to
+       HEIGHT and collapses each panel to nothing (learned on the vine) */
+    .res-figure { flex-direction: column; align-items: center; }
+    .res-figure svg { flex: 0 0 auto; max-width: 330px; }
+  }
   .diagram-v { display: none; }
   .vine-row { display: flex; gap: 16px; align-items: flex-start; }
   .vine-row svg { display: block; height: auto; width: 100%; }
@@ -745,6 +756,19 @@ __NAV__
     worsening neighbours until they vanish. Climate change does not arrive
     evenly across a postcode district, and a district-level map cannot show
     that.</p>
+
+    <div class="diagram-card">
+      __RES_FIGURE__
+      <p class="note" style="margin-top:12px">The same ground under the same
+      scenario, on the climate layer: <b>__FOCUS__</b> outlined in both. Blue is a
+      premium that <i>falls</i> under the EA's future flood extents, red one that
+      rises; the ramp and its breaks are the map's own. __FOCUS__ is the single
+      district in Great Britain whose premium falls (<b>__FOCUS_PCT__%</b>) — and
+      it is made of __FOCUS_N__ sectors running from <b>__FOCUS_LO_NAME__ at
+      __FOCUS_LO__%</b> to <b>__FOCUS_HI_NAME__ at __FOCUS_HI__%</b>. Both
+      statements are true; only one of them is useful to somebody choosing where
+      to live.</p>
+    </div>
 
     <h3>What the sector map does not do</h3>
     <ul>
