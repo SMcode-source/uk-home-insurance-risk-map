@@ -212,7 +212,16 @@ def _panel(feats, frame, title, focus_prefix, w=330, h=365, head=24):
     # equirectangular is fine over 20 km; scale x by cos(lat) so the
     # coastline is not stretched
     import math
-    kx = math.cos(math.radians((y0 + y1) / 2))
+    # QUANTISED, and it has to be. libm's cos differs by an ULP between
+    # glibc and MSVC, and that last bit propagates through the transform
+    # until a coordinate sitting on a .05 boundary rounds the other way -
+    # two lines of path data, a "docs/ is stale" CI failure, and a diff
+    # no human can read. Rounding the only transcendental in the pipeline
+    # makes every platform start from the same number; everything after
+    # it is +-*/ , which IEEE 754 already pins. (Verified: perturbing cos
+    # by one ULP changed exactly the 2 lines CI reported.) 1e-6 of a
+    # radian's cosine is nanometres at this scale.
+    kx = round(math.cos(math.radians((y0 + y1) / 2)), 6)
     sx = w / ((x1 - x0) * kx)
     sy = h / (y1 - y0)
     sc = min(sx, sy)
