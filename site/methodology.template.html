@@ -189,10 +189,13 @@ __NAV__
   </section>
 
   <section class="doc" id="perils">
-    <h2>The perils — four insured, and one that is not</h2>
-    <p>Each peril is scored 0–1 per district from real hazard data, then converted to an
-    annual loss distribution: <b>Bernoulli(p) × LogNormal(μ, σ)</b> — at most one claim per
-    policy per year, which is adequate at district granularity.</p>
+    <h2>The perils — six insured, and one that is not</h2>
+    <p>Each hazard peril is scored 0–1 per district from real hazard data, then converted
+    to an annual loss distribution: <b>Bernoulli(p) × LogNormal(μ, σ)</b> — at most one
+    claim per policy per year, which is adequate at district granularity. Theft and
+    escape of water skip the 0–1 score: theft's input is already a measured burglary
+    rate per household, and escape of water's is a claim frequency built from the ABI
+    level and each district's air-frost days.</p>
 
     <div class="tablewrap" style="margin:16px 0">
       <table class="data">
@@ -223,6 +226,18 @@ __NAV__
           <td>EA flood-alert areas</td>
           <td>Share of unit postcodes inside a groundwater flood alert target area</td>
           <td class="num">to 0.8%/yr</td><td class="num">£20,000</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--th)">Theft</strong></td>
+          <td>police.uk street-level crime, __TH_MONTHS__ months</td>
+          <td>Burglary rate per household, winsorised at the exposure-weighted 99.9th percentile</td>
+          <td class="num">to 5.3%/yr</td><td class="num">£2,300</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--eow)">Escape of water</strong></td>
+          <td>Met Office HadUK-Grid air-frost days</td>
+          <td>Flat base plus a freeze-attributable slice scaled by annual air-frost days (1991–2020 normal)</td>
+          <td class="num">0.9–1.5%/yr</td><td class="num">£2,400</td>
         </tr>
         <tr>
           <td><strong style="color:var(--er)">Erosion</strong> <span class="pill">not insured</span></td>
@@ -286,11 +301,85 @@ __NAV__
     <p class="note">England only. Neither NRW nor SEPA publishes an equivalent depth
     product, so Welsh and Scottish districts keep the flat severity. That is an asymmetry in
     the spread of severity, not in its level.</p>
+
+    <h3 id="theft">Theft — burglary geography from police.uk</h3>
+    <p><b>__TH_INCIDENTS__ street-level burglaries</b> over the latest __TH_MONTHS__ months
+    of the police.uk open archive, each anonymised to a snap point and placed into its
+    district by point-in-polygon, become an annual burglary rate per household. That rate
+    is then scaled by one national multiplier so the implied claim count matches the ABI's
+    theft aggregates — which means the burglary→claim propensity (how many burglaries
+    become home-insurance claims) <b>cancels out and never has to be assumed</b>. The
+    police data contributes only what it actually knows: which districts have more
+    burglaries than which.</p>
+    <p>Two corrections the raw data needs, both visible in the map:</p>
+    <ul style="color:var(--ink-2); font-size:14px; line-height:1.7">
+      <li><b>Commercial contamination.</b> The police "burglary" category includes shops,
+      offices and warehouses, and a city-core district can have few households under
+      thousands of retail break-ins — the raw rate exceeds 50%/yr in the worst case, which
+      is not a household risk. Rates are therefore <b>winsorised at the exposure-weighted
+      99.9th percentile</b> (__TH_CAP_PCT__% per year), which leaves <b>__TH_CLIPPED__</b>
+      districts sitting at the cap — the shop-dense cores — while leaving genuinely burglary-heavy
+      residential city centres their measured rates. A tighter cap (the 99th percentile)
+      would have clipped real signal in dense city-centre living districts, which is why
+      it was rejected.</li>
+      <li><b>Scotland.</b> Police Scotland does not publish to police.uk, so Scottish
+      districts carry the <b>national housebreaking rate</b> (__TH_SCOT_PCT__%/yr) from
+      Recorded Crime in Scotland instead — an override, not a fill, because the only
+      "Scottish" rows in the archive are British Transport Police railway incidents,
+      which would otherwise masquerade as tiny local rates.</li>
+    </ul>
+    <p><b>Theft sits outside the vine copula, on purpose.</b> Burglary does not arrive on
+    the storm track: the correlation between a district's theft expected loss and its
+    four-peril catastrophe expected loss is <b>__TH_CAT_CORR__</b> — theft re-ranks the
+    book rather than reinforcing it. It is simulated as an independent compound leg, and
+    its systemic loading is derived, not assumed: national annual burglary counts vary by
+    roughly ±10–15%, so the loading is solved to reproduce that, which makes a 1-in-100
+    theft year about 1.3× an average one. The consequence is visible in the price:
+    theft adds <b>£__TH_EL__</b> of expected loss per policy and <i>almost no capital
+    charge</i> — the portfolio's bad years are still weather years, and an independent,
+    stable peril earns nearly a full diversification credit.</p>
+    <p class="note">One mechanical side effect to read correctly: percentage figures
+    <i>divided by the premium</i> — the dependence uplift, the climate-scenario uplift —
+    are all diluted by theft's arrival, because the denominator grew while the
+    weather-driven numerator did not. Nothing about the flood or climate modelling
+    changed.</p>
+
+    <h3 id="eow">Escape of water — a flat base with a freeze slice</h3>
+    <p>Escape of water is the UK's most frequent home claim — the ABI puts it at
+    <b>£1.8m a day</b>, about £657m a year, roughly 164,000 claims at ~£4,000 each. It
+    is also the hardest of the six to give a geography: burst pipes and failed
+    appliances follow plumbing age and dwelling type, neither of which is open data at
+    district level. Pretending otherwise would be invention, so the base frequency is
+    deliberately <b>flat</b>.</p>
+    <p>What <i>is</i> open is the freeze. Around <b>__EOW_FREEZE_PCT__%</b> of
+    escape-of-water claims are freeze-attributable — the January burst-pipe peak, with
+    insurers reporting ~25% of claims in July–September as the no-freeze floor — and
+    that slice scales with each district's <b>annual air-frost days</b> from the Met
+    Office HadUK-Grid 1991–2020 normal: __EOW_FROST_LO__ days a year on the mildest
+    coasts to __EOW_FROST_HI__ in the Scottish Highlands. The result is a modest,
+    physical spread: expected loss runs from <b>£__EOW_LO__</b> (__EOW_LO_NAME__) to
+    <b>£__EOW_HI__</b> (__EOW_HI_NAME__) per policy, around a national mean of
+    <b>£__EOW_EL__</b>.</p>
+    <p><b>Like theft it sits outside the vine — but for capital it is the opposite
+    case.</b> The vine's root is the storm track, and cold is the one weather axis the
+    vine does not carry: the correlation between a district's escape-of-water expected
+    loss and its four-peril catastrophe expected loss is <b>__EOW_CAT_CORR__</b> — the
+    frost map is close to an inversion of the storm map, so this peril re-ranks the
+    book more than any other addition. But a hard national freeze <i>is</i> genuinely
+    systemic: winter 2010 pushed around 103,000 burst-pipe claims (£680m) through in
+    six weeks, roughly doubling that year's escape-of-water bill. The factor loading is
+    solved against exactly that observation — a 1-in-100 freeze year costs about twice
+    the mean — which makes it twenty times theft's loading. Escape of water therefore
+    pays a real, if small, capital charge where theft pays almost none.</p>
+    <p class="note">The same dilution note as theft's applies, at larger scale: adding
+    ~£__EOW_EL__ of weather-independent expected loss grows the premium denominator, so
+    percentage-of-premium figures — the dependence uplift, the climate-scenario
+    uplift — fall again without any change to the flood or climate modelling.</p>
   </section>
 
   <section class="doc" id="erosion">
     <h2>Coastal erosion: modelled, not priced</h2>
-    <p>The model carries a fifth peril, <b style="color:var(--er)">coastal erosion</b>, from
+    <p>The model carries one further peril, <b style="color:var(--er)">coastal erosion</b>, from
     the Environment Agency's <b>NCERM National 2024</b> mapping of ~7,500 stretches of the
     English coast. It is in the vine, and it is deliberately <b>not in the premium</b>.</p>
 
@@ -392,7 +481,13 @@ __NAV__
     from bivariate pieces, so each pair gets the dependence structure it deserves. This is a
     <b>C-vine with weather at the root</b>, because weather is the common driver: storms bring
     the rain that floods rivers and recharges aquifers, the same climate variability
-    produces the droughts that shrink clay, and the same surges strip the coast.</p>
+    produces the droughts that shrink clay, and the same surges strip the coast.
+    <b>Theft and escape of water are deliberately not vine dimensions</b>: burglary has
+    no meteorological driver, and burst pipes answer to cold — the one weather axis a
+    storm-rooted vine does not carry — so both are simulated as independent legs
+    alongside the vine, with their systemic behaviour handled by factor loadings
+    instead — see <a href="#theft">the theft section</a> and
+    <a href="#eow">the escape-of-water section</a>.</p>
 
     <div class="diagram-card">
       <!-- Three panels, one per tree, so they can sit in a row on a wide
@@ -492,16 +587,27 @@ __NAV__
             <td class="num">£17,820</td><td class="num">~17,200</td><td class="num">0.111%</td></tr>
         <tr><td><strong style="color:var(--gw)">Groundwater</strong></td><td class="num">—</td>
             <td class="num">£20,000</td><td class="num">—</td><td class="num">pegged at 10% of flood</td></tr>
+        <tr><td><strong style="color:var(--th)">Theft</strong></td><td class="num">£450m <small>(2018)</small></td>
+            <td class="num">£3,800</td><td class="num">~118,000</td><td class="num">0.76%</td></tr>
+        <tr><td><strong style="color:var(--eow)">Escape of water</strong></td><td class="num">~£657m <small>(£1.8m/day)</small></td>
+            <td class="num">£4,000</td><td class="num">~164,000</td><td class="num">1.06%</td></tr>
       </table>
     </div>
-    <p class="note">Over ~15.5m policies (ABI premium-tracker coverage), these four perils
-    come to <b>£55.68</b> per policy per year — about <b>25%</b> of the £219 that all home
-    claims cost. Groundwater is not reported separately by the ABI, so it is a documented
-    assumption rather than a calibration.</p>
+    <p class="note">Over ~15.5m policies (ABI premium-tracker coverage), these six perils
+    come to <b>£__MEAN_EL__</b> per policy per year — <b>__EL_CLAIMS_SHARE__%</b> of the
+    £219 that all home claims cost. Groundwater is not reported separately by the ABI, so
+    it is a documented assumption rather than a calibration. Theft's paid figure is
+    <b>2018 vintage</b> — the last year the ABI published a theft-specific total — while
+    its £3,800 average claim is current; mixing vintages is the honest option available,
+    and the resulting frequency (0.76%) sits inside the envelope every cross-check allows
+    (0.58–0.97%). Escape of water has no single published total either: its £657m is the
+    ABI's rolling <b>"£1.8m a day"</b> figure, and the £4,000 average follows from
+    escape-of-water's ~29% share of 2025's 560,000 home claims — three independent public
+    numbers that close into one self-consistent triangle, which is the cross-check.</p>
 
-    <div class="callout" style="margin:16px 0"><b>These are four-peril premiums, not home
-    insurance premiums.</b> A real policy also covers escape of water, theft, fire and
-    accidental damage — which together are the majority of claims — plus expenses,
+    <div class="callout" style="margin:16px 0"><b>These are six-peril premiums, not home
+    insurance premiums.</b> A real policy also covers fire and
+    accidental damage — plus expenses,
     commission and profit. Expect the numbers here to be a fraction of what you actually
     pay, and don't compare them directly.</div>
 
@@ -519,10 +625,11 @@ __NAV__
       <li>the <b>spread</b> of frequency and severity within each peril.</li>
     </ul>
     <p>An earlier version of this page calibrated to the all-claims figures instead
-    (560,000 claims, 3.6% frequency). That was wrong: most of those claims are escape of
-    water and theft, so scaling four catastrophe perils up to that frequency while applying
-    catastrophe severities overstated the loss cost by about 77%. The per-peril anchors
-    above replace it.</p>
+    (560,000 claims, 3.6% frequency). That was wrong: most of those claims are the
+    attritional perils — escape of water and theft — so scaling four catastrophe perils
+    up to that frequency while applying catastrophe severities overstated the loss cost
+    by about 77%. The per-peril anchors above replace it, and the attritional perils now
+    carry their own anchors with their own (much cheaper) severities.</p>
 
     <h3>How national is a bad year?</h3>
     <p>The portfolio view needs one more anchor: how widely claims spread in a bad year.
@@ -684,7 +791,16 @@ __NAV__
     subsidence 60%, groundwater 70% — storms, droughts and aquifer recharge are large-scale
     phenomena, while flooding is more localised. Those base ratios are then scaled by a
     single multiplier, solved analytically so that a 1-in-100 year claims twice as widely as
-    an average one.</p>
+    an average one. Theft's loading is far smaller — <b>0.13%</b> — and is derived rather
+    than assumed: at these frequencies the year-to-year spread of the national claim count
+    goes as <span style="white-space:nowrap">≈ 2.75·√w</span>, and the observed national
+    burglary series varies by ±10–15% a year, which pins w near 0.001. A "felt reasonable"
+    loading of 0.20 would have implied worst years with 8–14× average claims — nothing in
+    the crime record looks like that — and charged every policy ~£13 of phantom capital.
+    Escape of water's loading is derived the same way but from a very different record:
+    winter 2010's six-week freeze roughly <b>doubled</b> the year's burst-pipe bill, which
+    pins its loading at <b>2.6%</b> — twenty times theft's, and the reason escape of
+    water buys real capital where theft buys almost none.</p>
     <p>The transformation preserves each district's marginal distribution exactly, so
     <b>expected loss is untouched</b> — bit-for-bit, whatever the loading. But it is not
     cosmetic: <b>capital is allocated from the portfolio tail measured in this view</b>, so
@@ -806,6 +922,7 @@ __NAV__
         <tr><td><strong>British Geological Survey</strong></td><td>Geology 625k bedrock (11,244 formations)</td><td>Subsidence</td></tr>
         <tr><td><strong>Met Office</strong></td><td>Winter wind speed 5 km; wind-driven rain index 5 km (UKCP18 baseline)</td><td>Weather</td></tr>
         <tr><td><strong>Met Office</strong></td><td>HadUK-Grid 1991–2020: ≥10 mm rain days, annual precipitation</td><td>Weather</td></tr>
+        <tr><td><strong>Met Office</strong></td><td>HadUK-Grid 1991–2020: annual air-frost days</td><td>Escape of water (freeze exposure)</td></tr>
         <tr><td><strong>Met Office MIDAS Open</strong> (via CEDA)</td><td>Station gust observations 1970–2025 → Gumbel-fitted 1-in-50 gust at 191 stations ≤300 m</td><td>Weather extremes</td></tr>
         <tr><td><strong>Environment Agency</strong></td><td>NaFRA2 rivers &amp; sea defended flood extents (England)</td><td>Flood</td></tr>
         <tr><td><strong>Natural Resources Wales</strong></td><td>FRAW rivers, sea and surface water (Wales)</td><td>Flood</td></tr>
@@ -818,7 +935,9 @@ __NAV__
         <tr><td><strong>ONS</strong></td><td>Postcode → OA/LSOA best-fit lookup (2.7m rows; the 33% that are terminated postcodes excluded)</td><td rowspan="3">Exposure weighting — 27.3m households</td></tr>
         <tr><td><strong>ONS</strong> (via NOMIS)</td><td>Census 2021 TS041 households by LSOA (England &amp; Wales)</td></tr>
         <tr><td><strong>National Records of Scotland</strong></td><td>Scotland's Census 2022 household total</td></tr>
-        <tr><td><strong>ABI</strong></td><td>Domestic claims paid by peril, 2025</td><td>Loss calibration</td></tr>
+        <tr><td><strong>police.uk</strong></td><td>Street-level crime archive, latest 36 months — burglary points (England, Wales, BTP)</td><td>Theft</td></tr>
+        <tr><td><strong>Scottish Government</strong></td><td>Recorded Crime in Scotland 2024–25 — national housebreaking count</td><td>Theft (Scotland override)</td></tr>
+        <tr><td><strong>ABI</strong></td><td>Domestic claims paid by peril, 2025 (theft: 2018, the last published; escape of water: the "£1.8m a day" figure)</td><td>Loss calibration</td></tr>
       </table>
     </div>
     <p class="note">A note on honesty in sourcing: HadUK-Grid's NetCDF files on CEDA require a
@@ -837,13 +956,14 @@ __NAV__
 git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data/uk-postcode-polygons
 
 .venv/Scripts/python scripts/fetch_bgs.py            # BGS bedrock geology  (~32 MB)
-.venv/Scripts/python scripts/fetch_metoffice.py      # 4 climate grids
+.venv/Scripts/python scripts/fetch_metoffice.py      # 5 climate grids (incl. air-frost days)
 .venv/Scripts/python scripts/fetch_flood.py          # river/sea flood extents   (~20 min)
 .venv/Scripts/python scripts/fetch_surface_water.py  # surface-water extents     (~60 min)
 .venv/Scripts/python scripts/fetch_groundwater.py    # groundwater alert flags
 .venv/Scripts/python scripts/fetch_midas.py          # MIDAS station gusts (CEDA token; ERA5 fetch_gusts.py = fallback)
 .venv/Scripts/python scripts/fetch_history.py        # 35yr ERA5 drivers, for the backtest
 .venv/Scripts/python scripts/fetch_households.py     # census households -> exposure weights
+.venv/Scripts/python scripts/fetch_burglary.py       # police.uk burglary points (1.7 GB archive, resumable)
 
 .venv/Scripts/python scripts/build_model.py          # scores + vine simulation  (~15 min)
 .venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs         (~25 min)
