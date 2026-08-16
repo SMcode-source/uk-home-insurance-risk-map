@@ -37,14 +37,38 @@ the attritional lines, theft first. State right now:
   district's own burglary rate, capped at the household-weighted p99.9
   (office cores are burgled as shops, not homes), Scotland overridden
   with the national housebreaking rate. 74 tests green.
-- **Evidence run dispatched**: rebuild.yml run 31969240862 on the
-  branch, commit=false. When it finishes: download the artifact, run
-  `scripts/compare_rebuild.py`, and put the premium/churn evidence in
-  front of the user — publishing theft is THEIR call, per the
-  experiment-branch pattern below. Known consequences to report:
-  uplift_pct dilutes mechanically (independent line vs cat tail),
-  premiums rise toward £85-90/policy, and the map popup does not yet
-  itemise theft (additive column; site copy untouched on the branch).
+- **Evidence is IN (run 31970674869, the third — see below): premium
+  £59.07 → £88.11 (+£29.04), of which el_th £29.03 and capital +£0.01.**
+  The theft level lands on the ABI calibration to the penny, theft earns
+  full diversification credit under portfolio-TVaR capital, and every
+  weather-peril output is bit-identical to published (verified column by
+  column). Churn is large and REAL: 77.9% of districts change rating
+  group, 1,281 by ≥2 — theft geography is nearly orthogonal to cat
+  geography (corr 0.04), so pricing it re-ranks the book. City cores go
+  to group 10 (B2 £25→£240); el_th median £22, p95 £71, max £215 at the
+  p99.9 winsorisation cap. Dilutions to disclose in site copy if
+  accepted: uplift_pct 11.0%→8.2% weighted, climate uplift 8.6%→5.6%
+  (same £ of repricing on a bigger base). The USER decides.
+- **The first two evidence runs were themselves the evidence process
+  working.** Run 1 (31969240862) failed the published-geojson identity
+  test — el_total no longer equalled the four-peril sum, the diff being
+  el_th to the penny; the identity now includes theft with a
+  missing-column-reads-as-zero fallback that cannot mask a partial
+  regression. Run 2 (31969920992) priced a MIS-SPECIFIED model and the
+  numbers said so: premium +79.9%, +£13/policy of phantom capital and
+  el_th +17% over calibration. Two lessons that apply to EVERY
+  attritional peril still to come (EoW, fire, AD):
+  1. **A factor loading has enormous leverage at rare-event
+     thresholds.** W_THEFT=0.20 on "weakly systemic" intuition implied
+     worst years claiming 8–14× the mean — no burglary data shows that.
+     Derive it: CV(national claim count) ≈ sqrt(w)·φ(z_p)/p; targeting
+     the observed ±10-15% year-to-year variation gives W_THEFT=0.0013
+     (1-in-100 systemic year ≈ 1.3× claims).
+  2. **A peril whose districts share ONE uniform stream must take its
+     EL analytically** (p·E[sev], the el_er cure): the ~150
+     threshold-clearing draws carry a COMMON error, so the whole map
+     came out +17% over the calibrated level at once. Draws still feed
+     the tail columns. Both now guarded by tests.
 - **Not done, deliberate**: sectors get theft only if the user accepts
   it for districts (needs sector-resolution burglary aggregation on the
   sector-model branch); EoW/fire/AD are next in Phase 1; the VOA
