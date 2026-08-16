@@ -980,7 +980,15 @@ page</a>.</p>
   Management Plan and under no-further-intervention. <b>Not part of the premium</b> &mdash;
   standard household policies exclude gradual erosion &mdash; so it is shown as blight and
   valuation exposure only. England only.</p>
-  <p><b>Vine copula.</b> The five perils are joined by a <b>C-vine</b> with weather at
+  <p><b>Theft.</b> Three years of police.uk street-level burglary, located point by
+  point into each district and turned into an annual burglary rate per household. The
+  police category includes commercial premises, so rates are capped at the
+  exposure-weighted 99.9th percentile rather than letting shop-dense city cores carry
+  retail break-ins as household risk. Scotland is not on police.uk and takes the
+  national housebreaking rate from Recorded Crime in Scotland instead. The rate is
+  scaled to the ABI's national claim count, so the burglary&rarr;claim propensity
+  cancels out and never has to be assumed.</p>
+  <p><b>Vine copula.</b> The four weather-driven perils and erosion are joined by a <b>C-vine</b> with weather at
   the root. Tree&nbsp;1: Gumbel(&theta;<sub>WF</sub> up to 3.0) weather&ndash;flood,
   Gumbel(&theta;<sub>WG</sub> up to 2.4) weather&ndash;groundwater (aquifer recharge follows
   prolonged rain), Gumbel(&theta;<sub>WS</sub> up to 2.5) weather&ndash;subsidence,
@@ -991,18 +999,22 @@ page</a>.</p>
   flood&ndash;subsidence; tree&nbsp;3 independent. 20,000 simulated years per district
   (Marshall&ndash;Olkin for the root pair, conditional h-function inversion for the other
   margins). A tau-matched 5-dim Gaussian copula and an independence run are computed for
-  comparison. There is deliberately no per-district <i>copula uplift</i> layer: at
+  comparison. <b>Theft sits deliberately outside the vine</b>: burglary does not
+  co-move with storms, so it is simulated as an independent leg and adds essentially
+  no capital — its whole premium contribution is expected loss. There is deliberately
+  no per-district <i>copula uplift</i> layer: at
   calibrated frequencies that difference is inside Monte Carlo noise, so it would be
   drawing noise across the country. The dependence effect is real, but it lives in the
   portfolio.</p>
-  <p><b>Calibration.</b> Each peril's claim frequency is scaled to the ABI's published 2025
-  domestic payouts &mdash; storm &pound;244m, flood &pound;312m, subsidence &pound;307m over
+  <p><b>Calibration.</b> Each peril's claim frequency is scaled to the ABI's published
+  domestic payouts &mdash; storm &pound;244m, flood &pound;312m, subsidence &pound;307m
+  (2025), theft &pound;450m (2018, the last year the ABI published it) over
   ~15.5m policies &mdash; and severities take the published average claim as their mean.
-  Together the four insured perils come to ~&pound;56/policy/yr, about a quarter of what all
-  home claims cost. Coastal erosion is <i>not</i> in that figure and is not calibrated to
-  ABI at all &mdash; it has no published payout, because it is not covered.
-  <b>These are four-peril premiums, not home insurance premiums:</b> a real
-  policy also covers escape of water, theft, fire and accidental damage, plus expenses and
+  Together the five insured perils come to ~&pound;85/policy/yr, about two-fifths of what
+  all home claims cost. Coastal erosion is <i>not</i> in that figure and is not calibrated
+  to ABI at all &mdash; it has no published payout, because it is not covered.
+  <b>These are five-peril premiums, not home insurance premiums:</b> a real
+  policy also covers escape of water, fire and accidental damage, plus expenses and
   profit. What is <i>not</i> fitted is the geography and the dependence.</p>
   <p><b>Rating groups.</b> Technical premium = expected loss + 6% cost-of-capital on the
   district's <b>Euler-allocated</b> share of <i>portfolio</i> tail risk &mdash; its expected
@@ -1015,7 +1027,8 @@ page</a>.</p>
   population &mdash; compare the premiums, not the group numbers.</p>
   
   <p class="note">Hazard data: BGS Geology 625k, Met Office HadUK-Grid / Climate
-  Data Portal, EA / NRW / SEPA flood maps, EA flood-risk postcode data (all OGL).
+  Data Portal, EA / NRW / SEPA flood maps, EA flood-risk postcode data,
+  police.uk street-level burglary (all OGL).
   Loss frequencies/severities and copula parameters are illustrative assumptions,
   not calibrated to claims. Boundaries: uk-postcode-polygons. See DATA_SOURCES.md
   in the repo for every endpoint, licence and access date.</p>
@@ -1054,7 +1067,7 @@ const RAMP_AQUA = ['#d5f2e6','#a5e2c8','#72cfa8','#43bd8b','#219367','#136e4c','
 const RAMP_VIOLET = ['#e6e2f7','#c8c0ee','#a89ce4','#8a7bd8','#6f5cc4','#5643a8','#3d2f83'];
 const RAMP_DIVERGING = ['#1c5cab','#5598e7','#b7d3f6','#f0efec','#f2b8b7','#e34948','#9c2b2a'];
 const RAMP_GROUP = ['#b7d3f6','#9ec5f4','#86b6ef','#6da7ec','#5598e7','#3987e5','#2a78d6','#256abf','#184f95','#0d366b'];
-/* Erosion needs a hue not already spoken for by the four insured perils.
+/* Erosion needs a hue not already spoken for by the insured perils.
    The palest step of the original rose ramp was dropped: measured on the
    live map it came out at 1.02:1 against the "no exposure" grey, so a
    district with a little erosion was indistinguishable from one with
@@ -1285,7 +1298,7 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 /* The popup is layered for a READER, not a debugger: what they tapped for
-   (rating, premium), then the four peril scores that explain it, then the
+   (rating, premium), then the five peril rows that explain it, then the
    climate scenario — and everything else behind <details>, because a
    reader who tapped a district should not have to scroll past θ_wg and
    tvar99_indep to find the premium. The old flat table ran to 36 rows and
@@ -1308,7 +1321,13 @@ function popupHtml(p) {
     '<tr><td>' + label + '</td>' +
     '<td><span class="score-bar"><i style="width:' + Math.round(100 * Math.min(s, 1)) + '%"></i></span> ' +
     s.toFixed(2) + '</td>' +
-    '<td>' + fmtGBP(el) + '/yr</td></tr>').join('');
+    '<td>' + fmtGBP(el) + '/yr</td></tr>').join('') +
+    /* Theft's input is a measured burglary rate, not a 0-1 hazard score,
+       so it shows the rate itself instead of pretending to a scale it
+       does not share with the other four. */
+    '<tr><td>Theft</td>' +
+    '<td>' + (100 * p.th_rate).toFixed(2) + '%/yr burglaries</td>' +
+    '<td>' + fmtGBP(p.el_th) + '/yr</td></tr>';
 
   const premiumFold = fold('How the premium is built',
     row('Expected loss, all perils', fmtGBP(p.el_total) + '/yr') +
