@@ -365,6 +365,23 @@ def weather_from_metoffice(targets_bng):
     return np.clip(score, 0, 1), raw
 
 
+def frost_from_metoffice(targets_bng):
+    """Annual air-frost days per district (HadUK-Grid obs 1991-2020,
+    fetch_metoffice.py `frost` layer) - the freeze-exposure driver for
+    escape of water. Returns the raw day count, NOT a stretched score:
+    the EoW marginal wants a physical relativity (a district with twice
+    the frost days has twice the freeze exposure), and only ~15% of the
+    peril varies with it, so a [0,1] stretch would overstate the spread.
+    Deliberately separate from weather_from_metoffice: wx_score feeds
+    the calibrated storm peril and must not move when EoW arrives.
+    """
+    pts, vals = _load_grid("frost")
+    frost = _idw(pts, vals, targets_bng)
+    print(f"  frost: {len(vals)} grid pts -> "
+          f"district range {frost.min():.1f}..{frost.max():.1f} days")
+    return frost
+
+
 # ----------------------------------------------------------------- flood
 
 

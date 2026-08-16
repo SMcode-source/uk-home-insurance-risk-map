@@ -56,7 +56,7 @@ from scipy import stats
 from scores_real import (subsidence_score, weather_from_metoffice,
                          flood_from_agencies, groundwater_from_ea,
                          erosion_from_ncerm, sw_depth_severity, load_country,
-                         theft_from_police,
+                         theft_from_police, frost_from_metoffice,
                          flood_future, flood_score_from_fractions,
                          EROSION_HORIZON_YEARS)
 
@@ -94,11 +94,11 @@ OUTPUT_COLUMNS = [
     "wind_ms", "wdr_idx", "rain10_days", "precip_mm",
     "gust_rp50",
     "f_high", "f_low", "sw_high", "sw_low", "gw_frac",
-    "sw_sev", "sw_depth_m", "th_rate",
+    "sw_sev", "sw_depth_m", "th_rate", "frost_days", "eow_rate",
     "er_score", "er_smp55", "er_smp105", "er_nfi55", "er_nfi105",
     "er_smp105_lo", "er_smp105_hi", "er_nfi105_lo", "er_nfi105_hi",
     "er_gi",
-    "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_er",
+    "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow", "el_er",
     "el_total", "el_total5", "var995_vine", "tvar99_vine",
     "tvar99_gauss",
     "tvar99_indep", "tvar99_vine5", "tvar99_indep5", "tvar99_euler",
@@ -118,7 +118,8 @@ OUTPUT_COLUMNS = [
 # Returned by simulate(). Several of these are not in OUTPUT_COLUMNS and are
 # deliberately kept anyway - see the note on var995_* in simulate().
 SIMULATED_COLUMNS = {
-    "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_er", "el_total",
+    "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow", "el_er",
+    "el_total",
     "el_total5",
     "var995_vine", "var995_gauss", "var995_indep", "tvar99_vine",
     "tvar99_gauss", "tvar99_indep", "tvar99_vine5", "tvar99_indep5",
@@ -256,6 +257,15 @@ ABI = dict(
     # recorded burglary (~0.58%) - that envelope is the documented
     # uncertainty on the theft LEVEL. See DATA_SOURCES.md #25.
     theft_paid=450e6, sev_theft=3_800.0,
+    # Escape of water. Like theft, the ABI publishes no annual per-peril
+    # total any more; the standing figure is "£1.8m every day" (~£657m/yr,
+    # quoted since ~2017). The triangle closes: EoW was 29.3% of 2025's
+    # 560,000 home claims (~164,000), and 657m/164k = £4,005 average -
+    # self-consistent, so the implied frequency is 1.06%/policy. Aviva's
+    # 2025 book average (£8,595) shows the insurer-level spread; the
+    # vintage mixing is the documented envelope on the EoW LEVEL, same
+    # as theft. See DATA_SOURCES.md #26.
+    eow_paid=657e6, sev_eow=4_000.0,
     # Coastal erosion is a TOTAL loss of the property, not a repair, so its
     # severity is a sum insured rather than an average claim. There is no
     # ABI figure to calibrate against, because gradual erosion is excluded
@@ -269,16 +279,18 @@ ABI_TARGET_FREQ = {
     "fl": ABI["flood_paid"] / ABI["sev_flood"] / POLICIES,
     "sub": ABI["subsidence_paid"] / ABI["sev_subsidence"] / POLICIES,
     "th": ABI["theft_paid"] / ABI["sev_theft"] / POLICIES,
+    "eow": ABI["eow_paid"] / ABI["sev_eow"] / POLICIES,
 }
 ABI_LOSS_PER_POLICY = (ABI["storm_paid"] + ABI["flood_paid"]
                        + ABI["subsidence_paid"]
-                       + ABI["theft_paid"]) / POLICIES
+                       + ABI["theft_paid"] + ABI["eow_paid"]) / POLICIES
 
 # lognormal median that gives the target MEAN for a given sigma
 _median_for_mean = lambda mean, sigma: mean / np.exp(sigma ** 2 / 2)
 
 # One multiplier per peril, set by calibrate_frequency() before simulating.
-FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0, "th": 1.0}
+FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0, "th": 1.0,
+              "eow": 1.0}
 GW_SHARE_OF_FLOOD = 0.10      # groundwater not published separately
 
 
@@ -290,7 +302,8 @@ def calibrate_frequency(gdf):
     point of the model - is untouched.
     """
     global FREQ_SCALE
-    FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0, "th": 1.0}
+    FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0, "th": 1.0,
+                  "eow": 1.0}
     m = marginal_params(_fields(gdf))
     # ABI totals are national, so the average must be exposure-weighted:
     # a district with 40,000 households counts 40,000 times more than one
@@ -300,12 +313,13 @@ def calibrate_frequency(gdf):
            "wx": float(np.average(m["p_wx"], weights=w)),
            "fl": float(np.average(m["p_fl"], weights=w)),
            "gw": float(np.average(m["p_gw"], weights=w)),
-           "th": float(np.average(m["p_th"], weights=w))}
-    for k in ("sub", "wx", "fl", "th"):
+           "th": float(np.average(m["p_th"], weights=w)),
+           "eow": float(np.average(m["p_eow"], weights=w))}
+    for k in ("sub", "wx", "fl", "th", "eow"):
         FREQ_SCALE[k] = ABI_TARGET_FREQ[k] / raw[k]
     # groundwater has no published total; peg it to a share of flood
     FREQ_SCALE["gw"] = (GW_SHARE_OF_FLOOD * ABI_TARGET_FREQ["fl"]) / raw["gw"]
-    for k in ("wx", "fl", "sub", "th"):
+    for k in ("wx", "fl", "sub", "th", "eow"):
         print(f"  {k:4} frequency {raw[k]:.3%} -> ABI {ABI_TARGET_FREQ[k]:.3%}"
               f"  (x{FREQ_SCALE[k]:.3f})")
     print(f"  gw   frequency pegged at {GW_SHARE_OF_FLOOD:.0%} of flood")
@@ -337,6 +351,27 @@ TAIL_FREQ_RATIO = 2.0        # 1-in-100 year claims ~2x the average year
 # 8-14x the mean - a national crime wave no data shows - and charged
 # +GBP 13/policy of phantom capital for it.
 W_THEFT = 0.0013
+# Escape of water's loading comes from the same derivation but a very
+# different record. The freeze events are genuinely systemic: winter 2010
+# put 103,000 burst-pipe claims (£680m) through in SIX WEEKS - a normal
+# year's EoW paid on top of the base - so the worst year in the record
+# cost ~2x the mean, and Q1 2018 (Beast from the East, £193m in the
+# quarter) ~1.3x. Targeting the 1-in-100 year at 2x mean:
+#   CV * z(0.99) = 1.0  ->  CV = 0.43
+#   CV = sqrt(w) * phi(z_p)/p, and at p = 1.06% phi(z_p)/p = 2.65
+#   -> sqrt(w) = 0.43/2.65 -> w = 0.026
+# Twenty times theft's loading, still an order of magnitude below the
+# weather perils' solved values - which is the right ordering: freeze
+# years are real national events, but most EoW is uncorrelated plumbing
+# failure. Unlike theft, EoW therefore SHOULD show up in capital.
+W_EOW = 0.026
+# The freeze-attributable share of a NORMAL year's EoW claims - the only
+# slice that varies spatially (with air-frost days). 25% of EoW claims
+# happen July-September (Aviva 2026) and the January peak is freeze-
+# driven; ~15% is the defensible middle. The base is FLAT: plumbing and
+# appliance failure has no open spatial predictor until Phase 2 gives
+# dwelling age (EPC) and a commercial denominator (VOA).
+EOW_FREEZE_SHARE = 0.15
 
 
 def calibrate_spatial(gdf, target_ratio=TAIL_FREQ_RATIO):
@@ -426,6 +461,16 @@ def marginal_params(f):
     # transform. FREQ_SCALE["th"] then absorbs the burglary-to-claim
     # propensity, which is why that unpublished number never appears.
     p_th = f["th"]
+    # Escape of water: eow_rate is precomputed in main() as anchor level
+    # x frost relativity (flat base + freeze-sensitive slice), because
+    # the relativity's normalisation needs households, which this
+    # function never sees - a mean taken HERE would make the marginal
+    # depend on the batch composition. It arrives as a RATE (~1%), like
+    # th_rate, so calibration solves against real relativities rather
+    # than the 0.5 clip below - a raw O(1) relativity would saturate the
+    # clip during the calibration pass and come out 2x hot with the
+    # geography flattened.
+    p_eow = f["eow"]
 
     s_sub, s_wx, s_fl, s_gw, s_er = 0.90, 1.10, 0.90, 0.80, 0.35
     # Theft severity spread: most claims are a few thousand (forced entry
@@ -434,6 +479,11 @@ def marginal_params(f):
     # in line with the shape the ABI's high-value-theft commentary
     # describes; the MEAN is pinned to the published average regardless.
     s_th = 1.00
+    # EoW severity spread: the bulk is trace-and-access plus drying out
+    # (low thousands), the tail is full ground-floor reinstatement after
+    # an unattended leak. sigma=1.0 (same shape as theft); the MEAN is
+    # pinned to the £4,000 the anchor triangle implies.
+    s_eow = 1.00
     sev_sub = dict(mu=np.log(_median_for_mean(ABI["sev_subsidence"], s_sub)),
                    sigma=s_sub)
     sev_wx = dict(mu=np.log(_median_for_mean(ABI["sev_weather"], s_wx)),
@@ -457,14 +507,17 @@ def marginal_params(f):
                   sigma=s_er)
     sev_th = dict(mu=np.log(_median_for_mean(ABI["sev_theft"], s_th)),
                   sigma=s_th)
+    sev_eow = dict(mu=np.log(_median_for_mean(ABI["sev_eow"], s_eow)),
+                   sigma=s_eow)
 
     k = FREQ_SCALE
     return dict(
         p_sub=p_sub * k["sub"], p_wx=p_wx * k["wx"], p_fl=p_fl * k["fl"],
         p_gw=p_gw * k["gw"], p_er=p_er,     # erosion is not ABI-calibrated
         p_th=np.minimum(p_th * k["th"], 0.5),
+        p_eow=np.minimum(p_eow * k["eow"], 0.5),
         sev_sub=sev_sub, sev_wx=sev_wx, sev_fl=sev_fl, sev_gw=sev_gw,
-        sev_er=sev_er, sev_th=sev_th)
+        sev_er=sev_er, sev_th=sev_th, sev_eow=sev_eow)
 
 
 def _fields(src):
@@ -473,7 +526,7 @@ def _fields(src):
             [("sub", "sub_score"), ("wx", "wx_score"), ("f_high", "f_high"),
              ("f_low", "f_low"), ("sw_high", "sw_high"), ("sw_low", "sw_low"),
              ("gw_frac", "gw_frac"), ("sw_sev", "sw_sev"), ("er", "er_frac"),
-             ("th", "th_rate")]}
+             ("th", "th_rate"), ("eow", "eow_rate")]}
 
 
 def inv_mixed_cdf(u, p, mu, sigma):
@@ -675,10 +728,15 @@ def simulate(district_df):
         # seeded stream: the four weather perils simulate bit-identically
         # with or without it, which is what makes the evidence diff pure.
         "U_th": rng.uniform(0, 1, N_SIM),
+        # Escape of water: same reasoning, same discipline - independent
+        # leg, appended AFTER U_th so the five published perils simulate
+        # bit-identically and the evidence diff stays pure.
+        "U_eow": rng.uniform(0, 1, N_SIM),
     }
 
     out = {k: [] for k in [
-        "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_er", "el_total",
+        "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow", "el_er",
+        "el_total",
         "el_total5", "var995_vine",
         "var995_gauss", "var995_indep", "tvar99_vine", "tvar99_gauss",
         "tvar99_indep", "tvar99_vine5", "tvar99_indep5", "uplift_pct",
@@ -792,13 +850,21 @@ def simulate(district_df):
         l_th = inv_mixed_cdf(bc("U_th"),
                              np.broadcast_to(m["p_th"], u_w.shape),
                              **m["sev_th"])
-        tot_v = ls + lw + lf + lg + l_th
+        # Escape of water: same placement as theft. Freeze-driven bursts
+        # do correlate with cold snaps, but cold is the one weather axis
+        # the vine does NOT carry (its root is storm/rain-driven), so
+        # independence from the four vine perils is the honest structure
+        # - the freeze systemicity lives in W_EOW, not in the copula.
+        l_eow = inv_mixed_cdf(bc("U_eow"),
+                              np.broadcast_to(m["p_eow"], u_w.shape),
+                              **m["sev_eow"])
+        tot_v = ls + lw + lf + lg + l_th + l_eow
         tot5_v = tot_v + le
         tot_n = insured(losses(*sample_gaussian5(t_ws, t_wf, t_wg, t_we,
-                                                 base)[:4])) + l_th
+                                                 base)[:4])) + l_th + l_eow
         parts_i = losses(u_w, bc("U_ind_F"), bc("U_ind_G"), bc("U_ind_S"),
                          bc("U_ind_E"))
-        tot_i = insured(parts_i) + l_th
+        tot_i = insured(parts_i) + l_th + l_eow
         tot5_i = tot_i + parts_i[4]
 
         # year view: systemic factor + idiosyncratic district noise
@@ -833,7 +899,13 @@ def simulate(district_df):
                 # narrative dict: the good-year/bad-year story is about
                 # weather clustering, and a near-constant theft charge
                 # would blur exactly that contrast.
-                + cond_expected(bc("U_th"), m["p_th"], m["sev_th"], W_THEFT))
+                + cond_expected(bc("U_th"), m["p_th"], m["sev_th"], W_THEFT)
+                # EoW joins capital with its own, much larger loading:
+                # a 1-in-100 freeze year roughly doubles the national EoW
+                # bill (winter 2010), so unlike theft it earns only a
+                # partial diversification credit against the cat tail.
+                + cond_expected(bc("U_eow"), m["p_eow"], m["sev_eow"],
+                                W_EOW))
         year_loss[start:start + len(chunk)] = cond.astype(np.float32)
         # independence year view: same idiosyncratic noise (common random
         # numbers), systemic factors independent across perils
@@ -878,6 +950,11 @@ def simulate(district_df):
         el_th = (m["p_th"] * np.exp(m["sev_th"]["mu"]
                                     + m["sev_th"]["sigma"] ** 2 / 2)).ravel()
         loc["el_th"] = (el_th)
+        # EoW shares theft's failure mode exactly - one U_eow stream
+        # across all districts - so its EL is analytic too.
+        el_eow = (m["p_eow"] * np.exp(m["sev_eow"]["mu"]
+                                      + m["sev_eow"]["sigma"] ** 2 / 2)).ravel()
+        loc["el_eow"] = (el_eow)
         # Erosion's expected loss is taken ANALYTICALLY, not from the draws.
         # Its annual probability is ~1.5e-5 for a typical coastal district,
         # so 20,000 years give well under one event: the simulated mean
@@ -894,7 +971,8 @@ def simulate(district_df):
         # el_total sums the four weather-peril draw means (which the ABI
         # scaling was solved against) with the analytic theft leg - the
         # same construction el_total5 has always used for erosion.
-        loc["el_total"] = ((ls + lw + lf + lg).mean(axis=1) + el_th)
+        loc["el_total"] = ((ls + lw + lf + lg).mean(axis=1)
+                           + el_th + el_eow)
         loc["el_total5"] = (loc["el_total"] + el_er)
         # var995_vine is published; the gauss and indep siblings are NOT in
         # OUTPUT_COLUMNS and nothing downstream reads them. They are kept
@@ -1136,6 +1214,23 @@ def main():
     gdf["th_rate"] = theft_from_police(gdf["name"].values,
                                        gdf["households"].values)
 
+    print("scoring escape-of-water freeze exposure from frost days...")
+    gdf["frost_days"] = frost_from_metoffice(targets)
+    # eow_rate = anchor frequency x (flat base + freeze-sensitive slice
+    # on each district's frost days relative to the exposure-weighted
+    # mean). The normalisation lives HERE, not in marginal_params: that
+    # function runs on batches, and a per-chunk mean would make the
+    # marginal depend on which districts share a chunk. The relativity's
+    # exposure-weighted mean is exactly 1 by construction, so the column
+    # lands on the anchor level and calibrate_frequency re-pins it
+    # (FREQ_SCALE["eow"] solves to 1.0) - same division of labour as
+    # th_rate, where the police data supplies an approximate level and
+    # calibration corrects it.
+    fmean = np.average(gdf["frost_days"], weights=gdf["households"])
+    gdf["eow_rate"] = ABI_TARGET_FREQ["eow"] * (
+        (1.0 - EOW_FREEZE_SHARE)
+        + EOW_FREEZE_SHARE * gdf["frost_days"] / fmean)
+
     check_scored_columns(gdf)
 
     print("calibrating to published UK aggregates...")
@@ -1238,7 +1333,8 @@ def main():
     for col in ("el_total_cc", "capital_cc", "premium_cc", "cc_uplift_pct"):
         out[col] = out[col].fillna(0.0)
     round1 = {"wind_ms": 1, "wdr_idx": 1, "rain10_days": 1, "precip_mm": 0,
-              "gust_rp50": 0, "households": 0, "sw_depth_m": 2}
+              "gust_rp50": 0, "households": 0, "sw_depth_m": 2,
+              "frost_days": 1}
     for col in keep:
         if col in ("name", "area", "country", "geometry", "group", "geol",
                    "sup_geol"):

@@ -214,7 +214,8 @@ def test_inv_mixed_cdf_matches_bernoulli_lognormal():
 def fields(**over):
     """Default marginal_params inputs, overridable per test."""
     f = dict(sub=0.5, wx=0.5, f_high=0.1, f_low=0.2, sw_high=0.1,
-             sw_low=0.2, gw_frac=0.1, sw_sev=1.0, er=0.0, th=0.009)
+             sw_low=0.2, gw_frac=0.1, sw_sev=1.0, er=0.0, th=0.009,
+             eow=1.0)
     f.update(over)
     return {k: np.array([v], dtype=float) for k, v in f.items()}
 
@@ -262,6 +263,31 @@ def test_theft_frequency_is_the_burglary_rate_scaled():
         bm.FREQ_SCALE = old
 
 
+def test_eow_severity_mean_hits_the_abi_average():
+    """sev_eow's lognormal MEAN equals the anchor-triangle average claim."""
+    m = bm.marginal_params(fields())
+    mean = float(np.exp(m["sev_eow"]["mu"] + m["sev_eow"]["sigma"] ** 2 / 2))
+    assert abs(mean / bm.ABI["sev_eow"] - 1) < 1e-6
+
+
+def test_eow_frequency_is_the_frost_rate_scaled():
+    """p_eow is the precomputed eow_rate (anchor level x frost relativity,
+    built in main() where the exposure weights live) times the ABI level
+    scale and nothing else - marginal_params must not renormalise it,
+    because it runs on batches and a per-chunk mean would depend on chunk
+    membership."""
+    old = dict(bm.FREQ_SCALE)
+    try:
+        bm.FREQ_SCALE = dict(old, eow=0.02)
+        m = bm.marginal_params(fields(eow=1.15))
+        assert abs(float(m["p_eow"][0]) - 1.15 * 0.02) < 1e-12
+        # and the safety clip cannot produce a probability above one half
+        m = bm.marginal_params(fields(eow=80.0))
+        assert float(m["p_eow"][0]) == 0.5
+    finally:
+        bm.FREQ_SCALE = old
+
+
 def test_erosion_frequency_annualises_over_the_horizon():
     """A district with x% of its area in the 2105 zone loses that share of
     properties across the horizon, so the annual hazard is x/80."""
@@ -277,10 +303,10 @@ def test_erosion_is_not_touched_by_the_abi_frequency_scaling():
     old = dict(bm.FREQ_SCALE)
     try:
         bm.FREQ_SCALE = {"sub": 3.0, "wx": 3.0, "fl": 3.0, "gw": 3.0,
-                         "th": 3.0}
+                         "th": 3.0, "eow": 3.0}
         scaled = float(bm.marginal_params(fields(er=0.1))["p_er"][0])
         bm.FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0,
-                         "th": 1.0}
+                         "th": 1.0, "eow": 1.0}
         plain = float(bm.marginal_params(fields(er=0.1))["p_er"][0])
     finally:
         bm.FREQ_SCALE = old
@@ -354,7 +380,7 @@ def test_erosion_expected_loss_is_analytic_not_simulated(monkeypatch):
         "sw_high": [0.05, 0.01], "sw_low": [0.1, 0.03],
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.24, 0.0], "households": [1000.0, 2000.0],
-        "th_rate": [0.010, 0.005],
+        "th_rate": [0.010, 0.005], "eow_rate": [0.011, 0.009],
     })
     sim, _ = bm.simulate(df)
 
@@ -385,7 +411,7 @@ def test_theft_expected_loss_is_analytic_not_simulated(monkeypatch):
         "sw_high": [0.05, 0.01], "sw_low": [0.1, 0.03],
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
-        "th_rate": [0.010, 0.0],
+        "th_rate": [0.010, 0.0], "eow_rate": [0.0, 0.0],
     })
     sim, _ = bm.simulate(df)
 
@@ -396,6 +422,37 @@ def test_theft_expected_loss_is_analytic_not_simulated(monkeypatch):
     four = (sim["el_sub"][0] + sim["el_wx"][0]
             + sim["el_fl"][0] + sim["el_gw"][0])
     assert abs((sim["el_total"][0] - four) - sim["el_th"][0]) < 1e-6
+
+
+def test_eow_expected_loss_is_analytic_not_simulated(monkeypatch):
+    """Escape of water shares theft's failure mode exactly - ONE U_eow
+    stream across every district - so a simulated mean would carry a
+    common sampling error into the calibrated level. simulate() must
+    return p_eow * E[severity] exactly, at any simulation length, and
+    el_total must carry the analytic leg."""
+    import pandas as pd
+
+    monkeypatch.setattr(bm, "N_SIM", 200)
+    monkeypatch.setattr(bm, "BATCH", 8)
+    df = pd.DataFrame({
+        "sub_score": [0.5, 0.2], "wx_score": [0.5, 0.4],
+        "fl_score": [0.3, 0.6], "gw_score": [0.2, 0.1],
+        "er_score": [0.0, 0.0],
+        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05],
+        "sw_high": [0.05, 0.01], "sw_low": [0.1, 0.03],
+        "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
+        "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
+        "th_rate": [0.0, 0.0], "eow_rate": [0.012, 0.0],
+    })
+    sim, _ = bm.simulate(df)
+
+    expected = 0.012 * bm.FREQ_SCALE["eow"] * bm.ABI["sev_eow"]
+    assert abs(sim["el_eow"][0] - expected) / expected < 1e-9
+    assert sim["el_eow"][1] == 0.0                    # no exposure, no loss
+    # el_total = the four weather-peril draw means + the analytic EoW leg
+    four = (sim["el_sub"][0] + sim["el_wx"][0]
+            + sim["el_fl"][0] + sim["el_gw"][0])
+    assert abs((sim["el_total"][0] - four) - sim["el_eow"][0]) < 1e-6
 
 
 def test_capital_allocation_is_stable_across_seeds():
@@ -436,6 +493,9 @@ def test_capital_allocation_is_stable_across_seeds():
         "er_frac": rng.uniform(0, 0.05, n),
         "households": rng.uniform(500, 40_000, n),
         "th_rate": rng.uniform(0.001, 0.03, n),
+        # appended LAST: earlier draws keep their positions in the fixture
+        # stream, so pre-EoW expectations in these tests stay valid
+        "eow_rate": rng.uniform(0.005, 0.03, n),
     })
     n_sim, batch, seed = m.N_SIM, m.BATCH, m.RNG_SEED
     m.N_SIM, m.BATCH = 4000, 30
@@ -624,6 +684,9 @@ def test_thread_count_does_not_change_a_single_bit():
         "er_frac": rng.uniform(0.0, 0.05, n),
         "households": rng.uniform(200, 40000, n),
         "th_rate": rng.uniform(0.001, 0.03, n),
+        # appended LAST: earlier draws keep their positions in the fixture
+        # stream, so pre-EoW expectations in these tests stay valid
+        "eow_rate": rng.uniform(0.005, 0.03, n),
     })
     keep = (bm.N_SIM, bm.BATCH, bm.N_THREADS)
     bm.N_SIM, bm.BATCH = 400, 25          # 5 batches
@@ -739,8 +802,14 @@ def test_published_geojson_satisfies_the_models_own_identities():
     el_th = col("el_th")
     if np.isnan(el_th).all():
         el_th = np.zeros(len(feats))
+    # el_eow gets the same treatment for the same reason: absent reads as
+    # zero (a pre-EoW build still satisfies the identity), but a build
+    # that lost the column while el_total contains EoW fails by ~GBP 42.
+    el_eow = col("el_eow")
+    if np.isnan(el_eow).all():
+        el_eow = np.zeros(len(feats))
     assert np.abs(el_total - (col("el_sub") + col("el_wx") + col("el_fl")
-                              + col("el_gw") + el_th)).max() <= 0.30
+                              + col("el_gw") + el_th + el_eow)).max() <= 0.30
     assert np.abs(col("el_total5") - (el_total + col("el_er"))).max() <= 0.25
     assert (capital >= -1e-9).all()
 
@@ -1153,7 +1222,7 @@ def test_simulate_returns_the_columns_the_map_and_site_read():
             "gw_score": [0.2], "er_score": [0.3], "f_high": [0.05],
             "f_low": [0.1], "sw_high": [0.02], "sw_low": [0.05],
             "gw_frac": [0.05], "sw_sev": [1.0], "er_frac": [0.01],
-            "households": [500.0], "th_rate": [0.009],
+            "households": [500.0], "th_rate": [0.009], "eow_rate": [0.011],
         })
         sim, year = m.simulate(df)
     finally:
