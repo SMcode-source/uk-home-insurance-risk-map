@@ -345,6 +345,47 @@ districts**, used as the exposure weight throughout.
     Gumbel 1-in-50, knots→km/h) and refuses to emit fewer than 50
     stations. Use **qcv-1** files only; the processor ignores qcv-0.
 
+25. **police.uk street-level crime — the theft-peril frequency source**
+    (fetched 2026-08-16). `https://data.police.uk/data/archive/latest.zip`
+    302s to `policeuk-data.s3.amazonaws.com/archive/<YYYY-MM>.zip`
+    (1.7 GB; the S3 URL is resumable with `curl -C -`, the vanity URL is
+    not). One zip holds **36 months** of per-force monthly CSVs
+    (`<month>/<month>-<force>-street.csv`); `scripts/fetch_burglary.py`
+    filters `Crime type == "Burglary"` and spatially joins the snap-point
+    coordinates to the model's own district polygons →
+    `data/burglary.csv` (668,609 incidents placed, 2023-07..2026-06).
+    Quirks that matter:
+    - **Coordinates are anonymised snap points** (nearest of ~750k street
+      anchors, each covering ≥8 addresses) — a few hundred metres of
+      displacement, noise at district scale. Joined on coordinates, NOT
+      the row's LSOA code: the LSOA vintage drifts across census
+      editions; the polygons don't.
+    - **"Burglary" includes commercial premises.** Districts with tiny
+      residential counts show absurd per-household rates (EC3V: 116
+      burglaries over 72 households = 54%/yr — those are offices). The
+      reader must winsorise, not trust raw rates.
+    - **Scotland is NOT covered** (Police Scotland publishes no
+      incident-level data) — but 9 Scottish districts still show 1–2
+      incidents via **British Transport Police**, which does cover
+      Scottish railways. The country-mask fallback must OVERRIDE
+      Scotland, not merely fill blanks. Northern Ireland (PSNI) is in
+      the archive but outside the GB polygons; its rows land in the
+      "outside every polygon" bucket (8,633 with BTP/coastal strays).
+    - **Calibration anchor (the LEVEL):** the ABI stopped publishing an
+      annual theft-paid total; the last public figure is **~£450m
+      (2018)**, formerly on the ABI theft page (now only in search-engine
+      caches of it). Averages are still published: **£3,800 per theft
+      claim (2025), £4,350 (Q1 2026)**. CSEW "Nature of crime: burglary"
+      tables carry **no insurance-claim propensity** (checked the
+      year-ending-March-2025 edition sheet by sheet). None of this
+      blocks the model: `calibrate_frequency` pins the exposure-weighted
+      national frequency to paid/severity/policies, so the
+      burglary→claim propensity **cancels** — police data supplies
+      relativities only, and the implied envelope (2018 paid at 2025
+      severity = 0.76%/policy, vs 0.97% then and ~0.58% now if claims
+      fell with recorded burglary) is the documented uncertainty on the
+      theft LEVEL, not on the geography.
+
 ## Blocked on non-open data — what each would unblock
 
 Kept here so nobody re-derives the shopping list. None of these have an
