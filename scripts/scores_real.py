@@ -790,3 +790,77 @@ def erosion_from_ncerm(names):
     print(f"  erosion: {coastal}/{len(names)} districts with NCERM exposure; "
           f"SMP-2105 max {out['er_smp105'].max():.3%} of district area")
     return score, out
+
+
+# Scotland fallback for the theft peril. Police Scotland publishes no
+# incident-level data, so Scottish districts get one national rate:
+# recorded housebreaking 2024-25 (Recorded Crime in Scotland, gov.scot,
+# all premises - the same definitional mix as police.uk's "Burglary")
+# over the model's own Scottish household total.
+SCOTLAND_HOUSEBREAKING_2024_25 = 7_381
+
+
+def theft_from_police(names, households):
+    """Annual burglaries per household per district (police.uk archive;
+    see fetch_burglary.py).
+
+    Returns th_rate, the RAW annual burglary rate per household. Only the
+    geography matters: calibrate_frequency pins the exposure-weighted
+    national level to the ABI theft figures, so the burglary-to-claim
+    propensity cancels and never needs to be known.
+
+    Two corrections, both documented in DATA_SOURCES.md #25:
+
+    - police.uk "Burglary" includes commercial premises, so districts
+      with almost no residents show rates no household experiences
+      (EC3V: 116 burglaries over 72 households = 54%/yr - offices).
+      Rates are capped at the household-weighted 99.9th percentile:
+      fewer than 1 in 1,000 households lives in a district above the
+      cap, and beyond it the excess is demonstrably shops and offices,
+      not homes. The proper fix is a commercial-premises denominator
+      from the VOA non-domestic rating list - a Phase 2 item, noted in
+      DATA_SOURCES.md #25.
+
+    - Scotland is OVERRIDDEN, not filled: police.uk has no Scottish
+      forces, but British Transport Police leaks a handful of Scottish
+      railway burglaries into the data, so "has data" cannot be the
+      test. Every Scottish district gets the national housebreaking
+      rate; Welsh/English districts keep their own.
+    """
+    path = os.path.join(DATA, "burglary.csv")
+    if not os.path.exists(path):
+        raise SystemExit("data/burglary.csv missing - run "
+                         "scripts/fetch_burglary.py first (needs the "
+                         "police.uk archive, see DATA_SOURCES.md #25)")
+    table = {}
+    with open(path, newline="") as fh:
+        for row in csv.DictReader(fh):
+            table[row["name"]] = (float(row["burglaries"]),
+                                  float(row["months"]))
+    missing = [n for n in names if n not in table]
+    if missing:
+        raise SystemExit(f"burglary.csv is missing {len(missing)} districts "
+                         f"(first: {missing[:5]}) - stale file? Rerun "
+                         "scripts/fetch_burglary.py")
+    hh = np.maximum(np.asarray(households, dtype=float), 1.0)
+    annual = np.array([table[n][0] / table[n][1] * 12.0 for n in names])
+    rate = annual / hh
+
+    country = np.array(load_country(names))
+    scot = country == "Scotland"
+    if scot.any():
+        scot_rate = SCOTLAND_HOUSEBREAKING_2024_25 / hh[scot].sum()
+        rate[scot] = scot_rate
+        print(f"  theft: {int(scot.sum())} Scottish districts -> national "
+              f"housebreaking rate {scot_rate:.3%}/yr")
+
+    ew_r, ew_w = rate[~scot], hh[~scot]
+    o = np.argsort(ew_r, kind="stable")   # stable: ties keep file order,
+    cw = np.cumsum(ew_w[o])               # so the cap is deterministic
+    cap = float(ew_r[o][np.searchsorted(cw, 0.999 * cw[-1])])
+    clipped = int((rate > cap).sum())
+    rate = np.minimum(rate, cap)
+    print(f"  theft: E&W mean {np.average(rate[~scot], weights=hh[~scot]):.3%}"
+          f"/yr; cap {cap:.3%} (hh-weighted p99.9), "
+          f"{clipped} commercial-core districts clipped")
+    return rate
