@@ -17,6 +17,40 @@ draws the Hull comparison (districts vs sectors on the climate layer)
 as an inline SVG generated from the published GeoJSON at build time —
 a screenshot would go stale at the next rebuild; this cannot.
 
+## In flight 2026-08-16: theft peril on `exp/theft-peril` (Phase 1)
+
+The model prices £55.68 of the ABI's £219 average premium because it
+stops at four catastrophe perils; the roadmap (agreed 2026-08-16) adds
+the attritional lines, theft first. State right now:
+
+- **Data on main** (7bb3fdc): `data/burglary.csv` — 668,609 burglaries
+  from the police.uk 36-month archive (2023-07..2026-06), spatially
+  joined to the model's own district polygons by
+  `scripts/fetch_burglary.py`. Traps and anchors in DATA_SOURCES.md #25
+  (snap points, commercial contamination, BTP's Scottish leak, the
+  2018-vintage ABI theft-paid figure and why propensity cancels).
+- **Model on the branch** (32a9d0c): independent compound leg OUTSIDE
+  the vine (burglary has no weather root), drawn LAST in the seeded
+  stream so the four weather perils simulate bit-identically — the
+  rebuild diff is the theft addition and nothing else. Level pinned to
+  ABI theft paid/average/policies (£29.03/policy); geography is each
+  district's own burglary rate, capped at the household-weighted p99.9
+  (office cores are burgled as shops, not homes), Scotland overridden
+  with the national housebreaking rate. 74 tests green.
+- **Evidence run dispatched**: rebuild.yml run 31969240862 on the
+  branch, commit=false. When it finishes: download the artifact, run
+  `scripts/compare_rebuild.py`, and put the premium/churn evidence in
+  front of the user — publishing theft is THEIR call, per the
+  experiment-branch pattern below. Known consequences to report:
+  uplift_pct dilutes mechanically (independent line vs cat tail),
+  premiums rise toward £85-90/policy, and the map popup does not yet
+  itemise theft (additive column; site copy untouched on the branch).
+- **Not done, deliberate**: sectors get theft only if the user accepts
+  it for districts (needs sector-resolution burglary aggregation on the
+  sector-model branch); EoW/fire/AD are next in Phase 1; the VOA
+  non-domestic premises count is the proper fix for the commercial
+  contamination (Phase 2).
+
 ## Audited 2026-08-16: every published claim re-derived from the data
 
 A full don't-trust-the-docs pass. The code and data were CLEAN: the
