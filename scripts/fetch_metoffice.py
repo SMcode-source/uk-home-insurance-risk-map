@@ -6,6 +6,8 @@ Outputs data/metoffice/<name>.csv with columns x, y (EPSG:27700) + value:
   wdr       WDR_baseline_Median         annual wind-driven rain index, SW-facing walls, 5km
   precip    pr                          annual precipitation 1991-2020 (HadUK-Grid obs, 12km)
   rain10    Rain10mmDays                annual count of >=10mm rain days 1991-2020 (HadUK-Grid obs)
+  frost     airfrostDays                annual count of air-frost days 1991-2020 (HadUK-Grid obs)
+                                        - the freeze-exposure driver for escape of water
 """
 
 import csv
@@ -35,6 +37,10 @@ LAYERS = {
     "rain10": dict(
         url=f"{BASE}/Annual_Count_of_10mm_Rain_Days_1991_2020/FeatureServer/0",
         fields=["Rain10mmDays"], where="1=1", centroid=True,
+    ),
+    "frost": dict(
+        url=f"{BASE}/Annual_Count_of_Airfrost_Days_1991_2020/FeatureServer/0",
+        fields=["airfrostDays"], where="1=1", centroid=True,
     ),
 }
 
@@ -84,7 +90,11 @@ def fetch(name, spec):
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
+    import sys
+    only = sys.argv[1:]          # e.g. `fetch_metoffice.py frost` refetches one
     for name, spec in LAYERS.items():
+        if only and name not in only:
+            continue
         print(f"fetching {name}...")
         fetch(name, spec)
 

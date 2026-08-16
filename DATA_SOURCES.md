@@ -32,6 +32,8 @@ dates: 2026-07-29/30; 2026-08-01 for sources 20–21; 2026-08-08/09 for 23–24.
 | 22 | Countries (December 2025) UK BGC boundaries | ONS Open Geography Portal | `scripts/fetch_countries.py` | `data/country.csv` — the coverage mask for every England-only dataset |
 | 23 | Code-Point Open (GB unit-postcode centroids) | Ordnance Survey (OS OpenData) | `scripts/fetch_codepoint.py` | `data/cache/codepoint_open.zip` → `data/sectors_gb.gpkg` via `derive_sectors.py` (derived sector polygons; **not a model input**) |
 | 24 | MIDAS Open uk-mean-wind-obs (station wind/gust observations 1970–2025) | Met Office via CEDA (OGL; account needed to download) | `scripts/fetch_midas.py` + `gusts_from_midas.py` | `data/gusts_midas.csv` → **`data/gusts.csv` (the model's gust source since 2026-08-10)**: 191 stations ≥20 y coverage, ≤300 m altitude, rp50 105–211 km/h |
+| 25 | Street-level crime archive, latest 36 months | police.uk (Home Office; OGL) | `scripts/fetch_burglary.py` | `data/burglary.csv` — 668,609 burglary points placed into the model's own polygons; the theft-peril frequency source |
+| 26 | Annual count of air-frost days 1991–2020 (HadUK-Grid obs) | Met Office Climate Data Portal | `scripts/fetch_metoffice.py frost` | `data/metoffice/frost.csv` (63,296 cells, 0.7–208 days) — the freeze-exposure driver for escape of water |
 
 Together 17–19 produce `data/households.csv` — **27.3m households across 2,995
 districts**, used as the exposure weight throughout.
@@ -385,6 +387,48 @@ districts**, used as the exposure weight throughout.
       severity = 0.76%/policy, vs 0.97% then and ~0.58% now if claims
       fell with recorded burglary) is the documented uncertainty on the
       theft LEVEL, not on the geography.
+
+26. **Air-frost days + ABI escape-of-water anchors — the EoW peril's
+    sources** (assembled 2026-08-16). The hazard grid is
+    `Annual_Count_of_Airfrost_Days_1991_2020` on the same anonymous
+    ArcGIS portal as the other four Met Office layers
+    (`fetch_metoffice.py frost`, field `airfrostDays`, centroid query;
+    63,296 cells, GB range 0.7 days on Scilly to 208 on Cairngorm
+    summits, median 47). Anchors and why each was chosen:
+    - **Level: ~£657m/yr** — the ABI's standing "insurers pay out
+      around **£1.8 million every day** for escape of water" (quoted
+      across their material since ~2017; like theft, the ABI stopped
+      publishing an annual per-peril total, and the 2025 full-year
+      release folds EoW into a £758m "weather-related damage to homes"
+      line that also covers storm and flood). Cross-check that closes
+      the triangle: EoW was **29.3% of 2025's 560,000 home claims**
+      (GoCompare from ABI data) ≈ **164,000 claims/yr**, and
+      £657m / 164k = **£4,005 average** — self-consistent, so
+      frequency ≈ **1.06%/policy** over 15.5m. Aviva's 2025 book
+      average of £8,595 shows how wide insurer-level severity runs
+      (their book, post-repair-inflation); the documented envelope on
+      the EoW LEVEL is the vintage mixing, exactly as for theft.
+    - **Year-to-year variation (pins W_EOW, the systemic loading):**
+      winter 2010 freeze, 24 Nov–31 Dec: **103,000 burst-pipe claims,
+      £680m** (ABI via Insurance Times) — a normal year's EoW paid in
+      SIX WEEKS, so the worst year in the record cost ≈ **2× mean**;
+      Q1 2018 (Beast from the East): **£193m** freeze-attributed
+      domestic EoW in the quarter ≈ +30% on that year. Unlike theft
+      (±10-15%), EoW has genuine systemic freeze years — its loading
+      must come out an order of magnitude above theft's, and the
+      derivation in build_model targets 1-in-100 ≈ 2× cost.
+    - **Freeze-attributable share (sizes the frost-sensitive slice):**
+      Aviva 2026 — **25% of EoW claims occur July–September**; the peak
+      is January, freeze-driven. Most EoW is year-round plumbing and
+      appliance failure with NO open spatial predictor until Phase 2
+      (EPC dwelling age / VOA), so the frequency is a FLAT base plus a
+      freeze-sensitive slice (~15%) scaled by each district's
+      frost-day relativity. The map should NOT light up dramatically
+      for EoW; the open data does not support dramatic spatial claims.
+    - **Rejected:** water-hardness maps (no per-district open product,
+      and limescale→failure is a weaker mechanism than freeze);
+      CSEW (no EoW analogue); per-insurer claim-rate maps (marketing
+      material, no methodology).
 
 ## Blocked on non-open data — what each would unblock
 
