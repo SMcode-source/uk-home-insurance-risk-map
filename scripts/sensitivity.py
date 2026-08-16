@@ -22,8 +22,11 @@ Scenarios:
 
 Reading the churn column: since capital stopped being Monte Carlo noise
 (see build_model.simulate), churn measures the perturbation rather than the
-noise floor. The spread across scenarios widened from 4.1x to 7.6x - weak
-perturbations now move fewer districts and strong ones move more.
+noise floor - weak perturbations move fewer districts and strong ones move
+more (currently ~5x between the weakest and strongest scenario; before the
+fix every scenario sat near the same noise floor). The exact figures move
+whenever the model inputs do, so quote them from data/sensitivity.json,
+never from this docstring.
 
 Output: data/sensitivity.json (+ printed table)
 """

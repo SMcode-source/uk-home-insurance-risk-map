@@ -372,9 +372,10 @@
       <li><b>Not a strict uplift for rivers and sea.</b> The future layer is a separate
       model run, so it does not simply contain the present one. On a Humber test tile at
       13 m per pixel, <b>19.7%</b> of today's <i>pixels</i> fall outside the future extent;
-      across England at district level the effect is smaller but real — <b>61 districts
-      (2.9%)</b> see the 1-in-100/200 band shrink, worst −11.3pp. Surface water behaves far
-      more like a true uplift: only <b>10 districts (0.5%)</b> decrease. So the
+      across England at district level the effect is smaller but real — <b>52
+      districts (2.5%)</b> see the 1-in-100/200 band shrink, worst
+      -11.2pp. Surface water behaves far
+      more like a true uplift: only <b>5 districts</b> decrease. So the
       surface-water half reads as a genuine climate delta, and the rivers/sea half is
       better read as a scenario swap.</li>
       <li><b>Not national.</b> Neither NRW nor SEPA publishes an equivalent, so Wales and
@@ -385,8 +386,10 @@
     <div class="callout" style="margin:16px 0">Over the <b>2,087</b> districts the EA
     models, holding the calibration fixed and moving only the flood map changes the
     exposure-weighted technical premium by <b>+11%</b>. The hardest-hit district
-    is <b>DN32</b> at <b>+200%</b>. Across England the 1-in-100/200
-    river/sea band grows <b>+37.4%</b> and the surface-water ≥1% AEP zone <b>+28.7%</b>.</div>
+    is <b>DN32</b> at <b>+200%</b>. Averaged over England's districts,
+    the share of a district inside the 1-in-100/200 river/sea zone grows
+    <b>+37.7%</b> and inside the surface-water ≥1% AEP zone
+    <b>+28.8%</b>.</div>
 
     <h3>Holding the calibration still</h3>
     <p>Two normalisations had to be pinned to the present day rather than recomputed, or the
@@ -562,7 +565,10 @@
     shared between the postcodes inside it. Scotland's data zones don't join — the lookup
     uses the 2011 vintage and the available census table the 2001 one — so Scotland's
     <b>Census 2022</b> national total of 2,509,300 is spread across Scottish postcodes
-    instead. Total: <b>27.3 million households across 2,995 districts</b>.</p>
+    instead. Only <b>live</b> postcodes count — ONSPD retains terminated ones, a third of
+    its rows, and apportioning households across them credited ~730,000 homes to addresses
+    that no longer exist until 2026-08-12. Total: <b>27.3m households across
+    2,866 districts</b>.</p>
     <p>Everything downstream is exposure-weighted: the calibration average, the portfolio
     loss in each simulated year, the tail that capital is held against, and the Euler
     allocation.</p>
@@ -737,8 +743,9 @@
 
     <h3>What the finer grain reveals</h3>
     <p>Aggregating sector premiums back to their districts by household weight reproduces
-    the district model closely — <b>0.964 correlation</b>, exposure-weighted level within
-    <b>0.6%</b> — so this is the same model resolved more finely, not a different one.
+    the district model closely — <b>0.965 correlation</b>, exposure-weighted level
+    within <b>0.4%</b> — so this is the same model resolved more finely, not
+    a different one.
     Within districts, though, it is not close at all:</p>
     <div class="finding" style="margin:14px 0">
       <div class="num">19%<small>of districts hide a &gt;2&times; premium spread</small></div>
@@ -838,7 +845,7 @@
         <tr><td><strong>Environment Agency</strong></td><td>Flood-risk postcode data — groundwater alert-area flags</td><td>Groundwater</td></tr>
         <tr><td><strong>Environment Agency</strong></td><td>NCERM National 2024 coastal erosion frontages (England)</td><td>Erosion (not priced)</td></tr>
         <tr><td><strong>OS / Wikipedia derived</strong></td><td>UK postcode district polygons (2,736 districts)</td><td>Geography</td></tr>
-        <tr><td><strong>ONS</strong></td><td>Postcode → OA/LSOA best-fit lookup (2.6m postcodes)</td><td rowspan="3">Exposure weighting — 27.3m households</td></tr>
+        <tr><td><strong>ONS</strong></td><td>Postcode → OA/LSOA best-fit lookup (2.7m rows; the 33% that are terminated postcodes excluded)</td><td rowspan="3">Exposure weighting — 27.3m households</td></tr>
         <tr><td><strong>ONS</strong> (via NOMIS)</td><td>Census 2021 TS041 households by LSOA (England &amp; Wales)</td></tr>
         <tr><td><strong>National Records of Scotland</strong></td><td>Scotland's Census 2022 household total</td></tr>
         <tr><td><strong>ABI</strong></td><td>Domestic claims paid by peril, 2025</td><td>Loss calibration</td></tr>

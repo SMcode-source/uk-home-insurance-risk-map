@@ -28,7 +28,7 @@ kept **out of the premium** — see
 [Coastal erosion: modelled, not priced](#coastal-erosion-modelled-not-priced).
 
 Every hazard input is **open data**, fetched by the scripts here — see
-**[DATA_SOURCES.md](DATA_SOURCES.md)** for all 21 datasets with their endpoints,
+**[DATA_SOURCES.md](DATA_SOURCES.md)** for all 24 datasets with their endpoints,
 licences, access quirks and the dead ends worth avoiding. Each peril's loss level
 is calibrated to published **ABI** claims payouts, and districts are weighted by
 **census household counts**.
@@ -200,7 +200,7 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
      shallowest severity — for all of Wales and Scotland; and border
      districts that clip into England on a sliver read as the shallowest
      in the country. A district must be **England and ≥95% of its area
-     inside it**, which leaves 2,085 districts with usable depth and sends
+     inside it**, which leaves 2,084 districts with usable depth and sends
      the ~20 genuine straddlers to the neutral fallback.
 4. **Groundwater** (`scripts/fetch_groundwater.py`). **EA** flood-risk postcode
    search tool data: `GWTR_RISK` flags each unit postcode 'Possible' if any
@@ -263,8 +263,11 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    portfolio weighted by their **census household count**, not equally:
    ONS Census 2021 households by LSOA for England & Wales, apportioned to
    postcode districts through the ONS postcode→small-area lookup, plus
-   Scotland's Census 2022 national total spread across Scottish postcodes —
-   **27.3m households over 2,995 districts**. This matters because the ABI
+   Scotland's Census 2022 national total spread across Scottish postcodes,
+   counting **live postcodes only** (ONSPD retains terminated ones — a third of
+   its rows — and apportioning across them credited ~730k homes to dead
+   addresses until 2026-08-12) —
+   **27.3m households over 2,866 districts**. This matters because the ABI
    anchors are national totals: the calibration average, the portfolio tail
    and the capital allocation are all household-weighted, so Croydon
    (56,000 households) counts 56,000× a single-household district rather
@@ -315,10 +318,12 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    zero** districts between rating groups — which is what "excluded from the
    premium" has to mean, checked rather than asserted. And since capital
    stopped being Monte Carlo noise, the churn column measures the
-   perturbation instead of the noise floor: the spread across scenarios
-   widened from 4.1× to 7.6×, with weak perturbations (severity σ, 8.6% →
-   5.0%) moving fewer districts and strong ones (flood frequency, 33.1% →
-   37.8%) moving more.
+   perturbation instead of the noise floor: the weakest perturbation
+   (severity σ ×1.1) moves **6.6%** of districts and the strongest (flood
+   frequency ×1.5) **34.8%** — a 5× spread, where the noisy-capital era
+   compressed every scenario toward the same noise floor. (The flood–erosion
+   tree-2 pair is deliberately left out of the ρ perturbations: erosion sits
+   outside the premium, so varying it cannot move a rating group.)
 11. **Good vs bad years** (`analysis/uk_risk_year_analysis.html`, built by
    `scripts/build_analysis.py`). The 20,000 simulated portfolio years are
    ranked and bucketed (good = best 50%, typical = 50–90th pct, bad = 90–99th,
@@ -372,20 +377,21 @@ Stated plainly, four limits:
 - **Rivers/sea is not a strict uplift.** The future layer is a separate model run, so
   it does not simply contain the present one. On a Humber test tile at 13 m/px,
   **19.7%** of today's *pixels* fall outside the future extent; across England at
-  district level the effect is much smaller but real — **61 districts (2.9%)** see the
-  1-in-100/200 band shrink, worst −11.3pp. Surface water behaves far more like a true
-  uplift: only **10 districts (0.5%)** decrease, worst −3.8pp. So the surface-water half
+  district level the effect is much smaller but real — **52 districts (2.5%)** see the
+  1-in-100/200 band shrink, worst −11.2pp. Surface water behaves far more like a true
+  uplift: only **5 districts (0.2%)** decrease, worst −1.2pp. So the surface-water half
   reads as a genuine climate delta and the rivers/sea half as a scenario swap.
 - **England only.** Neither NRW nor SEPA publishes an equivalent, so Wales and Scotland
   are not modelled; the headline is quoted over covered districts, because a national
   average would dilute it with two countries that cannot move.
 
-The direction of travel is not subtle. Across England the 1-in-100/200 river/sea band
-grows **+37.4%** and the surface-water ≥1% AEP zone **+28.7%**. Low-lying coast and
+The direction of travel is not subtle. Averaged over England's districts, the share
+of a district inside the 1-in-100/200 river/sea zone grows **+37.7%** and inside the
+surface-water ≥1% AEP zone **+28.8%**. Low-lying coast and
 estuary carry the fluvial/tidal side — TA9 on the Somerset Levels goes from 10% to
 **90%** of district area, PE21 (Boston) 13% → 82%, TS2 (Teesside) 20% → 85%, DN32
 (Grimsby) 4% → 80% — while surface water concentrates on dense urban drainage:
-EC4R 8% → 27%, SW8 (Nine Elms) 16% → 32%, RM9/RM10 (Dagenham) 37% → 53%, E8
+EC4R 8% → 27%, SW8 (Nine Elms) 16% → 32%, RM9 (Dagenham) 37% → 53%, E8
 (Hackney) 36% → 52%.
 
 ## Coastal erosion: modelled, not priced
@@ -440,7 +446,7 @@ answer splits in two:
 
 - **For one home**, modelling the perils jointly makes a multi-peril year
   **94× more likely** (0.11% vs 0.0012% under independence) — but both are rare,
-  so that home's own 99% TVaR barely moves: **+2.7%, 95% CI −9.2% to +12.9%**,
+  so that home's own 99% TVaR barely moves: **+2.7%, 95% CI −9.0% to +12.8%**,
   i.e. indistinguishable from zero. (The interval straddling zero is the
   finding; its point estimate wanders between runs precisely because it is
   noise, which is why nothing is priced off it.)

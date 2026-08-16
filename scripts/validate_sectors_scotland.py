@@ -12,10 +12,16 @@ Two IoU distributions, and the GAP between them is the answer:
     uk-postcode-polygons vs NRS, nothing to do with the method.
   * sector-level IoU — my derived sector vs the official one.
 
-Sector IoU can never beat district IoU (sectors partition districts on
-both sides), so `district IoU − sector IoU` isolates what the Voronoi
-approximation itself costs. Writes data/sector_validation_scotland.csv
-and prints the summary.
+`district IoU − sector IoU` reads as what the Voronoi approximation
+itself costs. It is a heuristic, not a bound: a sector can align BETTER
+than its parent district (both sides can agree about the half of a
+district the sector sits in while disagreeing about the other half), and
+the two medians are taken over different populations (959 sectors vs
+~100 districts). The measured gap is in fact slightly negative — sector
+median 0.706 vs district median 0.689 — which supports the published
+claim ("the derivation adds no measurable error beyond the district
+outlines") without proving a theorem. Writes
+data/sector_validation_scotland.csv and prints the summary.
 """
 
 import csv

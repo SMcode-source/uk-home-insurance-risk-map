@@ -1,7 +1,8 @@
 # Handoff — UK Home Insurance Risk Map
 
-**Written:** 2026-08-12 · lives in the repo from now on (supersedes the
-old `%TEMP%\uk-risk-map-handoff.md`, which is now just a pointer here)
+**Written:** 2026-08-12, audited and refreshed 2026-08-16 · lives in the
+repo (supersedes the old `%TEMP%\uk-risk-map-handoff.md`, which is now
+just a pointer here)
 **Repo:** https://github.com/SMcode-source/uk-home-insurance-risk-map ·
 **Live:** https://smcode-source.github.io/uk-home-insurance-risk-map/
 
@@ -11,7 +12,43 @@ The site now publishes the model at **two grains side by side**:
 `/map.html` over 2,736 postcode districts and `/sectors.html` over
 10,398 derived postcode sectors. One template builds both pages, so
 they cannot drift; the layout suite runs every map invariant against
-both. **71 tests**, CI green, Pages live.
+both. **72 tests**, CI green, Pages live. The methodology page also
+draws the Hull comparison (districts vs sectors on the climate layer)
+as an inline SVG generated from the published GeoJSON at build time —
+a screenshot would go stale at the next rebuild; this cannot.
+
+## Audited 2026-08-16: every published claim re-derived from the data
+
+A full don't-trust-the-docs pass. The code and data were CLEAN: the
+model source re-read line by line with no defects found, a full
+rebuild reproduced `docs/` byte-for-byte, and every headline figure
+(£59.07 / 27.26m, +10.5% / +11.2%, DN32 +200% / PO6 9 +308%, 184 vs 1
+improving, CB8 8.1x, HU8's four sectors, IoU 0.706/0.689, 191
+stations, 33% terminated rows) verified exactly against the committed
+outputs.
+
+What had drifted was hand-written prose — numbers measured once and
+never re-read after the extents were re-fetched or the exposure bug
+was fixed: rivers/sea shrinkers were quoted as 61 (2.9%, −11.3pp) but
+are 52 (2.5%, −11.2pp, worst HU8); surface-water decreases 10 → 5
+(worst W1F −1.2pp); band growth +37.4/+28.7 → +37.7/+28.8 (prose now
+names the statistic: mean district zone-fraction, not area); sector
+aggregation "0.964 / 0.6%" → 0.965 / 0.4% (pre-exposure-fix values);
+households.csv "2,995 districts" → 2,866; RM10 was 33→47, not 37→53;
+dependence CI −9.0% to +12.8%; "21 datasets" → 24; sensitivity churn
+now 6.6%–34.8% across scenarios; "71 tests" → 72.
+
+The structural fix: the methodology page's climate-delta, aggregation
+and household figures are now **computed in `build_site.py` and
+injected** (`climate_band_stats()`, `__AGG_CORR__`, `__HH_DISTRICTS__`
+etc.), like every other published claim. **Only README.md still
+carries hand-written copies** (markdown has no build step) — re-verify
+its climate/sensitivity/dependence numbers whenever the fraction CSVs,
+`sensitivity.json` or `dependence.json` are regenerated. Two docstring
+corrections in the same pass: `sensitivity.py` (stale churn spread)
+and `validate_sectors_scotland.py`, which claimed sector IoU "can
+never beat" district IoU — not a theorem, and its own output
+(0.706 > 0.689) refutes it.
 
 Why it was worth doing: aggregated back to districts the sector model
 reproduces the published one (0.965 correlation, level within 0.4%),
@@ -181,6 +218,19 @@ the auto-memory; these are the NEW ones:
   by construction and CI failed as "docs/ is stale" with an unreadable
   diff. `build_map.web_asset` sorts its columns; verified by building
   twice in separate processes and comparing md5.
+- **Quantise any transcendental that feeds a build artifact.** libm's
+  `cos` differs by one ULP between MSVC and glibc, so the Hull figure's
+  projection produced 2 different SVG path lines on Linux CI than here —
+  the same "docs/ is stale" failure as the set bug, from a different
+  root. Verified by perturbing `cos` one ULP (exactly those 2 lines
+  changed); fixed with `round(math.cos(...), 6)` in `_panel()`
+  (`3e59e7e`). Everything downstream is + − × ÷, which IEEE 754 pins.
+- **Hand-written numbers rot; injected ones cannot.** Every stale figure
+  the 2026-08-16 audit found was hand-written prose describing data that
+  had since been regenerated. When publishing a number, compute it in
+  `build_site.py` and inject it via a placeholder (the placeholder test
+  polices both directions); reserve prose numbers for genuinely
+  historical statements ("the first run kept Cairngorm summit").
 - **A layer with no data is OMITTED, not drawn blank.** The sector map
   shipped without the climate layer until its EA extents were fetched
   (they since have been, so `OMIT_METRICS` is empty again) - because

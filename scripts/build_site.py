@@ -19,6 +19,7 @@ import json
 import os
 import re
 import shutil
+import sys
 
 import numpy as np
 
@@ -290,6 +291,53 @@ def resolution_figure(districts, sectors):
                    "Sectors", FOCUS)
     return f'<div class="res-figure">{left}{right}</div>'
 
+def climate_band_stats():
+    """The present-vs-future flood-band deltas the methodology quotes.
+
+    Computed from the same fraction CSVs the model reads, over the same
+    England mask, so the published sentences track the data. They used to
+    be hand-written, and went stale the first time the extents were
+    re-fetched: "61 districts shrink" had quietly become 52, and only an
+    audit of the prose against the data caught it. Growth is the change in
+    the AVERAGE district's zone fraction (the same statistic flood_future
+    logs), not in mapped area - districts are not equal-sized.
+    """
+    sys.path.insert(0, HERE)
+    from scores_real import england_mask
+
+    def table(fname, col):
+        out = {}
+        with open(os.path.join(ROOT, "data", fname), newline="") as fh:
+            for row in csv.DictReader(fh):
+                out[row["name"]] = float(row[col])
+        return out
+
+    fh_now = table("flood_fractions.csv", "f_high")
+    fh_fut = table("flood_fractions_cc.csv", "f_high")
+    sw_now = table("sw_fractions.csv", "sw_high")
+    sw_fut = table("sw_fractions_cc.csv", "sw_high")
+    names = sorted(fh_now)
+    eng = england_mask(names)
+    fh_cov = [n for n, m in zip(names, eng) if m and n in fh_fut]
+    sw_cov = [n for n, m in zip(names, eng) if m and n in sw_fut]
+    fh_shrunk = [fh_fut[n] - fh_now[n] for n in fh_cov
+                 if fh_fut[n] < fh_now[n] - 1e-12]
+    sw_shrunk = [sw_fut[n] - sw_now[n] for n in sw_cov
+                 if sw_fut[n] < sw_now[n] - 1e-12]
+    fh_growth = 100 * (sum(fh_fut[n] for n in fh_cov)
+                       / sum(fh_now[n] for n in fh_cov) - 1)
+    sw_growth = 100 * (sum(sw_fut[n] for n in sw_cov)
+                       / sum(sw_now[n] for n in sw_cov) - 1)
+    return {
+        "__CC_FH_SHRINK_N__": str(len(fh_shrunk)),
+        "__CC_FH_SHRINK_PCT__": f"{100 * len(fh_shrunk) / len(fh_cov):.1f}",
+        "__CC_FH_SHRINK_WORST_PP__": f"{100 * min(fh_shrunk):.1f}",
+        "__CC_SW_SHRINK_N__": str(len(sw_shrunk)),
+        "__CC_FH_GROWTH__": f"{fh_growth:+.1f}",
+        "__CC_SW_GROWTH__": f"{sw_growth:+.1f}",
+    }
+
+
 def load_stats():
     with open(os.path.join(ROOT, "data", "year_analysis.json")) as fh:
         ya = json.load(fh)
@@ -462,6 +510,34 @@ def load_stats():
         "__FOCUS_N__": str(len(fsec)),
     })
 
+    # Sector premiums aggregated back to districts, and how closely they
+    # reproduce the district model. Injected for the same reason as the
+    # climate deltas below: the "0.964 / 0.6%" that used to be hand-written
+    # here was measured BEFORE the terminated-postcode fix and quietly
+    # went stale when both models were rebuilt.
+    dbyname = {p["name"]: p for p in feats}
+    agg_names = [d for d in grouped if d in dbyname]
+
+    def _agg_premium(g):
+        wts = [max(q.get("households", 0), 1e-9) for q in g]
+        return sum(q["premium"] * v for q, v in zip(g, wts)) / sum(wts)
+
+    a = np.array([dbyname[d]["premium"] for d in agg_names])
+    b = np.array([_agg_premium(grouped[d]) for d in agg_names])
+    wag = np.array([dbyname[d].get("households", 1) for d in agg_names],
+                   dtype=float)
+    lvl = abs(100 * (np.average(b, weights=wag)
+                     / np.average(a, weights=wag) - 1))
+    sector_bits.update({
+        "__AGG_CORR__": f"{np.corrcoef(a, b)[0, 1]:.3f}",
+        "__AGG_LEVEL_PCT__": f"{lvl:.1f}",
+    })
+
+    # how many districts carry a household count (the CSV covers every
+    # district with live postcodes, more than the modelled boundary set)
+    with open(os.path.join(ROOT, "data", "households.csv"), newline="") as fh:
+        hh_districts = sum(1 for _ in fh) - 1
+
     val_path = os.path.join(ROOT, "data", "sector_validation.json")
     with open(val_path) as fh:
         val = json.load(fh)
@@ -475,6 +551,8 @@ def load_stats():
     return {
         **cc_bits,
         **sector_bits,
+        **climate_band_stats(),
+        "__HH_DISTRICTS__": f"{hh_districts:,}",
         "__SENS_FINDING__": sens_finding,
         "__EROSION_N__": f"{len(er_exposed):,}",
         "__EROSION_SAVED__": f"{len(er_saved):,}",
