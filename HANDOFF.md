@@ -6,74 +6,88 @@ just a pointer here)
 **Repo:** https://github.com/SMcode-source/uk-home-insurance-risk-map ·
 **Live:** https://smcode-source.github.io/uk-home-insurance-risk-map/
 
-## Status: complete, deployed, TWO resolutions published (2026-08-12)
+## Status: complete, deployed, FIVE insured perils at TWO resolutions
 
-The site now publishes the model at **two grains side by side**:
+The site publishes the model at **two grains side by side**:
 `/map.html` over 2,736 postcode districts and `/sectors.html` over
 10,398 derived postcode sectors. One template builds both pages, so
 they cannot drift; the layout suite runs every map invariant against
-both. **72 tests**, CI green, Pages live. The methodology page also
-draws the Hull comparison (districts vs sectors on the climate layer)
-as an inline SVG generated from the published GeoJSON at build time —
-a screenshot would go stale at the next rebuild; this cannot.
+both. **75 tests** (two of which skip only while a publish is
+mid-transition — see the theft section), CI green, Pages live. The
+methodology page draws the Hull comparison as an inline SVG generated
+from the published GeoJSON at build time — a screenshot would go stale
+at the next rebuild; this cannot.
 
-## In flight 2026-08-16: theft peril on `exp/theft-peril` (Phase 1)
+Current headline figures (bot commit 04bed84, 2026-08-16):
+exposure-weighted premium **£88.11** over 27.26m households; climate
+uplift **+6.9%** over the 2,087 covered districts, worst **TA9 +99%**
+(the pre-theft +10.5% / DN32 +200% figures are diluted by theft's
+arrival in the denominator — same £ of repricing on a bigger base; the
+site injects these, only this file and README carry them by hand).
 
-The model prices £55.68 of the ABI's £219 average premium because it
-stops at four catastrophe perils; the roadmap (agreed 2026-08-16) adds
-the attritional lines, theft first. State right now:
+## Published 2026-08-16: theft, the fifth insured peril (Phase 1)
 
-- **Data on main** (7bb3fdc): `data/burglary.csv` — 668,609 burglaries
-  from the police.uk 36-month archive (2023-07..2026-06), spatially
-  joined to the model's own district polygons by
-  `scripts/fetch_burglary.py`. Traps and anchors in DATA_SOURCES.md #25
-  (snap points, commercial contamination, BTP's Scottish leak, the
+User decision: "publish theft with the p99.9 cap." Live at both
+resolutions since run 31974060403 (merge c8f315f, bot commit 04bed84).
+Premium £59.07 → **£88.11** (+£29.04: el_th £29.03 to the penny on the
+ABI calibration, capital +£0.01 — an independent stable peril earns
+nearly the full diversification credit). Every weather-peril output
+stayed bit-identical through the change (verified column by column,
+and the published rebuild matches the evidence artifact value-for-value
+across all columns). Churn was large and REAL: 77.9% of districts
+changed rating group, 1,281 by ≥2 — theft geography is nearly
+orthogonal to cat geography (corr 0.04), city cores went to group 10
+(B2 £25→£240).
+
+How it is built (all of it on main now):
+- `scripts/fetch_burglary.py` → `data/burglary.csv`: 668,609 burglaries
+  from the police.uk 36-month archive (2023-07..2026-06) spatially
+  joined to the model's own polygons — the SAME script emits
+  sector-keyed counts on the sector-model branch because it reads
+  `load_districts()`. Traps and anchors in DATA_SOURCES.md #25 (snap
+  points, commercial contamination, BTP's Scottish leak, the
   2018-vintage ABI theft-paid figure and why propensity cancels).
-- **Model on the branch** (32a9d0c): independent compound leg OUTSIDE
-  the vine (burglary has no weather root), drawn LAST in the seeded
-  stream so the four weather perils simulate bit-identically — the
-  rebuild diff is the theft addition and nothing else. Level pinned to
-  ABI theft paid/average/policies (£29.03/policy); geography is each
-  district's own burglary rate, capped at the household-weighted p99.9
-  (office cores are burgled as shops, not homes), Scotland overridden
-  with the national housebreaking rate. 74 tests green.
-- **Evidence is IN (run 31970674869, the third — see below): premium
-  £59.07 → £88.11 (+£29.04), of which el_th £29.03 and capital +£0.01.**
-  The theft level lands on the ABI calibration to the penny, theft earns
-  full diversification credit under portfolio-TVaR capital, and every
-  weather-peril output is bit-identical to published (verified column by
-  column). Churn is large and REAL: 77.9% of districts change rating
-  group, 1,281 by ≥2 — theft geography is nearly orthogonal to cat
-  geography (corr 0.04), so pricing it re-ranks the book. City cores go
-  to group 10 (B2 £25→£240); el_th median £22, p95 £71, max £215 at the
-  p99.9 winsorisation cap. Dilutions to disclose in site copy if
-  accepted: uplift_pct 11.0%→8.2% weighted, climate uplift 8.6%→5.6%
-  (same £ of repricing on a bigger base). The USER decides.
-- **The first two evidence runs were themselves the evidence process
-  working.** Run 1 (31969240862) failed the published-geojson identity
-  test — el_total no longer equalled the four-peril sum, the diff being
-  el_th to the penny; the identity now includes theft with a
-  missing-column-reads-as-zero fallback that cannot mask a partial
-  regression. Run 2 (31969920992) priced a MIS-SPECIFIED model and the
-  numbers said so: premium +79.9%, +£13/policy of phantom capital and
-  el_th +17% over calibration. Two lessons that apply to EVERY
-  attritional peril still to come (EoW, fire, AD):
-  1. **A factor loading has enormous leverage at rare-event
-     thresholds.** W_THEFT=0.20 on "weakly systemic" intuition implied
-     worst years claiming 8–14× the mean — no burglary data shows that.
-     Derive it: CV(national claim count) ≈ sqrt(w)·φ(z_p)/p; targeting
-     the observed ±10-15% year-to-year variation gives W_THEFT=0.0013
-     (1-in-100 systemic year ≈ 1.3× claims).
-  2. **A peril whose districts share ONE uniform stream must take its
-     EL analytically** (p·E[sev], the el_er cure): the ~150
-     threshold-clearing draws carry a COMMON error, so the whole map
-     came out +17% over the calibrated level at once. Draws still feed
-     the tail columns. Both now guarded by tests.
-- **Not done, deliberate**: sectors get theft only if the user accepts
-  it for districts (needs sector-resolution burglary aggregation on the
-  sector-model branch); EoW/fire/AD are next in Phase 1; the VOA
-  non-domestic premises count is the proper fix for the commercial
-  contamination (Phase 2).
+- Independent compound leg OUTSIDE the vine (burglary has no weather
+  root), its uniform drawn LAST in the seeded stream. Rates winsorised
+  at the household-weighted p99.9 (6.22% districts / 8.29% sectors —
+  the cap re-solves per resolution over its own exposure distribution;
+  office cores are burgled as shops, not homes); Scotland OVERRIDDEN
+  (not filled) with the national housebreaking rate, 0.29%/yr.
+- Site copy (759c841): every theft number injected from committed data
+  (`__TH_*__` in build_site.load_stats — the cap recovered as the max
+  surviving rate, the Scotland override as the most frequent exact
+  rate); popup shows the measured burglary rate, not a fake 0–1 score;
+  theft bronze `--th` contrast-checked both themes; the years page
+  stays four-peril episodic on purpose and says so.
+
+**Two lessons from the evidence runs, for EoW/fire/AD (both now
+guarded by tests):**
+1. **A factor loading has enormous leverage at rare-event
+   thresholds.** W_THEFT=0.20 on "weakly systemic" intuition implied
+   worst years claiming 8–14× the mean — no burglary data shows that.
+   Derive it: CV(national claim count) ≈ sqrt(w)·φ(z_p)/p; targeting
+   the observed ±10-15% year-to-year variation gives W_THEFT=0.0013
+   (1-in-100 systemic year ≈ 1.3× claims).
+2. **A peril whose districts share ONE uniform stream must take its
+   EL analytically** (p·E[sev], the el_er cure): the ~150
+   threshold-clearing draws carry a COMMON error, so the whole map
+   came out +17% over the calibrated level at once. Draws still feed
+   the tail columns.
+
+**And one from the publish itself:** rebuild.yml's pre-flight runs the
+suite against COMMITTED state, so any change that adds a template-read
+column, or lands one resolution's output before the other, deadlocks
+the pre-flight against the very run that reconciles it (run
+31973685105 died there). The two output-contract guards now SKIP,
+self-re-armingly, while the committed state is visibly mid-transition
+(f491e66) — safe because build_map.web_asset hard-fails any build
+whose model output lacks a template-read column. Expect exactly those
+two skips during every future peril publish, and zero after.
+
+**Next in Phase 1**: EoW → fire → AD, same evidence-branch pattern.
+The VOA non-domestic premises count is the proper fix for the
+commercial contamination (Phase 2), replacing the winsorisation cap
+with an actual commercial-exposure adjustment.
 
 ## Audited 2026-08-16: every published claim re-derived from the data
 
