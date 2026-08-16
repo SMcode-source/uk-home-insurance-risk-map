@@ -423,6 +423,37 @@ def load_stats():
     er_saved = [p for p in er_exposed if p.get("er_smp105", 0) == 0]
     er_worst = max(feats, key=lambda p: p.get("er_smp105", 0))
 
+    # Theft, injected from the same committed data the model read.
+    # Everything degrades to zeros when the geojson predates the theft
+    # peril (the window between merging the model change and the bot
+    # committing the rebuilt outputs) - the published pages never see
+    # the fallback because the site is only built after the model.
+    th_el = np.array([p.get("el_th", np.nan) for p in feats], dtype=float)
+    th_rate = np.array([p.get("th_rate", np.nan) for p in feats], dtype=float)
+    if np.isnan(th_el).all():
+        th_el = np.zeros(len(feats))
+    if np.isnan(th_rate).all():
+        th_rate = np.zeros(len(feats))
+    with open(os.path.join(ROOT, "data", "burglary.csv"), newline="") as fh:
+        b_rows = list(csv.DictReader(fh))
+    # The winsorisation cap IS the maximum surviving rate, so it needs no
+    # side channel from the model; the district count at the cap is an
+    # exact float equality because np.minimum wrote the cap value itself.
+    # Scotland's uniform override is the only value shared by hundreds of
+    # districts, so it is recoverable as the most frequent exact rate.
+    _vals, _counts = np.unique(th_rate, return_counts=True)
+    th_bits = {
+        "__TH_INCIDENTS__": f"{sum(int(r['burglaries']) for r in b_rows):,}",
+        "__TH_MONTHS__": b_rows[0]["months"],
+        "__TH_EL__": f"{np.average(th_el, weights=_w):.2f}",
+        "__TH_CAP_PCT__": f"{100 * th_rate.max():.1f}",
+        "__TH_CLIPPED__": str(int((th_rate == th_rate.max()).sum())
+                              if th_rate.max() > 0 else 0),
+        "__TH_SCOT_PCT__": f"{100 * _vals[_counts.argmax()]:.2f}",
+        "__TH_CAT_CORR__": (f"{np.corrcoef(th_el, _el - th_el)[0, 1]:.2f}"
+                            if th_el.max() > 0 else "0.00"),
+    }
+
     # Climate repricing, over the districts the EA actually models. A
     # national average would be diluted by Wales and Scotland, which have
     # no future extents and so cannot move by construction.
@@ -550,6 +581,7 @@ def load_stats():
 
     return {
         **cc_bits,
+        **th_bits,
         **sector_bits,
         **climate_band_stats(),
         "__HH_DISTRICTS__": f"{hh_districts:,}",
@@ -744,9 +776,11 @@ def main():
           "s": round(p["sub_score"], 2), "w": round(p["wx_score"], 2),
           "f": round(p["fl_score"], 2), "gw": round(p["gw_score"], 2),
           "u": round(p["uplift_pct"], 1),
-          # premium build-up: four expected losses + allocated capital
+          # premium build-up: five expected losses + allocated capital
+          # (el_th .get-guarded for the pre-rebuild window, like load_stats)
           "es": round(p["el_sub"]), "ew": round(p["el_wx"]),
           "ef": round(p["el_fl"]), "eg": round(p["el_gw"]),
+          "et": round(p.get("el_th", 0)),
           "c": round(p.get("capital", 0)),
           "h": round(p.get("households", 0))} for p in feats),
         key=lambda d: d["n"])
