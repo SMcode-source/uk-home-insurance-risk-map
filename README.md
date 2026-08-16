@@ -7,35 +7,35 @@
 [![Data: OGL v3](https://img.shields.io/badge/data-OGL%20v3-1baf7a?style=flat-square)](DATA_SOURCES.md)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-eb6834?style=flat-square)](requirements.txt)
 ![Districts: 2,736](https://img.shields.io/badge/districts-2%2C736-6f5cc4?style=flat-square)
-![Perils: 4 insured + 1](https://img.shields.io/badge/perils-4_insured_%2B_1-52514e?style=flat-square)
+![Perils: 5 insured + 1](https://img.shields.io/badge/perils-5_insured_%2B_1-52514e?style=flat-square)
 
 **[Interactive map](https://smcode-source.github.io/uk-home-insurance-risk-map/map.html)** ·
-**[Sector map](https://smcode-source.github.io/uk-home-insurance-risk-map/sectors.html)** ·
 **[Sector map](https://smcode-source.github.io/uk-home-insurance-risk-map/sectors.html)** ·
 **[Good vs bad years](https://smcode-source.github.io/uk-home-insurance-risk-map/years.html)** ·
 **[Methodology](https://smcode-source.github.io/uk-home-insurance-risk-map/methodology.html)**
 
 ---
 
-Interactive choropleth of **2,736 UK postcode districts** rating four home-insurance
+Interactive choropleth of **2,736 UK postcode districts** rating five home-insurance
 perils — **subsidence**, **weather damage**, **flood** (rivers, sea and surface
-water) and **groundwater flooding** — with their dependency modelled by a
-**C-vine copula**, banded into 10 rating groups. A companion page decomposes
-**good years vs bad years** for the whole portfolio.
+water), **groundwater flooding** and **theft** — the four weather-driven perils
+joined by a **C-vine copula**, theft priced as an independent leg (burglary does
+not arrive on the storm track), banded into 10 rating groups. A companion page
+decomposes **good years vs bad years** for the whole portfolio.
 
-A fifth peril, **coastal erosion**, is modelled in the vine but deliberately
+**Coastal erosion** is modelled in the vine but deliberately
 kept **out of the premium** — see
 [Coastal erosion: modelled, not priced](#coastal-erosion-modelled-not-priced).
 
 Every hazard input is **open data**, fetched by the scripts here — see
-**[DATA_SOURCES.md](DATA_SOURCES.md)** for all 24 datasets with their endpoints,
+**[DATA_SOURCES.md](DATA_SOURCES.md)** for all 25 datasets with their endpoints,
 licences, access quirks and the dead ends worth avoiding. Each peril's loss level
 is calibrated to published **ABI** claims payouts, and districts are weighted by
 **census household counts**.
 
-> ⚠️ These are **four-peril technical premiums, not home insurance premiums**.
-> A real policy also covers escape of water, theft, fire and accidental damage —
-> together the majority of claims — plus expenses and profit. Expect these
+> ⚠️ These are **five-peril technical premiums, not home insurance premiums**.
+> A real policy also covers escape of water, fire and accidental damage —
+> together still a large share of claims — plus expenses and profit. Expect these
 > figures to be a fraction of what you actually pay. This is a methodology
 > demonstration, not a rating product.
 
@@ -76,6 +76,8 @@ scripts/
                               account; the model's source before 2026-08-10)
   fetch_history.py            35 years of ERA5 hazard drivers -> backtest
   fetch_households.py         ONS/NRS census households per district (exposure)
+  fetch_burglary.py           police.uk street-level burglary points -> counts
+                              per district (36-month archive, resumable)
   scores_real.py              data -> per-district peril scores
   build_model.py              scores -> marginals -> 5-dim C-vine Monte Carlo ->
                               districts_risk.geojson + year_analysis.json
@@ -105,7 +107,7 @@ assets/leaflet.{js,css}       Leaflet 1.9.4, inlined into the map HTML
 | Weather risk score | Met Office wind / rain exposure (0–1) |
 | Flood risk score | EA / NRW / SEPA river, sea + surface-water zones (0–1) |
 | Groundwater risk score | EA groundwater alert-area coverage (0–1) |
-| 1-in-200 combined loss | 99.5% VaR of the four-peril annual loss (C-vine) |
+| 1-in-200 combined loss | 99.5% VaR of the five-peril annual loss (C-vine + independent theft) |
 | Capital charge | The district's Euler share of portfolio tail risk, in £ |
 | Surface-water depth | Mean depth where it floods, from the EA depth bands (England) |
 | Coastal erosion (blight) | Land projected lost by 2105 under the adopted Shoreline Management Plan — **not insured** |
@@ -215,25 +217,48 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    *level* is pinned to what the ABI reports it paid in 2025 across ~15.5m
    policies:
 
-   | Peril | Paid 2025 | Avg claim | Implied claims | Frequency |
+   | Peril | Paid | Avg claim | Implied claims | Frequency |
    |---|---|---|---|---|
-   | Storm | £244m | £2,450 | ~99,600 | 0.64% |
-   | Flood | £312m | £30,000 | ~10,400 | 0.067% |
-   | Subsidence | £307m | £17,820 | ~17,200 | 0.111% |
+   | Storm | £244m (2025) | £2,450 | ~99,600 | 0.64% |
+   | Flood | £312m (2025) | £30,000 | ~10,400 | 0.067% |
+   | Subsidence | £307m (2025) | £17,820 | ~17,200 | 0.111% |
    | Groundwater | not published | £20,000 | — | pegged at 10% of flood |
+   | Theft | £450m (2018, last published) | £3,800 | ~118,000 | 0.76% |
 
-   Together these come to **£55.68 per policy per year — about 25% of the
-   £219 that all home claims cost**. ⚠️ **These are four-peril technical
+   Together these come to **£84.71 per policy per year — about 39% of the
+   £219 that all home claims cost**. ⚠️ **These are five-peril technical
    premiums, not home insurance premiums**: a real policy also covers escape
-   of water, theft, fire and accidental damage (the majority of claims) plus
-   expenses and profit. What is *not* fitted — and is where the model earns
-   its keep — is the geography, the dependence structure, and the spread of
-   frequency/severity within each peril.
+   of water, fire and accidental damage (together still a large share of
+   claims) plus expenses and profit. What is *not* fitted — and is where the
+   model earns its keep — is the geography, the dependence structure, and the
+   spread of frequency/severity within each peril.
    *(An earlier version calibrated to the all-claims figures — 560,000 claims,
    3.6% frequency — which overstated the loss cost by ~77%, because most home
-   claims are escape of water and theft rather than catastrophe perils.)*
-6. **Vine copula.** The four annual-loss marginals are joined by a **C-vine**
-   (pair-copula construction) with weather W at the root:
+   claims are escape of water and theft rather than catastrophe perils. Theft
+   is now priced, but at its own frequency and its own £3,800 severity.)*
+5b. **Theft — burglary geography from police.uk** (`scripts/fetch_burglary.py`).
+   Three years of street-level burglary points (36 monthly archives, ~670k
+   incidents) placed into districts by point-in-polygon become an annual
+   burglary rate per household. One national multiplier scales that rate so
+   the implied claim count hits the ABI theft anchors, which means the
+   burglary→claim propensity **cancels out** — the police data contributes
+   only relativities. Two corrections: rates are **winsorised at the
+   exposure-weighted 99.9th percentile** (~6.2%/yr), because the police
+   "burglary" category includes commercial premises and shop-dense city cores
+   would otherwise carry retail break-ins as household risk; and **Scotland is
+   overridden** (not filled) with the national housebreaking rate from
+   Recorded Crime in Scotland, because police.uk lacks Police Scotland and its
+   only "Scottish" rows are British Transport Police railway incidents.
+   **Theft sits outside the vine** — no meteorological driver — so it adds
+   ~£29 of expected loss and almost no capital: an independent, stable peril
+   earns nearly a full diversification credit. Its expected loss is taken
+   analytically (p × E[severity]) rather than from the simulated draws: all
+   of a district's theft draws share one uniform stream, and at these
+   frequencies that Monte Carlo estimate is biased noise (it sat +17% over
+   the calibrated level) — same lesson as the Euler-capital conditioning.
+6. **Vine copula.** The four weather-driven annual-loss marginals (plus
+   erosion) are joined by a **C-vine** (pair-copula construction) with
+   weather W at the root:
    - tree 1: **Gumbel(θ_WF)** weather–flood, θ = 1.4 + 1.6·√(s_wx·s_fl) ∈
      [1.4, 3.0] — storm rain drives flood, strongest tail link;
      **Gumbel(θ_WG)** weather–groundwater, θ = 1.3 + 1.1·√(s_wx·s_gw) ≤ 2.4 —
@@ -332,7 +357,12 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    and the worst simulated year decomposed. The year view uses a Gaussian
    factor model per peril: each district mixes the national systemic factor
    (which carries the vine dependence) with idiosyncratic noise — spatial
-   loadings weather 50% / flood 40% / subsidence 60% / groundwater 70% —
+   loadings weather 50% / flood 40% / subsidence 60% / groundwater 70%,
+   theft 0.13% (derived, not assumed: the CV of the national claim count is
+   ≈2.75·√w at theft's frequency, and the observed burglary series varies
+   ±10–15% a year, which pins w near 0.001; a "felt reasonable" 0.20 would
+   have implied worst years of 8–14× average claims and ~£13/policy of
+   phantom capital) —
    preserving district marginals exactly while giving realistic cross-district
    clustering (a pure common-random-numbers view is degenerate: no claims
    anywhere in 90% of years, then everything at once).
@@ -396,7 +426,7 @@ EC4R 8% → 27%, SW8 (Nine Elms) 16% → 32%, RM9 (Dagenham) 37% → 53%, E8
 
 ## Coastal erosion: modelled, not priced
 
-The model carries a fifth peril — **coastal erosion**, from the EA's
+The model carries a sixth peril — **coastal erosion**, from the EA's
 **NCERM National 2024** frontages (`scripts/fetch_erosion.py`) — and it is
 deliberately kept out of `premium`.
 
@@ -469,10 +499,11 @@ The site is checked, not assumed:
   overflow anywhere, wide tables and charts scroll inside their own containers,
   nav fits without sideways scrolling, tap targets ≥24px.
 - Colours follow a validated data-viz palette; the peril hues (subsidence
-  orange, weather blue, flood aqua, groundwater violet, erosion rose) are used
-  consistently across map, charts, favicon and social card. The erosion rose is
-  contrast-checked live in both themes (5.12:1 light, 8.11:1 dark) because it carries
-  text as well as fill.
+  orange, weather blue, flood aqua, groundwater violet, theft bronze, erosion
+  rose) are used consistently across map, charts, favicon and social card. The
+  erosion rose is contrast-checked live in both themes (5.12:1 light, 8.11:1
+  dark) because it carries text as well as fill; the theft bronze was chosen
+  the same way (5.61:1 light, 9.24:1 dark).
 
 ## Tests
 
@@ -493,7 +524,11 @@ published payout to calibrate against), the flood–erosion tree-2 pair must com
 out as the strongest of the three, and the depth multiplier must leave the
 exposure-weighted national mean at exactly 1.0 while still ranking a deep
 district above a shallow one — plus a fallback test proving the model still
-runs when the depth product is absent, as it is outside England.
+runs when the depth product is absent, as it is outside England. Theft's
+guards pin its severity mean to the ABI average, its claim frequency to the
+scaled burglary rate, and its expected loss to the analytic p × E[severity]
+— the last one exists because the simulated estimate was +17% biased (all
+districts share one theft draw stream) and would silently drift the level.
 
 CI additionally rebuilds the whole site from committed data and fails if
 `docs/` has drifted from its templates.
@@ -554,6 +589,8 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 #   .venv/Scripts/python scripts/fetch_codepoint.py
 #   .venv/Scripts/python -u scripts/derive_sectors.py   # -> data/sectors_gb.gpkg
 .venv/Scripts/python scripts/fetch_households.py     # ONS lookup + census -> data/households.csv (exposure, ~22MB dl)
+.venv/Scripts/python -u scripts/fetch_burglary.py    # police.uk archive (1.7 GB, resumable download) -> data/burglary.csv
+                                                     # (~6 min once the archive is cached; checkpoints every 100 files)
 .venv/Scripts/python scripts/build_model.py          # calibrate + vine sim -> districts_risk.geojson + year_analysis.json (~55 min;
                                                      # the 5th vine dimension roughly doubled this - the extra Gumbel
                                                      # h-inverse bisection for erosion is the dominant cost)
