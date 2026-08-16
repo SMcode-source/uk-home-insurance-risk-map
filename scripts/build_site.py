@@ -454,6 +454,37 @@ def load_stats():
                             if th_el.max() > 0 else "0.00"),
     }
 
+    # Escape of water, same discipline and the same transition fallback.
+    # The freeze share and ABI context are imported from the model rather
+    # than restated, so this prose cannot drift from what was priced.
+    from build_model import ABI, POLICIES, EOW_FREEZE_SHARE
+    eow_el = np.array([p.get("el_eow", np.nan) for p in feats], dtype=float)
+    frost = np.array([p.get("frost_days", np.nan) for p in feats],
+                     dtype=float)
+    if np.isnan(eow_el).all():
+        eow_el = np.zeros(len(feats))
+    if np.isnan(frost).all():
+        frost = np.zeros(len(feats))
+    _has_eow = eow_el.max() > 0
+    i_lo, i_hi = int(np.argmin(eow_el)), int(np.argmax(eow_el))
+    eow_bits = {
+        "__EOW_EL__": f"{np.average(eow_el, weights=_w):.2f}",
+        "__EOW_LO__": f"{eow_el.min():.0f}",
+        "__EOW_HI__": f"{eow_el.max():.0f}",
+        "__EOW_LO_NAME__": feats[i_lo]["name"] if _has_eow else "n/a",
+        "__EOW_HI_NAME__": feats[i_hi]["name"] if _has_eow else "n/a",
+        "__EOW_FROST_LO__": f"{frost[i_lo]:.0f}",
+        "__EOW_FROST_HI__": f"{frost[i_hi]:.0f}",
+        "__EOW_FREEZE_PCT__": f"{100 * EOW_FREEZE_SHARE:.0f}",
+        "__EOW_CAT_CORR__": (f"{np.corrcoef(eow_el, _el - eow_el)[0, 1]:.2f}"
+                             if _has_eow else "0.00"),
+    }
+    # The insured expected loss as a share of ALL home claims paid - the
+    # landing-page finding that quietly went stale when theft arrived
+    # ("none of which this models" survived a peril that was modelled).
+    _all_claims_pp = ABI["total_home_paid"] / POLICIES
+    el_claims_share = f"{100 * np.average(_el, weights=_w) / _all_claims_pp:.0f}"
+
     # Climate repricing, over the districts the EA actually models. A
     # national average would be diluted by Wales and Scotland, which have
     # no future extents and so cannot move by construction.
@@ -582,6 +613,8 @@ def load_stats():
     return {
         **cc_bits,
         **th_bits,
+        **eow_bits,
+        "__EL_CLAIMS_SHARE__": el_claims_share,
         **sector_bits,
         **climate_band_stats(),
         "__HH_DISTRICTS__": f"{hh_districts:,}",
@@ -776,11 +809,13 @@ def main():
           "s": round(p["sub_score"], 2), "w": round(p["wx_score"], 2),
           "f": round(p["fl_score"], 2), "gw": round(p["gw_score"], 2),
           "u": round(p["uplift_pct"], 1),
-          # premium build-up: five expected losses + allocated capital
-          # (el_th .get-guarded for the pre-rebuild window, like load_stats)
+          # premium build-up: six expected losses + allocated capital
+          # (el_th/el_eow .get-guarded for the pre-rebuild window, like
+          # load_stats)
           "es": round(p["el_sub"]), "ew": round(p["el_wx"]),
           "ef": round(p["el_fl"]), "eg": round(p["el_gw"]),
           "et": round(p.get("el_th", 0)),
+          "ee": round(p.get("el_eow", 0)),
           "c": round(p.get("capital", 0)),
           "h": round(p.get("households", 0))} for p in feats),
         key=lambda d: d["n"])
@@ -792,10 +827,12 @@ def main():
     # but anyone summing them into the premium is doing it wrong.
     cols = ["name", "area", "households", "group", "premium", "capital",
             "el_total",
-            "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "sub_score",
+            "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow",
+            "sub_score",
             "wx_score",
             "fl_score", "gw_score", "f_high", "f_low", "sw_high", "sw_low",
-            "gw_frac", "sw_depth_m", "sw_sev", "th_rate",
+            "gw_frac", "sw_depth_m", "sw_sev", "th_rate", "eow_rate",
+            "frost_days",
             "wind_ms", "gust_rp50", "rain10_days", "precip_mm",
             "tvar99_vine", "tvar99_euler", "uplift_pct",
             "el_er", "er_score", "er_smp55", "er_smp105", "er_nfi55",

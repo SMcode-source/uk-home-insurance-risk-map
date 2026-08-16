@@ -239,6 +239,13 @@ page</a>.</p>
   national housebreaking rate from Recorded Crime in Scotland instead. The rate is
   scaled to the ABI's national claim count, so the burglary&rarr;claim propensity
   cancels out and never has to be assumed.</p>
+  <p><b>Escape of water.</b> A flat base &mdash; plumbing and appliance failure has no
+  open spatial predictor &mdash; plus a freeze-attributable slice (~15% of claims) that
+  scales with each __UNIT__'s <b>annual air-frost days</b> (Met Office HadUK-Grid
+  1991&ndash;2020). The level is anchored to the ABI's &pound;1.8m-a-day escape-of-water
+  figure (~&pound;657m/yr, ~&pound;4,000 average claim). The spread is deliberately
+  modest &mdash; the Highlands carry about 1.5&times; the frequency of the mildest
+  coasts &mdash; because that is all the open data supports.</p>
   <p><b>Vine copula.</b> The four weather-driven perils and erosion are joined by a <b>C-vine</b> with weather at
   the root. Tree&nbsp;1: Gumbel(&theta;<sub>WF</sub> up to 3.0) weather&ndash;flood,
   Gumbel(&theta;<sub>WG</sub> up to 2.4) weather&ndash;groundwater (aquifer recharge follows
@@ -250,22 +257,26 @@ page</a>.</p>
   flood&ndash;subsidence; tree&nbsp;3 independent. 20,000 simulated years per district
   (Marshall&ndash;Olkin for the root pair, conditional h-function inversion for the other
   margins). A tau-matched 5-dim Gaussian copula and an independence run are computed for
-  comparison. <b>Theft sits deliberately outside the vine</b>: burglary does not
-  co-move with storms, so it is simulated as an independent leg and adds essentially
-  no capital — its whole premium contribution is expected loss. There is deliberately
+  comparison. <b>Theft and escape of water sit deliberately outside the vine</b>:
+  neither burglary nor burst pipes co-move with the storm track (the vine's root is
+  storm/rain-driven; cold is the one weather axis it does not carry), so both are
+  simulated as independent legs. Theft adds essentially no capital; escape of water
+  adds a small charge, because a hard national freeze (winter 2010 roughly doubled
+  the year's burst-pipe bill) is genuinely systemic. There is deliberately
   no per-district <i>copula uplift</i> layer: at
   calibrated frequencies that difference is inside Monte Carlo noise, so it would be
   drawing noise across the country. The dependence effect is real, but it lives in the
   portfolio.</p>
   <p><b>Calibration.</b> Each peril's claim frequency is scaled to the ABI's published
   domestic payouts &mdash; storm &pound;244m, flood &pound;312m, subsidence &pound;307m
-  (2025), theft &pound;450m (2018, the last year the ABI published it) over
+  (2025), theft &pound;450m (2018, the last year the ABI published it), escape of water
+  ~&pound;657m (from the ABI's &pound;1.8m-a-day figure) over
   ~15.5m policies &mdash; and severities take the published average claim as their mean.
-  Together the five insured perils come to ~&pound;85/policy/yr, about two-fifths of what
+  Together the six insured perils come to ~&pound;126/policy/yr, over half of what
   all home claims cost. Coastal erosion is <i>not</i> in that figure and is not calibrated
   to ABI at all &mdash; it has no published payout, because it is not covered.
-  <b>These are five-peril premiums, not home insurance premiums:</b> a real
-  policy also covers escape of water, fire and accidental damage, plus expenses and
+  <b>These are six-peril premiums, not home insurance premiums:</b> a real
+  policy also covers fire and accidental damage, plus expenses and
   profit. What is <i>not</i> fitted is the geography and the dependence.</p>
   <p><b>Rating groups.</b> Technical premium = expected loss + 6% cost-of-capital on the
   __UNIT__'s <b>Euler-allocated</b> share of <i>portfolio</i> tail risk &mdash; its expected
@@ -278,8 +289,8 @@ page</a>.</p>
   population &mdash; compare the premiums, not the group numbers.</p>
   __GEOGRAPHY_NOTE__
   <p class="note">Hazard data: BGS Geology 625k, Met Office HadUK-Grid / Climate
-  Data Portal, EA / NRW / SEPA flood maps, EA flood-risk postcode data,
-  police.uk street-level burglary (all OGL).
+  Data Portal (incl. air-frost days), EA / NRW / SEPA flood maps, EA flood-risk
+  postcode data, police.uk street-level burglary (all OGL).
   Loss frequencies/severities and copula parameters are illustrative assumptions,
   not calibrated to claims. Boundaries: uk-postcode-polygons. See DATA_SOURCES.md
   in the repo for every endpoint, licence and access date.</p>
@@ -544,7 +555,7 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 /* The popup is layered for a READER, not a debugger: what they tapped for
-   (rating, premium), then the five peril rows that explain it, then the
+   (rating, premium), then the six peril rows that explain it, then the
    climate scenario — and everything else behind <details>, because a
    reader who tapped a district should not have to scroll past θ_wg and
    tvar99_indep to find the premium. The old flat table ran to 36 rows and
@@ -570,10 +581,14 @@ function popupHtml(p) {
     '<td>' + fmtGBP(el) + '/yr</td></tr>').join('') +
     /* Theft's input is a measured burglary rate, not a 0-1 hazard score,
        so it shows the rate itself instead of pretending to a scale it
-       does not share with the other four. */
+       does not share with the other four. Escape of water shows its own
+       physical driver the same way: air-frost days. */
     '<tr><td>Theft</td>' +
     '<td>' + (100 * p.th_rate).toFixed(2) + '%/yr burglaries</td>' +
-    '<td>' + fmtGBP(p.el_th) + '/yr</td></tr>';
+    '<td>' + fmtGBP(p.el_th) + '/yr</td></tr>' +
+    '<tr><td>Esc. of water</td>' +
+    '<td>' + p.frost_days.toFixed(0) + ' air-frost days/yr</td>' +
+    '<td>' + fmtGBP(p.el_eow) + '/yr</td></tr>';
 
   const premiumFold = fold('How the premium is built',
     row('Expected loss, all perils', fmtGBP(p.el_total) + '/yr') +
