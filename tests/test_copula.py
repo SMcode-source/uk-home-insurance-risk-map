@@ -699,8 +699,16 @@ def test_published_geojson_satisfies_the_models_own_identities():
 
     # premium arithmetic (1dp on each term)
     assert np.abs(premium - (el_total + capital)).max() <= 0.15
+    # el_th joined the insured total on exp/theft-peril. A build from
+    # before the theft peril has no el_th column at all - that reads as
+    # zero, and the identity still binds. A build that LOST el_th while
+    # el_total still contains theft fails by ~GBP 29, so the fallback
+    # cannot mask a partial regression.
+    el_th = col("el_th")
+    if np.isnan(el_th).all():
+        el_th = np.zeros(len(feats))
     assert np.abs(el_total - (col("el_sub") + col("el_wx") + col("el_fl")
-                              + col("el_gw"))).max() <= 0.25
+                              + col("el_gw") + el_th)).max() <= 0.30
     assert np.abs(col("el_total5") - (el_total + col("el_er"))).max() <= 0.25
     assert (capital >= -1e-9).all()
 

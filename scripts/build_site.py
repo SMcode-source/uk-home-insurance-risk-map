@@ -758,9 +758,10 @@ def main():
     # but anyone summing them into the premium is doing it wrong.
     cols = ["name", "area", "households", "group", "premium", "capital",
             "el_total",
-            "el_sub", "el_wx", "el_fl", "el_gw", "sub_score", "wx_score",
+            "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "sub_score",
+            "wx_score",
             "fl_score", "gw_score", "f_high", "f_low", "sw_high", "sw_low",
-            "gw_frac", "sw_depth_m", "sw_sev",
+            "gw_frac", "sw_depth_m", "sw_sev", "th_rate",
             "wind_ms", "gust_rp50", "rain10_days", "precip_mm",
             "tvar99_vine", "tvar99_euler", "uplift_pct",
             "el_er", "er_score", "er_smp55", "er_smp105", "er_nfi55",
