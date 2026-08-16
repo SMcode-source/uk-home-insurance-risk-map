@@ -214,7 +214,7 @@ def test_inv_mixed_cdf_matches_bernoulli_lognormal():
 def fields(**over):
     """Default marginal_params inputs, overridable per test."""
     f = dict(sub=0.5, wx=0.5, f_high=0.1, f_low=0.2, sw_high=0.1,
-             sw_low=0.2, gw_frac=0.1, sw_sev=1.0, er=0.0)
+             sw_low=0.2, gw_frac=0.1, sw_sev=1.0, er=0.0, th=0.009)
     f.update(over)
     return {k: np.array([v], dtype=float) for k, v in f.items()}
 
@@ -240,6 +240,28 @@ def test_theta_functions_stay_in_valid_gumbel_range():
 
 # ---------------------------------------------------------------- erosion
 
+def test_theft_severity_mean_hits_the_abi_average():
+    """sev_th's lognormal MEAN equals the published ABI average claim."""
+    m = bm.marginal_params(fields())
+    mean = float(np.exp(m["sev_th"]["mu"] + m["sev_th"]["sigma"] ** 2 / 2))
+    assert abs(mean / bm.ABI["sev_theft"] - 1) < 1e-6
+
+
+def test_theft_frequency_is_the_burglary_rate_scaled():
+    """p_th is the district burglary rate times the ABI level scale and
+    nothing else - the geography comes straight from the police data."""
+    old = dict(bm.FREQ_SCALE)
+    try:
+        bm.FREQ_SCALE = dict(old, th=0.85)
+        m = bm.marginal_params(fields(th=0.02))
+        assert abs(float(m["p_th"][0]) - 0.02 * 0.85) < 1e-12
+        # and the safety clip cannot produce a probability above one half
+        m = bm.marginal_params(fields(th=3.0))
+        assert float(m["p_th"][0]) == 0.5
+    finally:
+        bm.FREQ_SCALE = old
+
+
 def test_erosion_frequency_annualises_over_the_horizon():
     """A district with x% of its area in the 2105 zone loses that share of
     properties across the horizon, so the annual hazard is x/80."""
@@ -254,9 +276,11 @@ def test_erosion_is_not_touched_by_the_abi_frequency_scaling():
     from the physical construction alone."""
     old = dict(bm.FREQ_SCALE)
     try:
-        bm.FREQ_SCALE = {"sub": 3.0, "wx": 3.0, "fl": 3.0, "gw": 3.0}
+        bm.FREQ_SCALE = {"sub": 3.0, "wx": 3.0, "fl": 3.0, "gw": 3.0,
+                         "th": 3.0}
         scaled = float(bm.marginal_params(fields(er=0.1))["p_er"][0])
-        bm.FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0}
+        bm.FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0,
+                         "th": 1.0}
         plain = float(bm.marginal_params(fields(er=0.1))["p_er"][0])
     finally:
         bm.FREQ_SCALE = old
@@ -330,6 +354,7 @@ def test_erosion_expected_loss_is_analytic_not_simulated(monkeypatch):
         "sw_high": [0.05, 0.01], "sw_low": [0.1, 0.03],
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.24, 0.0], "households": [1000.0, 2000.0],
+        "th_rate": [0.010, 0.005],
     })
     sim, _ = bm.simulate(df)
 
@@ -339,6 +364,38 @@ def test_erosion_expected_loss_is_analytic_not_simulated(monkeypatch):
     # and the five-peril total is the four-peril total plus exactly that
     assert abs((sim["el_total5"][0] - sim["el_total"][0])
                - sim["el_er"][0]) < 1e-6
+
+
+def test_theft_expected_loss_is_analytic_not_simulated(monkeypatch):
+    """Theft shares ONE U_th stream across all districts, so a simulated
+    mean carries a common sampling error - the first evidence run came out
+    +17% over the calibrated level in every district at once. simulate()
+    must return p_th * E[severity] exactly, at any simulation length, and
+    el_total must carry the analytic leg so the published level is the
+    calibrated one."""
+    import pandas as pd
+
+    monkeypatch.setattr(bm, "N_SIM", 200)
+    monkeypatch.setattr(bm, "BATCH", 8)
+    df = pd.DataFrame({
+        "sub_score": [0.5, 0.2], "wx_score": [0.5, 0.4],
+        "fl_score": [0.3, 0.6], "gw_score": [0.2, 0.1],
+        "er_score": [0.0, 0.0],
+        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05],
+        "sw_high": [0.05, 0.01], "sw_low": [0.1, 0.03],
+        "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
+        "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
+        "th_rate": [0.010, 0.0],
+    })
+    sim, _ = bm.simulate(df)
+
+    expected = 0.010 * bm.FREQ_SCALE["th"] * bm.ABI["sev_theft"]
+    assert abs(sim["el_th"][0] - expected) / expected < 1e-9
+    assert sim["el_th"][1] == 0.0                     # no burglary, no loss
+    # el_total = the four weather-peril draw means + the analytic theft leg
+    four = (sim["el_sub"][0] + sim["el_wx"][0]
+            + sim["el_fl"][0] + sim["el_gw"][0])
+    assert abs((sim["el_total"][0] - four) - sim["el_th"][0]) < 1e-6
 
 
 def test_capital_allocation_is_stable_across_seeds():
@@ -378,6 +435,7 @@ def test_capital_allocation_is_stable_across_seeds():
         "sw_sev": rng.uniform(0.8, 1.3, n),
         "er_frac": rng.uniform(0, 0.05, n),
         "households": rng.uniform(500, 40_000, n),
+        "th_rate": rng.uniform(0.001, 0.03, n),
     })
     n_sim, batch, seed = m.N_SIM, m.BATCH, m.RNG_SEED
     m.N_SIM, m.BATCH = 4000, 30
@@ -565,6 +623,7 @@ def test_thread_count_does_not_change_a_single_bit():
         "sw_sev": rng.uniform(0.6, 2.5, n),
         "er_frac": rng.uniform(0.0, 0.05, n),
         "households": rng.uniform(200, 40000, n),
+        "th_rate": rng.uniform(0.001, 0.03, n),
     })
     keep = (bm.N_SIM, bm.BATCH, bm.N_THREADS)
     bm.N_SIM, bm.BATCH = 400, 25          # 5 batches
@@ -672,8 +731,16 @@ def test_published_geojson_satisfies_the_models_own_identities():
 
     # premium arithmetic (1dp on each term)
     assert np.abs(premium - (el_total + capital)).max() <= 0.15
+    # el_th joined the insured total on exp/theft-peril. A build from
+    # before the theft peril has no el_th column at all - that reads as
+    # zero, and the identity still binds. A build that LOST el_th while
+    # el_total still contains theft fails by ~GBP 29, so the fallback
+    # cannot mask a partial regression.
+    el_th = col("el_th")
+    if np.isnan(el_th).all():
+        el_th = np.zeros(len(feats))
     assert np.abs(el_total - (col("el_sub") + col("el_wx") + col("el_fl")
-                              + col("el_gw"))).max() <= 0.25
+                              + col("el_gw") + el_th)).max() <= 0.30
     assert np.abs(col("el_total5") - (el_total + col("el_er"))).max() <= 0.25
     assert (capital >= -1e-9).all()
 
@@ -841,6 +908,160 @@ def test_every_asset_the_published_site_references_exists():
             f"deliberate, stop building it too")
 
 
+def test_the_methodology_figure_uses_the_maps_own_climate_ramp():
+    """The districts-vs-sectors figure must not invent its own colours.
+
+    It is generated by build_site.py from the published GeoJSON, while
+    the live map colours the same quantity from map/template.html. Two
+    copies of a ramp is two chances to retune one and not the other, and
+    a reader comparing the figure with the map would be misled by a
+    difference nobody intended - so pin them equal.
+    """
+    import re
+    import build_site
+    root = os.path.join(os.path.dirname(__file__), "..")
+    with open(os.path.join(root, "map", "template.html"),
+              encoding="utf-8") as fh:
+        tpl = fh.read()
+
+    ramp = re.search(r"const RAMP_DIVERGING = \[([^\]]+)\]", tpl)
+    breaks = re.search(r"const CC_BREAKS = \[([^\]]+)\]", tpl)
+    assert ramp and breaks, "the map's climate ramp declarations moved"
+    map_ramp = [c.strip().strip("'\"") for c in ramp.group(1).split(",")]
+    map_breaks = [float(v) for v in breaks.group(1).split(",")]
+
+    assert build_site.CC_RAMP == map_ramp, (
+        f"figure ramp {build_site.CC_RAMP} != map ramp {map_ramp}")
+    assert [float(v) for v in build_site.CC_BREAKS] == map_breaks, (
+        f"figure breaks {build_site.CC_BREAKS} != map breaks {map_breaks}")
+    assert len(map_ramp) == len(map_breaks) + 1, (
+        "a diverging ramp needs exactly one more colour than it has breaks")
+
+
+def test_the_sector_model_nests_inside_the_district_model():
+    """Sectors are the district model at finer grain, not a second model.
+
+    Publishing both invites the reader to compare them, so the two must
+    actually be comparable:
+
+      * every sector's name is its district plus one digit, and every
+        modelled district is covered - the nesting the whole derivation
+        rests on (derive_sectors.py partitions each district);
+      * household exposure is conserved - the sector build must not
+        invent or lose homes against the district build;
+      * household-weighted sector premiums must aggregate back to the
+        district level. Not exactly: different geography means different
+        hazard aggregation and a separately-fitted decile split. But a
+        LARGE drift would mean the geography change moved the model
+        rather than resolving it, which is the one thing that would
+        make publishing them side by side dishonest.
+    """
+    import json
+    from collections import defaultdict
+    root = os.path.join(os.path.dirname(__file__), "..")
+
+    def props(name):
+        with open(os.path.join(root, "data", name), encoding="utf-8") as fh:
+            return [f["properties"] for f in json.load(fh)["features"]]
+
+    districts = {p["name"]: p for p in props("districts_risk.geojson")}
+    sectors = props("sectors_risk.geojson")
+    assert len(sectors) > 10000, f"only {len(sectors)} sectors"
+
+    by_district = defaultdict(list)
+    for s in sectors:
+        assert " " in s["name"], f"{s['name']} carries no sector digit"
+        outward, digit = s["name"].rsplit(" ", 1)
+        assert len(digit) == 1 and digit.isalnum(), s["name"]
+        by_district[outward].append(s)
+
+    orphans = sorted(set(by_district) - set(districts))
+    assert not orphans, f"sectors outside any modelled district: {orphans[:5]}"
+    uncovered = sorted(set(districts) - set(by_district))
+    assert not uncovered, (
+        f"{len(uncovered)} modelled districts have no sectors, first "
+        f"{uncovered[:5]} - the partition is incomplete")
+
+    # Exposure must now agree to a fraction of a per cent. It did NOT
+    # before 2026-08-12: the sector build ran 2.7% light because ONSPD
+    # retains terminated postcodes (a third of its rows) and households
+    # were apportioned across them, so wholly-dead sectors were credited
+    # ~730k homes but had no Code-Point centroid and hence no polygon.
+    # Excluding terminated postcodes closed the gap to -0.06%, which is
+    # the residue of districts whose sectors are not all in the boundary
+    # set. Keep this tight: a re-widening means phantom exposure is back.
+    hh_d = sum(p.get("households", 0) for p in districts.values())
+    hh_s = sum(p.get("households", 0) for p in sectors)
+    assert abs(hh_s / hh_d - 1) < 0.005, (
+        f"exposure diverged between scales: {hh_d:,.0f} households across "
+        f"districts vs {hh_s:,.0f} across sectors "
+        f"({100 * (hh_s / hh_d - 1):+.2f}%) - phantom exposure is back, or "
+        f"a new cause of loss has appeared")
+
+    num = den = 0.0
+    for name, group in by_district.items():
+        for s in group:
+            w = s.get("households", 0)
+            num += w * s["premium"]
+            den += w
+    sector_level = num / den
+    district_level = (sum(p.get("households", 0) * p["premium"]
+                          for p in districts.values()) / hh_d)
+    assert abs(sector_level / district_level - 1) < 0.05, (
+        f"exposure-weighted premium differs by "
+        f"{100 * (sector_level / district_level - 1):+.1f}% between scales "
+        f"(£{district_level:.2f} vs £{sector_level:.2f}) - the geography "
+        f"change moved the model, it did not just resolve it")
+
+
+def test_every_published_map_asset_carries_the_columns_its_page_reads():
+    """The third direction of the column contract, added with sectors.
+
+    The pages no longer fetch the model output whole: build_map.py trims
+    each web asset to the columns the template reads (15.8 MB -> 13.4 MB
+    for sectors) and rounds them. That trim is a new way to ship a
+    silently broken popup - drop a column the template reads and it
+    renders `undefined`, with nothing raising anywhere. So: every column
+    the template reads must be present in EVERY published asset, and the
+    assets must agree with each other (the same template drives both, so
+    a column present in one and missing from the other is a bug by
+    construction).
+    """
+    import json
+    import build_map
+    root = os.path.join(os.path.dirname(__file__), "..")
+    needed = build_map.columns_read_by_template()
+    assert len(needed) > 40, "extractor went stale"
+
+    seen = {}
+    for asset, min_units in (("map_data.geojson", 2700),
+                             ("sector_data.geojson", 10000)):
+        path = os.path.join(root, "docs", "assets", asset)
+        assert os.path.exists(path), f"docs/assets/{asset} was not built"
+        with open(path, encoding="utf-8") as fh:
+            feats = json.load(fh)["features"]
+        assert len(feats) >= min_units, (
+            f"{asset} has only {len(feats)} units")
+        cols = set(feats[0]["properties"])
+        missing = sorted(needed - cols)
+        assert not missing, (
+            f"docs/assets/{asset} lacks {missing}, which the map template "
+            f"reads - the popup renders `undefined` for them")
+        # every feature, not just the first: a column present on one unit
+        # and absent on another is the same bug, one district deep
+        ragged = [f["properties"]["name"] for f in feats
+                  if set(f["properties"]) != cols]
+        assert not ragged, (
+            f"{asset}: {len(ragged)} units have a different column set, "
+            f"first {ragged[:3]}")
+        seen[asset] = cols
+
+    a, b = seen.values()
+    assert a == b, (
+        f"the two map assets disagree on columns (only in one: "
+        f"{sorted(a ^ b)}) - both are built from one template")
+
+
 def test_the_map_and_site_only_read_columns_the_model_writes():
     """The other half of the GeoJSON contract, and the silent half.
 
@@ -858,18 +1079,14 @@ def test_the_map_and_site_only_read_columns_the_model_writes():
     Neither raises. Both ship.
     """
     import ast
-    import re
+    import build_map
     root = os.path.join(os.path.dirname(__file__), "..")
     published = set(bm.OUTPUT_COLUMNS)
 
-    with open(os.path.join(root, "map", "template.html"),
-              encoding="utf-8") as fh:
-        tpl = fh.read()
-    # \b matters: without it `ramp.length` and `tooltip.district-tip` match
-    # as `p.length` / `p.district` and the test drowns in false positives.
-    read_by_map = set(re.findall(r"\bp\.([A-Za-z_][A-Za-z_0-9]*)", tpl))
-    read_by_map |= set(re.findall(
-        r"\.properties\.([A-Za-z_][A-Za-z_0-9]*)", tpl))
+    # ONE extractor, shared with the asset writer that trims the shipped
+    # GeoJSON to these same columns - if the two disagreed, the writer
+    # would drop a column this test swears is safe.
+    read_by_map = build_map.columns_read_by_template()
     stray = sorted(read_by_map - published)
     assert not stray, (
         f"map/template.html reads {stray}, which build_model.py does not "
@@ -916,7 +1133,7 @@ def test_simulate_returns_the_columns_the_map_and_site_read():
             "gw_score": [0.2], "er_score": [0.3], "f_high": [0.05],
             "f_low": [0.1], "sw_high": [0.02], "sw_low": [0.05],
             "gw_frac": [0.05], "sw_sev": [1.0], "er_frac": [0.01],
-            "households": [500.0],
+            "households": [500.0], "th_rate": [0.009],
         })
         sim, year = m.simulate(df)
     finally:

@@ -56,6 +56,7 @@ from scipy import stats
 from scores_real import (subsidence_score, weather_from_metoffice,
                          flood_from_agencies, groundwater_from_ea,
                          erosion_from_ncerm, sw_depth_severity, load_country,
+                         theft_from_police,
                          flood_future, flood_score_from_fractions,
                          EROSION_HORIZON_YEARS)
 
@@ -93,11 +94,11 @@ OUTPUT_COLUMNS = [
     "wind_ms", "wdr_idx", "rain10_days", "precip_mm",
     "gust_rp50",
     "f_high", "f_low", "sw_high", "sw_low", "gw_frac",
-    "sw_sev", "sw_depth_m",
+    "sw_sev", "sw_depth_m", "th_rate",
     "er_score", "er_smp55", "er_smp105", "er_nfi55", "er_nfi105",
     "er_smp105_lo", "er_smp105_hi", "er_nfi105_lo", "er_nfi105_hi",
     "er_gi",
-    "el_sub", "el_wx", "el_fl", "el_gw", "el_er",
+    "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_er",
     "el_total", "el_total5", "var995_vine", "tvar99_vine",
     "tvar99_gauss",
     "tvar99_indep", "tvar99_vine5", "tvar99_indep5", "tvar99_euler",
@@ -117,7 +118,8 @@ OUTPUT_COLUMNS = [
 # Returned by simulate(). Several of these are not in OUTPUT_COLUMNS and are
 # deliberately kept anyway - see the note on var995_* in simulate().
 SIMULATED_COLUMNS = {
-    "el_sub", "el_wx", "el_fl", "el_gw", "el_er", "el_total", "el_total5",
+    "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_er", "el_total",
+    "el_total5",
     "var995_vine", "var995_gauss", "var995_indep", "tvar99_vine",
     "tvar99_gauss", "tvar99_indep", "tvar99_vine5", "tvar99_indep5",
     "tvar99_euler", "el_year", "uplift_pct",
@@ -253,6 +255,14 @@ ABI = dict(
     # held to the published £30,000 average.
     sev_flood_fluvial=35_000.0, sev_surface_water=18_000.0,
     total_home_paid=3.4e9,                # all home claims, for context only
+    # Theft. The ABI stopped publishing an annual theft-paid total; the
+    # last public figure is ~£450m (2018, formerly on the ABI theft
+    # page). Severity is the current published average (£3,800, 2025).
+    # Mixing vintages puts the implied frequency (0.76%/policy) between
+    # 2018's (~0.97%) and what today's would be if claims fell with
+    # recorded burglary (~0.58%) - that envelope is the documented
+    # uncertainty on the theft LEVEL. See DATA_SOURCES.md #25.
+    theft_paid=450e6, sev_theft=3_800.0,
     # Coastal erosion is a TOTAL loss of the property, not a repair, so its
     # severity is a sum insured rather than an average claim. There is no
     # ABI figure to calibrate against, because gradual erosion is excluded
@@ -265,15 +275,17 @@ ABI_TARGET_FREQ = {
     "wx": ABI["storm_paid"] / ABI["sev_weather"] / POLICIES,
     "fl": ABI["flood_paid"] / ABI["sev_flood"] / POLICIES,
     "sub": ABI["subsidence_paid"] / ABI["sev_subsidence"] / POLICIES,
+    "th": ABI["theft_paid"] / ABI["sev_theft"] / POLICIES,
 }
 ABI_LOSS_PER_POLICY = (ABI["storm_paid"] + ABI["flood_paid"]
-                       + ABI["subsidence_paid"]) / POLICIES
+                       + ABI["subsidence_paid"]
+                       + ABI["theft_paid"]) / POLICIES
 
 # lognormal median that gives the target MEAN for a given sigma
 _median_for_mean = lambda mean, sigma: mean / np.exp(sigma ** 2 / 2)
 
 # One multiplier per peril, set by calibrate_frequency() before simulating.
-FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0}
+FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0, "th": 1.0}
 GW_SHARE_OF_FLOOD = 0.10      # groundwater not published separately
 
 
@@ -285,7 +297,7 @@ def calibrate_frequency(gdf):
     point of the model - is untouched.
     """
     global FREQ_SCALE
-    FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0}
+    FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0, "th": 1.0}
     m = marginal_params(_fields(gdf))
     # ABI totals are national, so the average must be exposure-weighted:
     # a district with 40,000 households counts 40,000 times more than one
@@ -294,12 +306,13 @@ def calibrate_frequency(gdf):
     raw = {"sub": float(np.average(m["p_sub"], weights=w)),
            "wx": float(np.average(m["p_wx"], weights=w)),
            "fl": float(np.average(m["p_fl"], weights=w)),
-           "gw": float(np.average(m["p_gw"], weights=w))}
-    for k in ("sub", "wx", "fl"):
+           "gw": float(np.average(m["p_gw"], weights=w)),
+           "th": float(np.average(m["p_th"], weights=w))}
+    for k in ("sub", "wx", "fl", "th"):
         FREQ_SCALE[k] = ABI_TARGET_FREQ[k] / raw[k]
     # groundwater has no published total; peg it to a share of flood
     FREQ_SCALE["gw"] = (GW_SHARE_OF_FLOOD * ABI_TARGET_FREQ["fl"]) / raw["gw"]
-    for k in ("wx", "fl", "sub"):
+    for k in ("wx", "fl", "sub", "th"):
         print(f"  {k:4} frequency {raw[k]:.3%} -> ABI {ABI_TARGET_FREQ[k]:.3%}"
               f"  (x{FREQ_SCALE[k]:.3f})")
     print(f"  gw   frequency pegged at {GW_SHARE_OF_FLOOD:.0%} of flood")
@@ -313,6 +326,24 @@ def calibrate_frequency(gdf):
 SPATIAL_BASE = {"w": 0.50, "f": 0.40, "s": 0.60, "g": 0.70}
 SPATIAL_SCALE = 1.0
 TAIL_FREQ_RATIO = 2.0        # 1-in-100 year claims ~2x the average year
+# Theft's systemic loading is FIXED and deliberately NOT in SPATIAL_BASE:
+# calibrate_spatial solves for how widely WEATHER claims cluster in a bad
+# year (the TAIL_FREQ_RATIO target is a storm phenomenon), and letting the
+# solver rescale theft would couple burglary to that target.
+#
+# The value is derived, not felt. At rare-event thresholds a factor
+# loading has enormous leverage: under the factor model the national
+# claim-count CV over systemic years is approximately
+#   CV = sqrt(w) * phi(z_p) / p,   z_p = Phi^-1(1-p)
+# and at p = 0.76% that is 2.75*sqrt(w). Recorded national burglary
+# moves +-10-15% year to year around trend (ONS series), so targeting
+# CV = 0.10 gives w = (0.10/2.75)^2 = 0.0013 - a 1-in-100 systemic
+# year then claims ~1.3x the average year, which is what burglary
+# waves actually look like. The first evidence run used w = 0.20 on
+# "weakly systemic" intuition; that implied worst years claiming
+# 8-14x the mean - a national crime wave no data shows - and charged
+# +GBP 13/policy of phantom capital for it.
+W_THEFT = 0.0013
 
 
 def calibrate_spatial(gdf, target_ratio=TAIL_FREQ_RATIO):
@@ -397,8 +428,19 @@ def marginal_params(f):
     # anything understates), and the SMP scenario is used, i.e. defences
     # are assumed to be maintained as currently planned.
     p_er = f["er"] / EROSION_HORIZON_YEARS
+    # Theft frequency is the district's burglary rate itself (police.uk,
+    # see theft_from_police): the geography IS the relativity, no
+    # transform. FREQ_SCALE["th"] then absorbs the burglary-to-claim
+    # propensity, which is why that unpublished number never appears.
+    p_th = f["th"]
 
     s_sub, s_wx, s_fl, s_gw, s_er = 0.90, 1.10, 0.90, 0.80, 0.35
+    # Theft severity spread: most claims are a few thousand (forced entry
+    # damage + electronics), a tail of jewellery/watch losses reaches
+    # tens of thousands. sigma=1.0 puts ~5% of claims above 4x the mean,
+    # in line with the shape the ABI's high-value-theft commentary
+    # describes; the MEAN is pinned to the published average regardless.
+    s_th = 1.00
     sev_sub = dict(mu=np.log(_median_for_mean(ABI["sev_subsidence"], s_sub)),
                    sigma=s_sub)
     sev_wx = dict(mu=np.log(_median_for_mean(ABI["sev_weather"], s_wx)),
@@ -420,13 +462,16 @@ def marginal_params(f):
     # with little spread rather than a repair-cost distribution
     sev_er = dict(mu=np.log(_median_for_mean(ABI["sev_erosion"], s_er)),
                   sigma=s_er)
+    sev_th = dict(mu=np.log(_median_for_mean(ABI["sev_theft"], s_th)),
+                  sigma=s_th)
 
     k = FREQ_SCALE
     return dict(
         p_sub=p_sub * k["sub"], p_wx=p_wx * k["wx"], p_fl=p_fl * k["fl"],
         p_gw=p_gw * k["gw"], p_er=p_er,     # erosion is not ABI-calibrated
+        p_th=np.minimum(p_th * k["th"], 0.5),
         sev_sub=sev_sub, sev_wx=sev_wx, sev_fl=sev_fl, sev_gw=sev_gw,
-        sev_er=sev_er)
+        sev_er=sev_er, sev_th=sev_th)
 
 
 def _fields(src):
@@ -434,7 +479,8 @@ def _fields(src):
     return {k: src[v].values for k, v in
             [("sub", "sub_score"), ("wx", "wx_score"), ("f_high", "f_high"),
              ("f_low", "f_low"), ("sw_high", "sw_high"), ("sw_low", "sw_low"),
-             ("gw_frac", "gw_frac"), ("sw_sev", "sw_sev"), ("er", "er_frac")]}
+             ("gw_frac", "gw_frac"), ("sw_sev", "sw_sev"), ("er", "er_frac"),
+             ("th", "th_rate")]}
 
 
 def inv_mixed_cdf(u, p, mu, sigma):
@@ -629,10 +675,17 @@ def simulate(district_df):
         "U_ind_S": rng.uniform(0, 1, N_SIM),
         "U_ind_G": rng.uniform(0, 1, N_SIM),
         "U_ind_E": rng.uniform(0, 1, N_SIM),
+        # Theft lives OUTSIDE the vine: burglary has no weather root, so
+        # welding it to the copula would invent dependence the data does
+        # not show. It is a compound leg drawn independently - and it is
+        # appended LAST so every draw above keeps its position in the
+        # seeded stream: the four weather perils simulate bit-identically
+        # with or without it, which is what makes the evidence diff pure.
+        "U_th": rng.uniform(0, 1, N_SIM),
     }
 
     out = {k: [] for k in [
-        "el_sub", "el_wx", "el_fl", "el_gw", "el_er", "el_total",
+        "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_er", "el_total",
         "el_total5", "var995_vine",
         "var995_gauss", "var995_indep", "tvar99_vine", "tvar99_gauss",
         "tvar99_indep", "tvar99_vine5", "tvar99_indep5", "uplift_pct",
@@ -736,14 +789,23 @@ def simulate(district_df):
 
         u_w, u_f, u_g, u_s, u_e = sample_vine(t_ws, t_wf, t_wg, t_we, base)
         ls, lw, lf, lg, le = losses(u_w, u_f, u_g, u_s, u_e)
-        tot_v = ls + lw + lf + lg
+        bc = lambda key: np.broadcast_to(base[key], u_w.shape)
+        # Theft enters every dependence view IDENTICALLY - vine, Gaussian
+        # and independence - because it is independent of the weather
+        # perils by construction, so the three tails differ only in how
+        # the weather perils cluster. It still fattens each total, which
+        # mechanically DILUTES uplift_pct: an independent attritional
+        # line diversifying the cat tail is real economics, not a bug.
+        l_th = inv_mixed_cdf(bc("U_th"),
+                             np.broadcast_to(m["p_th"], u_w.shape),
+                             **m["sev_th"])
+        tot_v = ls + lw + lf + lg + l_th
         tot5_v = tot_v + le
         tot_n = insured(losses(*sample_gaussian5(t_ws, t_wf, t_wg, t_we,
-                                                 base)[:4]))
-        bc = lambda key: np.broadcast_to(base[key], u_w.shape)
+                                                 base)[:4])) + l_th
         parts_i = losses(u_w, bc("U_ind_F"), bc("U_ind_G"), bc("U_ind_S"),
                          bc("U_ind_E"))
-        tot_i = insured(parts_i)
+        tot_i = insured(parts_i) + l_th
         tot5_i = tot_i + parts_i[4]
 
         # year view: systemic factor + idiosyncratic district noise
@@ -768,7 +830,17 @@ def simulate(district_df):
         cond = (cond_expected(u_s, m["p_sub"], m["sev_sub"], SPATIAL_LOADING["s"])
                 + cond_expected(u_w, m["p_wx"], m["sev_wx"], SPATIAL_LOADING["w"])
                 + cond_expected(u_f, m["p_fl"], m["sev_fl"], SPATIAL_LOADING["f"])
-                + cond_expected(u_g, m["p_gw"], m["sev_gw"], SPATIAL_LOADING["g"]))
+                + cond_expected(u_g, m["p_gw"], m["sev_gw"], SPATIAL_LOADING["g"])
+                # Theft is insured, so it belongs in the capital
+                # allocation (unlike erosion, excluded above because no
+                # policy pays it). With its small fixed loading its
+                # contribution to the worst-1% years is close to its
+                # mean - the diversification credit an attritional line
+                # earns against a cat tail. It stays OUT of the yr
+                # narrative dict: the good-year/bad-year story is about
+                # weather clustering, and a near-constant theft charge
+                # would blur exactly that contrast.
+                + cond_expected(bc("U_th"), m["p_th"], m["sev_th"], W_THEFT))
         year_loss[start:start + len(chunk)] = cond.astype(np.float32)
         # independence year view: same idiosyncratic noise (common random
         # numbers), systemic factors independent across perils
@@ -803,6 +875,16 @@ def simulate(district_df):
         loc["el_wx"] = (lw.mean(axis=1))
         loc["el_fl"] = (lf.mean(axis=1))
         loc["el_gw"] = (lg.mean(axis=1))
+        # Theft's expected loss is ANALYTIC for the same reason erosion's
+        # is (below), with a different failure mode: every district shares
+        # ONE U_th stream, so the ~150 draws that clear a p~0.8% threshold
+        # carry a COMMON sampling error - the first evidence run came out
+        # +17% over the calibrated level (GBP 33.89 vs 29.03) in every
+        # district at once, defeating the point of calibrating. The draws
+        # still feed the tails (tot_v/tot_n/tot_i), where they belong.
+        el_th = (m["p_th"] * np.exp(m["sev_th"]["mu"]
+                                    + m["sev_th"]["sigma"] ** 2 / 2)).ravel()
+        loc["el_th"] = (el_th)
         # Erosion's expected loss is taken ANALYTICALLY, not from the draws.
         # Its annual probability is ~1.5e-5 for a typical coastal district,
         # so 20,000 years give well under one event: the simulated mean
@@ -815,8 +897,12 @@ def simulate(district_df):
         el_er = (m["p_er"] * np.exp(m["sev_er"]["mu"]
                                     + m["sev_er"]["sigma"] ** 2 / 2)).ravel()
         loc["el_er"] = (el_er)
-        loc["el_total"] = (tot_v.mean(axis=1))
-        loc["el_total5"] = (tot_v.mean(axis=1) + el_er)
+        # The published expected-loss level must be the CALIBRATED one, so
+        # el_total sums the four weather-peril draw means (which the ABI
+        # scaling was solved against) with the analytic theft leg - the
+        # same construction el_total5 has always used for erosion.
+        loc["el_total"] = ((ls + lw + lf + lg).mean(axis=1) + el_th)
+        loc["el_total5"] = (loc["el_total"] + el_er)
         # var995_vine is published; the gauss and indep siblings are NOT in
         # OUTPUT_COLUMNS and nothing downstream reads them. They are kept
         # anyway and this note exists so they are not mistaken for dead
@@ -1052,6 +1138,10 @@ def main():
     gdf["sw_sev"], gdf["sw_depth_m"] = sw_depth_severity(
         gdf["name"].values, gdf["sw_high"].values, gdf["sw_low"].values,
         gdf["households"].values)
+
+    print("scoring theft from police.uk burglary counts...")
+    gdf["th_rate"] = theft_from_police(gdf["name"].values,
+                                       gdf["households"].values)
 
     check_scored_columns(gdf)
 

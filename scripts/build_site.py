@@ -19,6 +19,7 @@ import json
 import os
 import re
 import shutil
+import sys
 
 import numpy as np
 
@@ -44,6 +45,11 @@ META = {
         "Eleven layers across 2,736 postcode districts: rating group, "
         "premium, each peril score, surface-water depth, coastal erosion "
         "and the climate repricing. Click any district for its breakdown."),
+    "sectors.html": (
+        "Sector map — UK Home Insurance Risk Map",
+        "The same model at postcode-sector resolution: 10,398 units "
+        "instead of 2,736. Nineteen per cent of districts turn out to "
+        "hold sectors that differ by more than 2x in premium."),
     "years.html": (
         "Good years vs bad years — UK Home Insurance Risk Map",
         "What separates a quiet year from an expensive one: cost by peril, how "
@@ -83,6 +89,7 @@ def head_tags(page):
 # (href, full label, short label for narrow screens)
 PAGES = [("index.html", "Overview", "Overview"),
          ("map.html", "Map", "Map"),
+         ("sectors.html", "Sector map", "Sectors"),
          ("years.html", "Good vs bad years", "Years"),
          ("methodology.html", "Methodology", "Method")]
 
@@ -149,6 +156,186 @@ def drivers(props):
         return f"{named[0][0].capitalize()}-dominated ({named[0][1]:.0%} of E[loss])"
     lead = " + ".join(n for n, _ in named[:3])
     return f"{lead.capitalize()} ({named[0][1]:.0%} / {named[1][1]:.0%})"
+
+
+
+# The climate ramp, mirrored from map/template.html so the methodology
+# figure and the live map say the same thing in the same colours. A test
+# asserts the two stay identical - if you retune one, retune both.
+CC_RAMP = ["#1c5cab", "#5598e7", "#b7d3f6", "#f0efec",
+           "#f2b8b7", "#e34948", "#9c2b2a"]
+CC_BREAKS = [-20, -5, -1, 1, 15, 50]
+CC_NO_DATA = "#e4e2dd"
+
+FOCUS = "HU8"          # the one district that FALLS under the scenario
+
+
+def _polys(geom):
+    """Every ring list in a geometry, whatever its type.
+
+    GeometryCollection is not hypothetical here: make_valid emits two of
+    them in the sector set, and a naive geom["coordinates"] raises.
+    """
+    if not geom:
+        return []
+    t = geom.get("type")
+    if t == "Polygon":
+        return [geom["coordinates"]]
+    if t == "MultiPolygon":
+        return list(geom["coordinates"])
+    if t == "GeometryCollection":
+        return [r for g in geom.get("geometries", []) for r in _polys(g)]
+    return []
+
+
+def _bbox(geom):
+    pts = [pt for poly in _polys(geom) for ring in poly for pt in ring]
+    if not pts:
+        return None
+    xs = [q[0] for q in pts]
+    ys = [q[1] for q in pts]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _cc_colour(props):
+    if not props.get("cc_covered"):
+        return CC_NO_DATA
+    v = props.get("cc_uplift_pct", 0.0)
+    i = 0
+    while i < len(CC_BREAKS) and v >= CC_BREAKS[i]:
+        i += 1
+    return CC_RAMP[i]
+
+
+def _panel(feats, frame, title, focus_prefix, w=330, h=365, head=24):
+    """One choropleth panel over `frame`, focus units outlined."""
+    x0, y0, x1, y1 = frame
+    # equirectangular is fine over 20 km; scale x by cos(lat) so the
+    # coastline is not stretched
+    import math
+    # QUANTISED, and it has to be. libm's cos differs by an ULP between
+    # glibc and MSVC, and that last bit propagates through the transform
+    # until a coordinate sitting on a .05 boundary rounds the other way -
+    # two lines of path data, a "docs/ is stale" CI failure, and a diff
+    # no human can read. Rounding the only transcendental in the pipeline
+    # makes every platform start from the same number; everything after
+    # it is +-*/ , which IEEE 754 already pins. (Verified: perturbing cos
+    # by one ULP changed exactly the 2 lines CI reported.) 1e-6 of a
+    # radian's cosine is nanometres at this scale.
+    kx = round(math.cos(math.radians((y0 + y1) / 2)), 6)
+    sx = w / ((x1 - x0) * kx)
+    sy = h / (y1 - y0)
+    sc = min(sx, sy)
+    ox = (w - (x1 - x0) * kx * sc) / 2
+    oy = (h - (y1 - y0) * sc) / 2
+
+    def pt(x, y):
+        return (ox + (x - x0) * kx * sc, head + h - oy - (y - y0) * sc)
+
+    body, focus_paths, focus_pts = [], [], []
+    for f in feats:
+        props = f["properties"]
+        d = []
+        for poly in _polys(f["geometry"]):
+            for ring in poly:
+                if len(ring) < 3:
+                    continue
+                d.append("M" + "L".join(
+                    f"{a:.1f} {b:.1f}" for a, b in (pt(x, y) for x, y in ring)) + "Z")
+        if not d:
+            continue
+        path = " ".join(d)
+        body.append(f'<path d="{path}" fill="{_cc_colour(props)}" '
+                    f'stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/>')
+        name = props["name"]
+        if name == focus_prefix or name.startswith(focus_prefix + " "):
+            focus_paths.append(f'<path d="{path}" fill="none" stroke="var(--ink-1)" '
+                               f'stroke-width="1.6"/>')
+            b = _bbox(f["geometry"])
+            focus_pts.append(pt((b[0] + b[2]) / 2, (b[1] + b[3]) / 2))
+
+    lx = sum(q[0] for q in focus_pts) / len(focus_pts) if focus_pts else w / 2
+    ly = sum(q[1] for q in focus_pts) / len(focus_pts) if focus_pts else h / 2
+    return f"""<svg viewBox="0 0 {w} {head + h}" role="img" aria-label="{title}">
+      <text class="panel-title" x="0" y="14">{title}</text>
+      <g clip-path="url(#frameclip)">{''.join(body)}{''.join(focus_paths)}</g>
+      <text class="focus-label" x="{lx:.0f}" y="{ly:.0f}" text-anchor="middle"
+            paint-order="stroke" stroke="var(--surface-1)" stroke-width="3.5"
+            stroke-linejoin="round">{focus_prefix}</text>
+      <clipPath id="frameclip"><rect x="0" y="{head}" width="{w}" height="{h}"/></clipPath>
+    </svg>"""
+
+
+def resolution_figure(districts, sectors):
+    """Districts vs sectors over the same ground, on the climate layer.
+
+    Built from the published GeoJSON at build time rather than pasted in
+    as a screenshot: a screenshot of a map goes stale the next time the
+    model is rebuilt, and this one cannot.
+    """
+    focus = next((f for f in districts if f["properties"]["name"] == FOCUS), None)
+    if focus is None:
+        return ""
+    x0, y0, x1, y1 = _bbox(focus["geometry"])
+    px, py = (x1 - x0) * 1.5, (y1 - y0) * 1.5
+    frame = (x0 - px, y0 - py, x1 + px, y1 + py)
+
+    def inside(f):
+        b = _bbox(f["geometry"])
+        return b and not (b[2] < frame[0] or b[0] > frame[2]
+                          or b[3] < frame[1] or b[1] > frame[3])
+
+    left = _panel([f for f in districts if inside(f)], frame,
+                  "Districts", FOCUS)
+    right = _panel([f for f in sectors if inside(f)], frame,
+                   "Sectors", FOCUS)
+    return f'<div class="res-figure">{left}{right}</div>'
+
+def climate_band_stats():
+    """The present-vs-future flood-band deltas the methodology quotes.
+
+    Computed from the same fraction CSVs the model reads, over the same
+    England mask, so the published sentences track the data. They used to
+    be hand-written, and went stale the first time the extents were
+    re-fetched: "61 districts shrink" had quietly become 52, and only an
+    audit of the prose against the data caught it. Growth is the change in
+    the AVERAGE district's zone fraction (the same statistic flood_future
+    logs), not in mapped area - districts are not equal-sized.
+    """
+    sys.path.insert(0, HERE)
+    from scores_real import england_mask
+
+    def table(fname, col):
+        out = {}
+        with open(os.path.join(ROOT, "data", fname), newline="") as fh:
+            for row in csv.DictReader(fh):
+                out[row["name"]] = float(row[col])
+        return out
+
+    fh_now = table("flood_fractions.csv", "f_high")
+    fh_fut = table("flood_fractions_cc.csv", "f_high")
+    sw_now = table("sw_fractions.csv", "sw_high")
+    sw_fut = table("sw_fractions_cc.csv", "sw_high")
+    names = sorted(fh_now)
+    eng = england_mask(names)
+    fh_cov = [n for n, m in zip(names, eng) if m and n in fh_fut]
+    sw_cov = [n for n, m in zip(names, eng) if m and n in sw_fut]
+    fh_shrunk = [fh_fut[n] - fh_now[n] for n in fh_cov
+                 if fh_fut[n] < fh_now[n] - 1e-12]
+    sw_shrunk = [sw_fut[n] - sw_now[n] for n in sw_cov
+                 if sw_fut[n] < sw_now[n] - 1e-12]
+    fh_growth = 100 * (sum(fh_fut[n] for n in fh_cov)
+                       / sum(fh_now[n] for n in fh_cov) - 1)
+    sw_growth = 100 * (sum(sw_fut[n] for n in sw_cov)
+                       / sum(sw_now[n] for n in sw_cov) - 1)
+    return {
+        "__CC_FH_SHRINK_N__": str(len(fh_shrunk)),
+        "__CC_FH_SHRINK_PCT__": f"{100 * len(fh_shrunk) / len(fh_cov):.1f}",
+        "__CC_FH_SHRINK_WORST_PP__": f"{100 * min(fh_shrunk):.1f}",
+        "__CC_SW_SHRINK_N__": str(len(sw_shrunk)),
+        "__CC_FH_GROWTH__": f"{fh_growth:+.1f}",
+        "__CC_SW_GROWTH__": f"{sw_growth:+.1f}",
+    }
 
 
 def load_stats():
@@ -255,8 +442,117 @@ def load_stats():
         cc_bits = {"__CC_N__": "0", "__CC_UPLIFT__": "n/a",
                    "__CC_WORST__": "n/a", "__CC_WORST_PCT__": "n/a"}
 
+    # Sector resolution: the spread a district price averages away, and
+    # how well the derived boundaries score against Scotland's official
+    # ones. Computed here so the published claims cannot drift from the
+    # published data - the same rule the dependence uplift follows.
+    with open(os.path.join(ROOT, "data", "sectors_risk.geojson"),
+              encoding="utf-8") as fh:
+        secs = [f["properties"] for f in json.load(fh)["features"]]
+    grouped = {}
+    for s in secs:
+        grouped.setdefault(s["name"].rsplit(" ", 1)[0], []).append(s)
+    multi = {d: g for d, g in grouped.items() if len(g) > 1}
+    ratios = {}
+    for d, g in multi.items():
+        prem = [s["premium"] for s in g]
+        ratios[d] = max(prem) / max(min(prem), 1e-9)
+    worst = max(ratios, key=ratios.get)
+    worst_prem = [s["premium"] for s in grouped[worst]]
+    wide = sum(1 for r in ratios.values() if r > 2)
+    sector_bits = {
+        "__SECTOR_N__": f"{len(secs):,}",
+        "__SECTOR_MULTI_N__": f"{len(multi):,}",
+        "__SECTOR_SPREAD__": f"{np.median(list(ratios.values())):.2f}",
+        "__SECTOR_WIDE_N__": f"{wide:,}",
+        "__SECTOR_WIDE_PCT__": f"{100 * wide / len(ratios):.0f}",
+        "__SECTOR_WORST__": worst,
+        "__SECTOR_WORST_RATIO__": f"{ratios[worst]:.1f}",
+        "__SECTOR_WORST_LO__": f"{min(worst_prem):,.0f}",
+        "__SECTOR_WORST_HI__": f"{max(worst_prem):,.0f}",
+        "__SECTOR_WORST_N__": f"{len(grouped[worst])}",
+    }
+    # the climate scenario at sector resolution, and the district figure
+    # it should be compared against
+    scc = [q for q in secs if q.get("cc_covered")]
+    if scc:
+        wcc = np.array([q.get("households", 1) for q in scc], float)
+        s_pct = 100 * (np.average([q["premium_cc"] for q in scc], weights=wcc)
+                       / np.average([q["premium"] for q in scc], weights=wcc) - 1)
+        s_worst = max(scc, key=lambda q: q.get("cc_uplift_pct", 0))
+        sector_bits.update({
+            "__SECTOR_CC_N__": f"{len(scc):,}",
+            "__SECTOR_CC_UPLIFT__": f"{s_pct:+.1f}",
+            "__SECTOR_CC_WORST__": s_worst["name"],
+            "__SECTOR_CC_WORST_PCT__": f"{s_worst['cc_uplift_pct']:+.0f}",
+            "__SECTOR_CC_DOWN__": f"{sum(1 for q in scc if q['cc_uplift_pct'] < 0):,}",
+            "__CC_DOWN__": f"{sum(1 for q in cc if q['cc_uplift_pct'] < 0):,}",
+        })
+
+    # the districts-vs-sectors figure, drawn from the published geometry
+    with open(os.path.join(ROOT, "data", "districts_risk.geojson"),
+              encoding="utf-8") as fh:
+        dfeats = json.load(fh)["features"]
+    with open(os.path.join(ROOT, "data", "sectors_risk.geojson"),
+              encoding="utf-8") as fh:
+        sfeats = json.load(fh)["features"]
+    sector_bits["__RES_FIGURE__"] = resolution_figure(dfeats, sfeats)
+    fdist = next(q for q in feats if q["name"] == FOCUS)
+    fsec = sorted((q for q in secs if q["name"].startswith(FOCUS + " ")),
+                  key=lambda q: q["cc_uplift_pct"])
+    sector_bits.update({
+        "__FOCUS__": FOCUS,
+        "__FOCUS_PCT__": f"{fdist.get('cc_uplift_pct', 0):+.0f}",
+        "__FOCUS_LO__": f"{fsec[0]['cc_uplift_pct']:+.0f}",
+        "__FOCUS_HI__": f"{fsec[-1]['cc_uplift_pct']:+.0f}",
+        "__FOCUS_LO_NAME__": fsec[0]["name"],
+        "__FOCUS_HI_NAME__": fsec[-1]["name"],
+        "__FOCUS_N__": str(len(fsec)),
+    })
+
+    # Sector premiums aggregated back to districts, and how closely they
+    # reproduce the district model. Injected for the same reason as the
+    # climate deltas below: the "0.964 / 0.6%" that used to be hand-written
+    # here was measured BEFORE the terminated-postcode fix and quietly
+    # went stale when both models were rebuilt.
+    dbyname = {p["name"]: p for p in feats}
+    agg_names = [d for d in grouped if d in dbyname]
+
+    def _agg_premium(g):
+        wts = [max(q.get("households", 0), 1e-9) for q in g]
+        return sum(q["premium"] * v for q, v in zip(g, wts)) / sum(wts)
+
+    a = np.array([dbyname[d]["premium"] for d in agg_names])
+    b = np.array([_agg_premium(grouped[d]) for d in agg_names])
+    wag = np.array([dbyname[d].get("households", 1) for d in agg_names],
+                   dtype=float)
+    lvl = abs(100 * (np.average(b, weights=wag)
+                     / np.average(a, weights=wag) - 1))
+    sector_bits.update({
+        "__AGG_CORR__": f"{np.corrcoef(a, b)[0, 1]:.3f}",
+        "__AGG_LEVEL_PCT__": f"{lvl:.1f}",
+    })
+
+    # how many districts carry a household count (the CSV covers every
+    # district with live postcodes, more than the modelled boundary set)
+    with open(os.path.join(ROOT, "data", "households.csv"), newline="") as fh:
+        hh_districts = sum(1 for _ in fh) - 1
+
+    val_path = os.path.join(ROOT, "data", "sector_validation.json")
+    with open(val_path) as fh:
+        val = json.load(fh)
+    sector_bits.update({
+        "__SECTOR_IOU__": f"{val['sector_iou_median']:.3f}",
+        "__DISTRICT_IOU__": f"{val['district_iou_median']:.3f}",
+        "__SECTOR_IOU_50__": str(val["pct_above_50"]),
+        "__SECTOR_IOU_70__": str(val["pct_above_70"]),
+    })
+
     return {
         **cc_bits,
+        **sector_bits,
+        **climate_band_stats(),
+        "__HH_DISTRICTS__": f"{hh_districts:,}",
         "__SENS_FINDING__": sens_finding,
         "__EROSION_N__": f"{len(er_exposed):,}",
         "__EROSION_SAVED__": f"{len(er_saved):,}",
@@ -419,6 +715,8 @@ def main():
     render_template("methodology.template.html", "methodology.html", stats)
     wrap_generated(os.path.join(ROOT, "map", "uk_home_insurance_risk_map.html"),
                    "map.html", MAP_CSS)
+    wrap_generated(os.path.join(ROOT, "map", "uk_sector_risk_map.html"),
+                   "sectors.html", MAP_CSS)
     wrap_generated(os.path.join(ROOT, "analysis", "uk_risk_year_analysis.html"),
                    "years.html", YEARS_CSS)
 
@@ -427,12 +725,15 @@ def main():
                 os.path.join(DOCS, "assets", "site.css"))
     print("  assets/site.css")
 
-    # the map's district geometry+properties, fetched by map.html at
-    # runtime rather than inlined into it (5.08 MB page -> 209 KB page)
-    shutil.copy(os.path.join(ROOT, "map", "map_data.geojson"),
-                os.path.join(DOCS, "assets", "map_data.geojson"))
-    print(f"  assets/map_data.geojson  "
-          f"({os.path.getsize(os.path.join(DOCS, 'assets', 'map_data.geojson')) / 1e6:.1f} MB)")
+    # Each map's geometry+properties, fetched at runtime rather than
+    # inlined (which made the district page 5.08 MB; the sector data is
+    # three times that again). build_map.py trims these to the columns
+    # the template reads - do not copy the raw model output here.
+    for asset in ("map_data.geojson", "sector_data.geojson"):
+        shutil.copy(os.path.join(ROOT, "map", asset),
+                    os.path.join(DOCS, "assets", asset))
+        print(f"  assets/{asset}  ("
+              f"{os.path.getsize(os.path.join(DOCS, 'assets', asset)) / 1e6:.1f} MB)")
 
     # compact per-district lookup for the landing-page search (no geometry)
     with open(os.path.join(ROOT, "data", "districts_risk.geojson"),
@@ -457,9 +758,10 @@ def main():
     # but anyone summing them into the premium is doing it wrong.
     cols = ["name", "area", "households", "group", "premium", "capital",
             "el_total",
-            "el_sub", "el_wx", "el_fl", "el_gw", "sub_score", "wx_score",
+            "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "sub_score",
+            "wx_score",
             "fl_score", "gw_score", "f_high", "f_low", "sw_high", "sw_low",
-            "gw_frac", "sw_depth_m", "sw_sev",
+            "gw_frac", "sw_depth_m", "sw_sev", "th_rate",
             "wind_ms", "gust_rp50", "rain10_days", "precip_mm",
             "tvar99_vine", "tvar99_euler", "uplift_pct",
             "el_er", "er_score", "er_smp55", "er_smp105", "er_nfi55",
@@ -469,12 +771,24 @@ def main():
             # publishes no future extents - cc_covered says which
             "cc_covered", "premium_cc", "el_total_cc", "cc_uplift_pct",
             "country", "geol", "sup_geol", "sup_frac"]
-    out = io.StringIO()
-    w = csv.writer(out, lineterminator="\n")
-    w.writerow(cols)
-    for p in sorted(feats, key=lambda d: d["name"]):
-        w.writerow([p.get(c, "") for c in cols])
-    write("assets/uk_district_risk.csv", out.getvalue())
+    def csv_bytes(rows):
+        out = io.StringIO()
+        w = csv.writer(out, lineterminator="\n")
+        w.writerow(cols)
+        for p in sorted(rows, key=lambda d: d["name"]):
+            w.writerow([p.get(c, "") for c in cols])
+        return out.getvalue()
+
+    write("assets/uk_district_risk.csv", csv_bytes(feats))
+
+    # the same table at sector resolution. Same columns on purpose: the
+    # model writes the same OUTPUT_COLUMNS at both scales, so anything
+    # written against one CSV reads the other unchanged.
+    with open(os.path.join(ROOT, "data", "sectors_risk.geojson"),
+              encoding="utf-8") as fh:
+        sector_feats = [f["properties"] for f in json.load(fh)["features"]]
+    write("assets/uk_sector_risk.csv", csv_bytes(sector_feats))
+
     open(os.path.join(DOCS, ".nojekyll"), "w").close()
     print("  .nojekyll")
     print("done")

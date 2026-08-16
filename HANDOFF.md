@@ -1,17 +1,73 @@
 # Handoff — UK Home Insurance Risk Map
 
-**Written:** 2026-08-10 · lives in the repo from now on (supersedes the
-old `%TEMP%\uk-risk-map-handoff.md`, which is now just a pointer here)
+**Written:** 2026-08-12, audited and refreshed 2026-08-16 · lives in the
+repo (supersedes the old `%TEMP%\uk-risk-map-handoff.md`, which is now
+just a pointer here)
 **Repo:** https://github.com/SMcode-source/uk-home-insurance-risk-map ·
 **Live:** https://smcode-source.github.io/uk-home-insurance-risk-map/
 
-## Status: complete, deployed, and the model CHANGED on 2026-08-10
+## Status: complete, deployed, TWO resolutions published (2026-08-12)
 
-CI green (both jobs), Pages live, **61 tests** passing, tree clean.
-Nothing is half-finished and nothing is waiting on anyone.
+The site now publishes the model at **two grains side by side**:
+`/map.html` over 2,736 postcode districts and `/sectors.html` over
+10,398 derived postcode sectors. One template builds both pages, so
+they cannot drift; the layout suite runs every map invariant against
+both. **72 tests**, CI green, Pages live. The methodology page also
+draws the Hull comparison (districts vs sectors on the climate layer)
+as an inline SVG generated from the published GeoJSON at build time —
+a screenshot would go stale at the next rebuild; this cannot.
 
-The headline since the last handoff: **the gust component now runs on
-Met Office MIDAS station observations**, not ERA5 reanalysis — the first
+## Audited 2026-08-16: every published claim re-derived from the data
+
+A full don't-trust-the-docs pass. The code and data were CLEAN: the
+model source re-read line by line with no defects found, a full
+rebuild reproduced `docs/` byte-for-byte, and every headline figure
+(£59.07 / 27.26m, +10.5% / +11.2%, DN32 +200% / PO6 9 +308%, 184 vs 1
+improving, CB8 8.1x, HU8's four sectors, IoU 0.706/0.689, 191
+stations, 33% terminated rows) verified exactly against the committed
+outputs.
+
+What had drifted was hand-written prose — numbers measured once and
+never re-read after the extents were re-fetched or the exposure bug
+was fixed: rivers/sea shrinkers were quoted as 61 (2.9%, −11.3pp) but
+are 52 (2.5%, −11.2pp, worst HU8); surface-water decreases 10 → 5
+(worst W1F −1.2pp); band growth +37.4/+28.7 → +37.7/+28.8 (prose now
+names the statistic: mean district zone-fraction, not area); sector
+aggregation "0.964 / 0.6%" → 0.965 / 0.4% (pre-exposure-fix values);
+households.csv "2,995 districts" → 2,866; RM10 was 33→47, not 37→53;
+dependence CI −9.0% to +12.8%; "21 datasets" → 24; sensitivity churn
+now 6.6%–34.8% across scenarios; "71 tests" → 72.
+
+The structural fix: the methodology page's climate-delta, aggregation
+and household figures are now **computed in `build_site.py` and
+injected** (`climate_band_stats()`, `__AGG_CORR__`, `__HH_DISTRICTS__`
+etc.), like every other published claim. **Only README.md still
+carries hand-written copies** (markdown has no build step) — re-verify
+its climate/sensitivity/dependence numbers whenever the fraction CSVs,
+`sensitivity.json` or `dependence.json` are regenerated. Two docstring
+corrections in the same pass: `sensitivity.py` (stale churn spread)
+and `validate_sectors_scotland.py`, which claimed sector IoU "can
+never beat" district IoU — not a theorem, and its own output
+(0.706 > 0.689) refutes it.
+
+Why it was worth doing: aggregated back to districts the sector model
+reproduces the published one (0.965 correlation, level within 0.4%),
+but **19% of districts hide sectors that differ by more than 2x** in
+premium - worst CB8 at 8.1x (GBP 29 to GBP 237). A district price
+charges both halves of a district the average of a risk only one half
+has. The splits are physical: a river through half a district, a clay
+boundary under the other.
+
+That work also turned up a real bug in the exposure weights - homes
+apportioned to postcodes that no longer exist - now fixed in both
+models; see below. Nothing is half-finished and nothing is waiting on
+anyone. The list at the bottom is what is *blocked or optional*, not
+work in progress.
+
+## Previously (2026-08-10): the model's gust source changed
+
+**The gust component runs on Met Office MIDAS station
+observations**, not ERA5 reanalysis — the first
 model change since `a1cacd0`, user-approved on priced evidence
 (commit `de19471`, published by Actions run 15). Everything else from
 the 2026-08-08 pick-up list also landed: layout regression tests in CI,
@@ -27,15 +83,76 @@ bedrock blended with 625k superficial at `SUP_WEIGHT` 0.5), weather
 (Met Office climatologies + a 1-in-50 gust Gumbel-fitted at **191 MIDAS
 stations**, ≥20 years' coverage, ≤300 m altitude), flood (severity
 conditioned on EA depth bands), groundwater — calibrated per peril to
-ABI 2025 payouts, exposure-weighted by census households, capital
-Euler-allocated from the portfolio, premiums on TVaR₉₉. Coastal erosion
-is in the vine but deliberately outside the premium. A climate scenario
-reprices on the EA's future flood extents: +10% exposure-weighted over
-2,087 English districts.
+ABI 2025 payouts, exposure-weighted by census households apportioned
+across LIVE postcodes only, capital Euler-allocated from the portfolio,
+premiums on TVaR₉₉. Coastal erosion is in the vine but deliberately
+outside the premium. A climate scenario reprices on the EA's future
+flood extents: **+10.5%** exposure-weighted over the 2,087 English
+districts the EA models, worst DN32 (Grimsby) +200%. Exposure-weighted
+premium **£59.07** over 27.26m households. All figures re-verified from
+the committed output on 2026-08-12, after the gust swap and the
+exposure fix.
+
+## Added 2026-08-12: the climate layer at sector resolution
+
+Both maps now carry every layer. The EA's climate-change editions were
+re-rasterised over the 10,398 sectors - surface water and depth bands
+on runners (~66 min via the workflow's `climate=true` pass), rivers/sea
+from the laptop because the EA 403s runner IPs for that WMS - and both
+simulations rebuilt in the cloud. 8,730 of 10,398 sectors are covered.
+
+National agreement holds (**+11.2%** exposure-weighted over covered
+sectors vs **+10.5%** over covered districts) but the tails diverge:
+worst district **DN32 +200%**, worst sector **PO6 9 +308%**, and where
+the district model finds **one** district whose flood risk falls under
+the scenario, the sector model finds **184**. The EA's future run is a
+separate model, not a uniform uplift, so those improvements were always
+in the data - district-level averaging just cancelled them against
+worsening neighbours.
+
+**Two traps this pass cost:** a workflow run checks out the SHA it was
+DISPATCHED with, so a job cannot see a commit you push after
+dispatching (a model job was building a no-climate model for exactly
+this reason - cancel and take its artifacts instead). And
+`flood_future()` needs the flood AND surface-water climate editions
+together, returning no repricing view if either is missing, which is
+why a partial pass degrades safely instead of publishing half a
+scenario.
+
+## Fixed 2026-08-12: households were apportioned to DEAD postcodes
+
+ONSPD retains terminated postcodes - **897,835 of 2,694,205 rows, 33%**
+- and `fetch_households.py` spread LSOA household counts across all of
+them, crediting roughly 730,000 homes to addresses that no longer
+exist. Every exposure weight in the model was slightly wrong, and had
+been from the start.
+
+It surfaced only because of the sector build: a dead postcode has no
+Code-Point centroid, so wholly-dead sectors got no polygon and 2.7% of
+exposure had nowhere to land. That mismatch was the symptom; the
+phantom homes were the disease, and they were in the district model
+too.
+
+Fixed by filtering on `doterm`, priced first on `exp/live-postcodes`
+(now deleted) and then applied to both resolutions: premium level
+**-0.25%**, **40 districts (1.5%) change rating group**, none by more
+than one, movers concentrated in rural/remote districts with the most
+postcode churn per live address. National total unchanged - LSOA
+totals are fixed, only their apportionment moved. **The sector/district
+exposure gap closed from -2.75% to -0.06%**, and the nesting test's
+tolerance was tightened from 4% to 0.5% so phantom exposure cannot
+creep back.
+
+**Trap worth remembering:** `rebuild.yml` does NOT run
+`fetch_households.py` - it reads the committed CSV. The first attempt
+to price this patched only the fetcher, reproduced main byte-for-byte,
+and looked exactly like "no impact". Regenerate and commit the CSV,
+then dispatch.
 
 ## The experiment-branch pattern (how model decisions get made here)
 
-Twice used, twice decisive — reuse it for any future model input change:
+Three times used, three times decisive — reuse it for any future model
+input change:
 
 1. branch `exp/<name>`, change ONE input, push;
 2. `gh workflow run rebuild.yml --ref exp/<name> -f commit=false`
@@ -58,6 +175,10 @@ Decisions taken this way, so far:
   20 move ≥2; relativities shift toward measured coastal exposure
   (Fraserburgh/Blyth/Whitby/Norfolk up; SY23/SY25 −18%, Brighton −16%).
   Surface evidence: `scripts/compare_gust_surfaces.py`.
+- **Terminated postcodes excluded from exposure** (2026-08-12). −0.25%
+  premium, 40 districts (1.5%) change group, none by >1. Applied to
+  BOTH resolutions in one landing so the two maps never disagreed about
+  how many homes exist. Detail in the section above.
 
 ## Corrections since the last handoff — do not reintroduce
 
@@ -91,6 +212,37 @@ the auto-memory; these are the NEW ones:
 - **flex-basis applies to HEIGHT once flex-direction flips to column** —
   the vine diagram's row proportions collapsed every stacked panel to
   zero height on phones until the media query reset them.
+- **Never iterate a SET when writing a build artifact.** Python
+  randomises string hashing per process, so the map assets' JSON keys
+  came out in a different order every run: my build and CI's disagreed
+  by construction and CI failed as "docs/ is stale" with an unreadable
+  diff. `build_map.web_asset` sorts its columns; verified by building
+  twice in separate processes and comparing md5.
+- **Quantise any transcendental that feeds a build artifact.** libm's
+  `cos` differs by one ULP between MSVC and glibc, so the Hull figure's
+  projection produced 2 different SVG path lines on Linux CI than here —
+  the same "docs/ is stale" failure as the set bug, from a different
+  root. Verified by perturbing `cos` one ULP (exactly those 2 lines
+  changed); fixed with `round(math.cos(...), 6)` in `_panel()`
+  (`3e59e7e`). Everything downstream is + − × ÷, which IEEE 754 pins.
+- **Hand-written numbers rot; injected ones cannot.** Every stale figure
+  the 2026-08-16 audit found was hand-written prose describing data that
+  had since been regenerated. When publishing a number, compute it in
+  `build_site.py` and inject it via a placeholder (the placeholder test
+  polices both directions); reserve prose numbers for genuinely
+  historical statements ("the first run kept Cairngorm summit").
+- **A layer with no data is OMITTED, not drawn blank.** The sector map
+  shipped without the climate layer until its EA extents were fetched
+  (they since have been, so `OMIT_METRICS` is empty again) - because
+  offering it would have painted the country grey under a legend
+  reading "not modelled — England only", a false statement about *why*
+  it was empty. Keep the mechanism: the next dataset to arrive late
+  will need it.
+- **The EA WMS throttles GitHub runners like BGS does.** Surface water,
+  depth and erosion all fetched fine from Actions over the 10,398
+  sectors, but rivers/sea served ~3.5 h and then 403'd every request at
+  any backoff. That one is a laptop job; the fetcher's refusal to write
+  an incomplete result is what stopped it shipping a hole.
 
 ## Evidence tooling now in the repo
 
@@ -98,8 +250,18 @@ the auto-memory; these are the NEW ones:
   (premium level, churn, movers). Both model decisions above used it.
 - `scripts/compare_gust_surfaces.py` — two gust point sets IDW'd to
   district level through the model's own code path.
+- `scripts/compare_sector_model.py` — sectors vs districts: aggregation
+  consistency, within-district spread, and the widest-range districts.
+  Defaults to the two published outputs; pass paths on the branch.
+- `scripts/validate_sectors_scotland.py` — derived sectors vs NRS's
+  official Scottish ones, reporting district-IoU beside sector-IoU so
+  boundary-set disagreement is separated from the method's own error.
+  Writes `data/sector_validation.json`, which the site injects.
+- `scripts/derive_sectors.py` + `fetch_codepoint.py` — the sector
+  geometry itself, from OS Code-Point Open.
 - `tests/test_layout.py` — the browser-level invariants (Playwright;
-  skips without it). `tests/test_midas.py` — the BADC-CSV selftest.
+  skips without it), run against BOTH map pages.
+  `tests/test_midas.py` — the BADC-CSV selftest.
 
 ## Environment
 
@@ -121,12 +283,11 @@ remains the no-account fallback and regenerates the pre-swap surface.
 
 ## What remains, honestly
 
-- **Sector-level modelling** is a decision, not a task: the geometry
-  exists (`derive_sectors.py` → 10,398 sectors, partition asserted
-  exact), but wiring it in means ~4× the raster work across every
-  hazard fetch, exposure re-apportionment, and a longer simulate. First
-  probe if green-lit: validate the derived Scottish sectors against
-  Scotland's official polygons to measure the method's error.
+- **Sector geometry is derived, not official**, and always will be for
+  England & Wales. Measured cost: none beyond the district outlines it
+  inherits (NRS Scotland, sector IoU 0.706 vs district IoU 0.689) - but
+  those district outlines are themselves community approximations, and
+  0.689 is now the number to quote for them.
 - **A claims triangle** (data-sharing agreement with an insurer; not
   purchasable) unblocks fitting the copulas and frequency/severity from
   data — the single highest-value missing dataset.
