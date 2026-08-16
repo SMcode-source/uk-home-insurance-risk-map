@@ -366,6 +366,38 @@ def test_erosion_expected_loss_is_analytic_not_simulated(monkeypatch):
                - sim["el_er"][0]) < 1e-6
 
 
+def test_theft_expected_loss_is_analytic_not_simulated(monkeypatch):
+    """Theft shares ONE U_th stream across all districts, so a simulated
+    mean carries a common sampling error - the first evidence run came out
+    +17% over the calibrated level in every district at once. simulate()
+    must return p_th * E[severity] exactly, at any simulation length, and
+    el_total must carry the analytic leg so the published level is the
+    calibrated one."""
+    import pandas as pd
+
+    monkeypatch.setattr(bm, "N_SIM", 200)
+    monkeypatch.setattr(bm, "BATCH", 8)
+    df = pd.DataFrame({
+        "sub_score": [0.5, 0.2], "wx_score": [0.5, 0.4],
+        "fl_score": [0.3, 0.6], "gw_score": [0.2, 0.1],
+        "er_score": [0.0, 0.0],
+        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05],
+        "sw_high": [0.05, 0.01], "sw_low": [0.1, 0.03],
+        "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
+        "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
+        "th_rate": [0.010, 0.0],
+    })
+    sim, _ = bm.simulate(df)
+
+    expected = 0.010 * bm.FREQ_SCALE["th"] * bm.ABI["sev_theft"]
+    assert abs(sim["el_th"][0] - expected) / expected < 1e-9
+    assert sim["el_th"][1] == 0.0                     # no burglary, no loss
+    # el_total = the four weather-peril draw means + the analytic theft leg
+    four = (sim["el_sub"][0] + sim["el_wx"][0]
+            + sim["el_fl"][0] + sim["el_gw"][0])
+    assert abs((sim["el_total"][0] - four) - sim["el_th"][0]) < 1e-6
+
+
 def test_capital_allocation_is_stable_across_seeds():
     """The premium must not depend on the RNG seed.
 

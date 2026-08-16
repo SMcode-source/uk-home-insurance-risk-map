@@ -322,10 +322,21 @@ TAIL_FREQ_RATIO = 2.0        # 1-in-100 year claims ~2x the average year
 # Theft's systemic loading is FIXED and deliberately NOT in SPATIAL_BASE:
 # calibrate_spatial solves for how widely WEATHER claims cluster in a bad
 # year (the TAIL_FREQ_RATIO target is a storm phenomenon), and letting the
-# solver rescale theft would couple burglary to that target. Burglary
-# waves are regional and only weakly national-systemic - national annual
-# counts move on slow trends, not event years - so the loading is small.
-W_THEFT = 0.20
+# solver rescale theft would couple burglary to that target.
+#
+# The value is derived, not felt. At rare-event thresholds a factor
+# loading has enormous leverage: under the factor model the national
+# claim-count CV over systemic years is approximately
+#   CV = sqrt(w) * phi(z_p) / p,   z_p = Phi^-1(1-p)
+# and at p = 0.76% that is 2.75*sqrt(w). Recorded national burglary
+# moves +-10-15% year to year around trend (ONS series), so targeting
+# CV = 0.10 gives w = (0.10/2.75)^2 = 0.0013 - a 1-in-100 systemic
+# year then claims ~1.3x the average year, which is what burglary
+# waves actually look like. The first evidence run used w = 0.20 on
+# "weakly systemic" intuition; that implied worst years claiming
+# 8-14x the mean - a national crime wave no data shows - and charged
+# +GBP 13/policy of phantom capital for it.
+W_THEFT = 0.0013
 
 
 def calibrate_spatial(gdf, target_ratio=TAIL_FREQ_RATIO):
@@ -857,7 +868,16 @@ def simulate(district_df):
         loc["el_wx"] = (lw.mean(axis=1))
         loc["el_fl"] = (lf.mean(axis=1))
         loc["el_gw"] = (lg.mean(axis=1))
-        loc["el_th"] = (l_th.mean(axis=1))
+        # Theft's expected loss is ANALYTIC for the same reason erosion's
+        # is (below), with a different failure mode: every district shares
+        # ONE U_th stream, so the ~150 draws that clear a p~0.8% threshold
+        # carry a COMMON sampling error - the first evidence run came out
+        # +17% over the calibrated level (GBP 33.89 vs 29.03) in every
+        # district at once, defeating the point of calibrating. The draws
+        # still feed the tails (tot_v/tot_n/tot_i), where they belong.
+        el_th = (m["p_th"] * np.exp(m["sev_th"]["mu"]
+                                    + m["sev_th"]["sigma"] ** 2 / 2)).ravel()
+        loc["el_th"] = (el_th)
         # Erosion's expected loss is taken ANALYTICALLY, not from the draws.
         # Its annual probability is ~1.5e-5 for a typical coastal district,
         # so 20,000 years give well under one event: the simulated mean
@@ -870,8 +890,12 @@ def simulate(district_df):
         el_er = (m["p_er"] * np.exp(m["sev_er"]["mu"]
                                     + m["sev_er"]["sigma"] ** 2 / 2)).ravel()
         loc["el_er"] = (el_er)
-        loc["el_total"] = (tot_v.mean(axis=1))
-        loc["el_total5"] = (tot_v.mean(axis=1) + el_er)
+        # The published expected-loss level must be the CALIBRATED one, so
+        # el_total sums the four weather-peril draw means (which the ABI
+        # scaling was solved against) with the analytic theft leg - the
+        # same construction el_total5 has always used for erosion.
+        loc["el_total"] = ((ls + lw + lf + lg).mean(axis=1) + el_th)
+        loc["el_total5"] = (loc["el_total"] + el_er)
         # var995_vine is published; the gauss and indep siblings are NOT in
         # OUTPUT_COLUMNS and nothing downstream reads them. They are kept
         # anyway and this note exists so they are not mistaken for dead
