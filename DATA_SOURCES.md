@@ -615,6 +615,17 @@ open substitute; every open path was checked (see dead ends below).
 
 ## Not used / dead ends (so you don't repeat them)
 
+- **EoW dwelling-age slice (Phase 2b) — dropped for want of an anchor
+  (2026-08-17).** CTSOP4.1 gives build period per LSOA for the full
+  E&W stock (OGL, trivial to fetch), but no UK publication quantifies
+  the dwelling-age → escape-of-water frequency relationship: every
+  hit is qualitative "older pipes corrode" marketing copy (Alan
+  Boswell, Oakleafe, MA Group's rooms-affected trend), and the US
+  figures that do exist (ISO/III ~1.6%/yr water-damage claim rate)
+  are a different market and peril mix. Without a citable number the
+  slice size would be an undocumented knob, so EoW's geography stays
+  freeze-only. Revisit only if an insurer publishes age-banded claim
+  rates.
 - `environment.data.gov.uk/arcgis/rest/...` — EA's old ArcGIS root: gone.
 - Legacy `risk-of-flooding-from-surface-water-extent-*` spatialdata slugs: 404
   (superseded by NaFRA2).
