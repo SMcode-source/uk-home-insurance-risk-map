@@ -16,12 +16,13 @@
 
 ---
 
-Interactive choropleth of **2,736 UK postcode districts** rating six home-insurance
+Interactive choropleth of **2,736 UK postcode districts** rating seven home-insurance
 perils — **subsidence**, **weather damage**, **flood** (rivers, sea and surface
-water), **groundwater flooding**, **theft** and **escape of water** — the four
-weather-driven perils joined by a **C-vine copula**, theft and escape of water
-priced as independent legs (burglary does not arrive on the storm track, and
-burst pipes answer to cold snaps, not storms), banded into 10 rating groups. A
+water), **groundwater flooding**, **theft**, **escape of water** and **fire** — the
+four weather-driven perils joined by a **C-vine copula**, the attritional three
+priced as independent legs (burglary does not arrive on the storm track, burst
+pipes answer to cold snaps, and dwelling fires follow deprivation and dwelling
+type), banded into 10 rating groups. A
 companion page decomposes **good years vs bad years** for the whole portfolio.
 
 **Coastal erosion** is modelled in the vine but deliberately
@@ -29,13 +30,13 @@ kept **out of the premium** — see
 [Coastal erosion: modelled, not priced](#coastal-erosion-modelled-not-priced).
 
 Every hazard input is **open data**, fetched by the scripts here — see
-**[DATA_SOURCES.md](DATA_SOURCES.md)** for all 26 datasets with their endpoints,
+**[DATA_SOURCES.md](DATA_SOURCES.md)** for all 27 datasets with their endpoints,
 licences, access quirks and the dead ends worth avoiding. Each peril's loss level
 is calibrated to published **ABI** claims payouts, and districts are weighted by
 **census household counts**.
 
-> ⚠️ These are **six-peril technical premiums, not home insurance premiums**.
-> A real policy also covers fire and accidental damage, plus expenses and
+> ⚠️ These are **seven-peril technical premiums, not home insurance premiums**.
+> A real policy also covers accidental damage, plus expenses and
 > profit. Expect these figures to be a fraction of what you actually pay. This
 > is a methodology demonstration, not a rating product.
 
@@ -79,6 +80,9 @@ scripts/
   fetch_households.py         ONS/NRS census households per district (exposure)
   fetch_burglary.py           police.uk street-level burglary points -> counts
                               per district (36-month archive, resumable)
+  fetch_fires.py              dwelling fires -> annual rate per district
+                              (England LSOA incidents, Scotland councils,
+                              Wales FRAs; reconciles against FIRE0201)
   scores_real.py              data -> per-district peril scores
   build_model.py              scores -> marginals -> 5-dim C-vine Monte Carlo ->
                               districts_risk.geojson + year_analysis.json
@@ -108,7 +112,7 @@ assets/leaflet.{js,css}       Leaflet 1.9.4, inlined into the map HTML
 | Weather risk score | Met Office wind / rain exposure (0–1) |
 | Flood risk score | EA / NRW / SEPA river, sea + surface-water zones (0–1) |
 | Groundwater risk score | EA groundwater alert-area coverage (0–1) |
-| 1-in-200 combined loss | 99.5% VaR of the six-peril annual loss (C-vine + independent theft and escape of water) |
+| 1-in-200 combined loss | 99.5% VaR of the seven-peril annual loss (C-vine + independent theft, escape of water and fire) |
 | Capital charge | The district's Euler share of portfolio tail risk, in £ |
 | Surface-water depth | Mean depth where it floods, from the EA depth bands (England) |
 | Coastal erosion (blight) | Land projected lost by 2105 under the adopted Shoreline Management Plan — **not insured** |
@@ -226,18 +230,19 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    | Groundwater | not published | £20,000 | — | pegged at 10% of flood |
    | Theft | £450m (2018, last published) | £3,800 | ~118,000 | 0.76% |
    | Escape of water | ~£657m (ABI "£1.8m a day") | £4,000 | ~164,000 | 1.06% |
+   | Fire | ~£434m (triangle, no published total) | £14,000 | ~31,000 | 0.20% |
 
-   Together these come to **£127 per policy per year — about 58% of the
-   £219 that all home claims cost**. ⚠️ **These are six-peril technical
-   premiums, not home insurance premiums**: a real policy also covers fire
-   and accidental damage, plus expenses and profit. What is *not* fitted —
+   Together these come to **£155 per policy per year — about 70% of the
+   £219 that all home claims cost**. ⚠️ **These are seven-peril technical
+   premiums, not home insurance premiums**: a real policy also covers
+   accidental damage, plus expenses and profit. What is *not* fitted —
    and is where the model earns its keep — is the geography, the dependence
    structure, and the spread of frequency/severity within each peril.
    *(An earlier version calibrated to the all-claims figures — 560,000 claims,
    3.6% frequency — which overstated the loss cost by ~77%, because most home
-   claims are the attritional perils rather than catastrophe perils. Theft and
-   escape of water are now priced, but at their own frequencies and their own
-   much cheaper severities.)*
+   claims are the attritional perils rather than catastrophe perils. Theft,
+   escape of water and fire are now priced, but at their own frequencies and
+   their own severities.)*
 5b. **Theft — burglary geography from police.uk** (`scripts/fetch_burglary.py`).
    Three years of street-level burglary points (36 monthly archives, ~670k
    incidents) placed into districts by point-in-polygon become an annual
@@ -277,6 +282,33 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    it buys real capital: winter 2010's six-week freeze (~103k claims, £680m)
    doubled the year's bill, pinning its factor loading at 2.6%, twenty times
    theft's.
+5d. **Fire — LSOA-level incident geography** (`scripts/fetch_fires.py`).
+   The strongest spatial signal of the attritional three, and the weakest
+   published level: the ABI stopped publishing a domestic fire total, so the
+   anchor is a documented triangle — **31,001 attended GB dwelling fires in
+   2024/25** (Home Office FIRE0201: England 25,465 + Scotland 4,104 + Wales
+   1,432) → 0.20%/policy; the ABI-attributed **£10,200–£11,000 average fire
+   payout** (~2019 vintage) indexed to **£14,000**; product ~**£434m/yr** ≈
+   13% of the £3.4bn all-home-claims total, inside the remainder envelope
+   after every published per-peril figure is subtracted. The geography:
+   **England at LSOA level** from the incident-level low-level-geography
+   datasets (8 complete years, 221,017 dwelling fires, reconciling with
+   FIRE0201 **to the exact incident** per year), Scotland by council
+   (statistics.gov.scot cube), Wales by FRA (stats.gov.wales), all
+   apportioned to districts through the ONS postcode lookup the household
+   counts already use. `fire_rate` ships as a rate for the same 0.5-clip
+   reason as `eow_rate`; rates are winsorised at the exposure-weighted
+   99.9th percentile (the same commercial-core guard as theft — W1J prices
+   at the cap, not at Mayfair's tiny household denominator). Severity is
+   lognormal σ=1.3 (heaviest attritional tail, ~2% of claims above £100k),
+   EL analytic for the shared-stream reason. **Fire buys no capital at
+   all**: 45 years of FIRE0201 counts are a −2.5%/yr secular decline with
+   detrended residuals of ±2–3% and no spike years, pinning W_FIRE at
+   0.004% — pure expected loss, the purest diversifier in the book. One
+   parser trap for the record: ODS compresses identical consecutive rows
+   (`table:number-rows-repeated`), and sorted incident data hits it
+   constantly — the first parse silently dropped 39% of dwelling fires;
+   the FIRE0201 reconciliation is what caught it.
 6. **Vine copula.** The four weather-driven annual-loss marginals (plus
    erosion) are joined by a **C-vine** (pair-copula construction) with
    weather W at the root:
@@ -386,7 +418,9 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    phantom capital), escape of water 2.6% (same derivation, different
    record: winter 2010's freeze doubled the year's burst-pipe bill, and at
    1.06% frequency CV ≈ 0.43 pins w at 0.026 — twenty times theft's, which
-   is why EoW buys real capital and theft does not) —
+   is why EoW buys real capital and theft does not), fire 0.004% (same
+   derivation a third time: FIRE0201's 45-year series, detrended, has CV
+   ≈2% with no spike years, so fire is priced as pure expected loss) —
    preserving district marginals exactly while giving realistic cross-district
    clustering (a pure common-random-numbers view is degenerate: no claims
    anywhere in 90% of years, then everything at once).
@@ -450,7 +484,7 @@ EC4R 8% → 27%, SW8 (Nine Elms) 16% → 32%, RM9 (Dagenham) 37% → 53%, E8
 
 ## Coastal erosion: modelled, not priced
 
-The model carries a sixth peril — **coastal erosion**, from the EA's
+The model carries one further peril — **coastal erosion**, from the EA's
 **NCERM National 2024** frontages (`scripts/fetch_erosion.py`) — and it is
 deliberately kept out of `premium`.
 
@@ -524,11 +558,13 @@ The site is checked, not assumed:
   nav fits without sideways scrolling, tap targets ≥24px.
 - Colours follow a validated data-viz palette; the peril hues (subsidence
   orange, weather blue, flood aqua, groundwater violet, theft bronze, escape-of-water
-  teal, erosion rose) are used consistently across map, charts, favicon and social
+  teal, fire brick red, erosion rose) are used consistently across map, charts,
+  favicon and social
   card. The erosion rose is contrast-checked live in both themes (5.12:1 light,
   8.11:1 dark) because it carries text as well as fill; the theft bronze
-  (5.61:1 light, 9.24:1 dark) and the escape-of-water teal (5.7:1 light,
-  9.5:1 dark) were chosen the same way.
+  (5.61:1 light, 9.24:1 dark), the escape-of-water teal (5.7:1 light,
+  9.5:1 dark) and the fire brick red (6.9:1 light, 8.1:1 dark) were chosen
+  the same way.
 
 ## Tests
 
@@ -556,7 +592,12 @@ scaled burglary rate, and its expected loss to the analytic p × E[severity]
 districts share one theft draw stream) and would silently drift the level.
 Escape of water carries the same three guards (severity mean, rate
 pass-through — including the 0.5 clip a raw relativity would have
-saturated — and the analytic EL), for the same reasons.
+saturated — and the analytic EL), for the same reasons. Fire carries
+them too, plus one more learned at its own expense: the end-of-run
+identity test (el_total = Σ el_*) must gain the new leg **as part of
+the wiring** — the fire evidence run failed that check at minute 55
+with the artifact upload skipped, because the leg was in the fixtures
+but not the identity.
 
 CI additionally rebuilds the whole site from committed data and fails if
 `docs/` has drifted from its templates.
@@ -619,6 +660,9 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 .venv/Scripts/python scripts/fetch_households.py     # ONS lookup + census -> data/households.csv (exposure, ~22MB dl)
 .venv/Scripts/python -u scripts/fetch_burglary.py    # police.uk archive (1.7 GB, resumable download) -> data/burglary.csv
                                                      # (~6 min once the archive is cached; checkpoints every 100 files)
+.venv/Scripts/python -u scripts/fetch_fires.py       # Home Office LSOA incidents + SFRS + Welsh FRAs -> data/fires.csv
+                                                     # (~40 MB of ODS; parses content.xml directly - pandas' odf
+                                                     # engine takes >10 min on these files)
 .venv/Scripts/python scripts/build_model.py          # calibrate + vine sim -> districts_risk.geojson + year_analysis.json (~55 min;
                                                      # the 5th vine dimension roughly doubled this - the extra Gumbel
                                                      # h-inverse bisection for erosion is the dominant cost)

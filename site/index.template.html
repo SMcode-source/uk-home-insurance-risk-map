@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UK Home Insurance Risk Map — six insured perils, one dependence model</title>
+<title>UK Home Insurance Risk Map — seven insured perils, one dependence model</title>
 <link rel="stylesheet" href="assets/site.css">
 __HEAD__
 </head>
@@ -14,11 +14,11 @@ __NAV__
 
   <section class="hero">
     <div class="eyebrow">Geospatial risk modelling · open data</div>
-    <h1>Six insured perils.<br>2,736 postcode districts.<br>One dependence model.</h1>
+    <h1>Seven insured perils.<br>2,736 postcode districts.<br>One dependence model.</h1>
     <p class="lede">A UK home-insurance risk model that scores every postcode district for
     <b>subsidence</b>, <b>weather damage</b>, <b>flood</b>, <b>groundwater flooding</b>,
-    <b>theft</b> and <b>escape of water</b> — the weather-driven four joined by a vine
-    copula, because the expensive years are the ones where several perils strike at once;
+    <b>theft</b>, <b>escape of water</b> and <b>fire</b> — the weather-driven four joined
+    by a vine copula, because the expensive years are the ones where several perils strike at once;
     theft and escape of water priced independently, because burglary does not arrive on
     the storm track and burst pipes answer to cold snaps, not storms. <b>Coastal
     erosion</b> is modelled alongside them but kept out of the premium, because no
@@ -30,6 +30,7 @@ __NAV__
       <span class="chip"><i style="background:var(--gw)"></i>Groundwater · EA alert areas</span>
       <span class="chip"><i style="background:var(--th)"></i>Theft · police.uk</span>
       <span class="chip"><i style="background:var(--eow)"></i>Escape of water · Met Office frost</span>
+      <span class="chip"><i style="background:var(--fire)"></i>Fire · Home Office incidents</span>
       <span class="chip"><i style="background:var(--er)"></i>Erosion · EA NCERM · not insured</span>
     </div>
     <div class="cta">
@@ -174,11 +175,13 @@ __NAV__
         <h3>Each peril is pinned to what the market actually paid</h3>
         <p>Storm, flood and subsidence are calibrated separately to the ABI's 2025
         payouts — £244m, £312m and £307m across ~15.5m policies — theft to the last
-        published theft total (~£450m), and escape of water to the ABI's £1.8m-a-day
-        figure (~£657m a year), rather than to a single blended number. Together the six
+        published theft total (~£450m), escape of water to the ABI's £1.8m-a-day
+        figure (~£657m a year), and fire to a documented triangle of Home Office
+        incident counts and the ABI's average fire payout (~£434m a year), rather than
+        to a single blended number. Together the seven
         insured perils come to <b>£__MEAN_EL__</b> per policy per year,
         __EL_CLAIMS_SHARE__% of what all home claims cost. The rest of a real premium is
-        fire, accidental damage and expenses — none of which this models — plus
+        accidental damage and expenses — neither of which this models — plus
         commission and profit.
         <a href="methodology.html#calibration">How the calibration works →</a></p>
       </div>
@@ -240,8 +243,8 @@ __NAV__
     <div class="callout">
       <b>This is a demonstration model, not a priced product.</b> The hazard data is real and
       current, and each peril's loss level is pinned to published ABI payouts — but these are
-      <b>six-peril technical premiums</b>, not home insurance premiums. A real policy also
-      covers fire and accidental damage, and carries expenses,
+      <b>seven-peril technical premiums</b>, not home insurance premiums. A real policy also
+      covers accidental damage, and carries expenses,
       commission and profit on top. The
       <a href="methodology.html#caveats">caveats section</a> is explicit about every assumption.
     </div>
@@ -308,6 +311,7 @@ __NAV__
            ['ef', 'Flood', '--fl'], ['eg', 'Groundwater', '--gw'],
            ['et', 'Theft', '--th'],
            ['ee', 'Esc. of water', '--eow'],
+           ['efi', 'Fire', '--fire'],
            ['c', 'Capital', '--ink-muted']]
             .filter(([k]) => d[k] > 0)
             .map(([k, name, col]) =>
@@ -319,6 +323,7 @@ __NAV__
            ['ef', 'Flood', '--fl'], ['eg', 'Groundwater', '--gw'],
            ['et', 'Theft', '--th'],
            ['ee', 'Esc. of water', '--eow'],
+           ['efi', 'Fire', '--fire'],
            ['c', 'Capital', '--ink-muted']]
             .filter(([k]) => d[k] > 0)
             .map(([k, name, col]) =>

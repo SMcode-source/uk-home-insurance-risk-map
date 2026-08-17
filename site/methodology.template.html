@@ -189,13 +189,14 @@ __NAV__
   </section>
 
   <section class="doc" id="perils">
-    <h2>The perils — six insured, and one that is not</h2>
+    <h2>The perils — seven insured, and one that is not</h2>
     <p>Each hazard peril is scored 0–1 per district from real hazard data, then converted
     to an annual loss distribution: <b>Bernoulli(p) × LogNormal(μ, σ)</b> — at most one
-    claim per policy per year, which is adequate at district granularity. Theft and
-    escape of water skip the 0–1 score: theft's input is already a measured burglary
-    rate per household, and escape of water's is a claim frequency built from the ABI
-    level and each district's air-frost days.</p>
+    claim per policy per year, which is adequate at district granularity. Theft,
+    escape of water and fire skip the 0–1 score: theft's input is already a measured
+    burglary rate per household, escape of water's is a claim frequency built from the
+    ABI level and each district's air-frost days, and fire's is the district's own
+    dwelling-fire rate from eight years of attended incidents.</p>
 
     <div class="tablewrap" style="margin:16px 0">
       <table class="data">
@@ -238,6 +239,12 @@ __NAV__
           <td>Met Office HadUK-Grid air-frost days</td>
           <td>Flat base plus a freeze-attributable slice scaled by annual air-frost days (1991–2020 normal)</td>
           <td class="num">0.9–1.5%/yr</td><td class="num">£2,400</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--fire)">Fire</strong></td>
+          <td>Home Office / SFRS / Welsh FRA incident data</td>
+          <td>Dwelling fires per household — England at LSOA level, Scotland and Wales by local authority / FRA</td>
+          <td class="num">0.03–0.56%/yr</td><td class="num">£6,000</td>
         </tr>
         <tr>
           <td><strong style="color:var(--er)">Erosion</strong> <span class="pill">not insured</span></td>
@@ -347,7 +354,7 @@ __NAV__
     <h3 id="eow">Escape of water — a flat base with a freeze slice</h3>
     <p>Escape of water is the UK's most frequent home claim — the ABI puts it at
     <b>£1.8m a day</b>, about £657m a year, roughly 164,000 claims at ~£4,000 each. It
-    is also the hardest of the six to give a geography: burst pipes and failed
+    is also the hardest of the seven to give a geography: burst pipes and failed
     appliances follow plumbing age and dwelling type, neither of which is open data at
     district level. Pretending otherwise would be invention, so the base frequency is
     deliberately <b>flat</b>.</p>
@@ -375,6 +382,48 @@ __NAV__
     ~£__EOW_EL__ of weather-independent expected loss grows the premium denominator, so
     percentage-of-premium figures — the dependence uplift, the climate-scenario
     uplift — fall again without any change to the flood or climate modelling.</p>
+
+    <h3 id="fire">Fire — the strongest geography of the attritional three</h3>
+    <p>Fire is the opposite data problem to escape of water: the ABI no longer
+    publishes a domestic fire total at all (recent releases fold it into an
+    aggregate and say only that fire payouts "declined"), but the geography is
+    the best of any non-weather peril. The level is therefore a documented
+    triangle: <b>31,001 attended dwelling fires</b> across Great Britain in
+    2024/25 (Home Office FIRE0201) give a frequency of ~0.20% per policy; the
+    ABI's average fire payout (£10,200–£11,000, of ~2019 vintage, indexed for
+    claims inflation to ~£14,000) gives severity; together <b>~£434m a
+    year</b> — about 13% of what all home claims cost, consistent with the
+    remainder once every published per-peril total is subtracted. The
+    weakest leg of that triangle is the undated severity quote, and the
+    methodology says so rather than pretending otherwise.</p>
+    <p>The geography comes from incident-level open data: __FIRE_YR__
+    dwelling fires a year located to <b>LSOA level in England</b> (eight
+    complete years of the Home Office low-level-geography dataset,
+    reconciling with the national FIRE0201 totals to the exact incident),
+    council level in Scotland and fire-authority level in Wales, apportioned
+    to postcode districts through the same ONS lookup the household counts
+    use. Expected loss runs from <b>£__FIRE_LO__</b> (__FIRE_LO_NAME__) to
+    <b>£__FIRE_HI__</b> (__FIRE_HI_NAME__) per policy around a mean of
+    <b>£__FIRE_EL__</b> — a wider real spread than theft or escape of water,
+    with Glasgow's peripheral estates and dense urban cores at the top and
+    rural districts at a fifth of the mean. Rates are winsorised at the
+    exposure-weighted 99.9th percentile (__FIRE_CAP_PCT__% of households a
+    year; __FIRE_CLIPPED__ districts sit at the cap), the same guard theft
+    uses.</p>
+    <p><b>Fire buys no capital at all.</b> Forty-five years of national
+    counts show a steady secular decline with year-to-year residuals of
+    ±2–3%: there are no systemic fire years in the record (even the 2022
+    heatwave summer barely registers at annual grain), so the factor loading
+    comes out effectively zero and fire prices as pure expected loss — the
+    purest diversifier in the book. Correlation with the four-peril
+    catastrophe expected loss: <b>__FIRE_CAT_CORR__</b>. The severity sigma
+    is 1.3, the heaviest tail of the attritional perils (~2% of claims above
+    £100k), which the analytic expected-loss identity absorbs exactly as for
+    theft and escape of water.</p>
+    <p class="note">The dilution note applies a third time: ~£__FIRE_EL__
+    more weather-independent expected loss in the denominator pulls every
+    percentage-of-premium figure down again — nothing about the flood or
+    climate modelling changed.</p>
   </section>
 
   <section class="doc" id="erosion">
@@ -482,12 +531,14 @@ __NAV__
     <b>C-vine with weather at the root</b>, because weather is the common driver: storms bring
     the rain that floods rivers and recharges aquifers, the same climate variability
     produces the droughts that shrink clay, and the same surges strip the coast.
-    <b>Theft and escape of water are deliberately not vine dimensions</b>: burglary has
-    no meteorological driver, and burst pipes answer to cold — the one weather axis a
-    storm-rooted vine does not carry — so both are simulated as independent legs
+    <b>Theft, escape of water and fire are deliberately not vine dimensions</b>: burglary
+    has no meteorological driver, burst pipes answer to cold — the one weather axis a
+    storm-rooted vine does not carry — and dwelling fires follow deprivation and
+    dwelling type, not the storm track. All three are simulated as independent legs
     alongside the vine, with their systemic behaviour handled by factor loadings
-    instead — see <a href="#theft">the theft section</a> and
-    <a href="#eow">the escape-of-water section</a>.</p>
+    instead — see <a href="#theft">the theft section</a>,
+    <a href="#eow">the escape-of-water section</a> and
+    <a href="#fire">the fire section</a>.</p>
 
     <div class="diagram-card">
       <!-- Three panels, one per tree, so they can sit in a row on a wide
@@ -591,9 +642,11 @@ __NAV__
             <td class="num">£3,800</td><td class="num">~118,000</td><td class="num">0.76%</td></tr>
         <tr><td><strong style="color:var(--eow)">Escape of water</strong></td><td class="num">~£657m <small>(£1.8m/day)</small></td>
             <td class="num">£4,000</td><td class="num">~164,000</td><td class="num">1.06%</td></tr>
+        <tr><td><strong style="color:var(--fire)">Fire</strong></td><td class="num">~£434m <small>(triangle)</small></td>
+            <td class="num">£14,000</td><td class="num">~31,000</td><td class="num">0.20%</td></tr>
       </table>
     </div>
-    <p class="note">Over ~15.5m policies (ABI premium-tracker coverage), these six perils
+    <p class="note">Over ~15.5m policies (ABI premium-tracker coverage), these seven perils
     come to <b>£__MEAN_EL__</b> per policy per year — <b>__EL_CLAIMS_SHARE__%</b> of the
     £219 that all home claims cost. Groundwater is not reported separately by the ABI, so
     it is a documented assumption rather than a calibration. Theft's paid figure is
@@ -603,10 +656,14 @@ __NAV__
     (0.58–0.97%). Escape of water has no single published total either: its £657m is the
     ABI's rolling <b>"£1.8m a day"</b> figure, and the £4,000 average follows from
     escape-of-water's ~29% share of 2025's 560,000 home claims — three independent public
-    numbers that close into one self-consistent triangle, which is the cross-check.</p>
+    numbers that close into one self-consistent triangle, which is the cross-check. Fire
+    has <b>no published total at all</b>: its £434m is claim counts the fire services
+    actually attended times the ABI's average payout, sanity-checked against the
+    remainder of the £3.4bn all-claims total — the same triangle discipline, with the
+    <a href="#fire">weak leg named</a>.</p>
 
-    <div class="callout" style="margin:16px 0"><b>These are six-peril premiums, not home
-    insurance premiums.</b> A real policy also covers fire and
+    <div class="callout" style="margin:16px 0"><b>These are seven-peril premiums, not home
+    insurance premiums.</b> A real policy also covers
     accidental damage — plus expenses,
     commission and profit. Expect the numbers here to be a fraction of what you actually
     pay, and don't compare them directly.</div>
@@ -800,7 +857,12 @@ __NAV__
     Escape of water's loading is derived the same way but from a very different record:
     winter 2010's six-week freeze roughly <b>doubled</b> the year's burst-pipe bill, which
     pins its loading at <b>2.6%</b> — twenty times theft's, and the reason escape of
-    water buys real capital where theft buys almost none.</p>
+    water buys real capital where theft buys almost none. Fire's is derived from
+    forty-five years of Home Office dwelling-fire counts: once the secular decline is
+    removed, the residuals are ±2–3% a year with no spike years at all, which pins its
+    loading at <b>0.004%</b> — effectively zero, thirty times below even theft's. The
+    three attritional perils thus span the whole loading spectrum, each pinned by its
+    own record rather than by assumption.</p>
     <p>The transformation preserves each district's marginal distribution exactly, so
     <b>expected loss is untouched</b> — bit-for-bit, whatever the loading. But it is not
     cosmetic: <b>capital is allocated from the portfolio tail measured in this view</b>, so
@@ -937,7 +999,10 @@ __NAV__
         <tr><td><strong>National Records of Scotland</strong></td><td>Scotland's Census 2022 household total</td></tr>
         <tr><td><strong>police.uk</strong></td><td>Street-level crime archive, latest 36 months — burglary points (England, Wales, BTP)</td><td>Theft</td></tr>
         <tr><td><strong>Scottish Government</strong></td><td>Recorded Crime in Scotland 2024–25 — national housebreaking count</td><td>Theft (Scotland override)</td></tr>
-        <tr><td><strong>ABI</strong></td><td>Domestic claims paid by peril, 2025 (theft: 2018, the last published; escape of water: the "£1.8m a day" figure)</td><td>Loss calibration</td></tr>
+        <tr><td><strong>ABI</strong></td><td>Domestic claims paid by peril, 2025 (theft: 2018, the last published; escape of water: the "£1.8m a day" figure; fire: average-payout quote only)</td><td>Loss calibration</td></tr>
+        <tr><td><strong>Home Office / MHCLG</strong></td><td>Fire statistics: incident-level low-level-geography dataset (LSOA), FIRE0201 national series to 1981/82</td><td>Fire frequency, geography and loading</td></tr>
+        <tr><td><strong>SFRS / statistics.gov.scot</strong></td><td>Dwelling fires by council area</td><td>Fire geography (Scotland)</td></tr>
+        <tr><td><strong>Welsh Government / stats.gov.wales</strong></td><td>Primary dwelling fires by fire and rescue authority</td><td>Fire geography (Wales)</td></tr>
       </table>
     </div>
     <p class="note">A note on honesty in sourcing: HadUK-Grid's NetCDF files on CEDA require a
@@ -964,6 +1029,7 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 .venv/Scripts/python scripts/fetch_history.py        # 35yr ERA5 drivers, for the backtest
 .venv/Scripts/python scripts/fetch_households.py     # census households -> exposure weights
 .venv/Scripts/python scripts/fetch_burglary.py       # police.uk burglary points (1.7 GB archive, resumable)
+.venv/Scripts/python scripts/fetch_fires.py          # dwelling fires: England LSOA + Scotland + Wales
 
 .venv/Scripts/python scripts/build_model.py          # scores + vine simulation  (~15 min)
 .venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs         (~25 min)
