@@ -430,6 +430,63 @@ districts**, used as the exposure weight throughout.
       CSEW (no EoW analogue); per-insurer claim-rate maps (marketing
       material, no methodology).
 
+27. **Home Office dwelling-fire incidents + ABI fire anchors — the
+    fire peril's sources** (assembled 2026-08-17). Unlike EoW, fire
+    has a REAL open spatial driver at sub-district resolution:
+    - **Spatial driver (England): the incident-level "Low level
+      geography dataset"** under
+      `gov.uk/government/statistics/fire-statistics-incident-level-datasets`
+      (MHCLG since Apr 2025, previously Home Office) — one row per
+      incident with `LSOA_CODE` and `INCIDENT_TYPE`; filter
+      `Primary fire - dwelling` (dwellings are NOT split by motive at
+      incident level; use all — deliberate dwelling fires are insured
+      and spatially informative). Two ODS files cover 2017/18→present
+      (9.6 MB + 29 MB); the current file's 2025/26 sheet has
+      `Not known` LSOAs — **use complete financial years only**
+      (8 available: 2017/18–2024/25). **Quirk: pandas' odf engine
+      takes >10 min on the 9.6 MB file even for nrows=5** — parse
+      `content.xml` from the zip directly, and mind
+      `table:number-columns-repeated` compression when counting.
+      LSOA→district weighting via ONSPD, as for households.
+    - **Devolved:** Wales — StatsWales "Fires ... by area and
+      financial year" cubes (OData/JSON, dwelling fires by FRA/LA);
+      Scotland — statistics.gov.scot "Fire - Type of Incident"
+      (accidental dwelling fires down to datazone). Better than
+      theft's flat-Scotland override: both nations have real
+      sub-national counts.
+    - **Level anchor (triangle, no direct figure exists):** the ABI
+      publishes NO current domestic fire split — the 2025 full-year
+      release (£3.4bn/560k home claims) and Q1 2026 release were both
+      checked; the latter only says "lower fire and explosion payouts
+      were the main driver of the decline", never a number.
+      Frequency leg: **FIRE0201** (one xlsx, all three GB nations):
+      2024/25 attended dwelling fires **31,001** (England 25,465,
+      Scotland 4,104, Wales 1,432) → **0.20%/policy** on the tracker's
+      15.5m, treating attended count as claim-count proxy (unattended
+      small claims vs uninsured/below-excess attended fires roughly
+      offset — documented judgment). Severity leg: the ABI-attributed
+      **"average payout for fire damage £10,200–£11,000"** (undated,
+      ~2019 vintage, still cited 2023–25 by AA/GoCompare/Tempest);
+      indexed ~+27% for claims inflation → **sev_fire ≈ £14,000**.
+      Implied level ≈ **£434m/yr ≈ 12.8%** of 2025 home paid — inside
+      the remainder envelope after EoW £657m, weather £758m,
+      subsidence £307m, theft ~£450m and AD.
+    - **Year-to-year variation (pins W_FIRE):** FIRE0201's national
+      series runs 1981/82–2025/26. Raw CV 0.246 is ALL secular decline
+      (58k→25k); detrended year-on-year residuals are **±2–3%** with
+      no spike years (even the 2022 heatwave summer barely registers
+      at annual grain) — so fire's systemic loading comes out near
+      ZERO, below theft's. That is a finding, not a shortcut: fire is
+      the closest thing in the book to a purely idiosyncratic peril.
+    - **Rejected:** aggregator per-peril percentages (mutually
+      inconsistent — "fire is 17% of claims" contradicts every
+      severity figure); Statista per-peril paid series (paywalled);
+      guessed FIRE0102 asset URL (dead — always take URLs from the
+      statistical-data-sets page). **Quirk:** abi.org.uk moved to
+      `/media-hub/` — the old `/news/news-articles/...` URLs 404 for
+      WebFetch and render an empty Next.js shell in a real browser;
+      re-find articles under the new path instead.
+
 ## Blocked on non-open data — what each would unblock
 
 Kept here so nobody re-derives the shopping list. None of these have an

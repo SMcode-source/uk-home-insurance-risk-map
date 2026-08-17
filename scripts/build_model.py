@@ -57,6 +57,7 @@ from scores_real import (subsidence_score, weather_from_metoffice,
                          flood_from_agencies, groundwater_from_ea,
                          erosion_from_ncerm, sw_depth_severity, load_country,
                          theft_from_police, frost_from_metoffice,
+                         fires_from_mhclg,
                          flood_future, flood_score_from_fractions,
                          EROSION_HORIZON_YEARS)
 
@@ -95,10 +96,12 @@ OUTPUT_COLUMNS = [
     "gust_rp50",
     "f_high", "f_low", "sw_high", "sw_low", "gw_frac",
     "sw_sev", "sw_depth_m", "th_rate", "frost_days", "eow_rate",
+    "fire_rate",
     "er_score", "er_smp55", "er_smp105", "er_nfi55", "er_nfi105",
     "er_smp105_lo", "er_smp105_hi", "er_nfi105_lo", "er_nfi105_hi",
     "er_gi",
-    "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow", "el_er",
+    "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow", "el_fire",
+    "el_er",
     "el_total", "el_total5", "var995_vine", "tvar99_vine",
     "tvar99_gauss",
     "tvar99_indep", "tvar99_vine5", "tvar99_indep5", "tvar99_euler",
@@ -118,7 +121,8 @@ OUTPUT_COLUMNS = [
 # Returned by simulate(). Several of these are not in OUTPUT_COLUMNS and are
 # deliberately kept anyway - see the note on var995_* in simulate().
 SIMULATED_COLUMNS = {
-    "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow", "el_er",
+    "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow", "el_fire",
+    "el_er",
     "el_total",
     "el_total5",
     "var995_vine", "var995_gauss", "var995_indep", "tvar99_vine",
@@ -266,6 +270,21 @@ ABI = dict(
     # vintage mixing is the documented envelope on the EoW LEVEL, same
     # as theft. See DATA_SOURCES.md #26.
     eow_paid=657e6, sev_eow=4_000.0,
+    # Fire. No public per-peril total exists at all any more (the 2025
+    # full-year and Q1 2026 ABI releases were checked - fire appears
+    # only as "lower fire and explosion payouts were the main driver of
+    # the decline", never a number), so the level is a TRIANGLE with
+    # each leg from a different source: frequency from Home Office
+    # FIRE0201 - 31,001 attended GB dwelling fires in 2024/25 over the
+    # tracker's 15.5m policies = 0.20%/policy, treating attended count
+    # as claim-count proxy (unattended small claims vs uninsured/
+    # below-excess attended fires roughly offset); severity from the
+    # ABI-attributed "average payout for fire damage £10,200-£11,000"
+    # (undated, ~2019 vintage, still cited 2023-25), indexed ~+27% for
+    # claims inflation to £14,000. The implied £434m/yr is 12.8% of
+    # 2025's £3.4bn home paid - inside the remainder envelope after
+    # EoW, weather, subsidence and theft. See DATA_SOURCES.md #27.
+    fire_paid=434e6, sev_fire=14_000.0,
     # Coastal erosion is a TOTAL loss of the property, not a repair, so its
     # severity is a sum insured rather than an average claim. There is no
     # ABI figure to calibrate against, because gradual erosion is excluded
@@ -280,17 +299,19 @@ ABI_TARGET_FREQ = {
     "sub": ABI["subsidence_paid"] / ABI["sev_subsidence"] / POLICIES,
     "th": ABI["theft_paid"] / ABI["sev_theft"] / POLICIES,
     "eow": ABI["eow_paid"] / ABI["sev_eow"] / POLICIES,
+    "fire": ABI["fire_paid"] / ABI["sev_fire"] / POLICIES,
 }
 ABI_LOSS_PER_POLICY = (ABI["storm_paid"] + ABI["flood_paid"]
                        + ABI["subsidence_paid"]
-                       + ABI["theft_paid"] + ABI["eow_paid"]) / POLICIES
+                       + ABI["theft_paid"] + ABI["eow_paid"]
+                       + ABI["fire_paid"]) / POLICIES
 
 # lognormal median that gives the target MEAN for a given sigma
 _median_for_mean = lambda mean, sigma: mean / np.exp(sigma ** 2 / 2)
 
 # One multiplier per peril, set by calibrate_frequency() before simulating.
 FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0, "th": 1.0,
-              "eow": 1.0}
+              "eow": 1.0, "fire": 1.0}
 GW_SHARE_OF_FLOOD = 0.10      # groundwater not published separately
 
 
@@ -303,7 +324,7 @@ def calibrate_frequency(gdf):
     """
     global FREQ_SCALE
     FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0, "th": 1.0,
-                  "eow": 1.0}
+                  "eow": 1.0, "fire": 1.0}
     m = marginal_params(_fields(gdf))
     # ABI totals are national, so the average must be exposure-weighted:
     # a district with 40,000 households counts 40,000 times more than one
@@ -314,12 +335,13 @@ def calibrate_frequency(gdf):
            "fl": float(np.average(m["p_fl"], weights=w)),
            "gw": float(np.average(m["p_gw"], weights=w)),
            "th": float(np.average(m["p_th"], weights=w)),
-           "eow": float(np.average(m["p_eow"], weights=w))}
-    for k in ("sub", "wx", "fl", "th", "eow"):
+           "eow": float(np.average(m["p_eow"], weights=w)),
+           "fire": float(np.average(m["p_fire"], weights=w))}
+    for k in ("sub", "wx", "fl", "th", "eow", "fire"):
         FREQ_SCALE[k] = ABI_TARGET_FREQ[k] / raw[k]
     # groundwater has no published total; peg it to a share of flood
     FREQ_SCALE["gw"] = (GW_SHARE_OF_FLOOD * ABI_TARGET_FREQ["fl"]) / raw["gw"]
-    for k in ("wx", "fl", "sub", "th", "eow"):
+    for k in ("wx", "fl", "sub", "th", "eow", "fire"):
         print(f"  {k:4} frequency {raw[k]:.3%} -> ABI {ABI_TARGET_FREQ[k]:.3%}"
               f"  (x{FREQ_SCALE[k]:.3f})")
     print(f"  gw   frequency pegged at {GW_SHARE_OF_FLOOD:.0%} of flood")
@@ -372,6 +394,20 @@ W_EOW = 0.026
 # appliance failure has no open spatial predictor until Phase 2 gives
 # dwelling age (EPC) and a commercial denominator (VOA).
 EOW_FREEZE_SHARE = 0.15
+# Fire's loading comes from the same derivation as theft's and EoW's,
+# and lands even lower than theft. The FIRE0201 national series
+# (1981/82-2025/26) shows a steady secular DECLINE of -2.5%/yr - a
+# trend, not a shock - and once that is removed the year-on-year
+# residuals over the consistent-methodology era (2010/11-2024/25 GB)
+# have CV = 0.020, worst single year -3.7%. Even the 2022 heatwave
+# summer barely registers at annual grain. Targeting that CV:
+#   CV = sqrt(w) * phi(z_p)/p, and at p = 0.20% phi(z_p)/p = 3.17
+#   -> sqrt(w) = 0.020/3.17 -> w = 0.000039
+# Thirty-three times below theft's loading: fire is the closest thing
+# in the book to a purely idiosyncratic peril, so it buys essentially
+# NO systemic capital - it diversifies the cat tail instead. That is a
+# finding the data forces, not a modelling shortcut.
+W_FIRE = 0.000039
 
 
 def calibrate_spatial(gdf, target_ratio=TAIL_FREQ_RATIO):
@@ -471,6 +507,13 @@ def marginal_params(f):
     # clip during the calibration pass and come out 2x hot with the
     # geography flattened.
     p_eow = f["eow"]
+    # Fire: fire_rate is precomputed in main() as anchor level x the
+    # district's dwelling-fire relativity (MHCLG incident data), for
+    # the same reason as eow_rate - the relativity's normalisation
+    # needs households, and a per-chunk mean here would make the
+    # marginal depend on batch composition. It arrives as a RATE
+    # (~0.2%), so the 0.5 clip below never bites during calibration.
+    p_fire = f["fire"]
 
     s_sub, s_wx, s_fl, s_gw, s_er = 0.90, 1.10, 0.90, 0.80, 0.35
     # Theft severity spread: most claims are a few thousand (forced entry
@@ -484,6 +527,16 @@ def marginal_params(f):
     # an unattended leak. sigma=1.0 (same shape as theft); the MEAN is
     # pinned to the £4,000 the anchor triangle implies.
     s_eow = 1.00
+    # Fire severity spread: the widest of the attritional perils. The
+    # £14,000 mean mixes a majority of contained kitchen/appliance
+    # fires (low thousands: smoke damage, one room) with a real tail
+    # of whole-room and whole-house losses reaching six figures.
+    # sigma=1.3 puts ~2% of claims above £100k - consistent with the
+    # severe-fire share in Home Office damage-area data (FIRE0204:
+    # most dwelling fires are confined to the item or room of origin,
+    # a few percent spread further). The MEAN stays pinned to the
+    # anchor regardless.
+    s_fire = 1.30
     sev_sub = dict(mu=np.log(_median_for_mean(ABI["sev_subsidence"], s_sub)),
                    sigma=s_sub)
     sev_wx = dict(mu=np.log(_median_for_mean(ABI["sev_weather"], s_wx)),
@@ -509,6 +562,8 @@ def marginal_params(f):
                   sigma=s_th)
     sev_eow = dict(mu=np.log(_median_for_mean(ABI["sev_eow"], s_eow)),
                    sigma=s_eow)
+    sev_fire = dict(mu=np.log(_median_for_mean(ABI["sev_fire"], s_fire)),
+                    sigma=s_fire)
 
     k = FREQ_SCALE
     return dict(
@@ -516,8 +571,9 @@ def marginal_params(f):
         p_gw=p_gw * k["gw"], p_er=p_er,     # erosion is not ABI-calibrated
         p_th=np.minimum(p_th * k["th"], 0.5),
         p_eow=np.minimum(p_eow * k["eow"], 0.5),
+        p_fire=np.minimum(p_fire * k["fire"], 0.5),
         sev_sub=sev_sub, sev_wx=sev_wx, sev_fl=sev_fl, sev_gw=sev_gw,
-        sev_er=sev_er, sev_th=sev_th, sev_eow=sev_eow)
+        sev_er=sev_er, sev_th=sev_th, sev_eow=sev_eow, sev_fire=sev_fire)
 
 
 def _fields(src):
@@ -526,7 +582,8 @@ def _fields(src):
             [("sub", "sub_score"), ("wx", "wx_score"), ("f_high", "f_high"),
              ("f_low", "f_low"), ("sw_high", "sw_high"), ("sw_low", "sw_low"),
              ("gw_frac", "gw_frac"), ("sw_sev", "sw_sev"), ("er", "er_frac"),
-             ("th", "th_rate"), ("eow", "eow_rate")]}
+             ("th", "th_rate"), ("eow", "eow_rate"),
+             ("fire", "fire_rate")]}
 
 
 def inv_mixed_cdf(u, p, mu, sigma):
@@ -732,10 +789,15 @@ def simulate(district_df):
         # leg, appended AFTER U_th so the five published perils simulate
         # bit-identically and the evidence diff stays pure.
         "U_eow": rng.uniform(0, 1, N_SIM),
+        # Fire: the same discipline again - independent leg, appended
+        # AFTER U_eow so the six published perils simulate
+        # bit-identically with or without it.
+        "U_fire": rng.uniform(0, 1, N_SIM),
     }
 
     out = {k: [] for k in [
-        "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow", "el_er",
+        "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow", "el_fire",
+        "el_er",
         "el_total",
         "el_total5", "var995_vine",
         "var995_gauss", "var995_indep", "tvar99_vine", "tvar99_gauss",
@@ -858,13 +920,21 @@ def simulate(district_df):
         l_eow = inv_mixed_cdf(bc("U_eow"),
                               np.broadcast_to(m["p_eow"], u_w.shape),
                               **m["sev_eow"])
-        tot_v = ls + lw + lf + lg + l_th + l_eow
+        # Fire: independent leg like theft. Dwelling fires have no
+        # weather root at all (the FIRE0201 residuals barely move even
+        # in heatwave years), so independence is not an approximation
+        # here - it is what the data shows.
+        l_fire = inv_mixed_cdf(bc("U_fire"),
+                               np.broadcast_to(m["p_fire"], u_w.shape),
+                               **m["sev_fire"])
+        tot_v = ls + lw + lf + lg + l_th + l_eow + l_fire
         tot5_v = tot_v + le
         tot_n = insured(losses(*sample_gaussian5(t_ws, t_wf, t_wg, t_we,
-                                                 base)[:4])) + l_th + l_eow
+                                                 base)[:4])) + l_th + l_eow \
+            + l_fire
         parts_i = losses(u_w, bc("U_ind_F"), bc("U_ind_G"), bc("U_ind_S"),
                          bc("U_ind_E"))
-        tot_i = insured(parts_i) + l_th + l_eow
+        tot_i = insured(parts_i) + l_th + l_eow + l_fire
         tot5_i = tot_i + parts_i[4]
 
         # year view: systemic factor + idiosyncratic district noise
@@ -905,7 +975,14 @@ def simulate(district_df):
                 # bill (winter 2010), so unlike theft it earns only a
                 # partial diversification credit against the cat tail.
                 + cond_expected(bc("U_eow"), m["p_eow"], m["sev_eow"],
-                                W_EOW))
+                                W_EOW)
+                # Fire joins capital with a near-zero loading: no
+                # systemic fire years exist in the record, so its
+                # contribution to the worst-1% years is its mean - the
+                # full diversification credit of a genuinely
+                # idiosyncratic line.
+                + cond_expected(bc("U_fire"), m["p_fire"], m["sev_fire"],
+                                W_FIRE))
         year_loss[start:start + len(chunk)] = cond.astype(np.float32)
         # independence year view: same idiosyncratic noise (common random
         # numbers), systemic factors independent across perils
@@ -955,6 +1032,13 @@ def simulate(district_df):
         el_eow = (m["p_eow"] * np.exp(m["sev_eow"]["mu"]
                                       + m["sev_eow"]["sigma"] ** 2 / 2)).ravel()
         loc["el_eow"] = (el_eow)
+        # Fire: one shared U_fire stream, so analytic EL for the same
+        # reason - and with p ~ 0.2% and sigma 1.3 the draw-mean noise
+        # would be worse than theft's was.
+        el_fire = (m["p_fire"] * np.exp(m["sev_fire"]["mu"]
+                                        + m["sev_fire"]["sigma"] ** 2 / 2)
+                   ).ravel()
+        loc["el_fire"] = (el_fire)
         # Erosion's expected loss is taken ANALYTICALLY, not from the draws.
         # Its annual probability is ~1.5e-5 for a typical coastal district,
         # so 20,000 years give well under one event: the simulated mean
@@ -972,7 +1056,7 @@ def simulate(district_df):
         # scaling was solved against) with the analytic theft leg - the
         # same construction el_total5 has always used for erosion.
         loc["el_total"] = ((ls + lw + lf + lg).mean(axis=1)
-                           + el_th + el_eow)
+                           + el_th + el_eow + el_fire)
         loc["el_total5"] = (loc["el_total"] + el_er)
         # var995_vine is published; the gauss and indep siblings are NOT in
         # OUTPUT_COLUMNS and nothing downstream reads them. They are kept
@@ -1230,6 +1314,19 @@ def main():
     gdf["eow_rate"] = ABI_TARGET_FREQ["eow"] * (
         (1.0 - EOW_FREEZE_SHARE)
         + EOW_FREEZE_SHARE * gdf["frost_days"] / fmean)
+
+    print("scoring fire from MHCLG dwelling-fire incidents...")
+    # fire_rate = anchor frequency x the district's dwelling-fire
+    # relativity. Same division of labour as eow_rate: the relativity
+    # is normalised HERE (its exposure-weighted mean is exactly 1), so
+    # the column lands on the anchor level and calibrate_frequency
+    # re-pins it (FREQ_SCALE["fire"] solves to 1.0). The raw input is
+    # the attended-fire rate per household; the attended-to-claim
+    # propensity cancels in the normalisation, so it never appears.
+    fire_raw = fires_from_mhclg(gdf["name"].values,
+                                gdf["households"].values)
+    gdf["fire_rate"] = ABI_TARGET_FREQ["fire"] * fire_raw / np.average(
+        fire_raw, weights=gdf["households"])
 
     check_scored_columns(gdf)
 

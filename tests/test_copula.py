@@ -215,7 +215,7 @@ def fields(**over):
     """Default marginal_params inputs, overridable per test."""
     f = dict(sub=0.5, wx=0.5, f_high=0.1, f_low=0.2, sw_high=0.1,
              sw_low=0.2, gw_frac=0.1, sw_sev=1.0, er=0.0, th=0.009,
-             eow=1.0)
+             eow=1.0, fire=0.002)
     f.update(over)
     return {k: np.array([v], dtype=float) for k, v in f.items()}
 
@@ -303,10 +303,10 @@ def test_erosion_is_not_touched_by_the_abi_frequency_scaling():
     old = dict(bm.FREQ_SCALE)
     try:
         bm.FREQ_SCALE = {"sub": 3.0, "wx": 3.0, "fl": 3.0, "gw": 3.0,
-                         "th": 3.0, "eow": 3.0}
+                         "th": 3.0, "eow": 3.0, "fire": 3.0}
         scaled = float(bm.marginal_params(fields(er=0.1))["p_er"][0])
         bm.FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0,
-                         "th": 1.0, "eow": 1.0}
+                         "th": 1.0, "eow": 1.0, "fire": 1.0}
         plain = float(bm.marginal_params(fields(er=0.1))["p_er"][0])
     finally:
         bm.FREQ_SCALE = old
@@ -381,6 +381,7 @@ def test_erosion_expected_loss_is_analytic_not_simulated(monkeypatch):
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.24, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.010, 0.005], "eow_rate": [0.011, 0.009],
+        "fire_rate": [0.002, 0.001],
     })
     sim, _ = bm.simulate(df)
 
@@ -412,6 +413,7 @@ def test_theft_expected_loss_is_analytic_not_simulated(monkeypatch):
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.010, 0.0], "eow_rate": [0.0, 0.0],
+        "fire_rate": [0.0, 0.0],
     })
     sim, _ = bm.simulate(df)
 
@@ -422,6 +424,66 @@ def test_theft_expected_loss_is_analytic_not_simulated(monkeypatch):
     four = (sim["el_sub"][0] + sim["el_wx"][0]
             + sim["el_fl"][0] + sim["el_gw"][0])
     assert abs((sim["el_total"][0] - four) - sim["el_th"][0]) < 1e-6
+
+
+def test_fire_severity_mean_hits_the_anchor_average():
+    """sev_fire's lognormal MEAN equals the anchor-triangle average claim
+    (£14,000) regardless of the sigma chosen for the spread."""
+    m = bm.marginal_params(fields())
+    mean = float(np.exp(m["sev_fire"]["mu"] + m["sev_fire"]["sigma"] ** 2 / 2))
+    assert abs(mean / bm.ABI["sev_fire"] - 1) < 1e-6
+
+
+def test_fire_frequency_is_the_dwelling_rate_scaled():
+    """p_fire is the precomputed fire_rate (anchor level x dwelling-fire
+    relativity, built in main() where the exposure weights live) times
+    the ABI level scale and nothing else - marginal_params must not
+    renormalise it, because it runs on batches and a per-chunk mean
+    would depend on chunk membership. This is the guard the EoW wiring
+    added after the 0.5-clip near-miss: feed a RATE, never an O(1)
+    relativity."""
+    old = dict(bm.FREQ_SCALE)
+    try:
+        bm.FREQ_SCALE = dict(old, fire=0.9)
+        m = bm.marginal_params(fields(fire=0.003))
+        assert abs(float(m["p_fire"][0]) - 0.003 * 0.9) < 1e-12
+        # and the safety clip cannot produce a probability above one half
+        m = bm.marginal_params(fields(fire=80.0))
+        assert float(m["p_fire"][0]) == 0.5
+    finally:
+        bm.FREQ_SCALE = old
+
+
+def test_fire_expected_loss_is_analytic_not_simulated(monkeypatch):
+    """Fire shares the theft/EoW failure mode - ONE U_fire stream across
+    every district - and at p ~ 0.2% with sigma 1.3 a simulated mean
+    would be noisier than either. simulate() must return
+    p_fire * E[severity] exactly, at any simulation length, and
+    el_total must carry the analytic leg."""
+    import pandas as pd
+
+    monkeypatch.setattr(bm, "N_SIM", 200)
+    monkeypatch.setattr(bm, "BATCH", 8)
+    df = pd.DataFrame({
+        "sub_score": [0.5, 0.2], "wx_score": [0.5, 0.4],
+        "fl_score": [0.3, 0.6], "gw_score": [0.2, 0.1],
+        "er_score": [0.0, 0.0],
+        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05],
+        "sw_high": [0.05, 0.01], "sw_low": [0.1, 0.03],
+        "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
+        "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
+        "th_rate": [0.0, 0.0], "eow_rate": [0.0, 0.0],
+        "fire_rate": [0.0025, 0.0],
+    })
+    sim, _ = bm.simulate(df)
+
+    expected = 0.0025 * bm.FREQ_SCALE["fire"] * bm.ABI["sev_fire"]
+    assert abs(sim["el_fire"][0] - expected) / expected < 1e-9
+    assert sim["el_fire"][1] == 0.0                   # no exposure, no loss
+    # el_total = the four weather-peril draw means + the analytic fire leg
+    four = (sim["el_sub"][0] + sim["el_wx"][0]
+            + sim["el_fl"][0] + sim["el_gw"][0])
+    assert abs((sim["el_total"][0] - four) - sim["el_fire"][0]) < 1e-6
 
 
 def test_eow_expected_loss_is_analytic_not_simulated(monkeypatch):
@@ -443,6 +505,7 @@ def test_eow_expected_loss_is_analytic_not_simulated(monkeypatch):
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.0, 0.0], "eow_rate": [0.012, 0.0],
+        "fire_rate": [0.0, 0.0],
     })
     sim, _ = bm.simulate(df)
 
@@ -496,6 +559,8 @@ def test_capital_allocation_is_stable_across_seeds():
         # appended LAST: earlier draws keep their positions in the fixture
         # stream, so pre-EoW expectations in these tests stay valid
         "eow_rate": rng.uniform(0.005, 0.03, n),
+        # and fire after EoW, same discipline
+        "fire_rate": rng.uniform(0.001, 0.005, n),
     })
     n_sim, batch, seed = m.N_SIM, m.BATCH, m.RNG_SEED
     m.N_SIM, m.BATCH = 4000, 30
@@ -687,6 +752,8 @@ def test_thread_count_does_not_change_a_single_bit():
         # appended LAST: earlier draws keep their positions in the fixture
         # stream, so pre-EoW expectations in these tests stay valid
         "eow_rate": rng.uniform(0.005, 0.03, n),
+        # and fire after EoW, same discipline
+        "fire_rate": rng.uniform(0.001, 0.005, n),
     })
     keep = (bm.N_SIM, bm.BATCH, bm.N_THREADS)
     bm.N_SIM, bm.BATCH = 400, 25          # 5 batches
@@ -1228,6 +1295,7 @@ def test_simulate_returns_the_columns_the_map_and_site_read():
             "f_low": [0.1], "sw_high": [0.02], "sw_low": [0.05],
             "gw_frac": [0.05], "sw_sev": [1.0], "er_frac": [0.01],
             "households": [500.0], "th_rate": [0.009], "eow_rate": [0.011],
+            "fire_rate": [0.002],
         })
         sim, year = m.simulate(df)
     finally:
