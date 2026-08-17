@@ -254,6 +254,64 @@ end-to-end: the fire lessons (identity budget scales with legs,
 tolerance widened with the wiring, raw artifact uploaded before the
 gate) all held without being needed.
 
+## Phase 3 verdict (2026-08-18): the mechanism WORKS, the anchors DON'T EXIST
+
+Phase 3 was to split each district's premium into buildings and contents
+cover. **The engineering succeeded and the evidence failed.** Read this
+before anyone tries it again.
+
+**What works, and is committed** (`exp/buildings-contents`, c4b12a8): a
+fixed per-peril buildings fraction `SPLIT_BUILDINGS` decomposes both EL
+and Euler capital *exactly*, because `tot_v` and `cond` are linear sums
+of the eight per-peril arrays. Both covers condition on the SAME `bad`
+years — that is the correct Euler basis, since an insurer holds capital
+against the whole portfolio, not against one section of it. Proven
+empirically: on a 60-district synthetic frame all 30 pre-existing
+`simulate()` columns are **bit-identical** to main, three new columns
+appear, and both covers' bad-year margins are strictly positive so the
+`max(...,0)` capital floor cannot break additivity. Two tests guard it
+(`test_cover_split_is_a_pure_reweighting_of_the_same_losses`,
+`test_cover_split_fractions_are_shares`). **Rejected on the way:**
+splitting capital pro-rata by EL — buildings losses are cat-driven and
+contents idiosyncratic, so they earn very different diversification
+credits, which is the entire reason this model uses Euler.
+
+**Why it cannot ship.** No published UK source gives a peril x cover-type
+matrix (DATA_SOURCES #31). Anchors exist for four perils — theft ~25%
+buildings (ONS CSEW nature-of-crime damage share 24.2%), fire ~78% (Home
+Office cost-of-fire), subsidence ~100%, flood 48–66% (three contradictory
+conventions). **Storm, groundwater, escape of water and accidental damage
+have no anchor at all, and they are 43.2% of this model's claim cost** —
+escape of water alone is 25.1%, the largest single peril in the book.
+
+Sensitivity, computed against the model's own exposure-weighted claim mix:
+
+| assumption on the unanchored four | portfolio | buildings | contents |
+|---|---|---|---|
+| all contents (floor) | 36.9% bldg | £64.27 | £109.97 |
+| central guess | 67.2% bldg | £117.11 | £57.13 |
+| all buildings (ceiling) | 80.1% bldg | £139.61 | £34.63 |
+
+On a £174.24 premium the buildings figure ranges **£64 to £140**. That is
+not a model output, it is an opinion with a currency symbol in front of
+it — and it fails the house rule that killed Phase 2b: *a parameter
+without a published anchor does not ship*.
+
+**The one genuinely robust finding**, worth keeping: the *geography* of
+the split survives the uncertainty even though the *level* does not.
+Across 16 corner cases of the four unanchored perils, district rank
+correlation against the central case stays **0.94–0.99**. Which districts
+are contents-weighted is driven by peril mix, which the model knows well:
+city cores (LS2, EC4M, B2, EC3V ~0.44) are contents-weighted, rural and
+subsidence-exposed districts (PE16, BH31, PE35 ~0.77) buildings-weighted.
+A *relative* cover-mix presentation is therefore defensible where an
+absolute pounds split is not. **Not built — that is a user decision.**
+
+Recommended if resumed: present as a dose-response/sensitivity layer (the
+SUP_WEIGHT precedent), not a single shipped split. Or unblock it properly
+with the IFoA's withdrawn GI papers (`webarchive@actuaries.org.uk`) or a
+claims triangle.
+
 ## Phase 2 status (2026-08-17, later): 2a and 2c evidence COMPLETE, decisions pending
 
 Both experiment branches are built, verified and priced. NEITHER is
