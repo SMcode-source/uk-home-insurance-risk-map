@@ -881,3 +881,53 @@ def theft_from_police(names, households):
           f"/yr; cap {cap:.3%} (hh-weighted p99.9), "
           f"{clipped} commercial-core districts clipped")
     return rate
+
+
+def fires_from_mhclg(names, households):
+    """Annual attended dwelling fires per household per district
+    (MHCLG/Home Office incident-level data at LSOA for England,
+    council-level for Scotland, FRA-level for Wales - fetch_fires.py,
+    DATA_SOURCES.md #27).
+
+    Returns the RAW annual dwelling-fire rate per household. As with
+    theft, only the geography matters: main() normalises to a
+    relativity and pins the level to the fire anchor triangle, so the
+    attended-fire-to-claim propensity cancels and never needs to be
+    known.
+
+    Districts absent from fires.csv burned zero times in the source
+    window (a real possibility for the smallest rural districts over 8
+    years) and get rate 0 - but a file missing MANY districts is stale,
+    not sparse, and stops the run. Rates are capped at the
+    household-weighted 99.9th percentile: unlike theft there is no
+    commercial contamination (these are dwelling fires by definition),
+    but tiny-denominator districts still spike on a handful of
+    incidents, and the same deterministic cap the theft peril uses is
+    the guard.
+    """
+    path = os.path.join(DATA, "fires.csv")
+    if not os.path.exists(path):
+        raise SystemExit("data/fires.csv missing - run "
+                         "scripts/fetch_fires.py first "
+                         "(see DATA_SOURCES.md #27)")
+    table = {}
+    with open(path, newline="") as fh:
+        for row in csv.DictReader(fh):
+            table[row["name"]] = float(row["fires_yr"])
+    missing = [n for n in names if n not in table]
+    if len(missing) > 0.2 * len(names):
+        raise SystemExit(f"fires.csv is missing {len(missing)} of "
+                         f"{len(names)} districts (first: {missing[:5]}) - "
+                         "stale file? Rerun scripts/fetch_fires.py")
+    hh = np.maximum(np.asarray(households, dtype=float), 1.0)
+    rate = np.array([table.get(n, 0.0) for n in names]) / hh
+
+    o = np.argsort(rate, kind="stable")   # stable: ties keep file order,
+    cw = np.cumsum(hh[o])                 # so the cap is deterministic
+    cap = float(rate[o][np.searchsorted(cw, 0.999 * cw[-1])])
+    clipped = int((rate > cap).sum())
+    rate = np.minimum(rate, cap)
+    print(f"  fire: GB mean {np.average(rate, weights=hh):.4%}/yr; "
+          f"cap {cap:.4%} (hh-weighted p99.9), {clipped} districts "
+          f"clipped, {len(missing)} zero-fire districts")
+    return rate

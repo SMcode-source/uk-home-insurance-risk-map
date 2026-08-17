@@ -32,10 +32,13 @@ OUT = os.path.join(ROOT, "docs", "assets")
 # the map's rating-group ramp (dataviz blue, light -> dark)
 RAMP = ['#b7d3f6', '#9ec5f4', '#86b6ef', '#6da7ec', '#5598e7',
         '#3987e5', '#2a78d6', '#256abf', '#184f95', '#0d366b']
-# The four INSURED perils. Coastal erosion has its own hue on the site
-# (rose, --er) but is deliberately absent here: the favicon and card stand
-# for the premium model, and erosion is not part of the premium.
-PERIL = {'sub': '#eb6834', 'wx': '#2a78d6', 'fl': '#1baf7a', 'gw': '#6f5cc4'}
+# The INSURED perils (light-theme hues). Coastal erosion has its own hue
+# on the site (rose, --er) but is deliberately absent here: the favicon
+# and card stand for the premium model, and erosion is not part of the
+# premium. The favicon stays quartered in the four vine perils - seven
+# quadrants at 16px is noise - but the card's dot row carries all seven.
+PERIL = {'sub': '#eb6834', 'wx': '#2a78d6', 'fl': '#1baf7a', 'gw': '#6f5cc4',
+         'th': '#7a6115', 'eow': '#006d7d', 'fire': '#a4262c'}
 INK = '#0b0b0b'
 MUTED = '#6f6d67'
 SURFACE = '#fcfcfb'
@@ -64,27 +67,28 @@ def social_card(gdf):
                  linespacing=1.08, va="top")
     t.set_fontfamily(["Segoe UI", "DejaVu Sans", "sans-serif"])
 
-    sub = fig.text(0.055, 0.545,
-                   "Subsidence · Weather · Flood · Groundwater",
-                   fontsize=16.5, color=MUTED)
+    sub = fig.text(0.055, 0.565,
+                   "Subsidence · Weather · Flood · Groundwater\n"
+                   "Theft · Escape of water · Fire",
+                   fontsize=16.5, color=MUTED, linespacing=1.35, va="top")
     sub.set_fontfamily(["Segoe UI", "DejaVu Sans", "sans-serif"])
 
-    # four peril dots, echoing the site nav. Figure coordinates are not
+    # seven peril dots, echoing the site nav. Figure coordinates are not
     # square (12 x 6.3in), so a Circle would render as an ellipse - use an
     # Ellipse with the aspect baked into its height.
     from matplotlib.patches import Ellipse
     aspect = fig.get_figwidth() / fig.get_figheight()
     dia = 0.0125
     for i, c in enumerate(PERIL.values()):
-        fig.add_artist(Ellipse((0.0605 + i * 0.0235, 0.472),
+        fig.add_artist(Ellipse((0.0605 + i * 0.0235, 0.415),
                                width=dia, height=dia * aspect,
                                transform=fig.transFigure,
                                facecolor=c, edgecolor="none"))
 
     body = fig.text(
-        0.055, 0.40,
+        0.055, 0.345,
         "2,736 postcode districts, 26.4m households.\n"
-        "Four insured perils joined by a vine copula,\n"
+        "Seven insured perils, one dependence model,\n"
         "every hazard input open data.",
         fontsize=15.5, color="#52514e", linespacing=1.5, va="top")
     body.set_fontfamily(["Segoe UI", "DejaVu Sans", "sans-serif"])
