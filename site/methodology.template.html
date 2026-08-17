@@ -189,14 +189,16 @@ __NAV__
   </section>
 
   <section class="doc" id="perils">
-    <h2>The perils — seven insured, and one that is not</h2>
+    <h2>The perils — eight insured, and one that is not</h2>
     <p>Each hazard peril is scored 0–1 per district from real hazard data, then converted
     to an annual loss distribution: <b>Bernoulli(p) × LogNormal(μ, σ)</b> — at most one
     claim per policy per year, which is adequate at district granularity. Theft,
-    escape of water and fire skip the 0–1 score: theft's input is already a measured
-    burglary rate per household, escape of water's is a claim frequency built from the
-    ABI level and each district's air-frost days, and fire's is the district's own
-    dwelling-fire rate from eight years of attended incidents.</p>
+    escape of water, fire and accidental damage skip the 0–1 score: theft's input is
+    already a measured burglary rate per household, escape of water's is a claim
+    frequency built from the ABI level and each district's air-frost days, fire's is
+    the district's own dwelling-fire rate from eight years of attended incidents, and
+    accidental damage's is a claim frequency tilted by the census share of households
+    with dependent children.</p>
 
     <div class="tablewrap" style="margin:16px 0">
       <table class="data">
@@ -245,6 +247,12 @@ __NAV__
           <td>Home Office / SFRS / Welsh FRA incident data</td>
           <td>Dwelling fires per household — England at LSOA level, Scotland and Wales by local authority / FRA</td>
           <td class="num">0.03–0.56%/yr</td><td class="num">£6,000</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--ad)">Accidental damage</strong></td>
+          <td>Census 2021 (E&amp;W) / Scotland's Census 2022</td>
+          <td>Flat base plus a child-attributable slice scaled by the district's share of households with dependent children</td>
+          <td class="num">0.8–1.0%/yr</td><td class="num">£1,100</td>
         </tr>
         <tr>
           <td><strong style="color:var(--er)">Erosion</strong> <span class="pill">not insured</span></td>
@@ -354,7 +362,7 @@ __NAV__
     <h3 id="eow">Escape of water — a flat base with a freeze slice</h3>
     <p>Escape of water is the UK's most frequent home claim — the ABI puts it at
     <b>£1.8m a day</b>, about £657m a year, roughly 164,000 claims at ~£4,000 each. It
-    is also the hardest of the seven to give a geography: burst pipes and failed
+    is also the hardest of the eight to give a geography: burst pipes and failed
     appliances follow plumbing age and dwelling type, neither of which is open data at
     district level. Pretending otherwise would be invention, so the base frequency is
     deliberately <b>flat</b>.</p>
@@ -383,7 +391,7 @@ __NAV__
     percentage-of-premium figures — the dependence uplift, the climate-scenario
     uplift — fall again without any change to the flood or climate modelling.</p>
 
-    <h3 id="fire">Fire — the strongest geography of the attritional three</h3>
+    <h3 id="fire">Fire — the strongest geography of the attritional four</h3>
     <p>Fire is the opposite data problem to escape of water: the ABI no longer
     publishes a domestic fire total at all (recent releases fold it into an
     aggregate and say only that fire payouts "declined"), but the geography is
@@ -424,6 +432,54 @@ __NAV__
     more weather-independent expected loss in the denominator pulls every
     percentage-of-premium figure down again — nothing about the flood or
     climate modelling changed.</p>
+
+    <h3 id="ad">Accidental damage — the peril with no published total, ever</h3>
+    <p>Accidental damage completes the attritional four, and it is the extreme
+    case of fire's data problem: no UK body has <b>ever</b> published a domestic
+    AD payout total — not the ABI, not anyone. The level is therefore a triangle
+    with every leg documented: the ABI's <b>560,000</b> home claims settled in
+    2025; an at-home AD share of <b>24.5%</b> of those claims (a published
+    claims-mix table: 23.4% accidental damage at home plus 1.2% accidental loss
+    at home — the 6.5% <i>away-from-home</i> slice is deliberately excluded,
+    because that is personal-possessions cover, not the buildings-and-contents
+    policy this models); and Aviva's average AD payout, interpolated to
+    <b>£1,650</b> for 2025 from its published £1,148 (2022) and £1,869 (2026)
+    figures. Together: ~137,000 claims, 0.89% per policy, <b>~£227m a
+    year</b>. The cross-check is that two independent books agree on the
+    overall share — Aviva reports AD as 32% of its home claims, the
+    claims-mix table sums to 31%. The weakest leg is the severity
+    interpolation between two press-release vintages, and the methodology
+    says so.</p>
+    <p>The geography is deliberately the gentlest in the book. The only
+    demographic driver any insurer has published is Aviva's: children cause
+    <b>__AD_CHILD_PCT__%</b> of its accidental-damage claims. So the rate is
+    a flat base plus an __AD_CHILD_PCT__% slice scaled by each district's
+    census share of households with dependent children — Census 2021 at LSOA
+    level for England &amp; Wales, Scotland's Census 2022 at output-area
+    level, 27.3m households conserved through the postcode joins. That share
+    runs from __AD_SHARE_LO__% of households (__AD_LO_NAME__) to
+    __AD_SHARE_HI__% (__AD_HI_NAME__), so expected loss runs only from
+    <b>£__AD_LO__</b> to <b>£__AD_HI__</b> per policy around a mean of
+    <b>£__AD_EL__</b> — a driver that moves __AD_CHILD_PCT__% of claims
+    cannot honestly move the rate more than that. No winsorisation is
+    needed: a share of households is bounded by construction, and its
+    denominator is the same census the exposure weights come from.</p>
+    <p><b>Accidental damage buys no capital at all.</b> Its systemic ceiling
+    comes from the cleanest natural experiment on record: the 2020–21
+    lockdowns put the whole country at home for months — the largest
+    behavioural shock UK housing has had — and home AD claim declarations
+    moved by about <b>6%</b>. (The widely quoted "+39% accidental damage
+    after lockdown" is <i>motor</i> insurance, a trap documented in
+    DATA_SOURCES.md.) A 6% worst-shock pins the factor loading at
+    <b>0.012%</b>, effectively zero, so AD prices as pure expected loss.
+    Correlation with the four-peril catastrophe expected loss:
+    <b>__AD_CAT_CORR__</b>. The severity sigma is 0.90, the narrowest tail
+    of the attritional perils (~0.7% of claims above £10,000): dropped
+    televisions and stained carpets cluster tightly around the mean.</p>
+    <p class="note">The dilution note applies a fourth and final time:
+    ~£__AD_EL__ more weather-independent expected loss in the denominator
+    pulls every percentage-of-premium figure down once more — nothing about
+    the flood or climate modelling changed.</p>
   </section>
 
   <section class="doc" id="erosion">
@@ -531,14 +587,16 @@ __NAV__
     <b>C-vine with weather at the root</b>, because weather is the common driver: storms bring
     the rain that floods rivers and recharges aquifers, the same climate variability
     produces the droughts that shrink clay, and the same surges strip the coast.
-    <b>Theft, escape of water and fire are deliberately not vine dimensions</b>: burglary
-    has no meteorological driver, burst pipes answer to cold — the one weather axis a
-    storm-rooted vine does not carry — and dwelling fires follow deprivation and
-    dwelling type, not the storm track. All three are simulated as independent legs
+    <b>Theft, escape of water, fire and accidental damage are deliberately not vine
+    dimensions</b>: burglary has no meteorological driver, burst pipes answer to cold
+    — the one weather axis a storm-rooted vine does not carry — dwelling fires follow
+    deprivation and dwelling type, not the storm track, and accidental damage follows
+    the household itself. All four are simulated as independent legs
     alongside the vine, with their systemic behaviour handled by factor loadings
     instead — see <a href="#theft">the theft section</a>,
-    <a href="#eow">the escape-of-water section</a> and
-    <a href="#fire">the fire section</a>.</p>
+    <a href="#eow">the escape-of-water section</a>,
+    <a href="#fire">the fire section</a> and
+    <a href="#ad">the accidental-damage section</a>.</p>
 
     <div class="diagram-card">
       <!-- Three panels, one per tree, so they can sit in a row on a wide
@@ -644,9 +702,11 @@ __NAV__
             <td class="num">£4,000</td><td class="num">~164,000</td><td class="num">1.06%</td></tr>
         <tr><td><strong style="color:var(--fire)">Fire</strong></td><td class="num">~£434m <small>(triangle)</small></td>
             <td class="num">£14,000</td><td class="num">~31,000</td><td class="num">0.20%</td></tr>
+        <tr><td><strong style="color:var(--ad)">Accidental damage</strong></td><td class="num">~£227m <small>(triangle)</small></td>
+            <td class="num">£1,650</td><td class="num">~137,000</td><td class="num">0.89%</td></tr>
       </table>
     </div>
-    <p class="note">Over ~15.5m policies (ABI premium-tracker coverage), these seven perils
+    <p class="note">Over ~15.5m policies (ABI premium-tracker coverage), these eight perils
     come to <b>£__MEAN_EL__</b> per policy per year — <b>__EL_CLAIMS_SHARE__%</b> of the
     £219 that all home claims cost. Groundwater is not reported separately by the ABI, so
     it is a documented assumption rather than a calibration. Theft's paid figure is
@@ -660,11 +720,13 @@ __NAV__
     has <b>no published total at all</b>: its £434m is claim counts the fire services
     actually attended times the ABI's average payout, sanity-checked against the
     remainder of the £3.4bn all-claims total — the same triangle discipline, with the
-    <a href="#fire">weak leg named</a>.</p>
+    <a href="#fire">weak leg named</a>. Accidental damage has never had one: its £227m
+    is the ABI claim count times the market's at-home AD share times Aviva's average
+    payout — a <a href="#ad">third documented triangle</a>, cross-checked by two
+    independent books agreeing on AD's share of all home claims.</p>
 
-    <div class="callout" style="margin:16px 0"><b>These are seven-peril premiums, not home
-    insurance premiums.</b> A real policy also covers
-    accidental damage — plus expenses,
+    <div class="callout" style="margin:16px 0"><b>These are eight-peril premiums, not home
+    insurance premiums.</b> A real policy also carries expenses,
     commission and profit. Expect the numbers here to be a fraction of what you actually
     pay, and don't compare them directly.</div>
 
@@ -860,9 +922,12 @@ __NAV__
     water buys real capital where theft buys almost none. Fire's is derived from
     forty-five years of Home Office dwelling-fire counts: once the secular decline is
     removed, the residuals are ±2–3% a year with no spike years at all, which pins its
-    loading at <b>0.004%</b> — effectively zero, thirty times below even theft's. The
-    three attritional perils thus span the whole loading spectrum, each pinned by its
-    own record rather than by assumption.</p>
+    loading at <b>0.004%</b> — effectively zero, thirty times below even theft's.
+    Accidental damage's comes from a natural experiment: the 2020–21 lockdowns — the
+    hardest a behavioural peril can plausibly be shocked — moved home AD declarations
+    by only ~6%, which pins its loading at <b>0.012%</b>, the second-smallest in the
+    book. The four attritional perils thus span the whole loading spectrum, each
+    pinned by its own record rather than by assumption.</p>
     <p>The transformation preserves each district's marginal distribution exactly, so
     <b>expected loss is untouched</b> — bit-for-bit, whatever the loading. But it is not
     cosmetic: <b>capital is allocated from the portfolio tail measured in this view</b>, so
@@ -1003,6 +1068,9 @@ __NAV__
         <tr><td><strong>Home Office / MHCLG</strong></td><td>Fire statistics: incident-level low-level-geography dataset (LSOA), FIRE0201 national series to 1981/82</td><td>Fire frequency, geography and loading</td></tr>
         <tr><td><strong>SFRS / statistics.gov.scot</strong></td><td>Dwelling fires by council area</td><td>Fire geography (Scotland)</td></tr>
         <tr><td><strong>Welsh Government / stats.gov.wales</strong></td><td>Primary dwelling fires by fire and rescue authority</td><td>Fire geography (Wales)</td></tr>
+        <tr><td><strong>ONS</strong> (via NOMIS)</td><td>Census 2021 TS003: households with dependent children by LSOA (England &amp; Wales)</td><td>Accidental damage geography</td></tr>
+        <tr><td><strong>National Records of Scotland</strong></td><td>Scotland's Census 2022 UV113 by output area + the postcode→OA index with household weights</td><td>Accidental damage geography (Scotland)</td></tr>
+        <tr><td><strong>Aviva / GoCompare</strong> <small>(published figures, not open data)</small></td><td>Average AD payout by year; claims-mix shares; children's share of AD claims</td><td>Accidental damage calibration and driver</td></tr>
       </table>
     </div>
     <p class="note">A note on honesty in sourcing: HadUK-Grid's NetCDF files on CEDA require a
@@ -1030,6 +1098,7 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 .venv/Scripts/python scripts/fetch_households.py     # census households -> exposure weights
 .venv/Scripts/python scripts/fetch_burglary.py       # police.uk burglary points (1.7 GB archive, resumable)
 .venv/Scripts/python scripts/fetch_fires.py          # dwelling fires: England LSOA + Scotland + Wales
+.venv/Scripts/python scripts/fetch_children.py       # census dependent-children shares -> AD driver
 
 .venv/Scripts/python scripts/build_model.py          # scores + vine simulation  (~15 min)
 .venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs         (~25 min)
