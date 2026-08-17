@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UK Home Insurance Risk Map — seven insured perils, one dependence model</title>
+<title>UK Home Insurance Risk Map — eight insured perils, one dependence model</title>
 <link rel="stylesheet" href="assets/site.css">
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
@@ -30,15 +30,16 @@
 
   <section class="hero">
     <div class="eyebrow">Geospatial risk modelling · open data</div>
-    <h1>Seven insured perils.<br>2,736 postcode districts.<br>One dependence model.</h1>
+    <h1>Eight insured perils.<br>2,736 postcode districts.<br>One dependence model.</h1>
     <p class="lede">A UK home-insurance risk model that scores every postcode district for
     <b>subsidence</b>, <b>weather damage</b>, <b>flood</b>, <b>groundwater flooding</b>,
-    <b>theft</b>, <b>escape of water</b> and <b>fire</b> — the weather-driven four joined
-    by a vine copula, because the expensive years are the ones where several perils strike at once;
-    theft and escape of water priced independently, because burglary does not arrive on
-    the storm track and burst pipes answer to cold snaps, not storms. <b>Coastal
-    erosion</b> is modelled alongside them but kept out of the premium, because no
-    standard policy covers it.</p>
+    <b>theft</b>, <b>escape of water</b>, <b>fire</b> and <b>accidental damage</b> —
+    the weather-driven four joined by a vine copula, because the expensive years are
+    the ones where several perils strike at once; the other four priced independently,
+    because burglary does not arrive on the storm track, burst pipes answer to cold
+    snaps, and kitchen fires and dropped televisions pay no attention to the sky at
+    all. <b>Coastal erosion</b> is modelled alongside them but kept out of the premium,
+    because no standard policy covers it.</p>
     <div class="perils">
       <span class="chip"><i style="background:var(--sub)"></i>Subsidence · BGS geology</span>
       <span class="chip"><i style="background:var(--wx)"></i>Weather · Met Office</span>
@@ -47,6 +48,7 @@
       <span class="chip"><i style="background:var(--th)"></i>Theft · police.uk</span>
       <span class="chip"><i style="background:var(--eow)"></i>Escape of water · Met Office frost</span>
       <span class="chip"><i style="background:var(--fire)"></i>Fire · Home Office incidents</span>
+      <span class="chip"><i style="background:var(--ad)"></i>Accidental damage · Census children</span>
       <span class="chip"><i style="background:var(--er)"></i>Erosion · EA NCERM · not insured</span>
     </div>
     <div class="cta">
@@ -59,7 +61,7 @@
     <div class="tiles">
       <div class="tile"><div class="k">Districts &middot; households</div><div class="v">2,736</div><div class="d">27.3m households (census-weighted)</div></div>
       <div class="tile"><div class="k">Simulated years</div><div class="v">20,000</div><div class="d">per district, seeded &amp; reproducible</div></div>
-      <div class="tile"><div class="k">Six-peril premium</div><div class="v">£177–136</div><div class="d">lowest to highest district</div></div>
+      <div class="tile"><div class="k">Eight-peril premium</div><div class="v">£192–150</div><div class="d">lowest to highest district</div></div>
       <div class="tile"><div class="k">Diversification credit</div><div class="v">98%</div><div class="d">portfolio vs standalone tail</div></div>
     </div>
     <p class="note" style="margin-top:14px">Separately, 352 districts sit on a
@@ -72,7 +74,7 @@
     Environment Agency's <b>climate-change flood extents</b> — calibration held fixed, so
     only the hazard map moves — shifts the technical premium by
     <b>+4%</b> across the 2,087 districts it covers, worst
-    TA9 at +60%. A scenario, not a forecast, and England only:
+    TA9 at +55%. A scenario, not a forecast, and England only:
     <a href="methodology.html#climate">what it does and does not mean</a>.</p>
   </section>
 
@@ -133,15 +135,15 @@
     <p class="lede" style="margin-bottom:8px">Findings that fall out of the simulation.</p>
 
     <div class="finding">
-      <div class="num">7%<small>of districts hide a &gt;2× spread</small></div>
+      <div class="num">5%<small>of districts hide a &gt;2× spread</small></div>
       <div>
         <h3>A postcode district can be two different risks</h3>
         <p>Re-running the whole model at <b>postcode-sector</b> resolution —
         <b>10,398</b> units instead of 2,736 — reproduces the district
         answer when aggregated back, but shows what the district average was hiding:
-        in <b>165 districts</b> (7%) the cheapest and
+        in <b>123 districts</b> (5%) the cheapest and
         dearest sectors differ by more than <b>2×</b>, and in HU1 by
-        <b>4.5×</b> (£99–£447). The
+        <b>4.1×</b> (£113–£461). The
         splits are physical: a river through half a district, a clay boundary under the
         other. <a href="sectors.html">See the sector map →</a></p>
       </div>
@@ -198,18 +200,20 @@
     </div>
 
     <div class="finding">
-      <div class="num">70%<small>of a home's claims cost</small></div>
+      <div class="num">77%<small>of a home's claims cost</small></div>
       <div>
         <h3>Each peril is pinned to what the market actually paid</h3>
         <p>Storm, flood and subsidence are calibrated separately to the ABI's 2025
         payouts — £244m, £312m and £307m across ~15.5m policies — theft to the last
         published theft total (~£450m), escape of water to the ABI's £1.8m-a-day
-        figure (~£657m a year), and fire to a documented triangle of Home Office
-        incident counts and the ABI's average fire payout (~£434m a year), rather than
-        to a single blended number. Together the seven
-        insured perils come to <b>£155</b> per policy per year,
-        70% of what all home claims cost. The rest of a real premium is
-        accidental damage and expenses — neither of which this models — plus
+        figure (~£657m a year), fire to a documented triangle of Home Office
+        incident counts and the ABI's average fire payout (~£434m a year), and
+        accidental damage to a triangle of its own — the ABI's claim count, the
+        market's at-home AD share and Aviva's average payout (~£227m a year) — rather
+        than to a single blended number. Together the eight
+        insured perils come to <b>£169</b> per policy per year,
+        77% of what all home claims cost. The rest of a real premium is
+        expenses — which this does not model — plus
         commission and profit.
         <a href="methodology.html#calibration">How the calibration works →</a></p>
       </div>
@@ -241,12 +245,12 @@
           <th class="num">Subs.</th><th class="num">Weather</th><th class="num">Flood</th><th class="num">Gr.water</th>
           <th>What drives it</th>
         </tr>
-        <tr><td><strong>BD1</strong></td><td>postcode area BD</td><td class="num"><strong>£432</strong></td><td class="num">0.28</td><td class="num">0.42</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + weather (65% / 21%)</td></tr>
-        <tr><td><strong>WC1E</strong></td><td>postcode area WC</td><td class="num"><strong>£407</strong></td><td class="num">1.00</td><td class="num">0.16</td><td class="num">0.60</td><td class="num">0.00</td><td>Subsidence-dominated (77% of E[loss])</td></tr>
-        <tr><td><strong>WC2R</strong></td><td>postcode area WC</td><td class="num"><strong>£399</strong></td><td class="num">0.53</td><td class="num">0.16</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + subsidence (57% / 33%)</td></tr>
-        <tr><td><strong>EC4R</strong></td><td>postcode area EC</td><td class="num"><strong>£397</strong></td><td class="num">0.53</td><td class="num">0.15</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + subsidence (63% / 29%)</td></tr>
-        <tr><td><strong>EC4V</strong></td><td>postcode area EC</td><td class="num"><strong>£389</strong></td><td class="num">0.53</td><td class="num">0.15</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + subsidence (60% / 30%)</td></tr>
-        <tr><td><strong>W1T</strong></td><td>postcode area W</td><td class="num"><strong>£388</strong></td><td class="num">0.90</td><td class="num">0.16</td><td class="num">0.59</td><td class="num">0.00</td><td>Subsidence-dominated (75% of E[loss])</td></tr>
+        <tr><td><strong>BD1</strong></td><td>postcode area BD</td><td class="num"><strong>£447</strong></td><td class="num">0.28</td><td class="num">0.42</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + weather (65% / 21%)</td></tr>
+        <tr><td><strong>WC1E</strong></td><td>postcode area WC</td><td class="num"><strong>£421</strong></td><td class="num">1.00</td><td class="num">0.16</td><td class="num">0.60</td><td class="num">0.00</td><td>Subsidence-dominated (77% of E[loss])</td></tr>
+        <tr><td><strong>WC2R</strong></td><td>postcode area WC</td><td class="num"><strong>£413</strong></td><td class="num">0.53</td><td class="num">0.16</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + subsidence (57% / 33%)</td></tr>
+        <tr><td><strong>EC4R</strong></td><td>postcode area EC</td><td class="num"><strong>£411</strong></td><td class="num">0.53</td><td class="num">0.15</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + subsidence (63% / 29%)</td></tr>
+        <tr><td><strong>EC4V</strong></td><td>postcode area EC</td><td class="num"><strong>£403</strong></td><td class="num">0.53</td><td class="num">0.15</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + subsidence (60% / 30%)</td></tr>
+        <tr><td><strong>W1T</strong></td><td>postcode area W</td><td class="num"><strong>£402</strong></td><td class="num">0.90</td><td class="num">0.16</td><td class="num">0.59</td><td class="num">0.00</td><td>Subsidence-dominated (75% of E[loss])</td></tr>
       </table>
     </div>
     <p class="note" style="margin-top:10px">Technical premium per policy per year =
@@ -276,8 +280,8 @@
     <div class="callout">
       <b>This is a demonstration model, not a priced product.</b> The hazard data is real and
       current, and each peril's loss level is pinned to published ABI payouts — but these are
-      <b>seven-peril technical premiums</b>, not home insurance premiums. A real policy also
-      covers accidental damage, and carries expenses,
+      <b>eight-peril technical premiums</b>, not home insurance premiums. A real policy
+      also carries expenses,
       commission and profit on top. The
       <a href="methodology.html#caveats">caveats section</a> is explicit about every assumption.
     </div>
@@ -345,6 +349,7 @@
            ['et', 'Theft', '--th'],
            ['ee', 'Esc. of water', '--eow'],
            ['efi', 'Fire', '--fire'],
+           ['ea', 'Acc. damage', '--ad'],
            ['c', 'Capital', '--ink-muted']]
             .filter(([k]) => d[k] > 0)
             .map(([k, name, col]) =>
@@ -357,6 +362,7 @@
            ['et', 'Theft', '--th'],
            ['ee', 'Esc. of water', '--eow'],
            ['efi', 'Fire', '--fire'],
+           ['ea', 'Acc. damage', '--ad'],
            ['c', 'Capital', '--ink-muted']]
             .filter(([k]) => d[k] > 0)
             .map(([k, name, col]) =>
