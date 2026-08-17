@@ -875,8 +875,18 @@ def test_published_geojson_satisfies_the_models_own_identities():
     el_eow = col("el_eow")
     if np.isnan(el_eow).all():
         el_eow = np.zeros(len(feats))
+    # el_fire likewise: absent reads as zero, a lost column fails by
+    # ~GBP 28. (The fire evidence run itself taught this the hard way:
+    # forgetting to add the new leg HERE failed the identity check at
+    # the END of the 55-minute rebuild, after the artifact upload was
+    # skipped - the whole run was lost. When adding a peril, this test
+    # is part of the wiring, not part of the copy pass.)
+    el_fire = col("el_fire")
+    if np.isnan(el_fire).all():
+        el_fire = np.zeros(len(feats))
     assert np.abs(el_total - (col("el_sub") + col("el_wx") + col("el_fl")
-                              + col("el_gw") + el_th + el_eow)).max() <= 0.30
+                              + col("el_gw") + el_th + el_eow
+                              + el_fire)).max() <= 0.30
     assert np.abs(col("el_total5") - (el_total + col("el_er"))).max() <= 0.25
     assert (capital >= -1e-9).all()
 
