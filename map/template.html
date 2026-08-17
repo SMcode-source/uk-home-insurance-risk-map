@@ -232,13 +232,14 @@ page</a>.</p>
   standard household policies exclude gradual erosion &mdash; so it is shown as blight and
   valuation exposure only. England only.</p>
   <p><b>Theft.</b> Three years of police.uk street-level burglary, located point by
-  point into each __UNIT__ and turned into an annual burglary rate per household. The
-  police category includes commercial premises, so rates are capped at the
-  exposure-weighted 99.9th percentile rather than letting shop-dense city cores carry
-  retail break-ins as household risk. Scotland is not on police.uk and takes the
-  national housebreaking rate from Recorded Crime in Scotland instead. The rate is
-  scaled to the ABI's national claim count, so the burglary&rarr;claim propensity
-  cancels out and never has to be assumed.</p>
+  point into each __UNIT__. The police category includes commercial premises, so the
+  rate divides by households <b>plus VOA non-domestic premises</b> &mdash; each __UNIT__
+  carries only the residential share of its break-ins, instead of shop-dense cores
+  wearing retail burglaries as household risk &mdash; with a 99.9th-percentile cap kept
+  as a tiny-denominator backstop. Scotland is not on police.uk and takes the national
+  housebreaking rate from Recorded Crime in Scotland instead. The rate is scaled to the
+  ABI's national claim count, so the burglary&rarr;claim propensity cancels out and
+  never has to be assumed.</p>
   <p><b>Escape of water.</b> A flat base &mdash; plumbing and appliance failure has no
   open spatial predictor &mdash; plus a freeze-attributable slice (~15% of claims) that
   scales with each __UNIT__'s <b>annual air-frost days</b> (Met Office HadUK-Grid
