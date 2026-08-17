@@ -6,24 +6,24 @@ just a pointer here)
 **Repo:** https://github.com/SMcode-source/uk-home-insurance-risk-map ·
 **Live:** https://smcode-source.github.io/uk-home-insurance-risk-map/
 
-## Status: complete, deployed, FIVE insured perils at TWO resolutions
+## Status: complete, deployed, SIX insured perils at TWO resolutions
 
 The site publishes the model at **two grains side by side**:
 `/map.html` over 2,736 postcode districts and `/sectors.html` over
 10,398 derived postcode sectors. One template builds both pages, so
 they cannot drift; the layout suite runs every map invariant against
-both. **75 tests** (two of which skip only while a publish is
+both. **78 tests** (two of which skip only while a publish is
 mid-transition — see the theft section), CI green, Pages live. The
 methodology page draws the Hull comparison as an inline SVG generated
 from the published GeoJSON at build time — a screenshot would go stale
 at the next rebuild; this cannot.
 
-Current headline figures (bot commit 04bed84, 2026-08-16):
-exposure-weighted premium **£88.11** over 27.26m households; climate
-uplift **+6.9%** over the 2,087 covered districts, worst **TA9 +99%**
-(the pre-theft +10.5% / DN32 +200% figures are diluted by theft's
-arrival in the denominator — same £ of repricing on a bigger base; the
-site injects these, only this file and README carry them by hand).
+Current headline figures (bot commit 224fb3f, 2026-08-17):
+exposure-weighted premium **£131.59** over 27.26m households; climate
+uplift **+4.6%** over the 2,087 covered districts, worst **TA9 +69%**
+(each attritional peril dilutes these — same £ of repricing on a
+bigger base; the site injects them, only this file and README carry
+them by hand).
 
 ## Published 2026-08-16: theft, the fifth insured peril (Phase 1)
 
@@ -84,10 +84,62 @@ self-re-armingly, while the committed state is visibly mid-transition
 whose model output lacks a template-read column. Expect exactly those
 two skips during every future peril publish, and zero after.
 
-**Next in Phase 1**: EoW → fire → AD, same evidence-branch pattern.
+**Next in Phase 1**: fire → AD, same evidence-branch pattern.
 The VOA non-domestic premises count is the proper fix for the
 commercial contamination (Phase 2), replacing the winsorisation cap
 with an actual commercial-exposure adjustment.
+
+## Published 2026-08-17: escape of water, the sixth insured peril (Phase 1)
+
+User decision: "publish escape of water." Live at both resolutions
+since run 31982713790 (merge d195d60, bot commit 224fb3f). Premium
+£88.11 → **£131.59** (+£42.39 EL — exactly £657m/15.5m policies —
++£1.10 capital). All five prior perils bit-identical through the
+change at both grains; the sector rebuild (run 8, bot 453cef2 on
+sector-model) reproduced the same £42.39 weighted mean, because the
+level is calibrated and resolution cannot move it.
+
+The design, in one line each:
+- **Level**: anchor triangle from three public routes — ABI "£1.8m/day"
+  ≈ £657m/yr; 29.3% of 2025's 560k home claims ≈ 164k → £4,005 avg,
+  1.06%/policy — self-consistent, that's the cross-check
+  (DATA_SOURCES.md #26).
+- **Geography**: flat base + 15% freeze-attributable slice on HadUK
+  air-frost days (the only open spatial predictor the peril supports;
+  EPC dwelling age is the Phase 2 upgrade). Spread ×1.66, INVERTED vs
+  cat geography (corr −0.32) — the Highlands are dear, the stormy
+  southwest cheap. 21.5% of districts changed rating decile, 564 of
+  589 by one.
+- **Capital**: W_EOW=0.026 derived from winter 2010 (103k claims/£680m
+  in six weeks ≈ 2× year → CV 0.43 at p=1.06%). Twenty times theft's
+  loading; EoW buys real capital (2.6% of its EL) where theft buys
+  none.
+- **EL analytic** (shared-stream, same as theft), draws feed the tails.
+
+**Two new lessons, both now guarded:**
+1. **Feed the marginal a RATE, not an O(1) relativity.** The 0.5
+   frequency clip in marginal_params saturates on a relativity ~1
+   during the calibration pass — the level solves 2× hot and the
+   geography flattens. `eow_rate` = anchor × relativity (normalised in
+   main(), where the exposure weights live; never per-chunk);
+   calibration re-pins the level and solves ×1.000. Caught before the
+   evidence run by reasoning, pinned by a test after.
+2. **Don't hard-code which peril is in flight in transition guards.**
+   The nesting guard keyed on `el_th` failed (not skipped) for the EoW
+   window; it now compares the full `el_*` sets (d195d60). Also:
+   tests.yml's site-rebuild check had NO transition guard, so the
+   merge push's tests run went red (31982708021) until the bot commit
+   reconciled it — that check now skips itself in exactly the
+   template-ahead-of-committed-output window, reusing
+   build_map.columns_read_by_template as the single source of truth.
+   Expect ZERO red runs on the fire/AD publishes.
+
+Also fixed in the copy pass: the landing page still claimed theft was
+among the perils "none of which this models" (a leftover the theft
+pass missed — it was live). The claims-cost share is now INJECTED
+(`__EL_CLAIMS_SHARE__`, ABI context imported from build_model), and
+"Five findings"/"a fifth peril" style counting prose was reworded to
+survive future additions.
 
 ## Audited 2026-08-16: every published claim re-derived from the data
 
