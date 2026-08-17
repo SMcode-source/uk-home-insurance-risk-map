@@ -57,7 +57,7 @@ from scores_real import (subsidence_score, weather_from_metoffice,
                          flood_from_agencies, groundwater_from_ea,
                          erosion_from_ncerm, sw_depth_severity, load_country,
                          theft_from_police, frost_from_metoffice,
-                         fires_from_mhclg,
+                         fires_from_mhclg, children_from_census,
                          flood_future, flood_score_from_fractions,
                          EROSION_HORIZON_YEARS)
 
@@ -96,11 +96,12 @@ OUTPUT_COLUMNS = [
     "gust_rp50",
     "f_high", "f_low", "sw_high", "sw_low", "gw_frac",
     "sw_sev", "sw_depth_m", "th_rate", "frost_days", "eow_rate",
-    "fire_rate",
+    "fire_rate", "ad_rate",
     "er_score", "er_smp55", "er_smp105", "er_nfi55", "er_nfi105",
     "er_smp105_lo", "er_smp105_hi", "er_nfi105_lo", "er_nfi105_hi",
     "er_gi",
     "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow", "el_fire",
+    "el_ad",
     "el_er",
     "el_total", "el_total5", "var995_vine", "tvar99_vine",
     "tvar99_gauss",
@@ -122,6 +123,7 @@ OUTPUT_COLUMNS = [
 # deliberately kept anyway - see the note on var995_* in simulate().
 SIMULATED_COLUMNS = {
     "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow", "el_fire",
+    "el_ad",
     "el_er",
     "el_total",
     "el_total5",
@@ -285,6 +287,22 @@ ABI = dict(
     # 2025's £3.4bn home paid - inside the remainder envelope after
     # EoW, weather, subsidence and theft. See DATA_SOURCES.md #27.
     fire_paid=434e6, sev_fire=14_000.0,
+    # Accidental damage. No public AD paid total has EVER existed, so
+    # like fire the level is a triangle: frequency from GoCompare's
+    # 2025 quote-declared claim shares (the same table that gave EoW
+    # its 29.38%) - accidental loss/damage AT home 23.35% plus outside
+    # home 1.18% = 24.53% of the ABI's 560,000 home claims = ~137,000.
+    # Away-from-home AD (6.46%) is deliberately excluded: it is a
+    # personal-possessions extension, not damage to the dwelling this
+    # model prices. Severity from Aviva's published series - GBP 1,148
+    # (2022) to 1,869 (2026), interpolating to ~1,650 for 2025. The
+    # implied ~GBP 227m is 6.7% of 2025's GBP 3.4bn home paid, inside
+    # the remainder envelope after the six perils above. Cross-check:
+    # Aviva's independent book says AD is 32% of claims vs GoCompare's
+    # 30.99% all-AD share - two books, one point apart. AD is optional
+    # add-on cover; the premium prices the peril as if bought, the
+    # same policy basis as theft. See DATA_SOURCES.md #28.
+    ad_paid=227e6, sev_ad=1_650.0,
     # Coastal erosion is a TOTAL loss of the property, not a repair, so its
     # severity is a sum insured rather than an average claim. There is no
     # ABI figure to calibrate against, because gradual erosion is excluded
@@ -300,18 +318,19 @@ ABI_TARGET_FREQ = {
     "th": ABI["theft_paid"] / ABI["sev_theft"] / POLICIES,
     "eow": ABI["eow_paid"] / ABI["sev_eow"] / POLICIES,
     "fire": ABI["fire_paid"] / ABI["sev_fire"] / POLICIES,
+    "ad": ABI["ad_paid"] / ABI["sev_ad"] / POLICIES,
 }
 ABI_LOSS_PER_POLICY = (ABI["storm_paid"] + ABI["flood_paid"]
                        + ABI["subsidence_paid"]
                        + ABI["theft_paid"] + ABI["eow_paid"]
-                       + ABI["fire_paid"]) / POLICIES
+                       + ABI["fire_paid"] + ABI["ad_paid"]) / POLICIES
 
 # lognormal median that gives the target MEAN for a given sigma
 _median_for_mean = lambda mean, sigma: mean / np.exp(sigma ** 2 / 2)
 
 # One multiplier per peril, set by calibrate_frequency() before simulating.
 FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0, "th": 1.0,
-              "eow": 1.0, "fire": 1.0}
+              "eow": 1.0, "fire": 1.0, "ad": 1.0}
 GW_SHARE_OF_FLOOD = 0.10      # groundwater not published separately
 
 
@@ -324,7 +343,7 @@ def calibrate_frequency(gdf):
     """
     global FREQ_SCALE
     FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0, "th": 1.0,
-                  "eow": 1.0, "fire": 1.0}
+                  "eow": 1.0, "fire": 1.0, "ad": 1.0}
     m = marginal_params(_fields(gdf))
     # ABI totals are national, so the average must be exposure-weighted:
     # a district with 40,000 households counts 40,000 times more than one
@@ -336,12 +355,13 @@ def calibrate_frequency(gdf):
            "gw": float(np.average(m["p_gw"], weights=w)),
            "th": float(np.average(m["p_th"], weights=w)),
            "eow": float(np.average(m["p_eow"], weights=w)),
-           "fire": float(np.average(m["p_fire"], weights=w))}
-    for k in ("sub", "wx", "fl", "th", "eow", "fire"):
+           "fire": float(np.average(m["p_fire"], weights=w)),
+           "ad": float(np.average(m["p_ad"], weights=w))}
+    for k in ("sub", "wx", "fl", "th", "eow", "fire", "ad"):
         FREQ_SCALE[k] = ABI_TARGET_FREQ[k] / raw[k]
     # groundwater has no published total; peg it to a share of flood
     FREQ_SCALE["gw"] = (GW_SHARE_OF_FLOOD * ABI_TARGET_FREQ["fl"]) / raw["gw"]
-    for k in ("wx", "fl", "sub", "th", "eow", "fire"):
+    for k in ("wx", "fl", "sub", "th", "eow", "fire", "ad"):
         print(f"  {k:4} frequency {raw[k]:.3%} -> ABI {ABI_TARGET_FREQ[k]:.3%}"
               f"  (x{FREQ_SCALE[k]:.3f})")
     print(f"  gw   frequency pegged at {GW_SHARE_OF_FLOOD:.0%} of flood")
@@ -408,6 +428,23 @@ EOW_FREEZE_SHARE = 0.15
 # NO systemic capital - it diversifies the cat tail instead. That is a
 # finding the data forces, not a modelling shortcut.
 W_FIRE = 0.000039
+# Accidental damage's loading, same derivation, third data source. The
+# strongest systemic AD shock on record is the 2020-21 lockdowns - the
+# whole country at home doing DIY for a year - and declarations moved
+# only ~6% (GoCompare, Oct 2021); normal years are quieter, so CV 0.03
+# is the generous read of that record. Targeting it:
+#   CV = sqrt(w) * phi(z_p)/p, and at p = 0.89% phi(z_p)/p = 2.73
+#   -> sqrt(w) = 0.03/2.73 -> w = 0.00012
+# Ten times below theft, three above fire: AD sits with them at the
+# idiosyncratic end, where a pandemic is the worst case and it barely
+# registers. Like fire, AD buys almost no capital.
+W_AD = 0.00012
+# The child-attributable share of AD claims - the only slice that
+# varies spatially (with the census share of households that have
+# dependent children). Aviva (Apr 2026): children cause 8% of AD
+# claims. The base is FLAT: adult clumsiness has no open spatial
+# predictor, and the site copy must not pretend otherwise.
+AD_CHILD_SHARE = 0.08
 
 
 def calibrate_spatial(gdf, target_ratio=TAIL_FREQ_RATIO):
@@ -514,6 +551,12 @@ def marginal_params(f):
     # marginal depend on batch composition. It arrives as a RATE
     # (~0.2%), so the 0.5 clip below never bites during calibration.
     p_fire = f["fire"]
+    # Accidental damage: ad_rate is precomputed in main() as anchor
+    # level x the child-share relativity (census households with
+    # dependent children), for the same reason as eow_rate and
+    # fire_rate - the relativity's normalisation needs households.
+    # It arrives as a RATE (~0.9%), so the 0.5 clip never bites.
+    p_ad = f["ad"]
 
     s_sub, s_wx, s_fl, s_gw, s_er = 0.90, 1.10, 0.90, 0.80, 0.35
     # Theft severity spread: most claims are a few thousand (forced entry
@@ -537,6 +580,15 @@ def marginal_params(f):
     # a few percent spread further). The MEAN stays pinned to the
     # anchor regardless.
     s_fire = 1.30
+    # AD severity spread: the narrowest of the attritional perils. The
+    # £1,650 mean is broken TVs (18% of Aviva's AD claims), spilled
+    # drinks into sofas and carpets, cracked sinks and hobs - hundreds
+    # to low thousands each, with the worst cases (drilled pipes,
+    # renovation damage) reaching low tens of thousands. sigma=0.9
+    # puts ~0.7% of claims above £10k and essentially none above
+    # £50k, which is what AD's own definition (sudden one-off damage
+    # to part of a home) enforces. The MEAN stays pinned regardless.
+    s_ad = 0.90
     sev_sub = dict(mu=np.log(_median_for_mean(ABI["sev_subsidence"], s_sub)),
                    sigma=s_sub)
     sev_wx = dict(mu=np.log(_median_for_mean(ABI["sev_weather"], s_wx)),
@@ -564,6 +616,8 @@ def marginal_params(f):
                    sigma=s_eow)
     sev_fire = dict(mu=np.log(_median_for_mean(ABI["sev_fire"], s_fire)),
                     sigma=s_fire)
+    sev_ad = dict(mu=np.log(_median_for_mean(ABI["sev_ad"], s_ad)),
+                  sigma=s_ad)
 
     k = FREQ_SCALE
     return dict(
@@ -572,8 +626,10 @@ def marginal_params(f):
         p_th=np.minimum(p_th * k["th"], 0.5),
         p_eow=np.minimum(p_eow * k["eow"], 0.5),
         p_fire=np.minimum(p_fire * k["fire"], 0.5),
+        p_ad=np.minimum(p_ad * k["ad"], 0.5),
         sev_sub=sev_sub, sev_wx=sev_wx, sev_fl=sev_fl, sev_gw=sev_gw,
-        sev_er=sev_er, sev_th=sev_th, sev_eow=sev_eow, sev_fire=sev_fire)
+        sev_er=sev_er, sev_th=sev_th, sev_eow=sev_eow, sev_fire=sev_fire,
+        sev_ad=sev_ad)
 
 
 def _fields(src):
@@ -583,7 +639,7 @@ def _fields(src):
              ("f_low", "f_low"), ("sw_high", "sw_high"), ("sw_low", "sw_low"),
              ("gw_frac", "gw_frac"), ("sw_sev", "sw_sev"), ("er", "er_frac"),
              ("th", "th_rate"), ("eow", "eow_rate"),
-             ("fire", "fire_rate")]}
+             ("fire", "fire_rate"), ("ad", "ad_rate")]}
 
 
 def inv_mixed_cdf(u, p, mu, sigma):
@@ -793,10 +849,15 @@ def simulate(district_df):
         # AFTER U_eow so the six published perils simulate
         # bit-identically with or without it.
         "U_fire": rng.uniform(0, 1, N_SIM),
+        # Accidental damage: the fourth independent leg, appended AFTER
+        # U_fire so the seven published perils simulate bit-identically
+        # with or without it.
+        "U_ad": rng.uniform(0, 1, N_SIM),
     }
 
     out = {k: [] for k in [
         "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow", "el_fire",
+        "el_ad",
         "el_er",
         "el_total",
         "el_total5", "var995_vine",
@@ -927,14 +988,22 @@ def simulate(district_df):
         l_fire = inv_mixed_cdf(bc("U_fire"),
                                np.broadcast_to(m["p_fire"], u_w.shape),
                                **m["sev_fire"])
-        tot_v = ls + lw + lf + lg + l_th + l_eow + l_fire
+        # AD: independent leg like theft and fire. Accidents are
+        # behavioural - the strongest "systemic" driver on record was a
+        # pandemic, not weather - so independence from the vine is what
+        # the data shows, and the tiny W_AD carries what little
+        # co-movement exists.
+        l_ad = inv_mixed_cdf(bc("U_ad"),
+                             np.broadcast_to(m["p_ad"], u_w.shape),
+                             **m["sev_ad"])
+        tot_v = ls + lw + lf + lg + l_th + l_eow + l_fire + l_ad
         tot5_v = tot_v + le
         tot_n = insured(losses(*sample_gaussian5(t_ws, t_wf, t_wg, t_we,
                                                  base)[:4])) + l_th + l_eow \
-            + l_fire
+            + l_fire + l_ad
         parts_i = losses(u_w, bc("U_ind_F"), bc("U_ind_G"), bc("U_ind_S"),
                          bc("U_ind_E"))
-        tot_i = insured(parts_i) + l_th + l_eow + l_fire
+        tot_i = insured(parts_i) + l_th + l_eow + l_fire + l_ad
         tot5_i = tot_i + parts_i[4]
 
         # year view: systemic factor + idiosyncratic district noise
@@ -982,7 +1051,12 @@ def simulate(district_df):
                 # full diversification credit of a genuinely
                 # idiosyncratic line.
                 + cond_expected(bc("U_fire"), m["p_fire"], m["sev_fire"],
-                                W_FIRE))
+                                W_FIRE)
+                # AD joins capital the same way as fire: near-zero
+                # loading, near-full diversification credit - the
+                # lockdown record is what caps its systemicity.
+                + cond_expected(bc("U_ad"), m["p_ad"], m["sev_ad"],
+                                W_AD))
         year_loss[start:start + len(chunk)] = cond.astype(np.float32)
         # independence year view: same idiosyncratic noise (common random
         # numbers), systemic factors independent across perils
@@ -1039,6 +1113,11 @@ def simulate(district_df):
                                         + m["sev_fire"]["sigma"] ** 2 / 2)
                    ).ravel()
         loc["el_fire"] = (el_fire)
+        # AD: one shared U_ad stream, so analytic EL like the other
+        # three attritional legs. The draws still feed the tails.
+        el_ad = (m["p_ad"] * np.exp(m["sev_ad"]["mu"]
+                                    + m["sev_ad"]["sigma"] ** 2 / 2)).ravel()
+        loc["el_ad"] = (el_ad)
         # Erosion's expected loss is taken ANALYTICALLY, not from the draws.
         # Its annual probability is ~1.5e-5 for a typical coastal district,
         # so 20,000 years give well under one event: the simulated mean
@@ -1056,7 +1135,7 @@ def simulate(district_df):
         # scaling was solved against) with the analytic theft leg - the
         # same construction el_total5 has always used for erosion.
         loc["el_total"] = ((ls + lw + lf + lg).mean(axis=1)
-                           + el_th + el_eow + el_fire)
+                           + el_th + el_eow + el_fire + el_ad)
         loc["el_total5"] = (loc["el_total"] + el_er)
         # var995_vine is published; the gauss and indep siblings are NOT in
         # OUTPUT_COLUMNS and nothing downstream reads them. They are kept
@@ -1327,6 +1406,23 @@ def main():
                                 gdf["households"].values)
     gdf["fire_rate"] = ABI_TARGET_FREQ["fire"] * fire_raw / np.average(
         fire_raw, weights=gdf["households"])
+
+    print("scoring accidental damage from census child-share...")
+    # ad_rate = anchor frequency x (flat base + child-attributable
+    # slice on each district's share of households with dependent
+    # children relative to the exposure-weighted mean). Same division
+    # of labour as eow_rate: normalisation lives HERE, the relativity's
+    # exposure-weighted mean is exactly 1 by construction, and
+    # calibrate_frequency re-pins the level (FREQ_SCALE["ad"] solves
+    # to 1.0). The spread is deliberately mild (~+-8%): children are
+    # the only DOCUMENTED spatial driver AD has, and the site copy
+    # must present the peril as near-flat, because it is.
+    child_share = children_from_census(gdf["name"].values,
+                                       gdf["households"].values)
+    cmean = np.average(child_share, weights=gdf["households"])
+    gdf["ad_rate"] = ABI_TARGET_FREQ["ad"] * (
+        (1.0 - AD_CHILD_SHARE)
+        + AD_CHILD_SHARE * child_share / cmean)
 
     check_scored_columns(gdf)
 

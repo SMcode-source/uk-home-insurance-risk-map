@@ -931,3 +931,45 @@ def fires_from_mhclg(names, households):
           f"cap {cap:.4%} (hh-weighted p99.9), {clipped} districts "
           f"clipped, {len(missing)} zero-fire districts")
     return rate
+
+
+def children_from_census(names, households):
+    """Share of households with dependent children per district
+    (Census 2021 TS003 at LSOA for England & Wales, Census 2022 UV113
+    at Output Area for Scotland - fetch_children.py, DATA_SOURCES.md
+    #28). Drives the child-attributable slice of the AD frequency.
+
+    Returns the RAW share in [0, 1]; main() normalises to a relativity
+    around the exposure-weighted mean. Unlike the incident-count perils
+    there is no winsorisation cap: a share is bounded by construction
+    and the census denominators are the same households the exposure
+    uses, so tiny-denominator spikes cannot occur.
+
+    Districts absent from children.csv get the NATIONAL share (neutral
+    relativity) - the census is complete, so absences are geography
+    drift, not zero-child districts - but a file missing MANY
+    districts is stale and stops the run.
+    """
+    path = os.path.join(DATA, "children.csv")
+    if not os.path.exists(path):
+        raise SystemExit("data/children.csv missing - run "
+                         "scripts/fetch_children.py first "
+                         "(see DATA_SOURCES.md #28)")
+    tot, dep = {}, {}
+    with open(path, newline="") as fh:
+        for row in csv.DictReader(fh):
+            tot[row["name"]] = float(row["hh_total"])
+            dep[row["name"]] = float(row["hh_depchild"])
+    missing = [n for n in names if n not in tot or tot[n] <= 0]
+    if len(missing) > 0.2 * len(names):
+        raise SystemExit(f"children.csv is missing {len(missing)} of "
+                         f"{len(names)} districts (first: {missing[:5]}) - "
+                         "stale file? Rerun scripts/fetch_children.py")
+    national = sum(dep.values()) / sum(tot.values())
+    share = np.array([dep[n] / tot[n] if tot.get(n, 0) > 0 else national
+                      for n in names])
+    hh = np.asarray(households, dtype=float)
+    print(f"  ad: GB child-share mean {np.average(share, weights=hh):.1%}; "
+          f"range {share.min():.1%}-{share.max():.1%}, "
+          f"{len(missing)} districts at national share")
+    return share
