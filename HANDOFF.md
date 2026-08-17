@@ -254,6 +254,42 @@ end-to-end: the fire lessons (identity budget scales with legs,
 tolerance widened with the wiring, raw artifact uploaded before the
 gate) all held without being needed.
 
+## Phase 2 status (2026-08-17, later): 2a and 2c evidence COMPLETE, decisions pending
+
+Both experiment branches are built, verified and priced. NEITHER is
+merged - publishing is the user's decision, and none has been given.
+
+- **2a - theft commercial denominator** (`exp/theft-commercial`,
+  eebb5c2+c22aa06; evidence run 32033558205): rate = burglaries /
+  (households + VOA premises), premises from NDR stock by LSOA
+  (fetch_premises.py, data/premises.csv, DATA_SOURCES.md #29 on that
+  branch). All non-theft columns bit-identical; el_th mean pinned
+  29.03; premium/capital unchanged to the penny. Churn 229 districts
+  (8.4%), 9 by >=2 groups - ALL commercial cores, all DOWN (EC3M
+  10->1, W1J 394->249). Cap re-solves 6.22%->3.40%, 15 at it.
+  Scottish el_th +9% via FREQ_SCALE renormalisation (flat override
+  absorbs more of the pinned level - mechanism, not bug).
+- **2c - CT band severity relativities** (`exp/ct-severity`, 185485c;
+  evidence run 32039330290): band mix (CTSOP1.1 E&W + NRS Scotland
+  2023-at-DZ2011) -> value relativity 0.69-1.94, statutory charge
+  ratios normalised WITHIN nation, scaling th/eow/fire/ad severities
+  with claim-weighted normalisation (fetch_ct_bands.py,
+  data/ct_bands.csv, DATA_SOURCES.md #30 on that branch). Weather
+  legs and every rate bit-identical; all four attritional EL means
+  pinned to the penny; premium 174.24 unchanged. Churn 69.1%, 929 by
+  >=2 groups: prime London up to +282 (W1J), low-band city cores
+  -78 (BD1/SR1). New test pins severity-not-frequency scaling.
+- **They COLLIDE in prime London** (2a cuts W1J, 2c raises it):
+  whichever publishes second must rebase and re-run evidence.
+  Suggested order: 2a first (smaller, promised in the theft section).
+- **Publishing either also needs**: sector-grain input via the
+  OUTWARD D seam on sector-model (premises.csv / ct_bands.csv), a
+  site copy pass (2a: the 6.22% cap figures; 2c: severity prose),
+  then merge -> rebuild commit=true -> live verify.
+- Known stale, untouched (predates both): dependence_check.py and
+  sensitivity.py never gained the attritional rate columns, so both
+  fail at _fields today.
+
 ## Phase 2 plan (2026-08-17): sources verified, design set, nothing built yet
 
 Every source below was probed this session — grain, licence, size and
