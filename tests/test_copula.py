@@ -215,7 +215,8 @@ def fields(**over):
     """Default marginal_params inputs, overridable per test."""
     f = dict(sub=0.5, wx=0.5, f_high=0.1, f_low=0.2, sw_high=0.1,
              sw_low=0.2, gw_frac=0.1, sw_sev=1.0, er=0.0, th=0.009,
-             eow=1.0, fire=0.002, ad=0.009)
+             eow=1.0, fire=0.002, ad=0.009,
+             ct_th=1.0, ct_eow=1.0, ct_fire=1.0, ct_ad=1.0)
     f.update(over)
     return {k: np.array([v], dtype=float) for k, v in f.items()}
 
@@ -223,11 +224,30 @@ def fields(**over):
 def test_severity_medians_hit_published_means():
     """Severity params are set so each lognormal MEAN equals the ABI figure."""
     m = bm.marginal_params(fields())
-    mean = lambda s: float(np.exp(s["mu"] + s["sigma"] ** 2 / 2))
+    mean = lambda s: float(np.mean(np.exp(s["mu"] + s["sigma"] ** 2 / 2)))
     assert abs(mean(m["sev_sub"]) / bm.ABI["sev_subsidence"] - 1) < 1e-6
     assert abs(mean(m["sev_wx"]) / bm.ABI["sev_weather"] - 1) < 1e-6
     assert abs(mean(m["sev_gw"]) / bm.ABI["sev_groundwater"] - 1) < 1e-6
     assert abs(mean(m["sev_er"]) / bm.ABI["sev_erosion"] - 1) < 1e-6
+
+
+def test_ct_band_relativity_scales_severity_not_frequency():
+    """The council-tax band value relativity multiplies the attritional
+    severity MEANS linearly and touches nothing else: frequencies are
+    untouched, and at the neutral 1.0 every mean sits exactly on its
+    ABI anchor (which is what keeps the other severity tests honest)."""
+    base = bm.marginal_params(fields())
+    up = bm.marginal_params(fields(ct_th=1.25, ct_eow=1.25,
+                                   ct_fire=1.25, ct_ad=1.25))
+    mean = lambda s: float(np.mean(np.exp(s["mu"] + s["sigma"] ** 2 / 2)))
+    for peril, anchor in (("th", "sev_theft"), ("eow", "sev_eow"),
+                          ("fire", "sev_fire"), ("ad", "sev_ad")):
+        assert abs(mean(base[f"sev_{peril}"]) / bm.ABI[anchor] - 1) < 1e-6
+        assert abs(mean(up[f"sev_{peril}"])
+                   / (1.25 * bm.ABI[anchor]) - 1) < 1e-6
+        assert float(up[f"p_{peril}"][0]) == float(base[f"p_{peril}"][0])
+    # weather severities are NOT scaled by the band mix
+    assert abs(mean(up["sev_wx"]) / mean(base["sev_wx"]) - 1) < 1e-12
 
 
 def test_theta_functions_stay_in_valid_gumbel_range():
@@ -244,7 +264,7 @@ def test_theta_functions_stay_in_valid_gumbel_range():
 def test_theft_severity_mean_hits_the_abi_average():
     """sev_th's lognormal MEAN equals the published ABI average claim."""
     m = bm.marginal_params(fields())
-    mean = float(np.exp(m["sev_th"]["mu"] + m["sev_th"]["sigma"] ** 2 / 2))
+    mean = float(np.mean(np.exp(m["sev_th"]["mu"] + m["sev_th"]["sigma"] ** 2 / 2)))
     assert abs(mean / bm.ABI["sev_theft"] - 1) < 1e-6
 
 
@@ -266,7 +286,7 @@ def test_theft_frequency_is_the_burglary_rate_scaled():
 def test_eow_severity_mean_hits_the_abi_average():
     """sev_eow's lognormal MEAN equals the anchor-triangle average claim."""
     m = bm.marginal_params(fields())
-    mean = float(np.exp(m["sev_eow"]["mu"] + m["sev_eow"]["sigma"] ** 2 / 2))
+    mean = float(np.mean(np.exp(m["sev_eow"]["mu"] + m["sev_eow"]["sigma"] ** 2 / 2)))
     assert abs(mean / bm.ABI["sev_eow"] - 1) < 1e-6
 
 
@@ -440,6 +460,8 @@ def test_erosion_expected_loss_is_analytic_not_simulated(monkeypatch):
         "er_frac": [0.24, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.010, 0.005], "eow_rate": [0.011, 0.009],
         "fire_rate": [0.002, 0.001], "ad_rate": [0.009, 0.008],
+        "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
+        "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
     })
     sim, _ = bm.simulate(df)
 
@@ -472,6 +494,8 @@ def test_theft_expected_loss_is_analytic_not_simulated(monkeypatch):
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.010, 0.0], "eow_rate": [0.0, 0.0],
         "fire_rate": [0.0, 0.0], "ad_rate": [0.0, 0.0],
+        "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
+        "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
     })
     sim, _ = bm.simulate(df)
 
@@ -488,7 +512,7 @@ def test_fire_severity_mean_hits_the_anchor_average():
     """sev_fire's lognormal MEAN equals the anchor-triangle average claim
     (£14,000) regardless of the sigma chosen for the spread."""
     m = bm.marginal_params(fields())
-    mean = float(np.exp(m["sev_fire"]["mu"] + m["sev_fire"]["sigma"] ** 2 / 2))
+    mean = float(np.mean(np.exp(m["sev_fire"]["mu"] + m["sev_fire"]["sigma"] ** 2 / 2)))
     assert abs(mean / bm.ABI["sev_fire"] - 1) < 1e-6
 
 
@@ -532,6 +556,8 @@ def test_fire_expected_loss_is_analytic_not_simulated(monkeypatch):
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.0, 0.0], "eow_rate": [0.0, 0.0],
         "fire_rate": [0.0025, 0.0], "ad_rate": [0.0, 0.0],
+        "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
+        "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
     })
     sim, _ = bm.simulate(df)
 
@@ -564,6 +590,8 @@ def test_eow_expected_loss_is_analytic_not_simulated(monkeypatch):
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.0, 0.0], "eow_rate": [0.012, 0.0],
         "fire_rate": [0.0, 0.0], "ad_rate": [0.0, 0.0],
+        "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
+        "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
     })
     sim, _ = bm.simulate(df)
 
@@ -580,7 +608,7 @@ def test_ad_severity_mean_hits_the_anchor_average():
     """sev_ad's lognormal MEAN equals the anchor-triangle average claim
     (£1,650) regardless of the sigma chosen for the spread."""
     m = bm.marginal_params(fields())
-    mean = float(np.exp(m["sev_ad"]["mu"] + m["sev_ad"]["sigma"] ** 2 / 2))
+    mean = float(np.mean(np.exp(m["sev_ad"]["mu"] + m["sev_ad"]["sigma"] ** 2 / 2)))
     assert abs(mean / bm.ABI["sev_ad"] - 1) < 1e-6
 
 
@@ -620,6 +648,8 @@ def test_ad_expected_loss_is_analytic_not_simulated(monkeypatch):
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.0, 0.0], "eow_rate": [0.0, 0.0],
         "fire_rate": [0.0, 0.0], "ad_rate": [0.0095, 0.0],
+        "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
+        "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
     })
     sim, _ = bm.simulate(df)
 
@@ -677,6 +707,10 @@ def test_capital_allocation_is_stable_across_seeds():
         "fire_rate": rng.uniform(0.001, 0.005, n),
         # and AD after fire, same discipline
         "ad_rate": rng.uniform(0.006, 0.012, n),
+        # band-value severity relativities: neutral, so every el_
+        # assertion in here keeps reading straight off the ABI anchors
+        "ct_th": np.ones(n), "ct_eow": np.ones(n),
+        "ct_fire": np.ones(n), "ct_ad": np.ones(n),
     })
     n_sim, batch, seed = m.N_SIM, m.BATCH, m.RNG_SEED
     m.N_SIM, m.BATCH = 4000, 30
@@ -872,6 +906,10 @@ def test_thread_count_does_not_change_a_single_bit():
         "fire_rate": rng.uniform(0.001, 0.005, n),
         # and AD after fire, same discipline
         "ad_rate": rng.uniform(0.006, 0.012, n),
+        # band-value severity relativities: neutral, so every el_
+        # assertion in here keeps reading straight off the ABI anchors
+        "ct_th": np.ones(n), "ct_eow": np.ones(n),
+        "ct_fire": np.ones(n), "ct_ad": np.ones(n),
     })
     keep = (bm.N_SIM, bm.BATCH, bm.N_THREADS)
     bm.N_SIM, bm.BATCH = 400, 25          # 5 batches
@@ -1435,6 +1473,8 @@ def test_simulate_returns_the_columns_the_map_and_site_read():
             "gw_frac": [0.05], "sw_sev": [1.0], "er_frac": [0.01],
             "households": [500.0], "th_rate": [0.009], "eow_rate": [0.011],
             "fire_rate": [0.002], "ad_rate": [0.009],
+            "ct_th": [1.0], "ct_eow": [1.0],
+            "ct_fire": [1.0], "ct_ad": [1.0],
         })
         sim, year = m.simulate(df)
     finally:

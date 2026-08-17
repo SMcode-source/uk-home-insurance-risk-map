@@ -1013,3 +1013,43 @@ def children_from_census(names, households):
           f"range {share.min():.1%}-{share.max():.1%}, "
           f"{len(missing)} districts at national share")
     return share
+
+
+def ct_value_from_bands(names):
+    """Property-value relativity per district from the council-tax band
+    mix (fetch_ct_bands.py, DATA_SOURCES.md #30). Scales the flat
+    national severities of the attritional perils: a district whose
+    stock sits in the upper bands holds more rebuild and contents
+    value per household than a bottom-band district.
+
+    The file already carries the hard part: band weights are each
+    nation's own statutory charge ratios, normalised WITHIN nation
+    before any district (some straddle the English-Welsh border)
+    averages over its small areas - the three band regimes are
+    incompatible and must never compare directly. Here the raw
+    relativity is only loaded; main() renormalises it per peril with
+    claim weights so every ABI severity level stays pinned.
+
+    Districts absent from ct_bands.csv get 1.0 (neutral) - the VOA/NRS
+    stock tables are complete, so absences are non-residential or
+    geography-drift districts - but a file missing MANY districts is
+    stale and stops the run.
+    """
+    path = os.path.join(DATA, "ct_bands.csv")
+    if not os.path.exists(path):
+        raise SystemExit("data/ct_bands.csv missing - run "
+                         "scripts/fetch_ct_bands.py first "
+                         "(see DATA_SOURCES.md #30)")
+    table = {}
+    with open(path, newline="") as fh:
+        for row in csv.DictReader(fh):
+            table[row["name"]] = float(row["sev_rel"])
+    missing = [n for n in names if n not in table]
+    if len(missing) > 0.2 * len(names):
+        raise SystemExit(f"ct_bands.csv is missing {len(missing)} of "
+                         f"{len(names)} districts (first: {missing[:5]}) - "
+                         "stale file? Rerun scripts/fetch_ct_bands.py")
+    rel = np.array([table.get(n, 1.0) for n in names])
+    print(f"  ct bands: value relativity range {rel.min():.2f}-"
+          f"{rel.max():.2f}, {len(missing)} districts neutral")
+    return rel
