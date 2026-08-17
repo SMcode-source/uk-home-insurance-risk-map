@@ -6,24 +6,23 @@ just a pointer here)
 **Repo:** https://github.com/SMcode-source/uk-home-insurance-risk-map ·
 **Live:** https://smcode-source.github.io/uk-home-insurance-risk-map/
 
-## Status: complete, deployed, SIX insured perils at TWO resolutions
+## Status: complete, deployed, SEVEN insured perils at TWO resolutions
 
 The site publishes the model at **two grains side by side**:
 `/map.html` over 2,736 postcode districts and `/sectors.html` over
 10,398 derived postcode sectors. One template builds both pages, so
 they cannot drift; the layout suite runs every map invariant against
-both. **78 tests** (two of which skip only while a publish is
+both. **81 tests** (two of which skip only while a publish is
 mid-transition — see the theft section), CI green, Pages live. The
 methodology page draws the Hull comparison as an inline SVG generated
 from the published GeoJSON at build time — a screenshot would go stale
 at the next rebuild; this cannot.
 
-Current headline figures (bot commit 224fb3f, 2026-08-17):
-exposure-weighted premium **£131.59** over 27.26m households; climate
-uplift **+4.6%** over the 2,087 covered districts, worst **TA9 +69%**
-(each attritional peril dilutes these — same £ of repricing on a
-bigger base; the site injects them, only this file and README carry
-them by hand).
+Current headline figures (bot commit 2ce5928, 2026-08-17):
+exposure-weighted premium **£159.60** over 27.26m households; climate
+uplift diluted again by fire's flat £28 (each attritional peril
+dilutes these — same £ of repricing on a bigger base; the site injects
+them, only this file and README carry them by hand).
 
 ## Published 2026-08-16: theft, the fifth insured peril (Phase 1)
 
@@ -84,7 +83,8 @@ self-re-armingly, while the committed state is visibly mid-transition
 whose model output lacks a template-read column. Expect exactly those
 two skips during every future peril publish, and zero after.
 
-**Next in Phase 1**: fire → AD, same evidence-branch pattern.
+**Phase 1 since this section**: EoW and fire are both live (see their
+sections below); AD remains.
 The VOA non-domestic premises count is the proper fix for the
 commercial contamination (Phase 2), replacing the winsorisation cap
 with an actual commercial-exposure adjustment.
@@ -140,6 +140,62 @@ pass missed — it was live). The claims-cost share is now INJECTED
 (`__EL_CLAIMS_SHARE__`, ABI context imported from build_model), and
 "Five findings"/"a fifth peril" style counting prose was reworded to
 survive future additions.
+
+## Published 2026-08-17: fire, the seventh insured peril (Phase 1)
+
+User decision: "publish fire." Live at both resolutions since run
+32020681458 (merge 74ac2d8, bot commit 2ce5928). Premium £131.59 →
+**£159.60** (+£28.01: el_fire £28.00 to the penny, capital **+£0.00**
+— the purest diversifier in the book). All six prior perils
+bit-identical through the change at both grains (44 sector columns
+verified column-by-column against run 8).
+
+The design, in one line each:
+- **Level**: no public domestic fire total exists any more, so the
+  anchor is a documented triangle — 31,001 GB attended dwelling fires
+  2024/25 (Home Office FIRE0201: Eng 25,465 + Sco 4,104 + Wal 1,432)
+  → 0.20%/policy; ABI ~£10,200–£11,000 average payout (2019 vintage)
+  indexed ~+27% → £14,000 severity; ≈ £434m ≈ 12.8% of 2025's £3.4bn
+  → **£28.00/policy**. Severity is the documented weak leg
+  (DATA_SOURCES.md #27). Sigma 1.3, heaviest attritional tail (~2% of
+  claims >£100k), median £6,000.
+- **Geography**: LSOA-level incident counts (England low-level
+  geography ODS), FRA-level Wales (StatsWales cube), council-level
+  Scotland, all spread over the model's own postcode lookup;
+  hh-weighted p99.9 winsorisation (0.35% districts / 0.71% sectors —
+  the cap re-solves per resolution). Cheapest DN39, dearest FY1
+  (Blackpool's HMO belt). 1,685 districts (61.6%) changed rating
+  group, but the evidence decomposition attributed only ~21% to real
+  relativity movement — a flat +£28 requantiles the deciles.
+- **Capital**: W_FIRE=0.000039, derived the theft way — FIRE0201's
+  45-year series declines −2.5%/yr secularly; detrended YoY residual
+  CV ≈2% with no spike years. Fire buys NO capital; it exists in the
+  premium purely as expected loss.
+- **EL analytic** (shared-stream), U_fire drawn AFTER U_eow so every
+  prior peril simulates bit-identically — additive evidence diffs.
+
+**Three lessons, all now embodied in code or comments:**
+1. **The identity test is part of the wiring.** The first evidence run
+   died at minute 55 because el_total = Σ el_* didn't know about
+   el_fire (fixed 766603f). Then the SECTOR run died on the same test
+   a different way: the 0.30 tolerance was a six-leg rounding budget,
+   and one sector's seven 1dp legs stacked to exactly 0.30 + 1e-13.
+   The bound is now 0.40 and states its derivation (8 × 0.05), so the
+   eighth peril's author widens it in the same commit as the wiring
+   (caaa15c). The sector run's raw artifact — uploaded BEFORE the
+   gate, by design — was verified locally and committed by hand
+   (05c5447); no rebuild needed.
+2. **`table:number-rows-repeated` compresses sorted ODS rows.** The
+   first parse of the England incident file silently dropped 39% of
+   fires; the FIRE0201 reconciliation (exact to the incident) caught
+   it. Parse content.xml directly and honour the repeat attribute.
+3. **Check lookup keys against the existing map.** "ef" was already
+   flood; fire is "efi". A duplicate dict key would have silently
+   replaced flood in every district decomposition — Python keeps the
+   last writer and says nothing.
+
+**Next in Phase 1**: AD (accidental damage), the last attritional
+peril, then Phase 2 (EPC/VOA exposure realism).
 
 ## Audited 2026-08-16: every published claim re-derived from the data
 
