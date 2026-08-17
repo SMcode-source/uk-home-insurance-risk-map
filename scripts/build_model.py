@@ -103,6 +103,9 @@ OUTPUT_COLUMNS = [
     "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow", "el_fire",
     "el_ad",
     "el_er",
+    "el_buildings", "el_contents",
+    "capital_buildings", "capital_contents",
+    "premium_buildings", "premium_contents",
     "el_total", "el_total5", "var995_vine", "tvar99_vine",
     "tvar99_gauss",
     "tvar99_indep", "tvar99_vine5", "tvar99_indep5", "tvar99_euler",
@@ -130,6 +133,7 @@ SIMULATED_COLUMNS = {
     "var995_vine", "var995_gauss", "var995_indep", "tvar99_vine",
     "tvar99_gauss", "tvar99_indep", "tvar99_vine5", "tvar99_indep5",
     "tvar99_euler", "el_year", "uplift_pct",
+    "el_buildings", "tvar99_euler_b", "el_year_b",
     "tail_dep_wf", "tail_dep_ws", "tail_dep_wg", "tail_dep_we",
     "theta_wf", "theta_ws", "theta_wg", "theta_we",
 }
@@ -138,6 +142,8 @@ SIMULATED_COLUMNS = {
 MAIN_COLUMNS = {
     "capital", "premium", "group",
     "el_total_cc", "capital_cc", "premium_cc", "cc_uplift_pct", "cc_covered",
+    "el_contents", "capital_buildings", "capital_contents",
+    "premium_buildings", "premium_contents",
 }
 DERIVED_COLUMNS = SIMULATED_COLUMNS | MAIN_COLUMNS
 
@@ -445,6 +451,27 @@ W_AD = 0.00012
 # claims. The base is FLAT: adult clumsiness has no open spatial
 # predictor, and the site copy must not pretend otherwise.
 AD_CHILD_SHARE = 0.08
+
+# ---- buildings / contents cover split ------------------------------
+# Buildings share of each peril's claim COST. Not of its premium: the
+# ABI tracker's buildings-only £306 vs contents-only £117 is a PRICE
+# ratio over two different populations (standalone contents buyers are
+# overwhelmingly renters), so using it as a claims split would import a
+# selection effect as if it were a damage fact.
+#
+# PROVISIONAL - every entry below is awaiting its published anchor and
+# this dict must not ship until each carries a citation, on the rule
+# that killed the Phase 2b age slice: no published anchor, no knob.
+SPLIT_BUILDINGS = {
+    "sub": 1.00,    # structural movement damages the structure
+    "wx": 0.85,
+    "fl": 0.65,
+    "gw": 0.80,
+    "th": 0.20,     # stolen goods are contents; forced entry is buildings
+    "eow": 0.75,
+    "fire": 0.70,
+    "ad": 0.45,
+}
 
 
 def calibrate_spatial(gdf, target_ratio=TAIL_FREQ_RATIO):
@@ -819,6 +846,7 @@ def sample_gaussian5(t_ws, t_wf, t_wg, t_we, base):
 
 
 def simulate(district_df):
+    B = SPLIT_BUILDINGS
     rng = np.random.default_rng(RNG_SEED)
     base = {
         "Theta": rng.uniform(1e-9, np.pi - 1e-9, N_SIM),
@@ -859,6 +887,7 @@ def simulate(district_df):
         "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow", "el_fire",
         "el_ad",
         "el_er",
+        "el_buildings",
         "el_total",
         "el_total5", "var995_vine",
         "var995_gauss", "var995_indep", "tvar99_vine", "tvar99_gauss",
@@ -909,6 +938,11 @@ def simulate(district_df):
     # selection is systemic-measurable and the tower property applies.
     # Expected loss is unchanged in expectation; only its variance falls.
     year_loss = np.zeros((len(district_df), N_SIM), dtype=np.float32)
+    # Buildings-only twin of the year view, for the cover split. One
+    # extra float32 matrix: 219 MB at district grain, 832 MB at sector
+    # grain. Contents is never materialised - it is the difference, so
+    # the two covers add back to the total exactly.
+    year_loss_b = np.zeros((len(district_df), N_SIM), dtype=np.float32)
     # exposure: portfolio quantities are per-policy, so districts enter
     # weighted by how many households they actually contain
     expo = district_df["households"].values.astype(np.float64)
@@ -1025,10 +1059,28 @@ def simulate(district_df):
         ls_y, lw_y, lf_y, lg_y, _ = losses(uw_y, uf_y, ug_y, us_y)
         # realised losses drive the good/bad-year narrative (incidence,
         # per-peril composition); the smoothed version drives capital
-        cond = (cond_expected(u_s, m["p_sub"], m["sev_sub"], SPATIAL_LOADING["s"])
-                + cond_expected(u_w, m["p_wx"], m["sev_wx"], SPATIAL_LOADING["w"])
-                + cond_expected(u_f, m["p_fl"], m["sev_fl"], SPATIAL_LOADING["f"])
-                + cond_expected(u_g, m["p_gw"], m["sev_gw"], SPATIAL_LOADING["g"])
+        # Each peril's term is named so the buildings/contents split can
+        # re-weight the SAME quantities (see SPLIT_BUILDINGS). `cond` is
+        # then summed in the original order: float addition is not
+        # associative and this value feeds the capital allocation, so the
+        # order is load-bearing, not stylistic.
+        c_sub = cond_expected(u_s, m["p_sub"], m["sev_sub"],
+                              SPATIAL_LOADING["s"])
+        c_wx = cond_expected(u_w, m["p_wx"], m["sev_wx"],
+                             SPATIAL_LOADING["w"])
+        c_fl = cond_expected(u_f, m["p_fl"], m["sev_fl"],
+                             SPATIAL_LOADING["f"])
+        c_gw = cond_expected(u_g, m["p_gw"], m["sev_gw"],
+                             SPATIAL_LOADING["g"])
+        c_th = cond_expected(bc("U_th"), m["p_th"], m["sev_th"], W_THEFT)
+        c_eow = cond_expected(bc("U_eow"), m["p_eow"], m["sev_eow"], W_EOW)
+        c_fire = cond_expected(bc("U_fire"), m["p_fire"], m["sev_fire"],
+                               W_FIRE)
+        c_ad = cond_expected(bc("U_ad"), m["p_ad"], m["sev_ad"], W_AD)
+        cond = (c_sub
+                + c_wx
+                + c_fl
+                + c_gw
                 # Theft is insured, so it belongs in the capital
                 # allocation (unlike erosion, excluded above because no
                 # policy pays it). With its small fixed loading its
@@ -1038,26 +1090,40 @@ def simulate(district_df):
                 # narrative dict: the good-year/bad-year story is about
                 # weather clustering, and a near-constant theft charge
                 # would blur exactly that contrast.
-                + cond_expected(bc("U_th"), m["p_th"], m["sev_th"], W_THEFT)
+                + c_th
                 # EoW joins capital with its own, much larger loading:
                 # a 1-in-100 freeze year roughly doubles the national EoW
                 # bill (winter 2010), so unlike theft it earns only a
                 # partial diversification credit against the cat tail.
-                + cond_expected(bc("U_eow"), m["p_eow"], m["sev_eow"],
-                                W_EOW)
+                + c_eow
                 # Fire joins capital with a near-zero loading: no
                 # systemic fire years exist in the record, so its
                 # contribution to the worst-1% years is its mean - the
                 # full diversification credit of a genuinely
                 # idiosyncratic line.
-                + cond_expected(bc("U_fire"), m["p_fire"], m["sev_fire"],
-                                W_FIRE)
+                + c_fire
                 # AD joins capital the same way as fire: near-zero
                 # loading, near-full diversification credit - the
                 # lockdown record is what caps its systemicity.
-                + cond_expected(bc("U_ad"), m["p_ad"], m["sev_ad"],
-                                W_AD))
+                + c_ad)
         year_loss[start:start + len(chunk)] = cond.astype(np.float32)
+        # The same year view, buildings only. Capital cannot be split
+        # pro-rata by expected loss: buildings losses are cat-driven
+        # (flood, storm, subsidence cluster in the worst years) while
+        # contents losses are idiosyncratic (theft, AD), so the two
+        # covers earn very different diversification credits - which is
+        # the whole reason this model allocates by Euler rather than by
+        # standalone TVaR. Re-weighting the SAME conditional
+        # expectations keeps the allocation exact and additive.
+        year_loss_b[start:start + len(chunk)] = (
+            B["sub"] * c_sub
+            + B["wx"] * c_wx
+            + B["fl"] * c_fl
+            + B["gw"] * c_gw
+            + B["th"] * c_th
+            + B["eow"] * c_eow
+            + B["fire"] * c_fire
+            + B["ad"] * c_ad).astype(np.float32)
         # independence year view: same idiosyncratic noise (common random
         # numbers), systemic factors independent across perils
         ufi_y = mix_with(np.broadcast_to(base["U_ind_F"], shape),
@@ -1137,6 +1203,17 @@ def simulate(district_df):
         loc["el_total"] = ((ls + lw + lf + lg).mean(axis=1)
                            + el_th + el_eow + el_fire + el_ad)
         loc["el_total5"] = (loc["el_total"] + el_er)
+        # Buildings share of the SAME construction - draw means for the
+        # four weather perils, analytic for the four attritional ones -
+        # so el_buildings and el_contents (taken as the remainder in
+        # main) add back to el_total exactly, with no second estimate of
+        # anything. Erosion stays out of both, as it is out of el_total:
+        # no policy pays it.
+        loc["el_buildings"] = (
+            (B["sub"] * ls + B["wx"] * lw + B["fl"] * lf
+             + B["gw"] * lg).mean(axis=1)
+            + B["th"] * el_th + B["eow"] * el_eow
+            + B["fire"] * el_fire + B["ad"] * el_ad)
         # var995_vine is published; the gauss and indep siblings are NOT in
         # OUTPUT_COLUMNS and nothing downstream reads them. They are kept
         # anyway and this note exists so they are not mistaken for dead
@@ -1225,6 +1302,13 @@ def simulate(district_df):
     bad = np.argpartition(port, -k)[-k:]
     res["tvar99_euler"] = year_loss[:, bad].mean(axis=1)
     res["el_year"] = year_loss.mean(axis=1)
+    # The cover split uses the SAME bad years. That is the point: an
+    # insurer holds capital against the whole portfolio, so both covers
+    # must be allocated conditional on the portfolio's worst years, not
+    # on their own. Euler additivity then makes the two allocations sum
+    # to the combined one exactly.
+    res["tvar99_euler_b"] = year_loss_b[:, bad].mean(axis=1)
+    res["el_year_b"] = year_loss_b.mean(axis=1)
     port_tvar = float(port[bad].mean())
     standalone = float(np.average(res["tvar99_vine"], weights=expo))
     print(f"  portfolio TVaR99 {port_tvar:,.0f} /policy (systemic-conditional); "
@@ -1446,6 +1530,32 @@ def main():
     gdf["capital"] = 0.06 * np.maximum(
         gdf["tvar99_euler"] - gdf["el_year"], 0.0)
     gdf["premium"] = gdf["el_total"] + gdf["capital"]
+
+    # ---- buildings / contents cover split -----------------------------
+    # Same formula on the buildings-only Euler allocation; contents is
+    # the remainder, so the two premiums add back to the combined one to
+    # the penny. The max(...,0) is the one nonlinearity that could break
+    # that: it only bites if a cover's bad-year loss falls BELOW its own
+    # mean, which cannot happen while the bad years are the portfolio's
+    # worst - so it is asserted rather than assumed.
+    gdf["capital_buildings"] = 0.06 * np.maximum(
+        gdf["tvar99_euler_b"] - gdf["el_year_b"], 0.0)
+    gdf["capital_contents"] = gdf["capital"] - gdf["capital_buildings"]
+    gdf["el_contents"] = gdf["el_total"] - gdf["el_buildings"]
+    gdf["premium_buildings"] = gdf["el_buildings"] + gdf["capital_buildings"]
+    gdf["premium_contents"] = gdf["el_contents"] + gdf["capital_contents"]
+    worst = float(np.abs(gdf["premium_buildings"] + gdf["premium_contents"]
+                         - gdf["premium"]).max())
+    assert worst < 1e-6, (
+        f"cover split is not additive (worst district off by {worst:g}) - "
+        "the capital floor must have clipped one cover")
+    assert (gdf["capital_contents"] >= -1e-9).all(), (
+        "contents capital came out negative - buildings absorbed more "
+        "than the whole allocation")
+    w = gdf["households"].values
+    print(f"  cover split: buildings £{np.average(gdf['premium_buildings'], weights=w):,.2f}"
+          f" + contents £{np.average(gdf['premium_contents'], weights=w):,.2f}"
+          f" = £{np.average(gdf['premium'], weights=w):,.2f}/policy/yr")
     gdf["group"] = pd.qcut(gdf["premium"].rank(method="first"), 10, labels=False) + 1
 
     # ---- climate-change repricing ------------------------------------

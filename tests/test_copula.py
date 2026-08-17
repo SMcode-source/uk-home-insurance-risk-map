@@ -393,6 +393,62 @@ def test_erosion_expected_loss_is_analytic_not_simulated(monkeypatch):
                - sim["el_er"][0]) < 1e-6
 
 
+def _cover_split_frame():
+    import pandas as pd
+    return pd.DataFrame({
+        "sub_score": [0.5, 0.2], "wx_score": [0.5, 0.4],
+        "fl_score": [0.3, 0.6], "gw_score": [0.2, 0.1],
+        "er_score": [0.0, 0.0],
+        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05],
+        "sw_high": [0.05, 0.01], "sw_low": [0.1, 0.03],
+        "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
+        "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
+        "th_rate": [0.010, 0.005], "eow_rate": [0.011, 0.009],
+        "fire_rate": [0.002, 0.001], "ad_rate": [0.009, 0.008],
+    })
+
+
+def test_cover_split_is_a_pure_reweighting_of_the_same_losses(monkeypatch):
+    """The buildings/contents split must re-weight the losses the model
+    already simulated, never re-estimate them. Two degenerate settings
+    prove it without depending on the published split fractions: send
+    every peril to buildings and the buildings leg must equal the whole,
+    send every peril to contents and it must vanish - exactly, not
+    approximately, at both the expected-loss and the capital-allocation
+    level."""
+    monkeypatch.setattr(bm, "N_SIM", 400)
+    monkeypatch.setattr(bm, "BATCH", 8)
+    df = _cover_split_frame()
+
+    monkeypatch.setattr(bm, "SPLIT_BUILDINGS",
+                        {k: 1.0 for k in bm.SPLIT_BUILDINGS})
+    allb, _ = bm.simulate(df)
+    assert allb["el_buildings"] == pytest.approx(allb["el_total"], abs=1e-9)
+    assert allb["tvar99_euler_b"] == pytest.approx(allb["tvar99_euler"],
+                                                   abs=1e-9)
+    assert allb["el_year_b"] == pytest.approx(allb["el_year"], abs=1e-9)
+
+    monkeypatch.setattr(bm, "SPLIT_BUILDINGS",
+                        {k: 0.0 for k in bm.SPLIT_BUILDINGS})
+    allc, _ = bm.simulate(df)
+    assert allc["el_buildings"] == pytest.approx(0.0, abs=1e-9)
+    assert allc["tvar99_euler_b"] == pytest.approx(0.0, abs=1e-9)
+    # the totals themselves are untouched by where the split sends the loss
+    assert allc["el_total"] == pytest.approx(allb["el_total"], abs=1e-12)
+    assert allc["tvar99_euler"] == pytest.approx(allb["tvar99_euler"],
+                                                 abs=1e-12)
+
+
+def test_cover_split_fractions_are_shares(monkeypatch):
+    """Every peril's buildings share is a fraction, and every modelled
+    peril has one - a peril added to the model without a split entry
+    would silently vanish from both covers."""
+    priced = {"sub", "wx", "fl", "gw", "th", "eow", "fire", "ad"}
+    assert set(bm.SPLIT_BUILDINGS) == priced
+    for peril, share in bm.SPLIT_BUILDINGS.items():
+        assert 0.0 <= share <= 1.0, f"{peril} share {share} is not a fraction"
+
+
 def test_theft_expected_loss_is_analytic_not_simulated(monkeypatch):
     """Theft shares ONE U_th stream across all districts, so a simulated
     mean carries a common sampling error - the first evidence run came out
