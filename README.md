@@ -7,7 +7,7 @@
 [![Data: OGL v3](https://img.shields.io/badge/data-OGL%20v3-1baf7a?style=flat-square)](DATA_SOURCES.md)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-eb6834?style=flat-square)](requirements.txt)
 ![Districts: 2,736](https://img.shields.io/badge/districts-2%2C736-6f5cc4?style=flat-square)
-![Perils: 5 insured + 1](https://img.shields.io/badge/perils-5_insured_%2B_1-52514e?style=flat-square)
+![Perils: 8 insured + 1](https://img.shields.io/badge/perils-8_insured_%2B_1-52514e?style=flat-square)
 
 **[Interactive map](https://smcode-source.github.io/uk-home-insurance-risk-map/map.html)** ·
 **[Sector map](https://smcode-source.github.io/uk-home-insurance-risk-map/sectors.html)** ·
