@@ -42,7 +42,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_model as bm  # noqa: E402
 from scores_real import (subsidence_score, weather_from_metoffice,  # noqa: E402
                          flood_from_agencies, groundwater_from_ea,
-                         erosion_from_ncerm, sw_depth_severity)
+                         erosion_from_ncerm, sw_depth_severity,
+                         theft_from_police, frost_from_metoffice,
+                         fires_from_mhclg, children_from_census)
 
 bm.N_SIM = 8000
 bm.BATCH = 100      # smaller than the main run: 8 scenarios back to back
@@ -170,6 +172,27 @@ def main():
     gdf["sw_sev"], _ = sw_depth_severity(
         gdf["name"].values, gdf["sw_high"].values, gdf["sw_low"].values,
         gdf["households"].values)
+    # The attritional rate columns _fields() has required since theft
+    # landed (each later peril widened the gap). The arithmetic mirrors
+    # build_model.main() exactly - the normalisation must live here,
+    # on the full frame, for the same batch-composition reason.
+    gdf["th_rate"] = theft_from_police(gdf["name"].values,
+                                       gdf["households"].values)
+    gdf["frost_days"] = frost_from_metoffice(targets)
+    fmean = np.average(gdf["frost_days"], weights=gdf["households"])
+    gdf["eow_rate"] = bm.ABI_TARGET_FREQ["eow"] * (
+        (1.0 - bm.EOW_FREEZE_SHARE)
+        + bm.EOW_FREEZE_SHARE * gdf["frost_days"] / fmean)
+    fire_raw = fires_from_mhclg(gdf["name"].values,
+                                gdf["households"].values)
+    gdf["fire_rate"] = bm.ABI_TARGET_FREQ["fire"] * fire_raw / np.average(
+        fire_raw, weights=gdf["households"])
+    child_share = children_from_census(gdf["name"].values,
+                                       gdf["households"].values)
+    cmean = np.average(child_share, weights=gdf["households"])
+    gdf["ad_rate"] = bm.ABI_TARGET_FREQ["ad"] * (
+        (1.0 - bm.AD_CHILD_SHARE)
+        + bm.AD_CHILD_SHARE * child_share / cmean)
     # calibrate on the FULL set (as build_model does) so every scenario is
     # perturbing a properly calibrated baseline, then sample for speed
     bm.calibrate_frequency(gdf)
