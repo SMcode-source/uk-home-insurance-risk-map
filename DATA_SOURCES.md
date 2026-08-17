@@ -544,6 +544,48 @@ districts**, used as the exposure weight throughout.
       eased" (that figure is MOTOR, not home — a trap when searching
       this topic).
 
+29. **VOA non-domestic premises counts — theft's commercial
+    denominator** (fetched 2026-08-17, `fetch_premises.py` →
+    `data/premises.csv`). The Phase 2a fix promised in #25: police.uk
+    "Burglary" includes commercial break-ins, so the theft rate now
+    divides by households PLUS non-domestic premises instead of
+    leaning on the p99.9 cap to hide commercial cores (the cap stays
+    as a tiny-denominator backstop).
+    - **Source:** "Non-domestic rating: stock of properties 2025"
+      (VOA, OGL v3, snapshot 31 Mar 2025, published summer 2025) —
+      `ndr_stock_oa_2025.zip` (7.1 MB) from
+      assets.publishing.service.gov.uk, member
+      `SOP_OA_counts_all.csv`, rows filtered to `geography == "LSOA"`,
+      the `2025` year column. 35,672 LSOAs (**LSOA2021 codes** — the
+      count matches the 2021 census geography exactly, and the ONS
+      lookup's `lsoa21cd` covers 100.0% of premises; the fetcher
+      matches both vintages and asserts ≥97% coverage so a future
+      boundary revision fails loudly), 2,136,290 premises. Counts are
+      rounded to 10; 3,873 suppressed small cells ("[c]") treated as
+      0. Apportioned to districts by live-postcode share through the
+      same ONS lookup the household counts use — 100.0% of premises
+      placed, 2,415 of 2,736 districts have any. Most commercial:
+      SE1 7,696 / E1 6,620 / E14 6,397.
+    - **Scotland deliberately absent:** VOA covers E&W only, and
+      theft's Scotland is a flat national override (#25), so a
+      commercial correction there would adjust nothing.
+    - **Effect (local check against the published rates):** cap falls
+      6.22% → 3.40% and binds 14 districts instead of doing crude
+      duty for every commercial core; W1J 6.22% → 1.85% real rate,
+      EC3V 6.22% → 3.40% (still capped); correlation with the old
+      geography 0.89; the −8% E&W mean shift is re-pinned to the ABI
+      level by FREQ_SCALE at calibration.
+    - **Dead ends:** the VOA **rating-list bulk** downloads
+      (voaratinglists.blob.core.windows.net) are free but under
+      restricted terms, not OGL — unusable in this public repo when
+      the statistical LSOA release exists; the data.gov.uk "VOA
+      non-domestic rating" catalogue entry is a dead 2016 record with
+      no links; **EPC bulk** (epc.opendatacommunities.org) needs
+      registration, carries Royal Mail copyright on address fields,
+      and covers only certificate-holding stock — CTSOP4.1 gives
+      build period for the FULL stock at LSOA under plain OGL if
+      Phase 2b/2c ever need it.
+
 ## Blocked on non-open data — what each would unblock
 
 Kept here so nobody re-derives the shopping list. None of these have an
