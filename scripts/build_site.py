@@ -508,6 +508,34 @@ def load_stats():
         "__FIRE_CAT_CORR__": (f"{np.corrcoef(fire_el, _el - fire_el)[0, 1]:.2f}"
                               if _has_fire else "0.00"),
     }
+    # Accidental damage, same discipline and the same transition
+    # fallback. The child share is recomputed from children.csv (the
+    # same counts the model read), so the published extremes cannot
+    # drift from what was priced; the slice size is imported.
+    from build_model import AD_CHILD_SHARE
+    ad_el = np.array([p.get("el_ad", np.nan) for p in feats], dtype=float)
+    if np.isnan(ad_el).all():
+        ad_el = np.zeros(len(feats))
+    _has_ad = ad_el.max() > 0
+    ai_lo, ai_hi = int(np.argmin(ad_el)), int(np.argmax(ad_el))
+    with open(os.path.join(ROOT, "data", "children.csv"), newline="") as fh:
+        c_rows = {r["name"]: (float(r["hh_total"]), float(r["hh_depchild"]))
+                  for r in csv.DictReader(fh)}
+    def _cshare(i):
+        t, d = c_rows.get(feats[i]["name"], (0.0, 0.0))
+        return 100 * d / t if t else 0.0
+    ad_bits = {
+        "__AD_EL__": f"{np.average(ad_el, weights=_w):.2f}",
+        "__AD_LO__": f"{ad_el.min():.0f}",
+        "__AD_HI__": f"{ad_el.max():.0f}",
+        "__AD_LO_NAME__": feats[ai_lo]["name"] if _has_ad else "n/a",
+        "__AD_HI_NAME__": feats[ai_hi]["name"] if _has_ad else "n/a",
+        "__AD_CHILD_PCT__": f"{100 * AD_CHILD_SHARE:.0f}",
+        "__AD_SHARE_LO__": f"{_cshare(ai_lo):.0f}",
+        "__AD_SHARE_HI__": f"{_cshare(ai_hi):.0f}",
+        "__AD_CAT_CORR__": (f"{np.corrcoef(ad_el, _el - ad_el)[0, 1]:.2f}"
+                            if _has_ad else "0.00"),
+    }
     # The insured expected loss as a share of ALL home claims paid - the
     # landing-page finding that quietly went stale when theft arrived
     # ("none of which this models" survived a peril that was modelled).
@@ -644,6 +672,7 @@ def load_stats():
         **th_bits,
         **eow_bits,
         **fire_bits,
+        **ad_bits,
         "__EL_CLAIMS_SHARE__": el_claims_share,
         **sector_bits,
         **climate_band_stats(),
@@ -839,16 +868,18 @@ def main():
           "s": round(p["sub_score"], 2), "w": round(p["wx_score"], 2),
           "f": round(p["fl_score"], 2), "gw": round(p["gw_score"], 2),
           "u": round(p["uplift_pct"], 1),
-          # premium build-up: seven expected losses + allocated capital
-          # (el_th/el_eow/el_fire .get-guarded for the pre-rebuild
+          # premium build-up: eight expected losses + allocated capital
+          # (el_th/el_eow/el_fire/el_ad .get-guarded for the pre-rebuild
           # window, like load_stats). NB "ef" is FLOOD (named before
-          # fire existed); fire is "efi" - a duplicate "ef" key here
-          # would silently drop flood from every decomposition.
+          # fire existed); fire is "efi", AD is "ea" - a duplicate key
+          # here would silently drop the older entry from every
+          # decomposition.
           "es": round(p["el_sub"]), "ew": round(p["el_wx"]),
           "ef": round(p["el_fl"]), "eg": round(p["el_gw"]),
           "et": round(p.get("el_th", 0)),
           "ee": round(p.get("el_eow", 0)),
           "efi": round(p.get("el_fire", 0)),
+          "ea": round(p.get("el_ad", 0)),
           "c": round(p.get("capital", 0)),
           "h": round(p.get("households", 0))} for p in feats),
         key=lambda d: d["n"])
@@ -861,12 +892,12 @@ def main():
     cols = ["name", "area", "households", "group", "premium", "capital",
             "el_total",
             "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow",
-            "el_fire",
+            "el_fire", "el_ad",
             "sub_score",
             "wx_score",
             "fl_score", "gw_score", "f_high", "f_low", "sw_high", "sw_low",
             "gw_frac", "sw_depth_m", "sw_sev", "th_rate", "eow_rate",
-            "frost_days", "fire_rate",
+            "frost_days", "fire_rate", "ad_rate",
             "wind_ms", "gust_rp50", "rain10_days", "precip_mm",
             "tvar99_vine", "tvar99_euler", "uplift_pct",
             "el_er", "er_score", "er_smp55", "er_smp105", "er_nfi55",

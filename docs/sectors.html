@@ -1006,12 +1006,13 @@ page</a>.</p>
   flood&ndash;subsidence; tree&nbsp;3 independent. 20,000 simulated years per district
   (Marshall&ndash;Olkin for the root pair, conditional h-function inversion for the other
   margins). A tau-matched 5-dim Gaussian copula and an independence run are computed for
-  comparison. <b>Theft and escape of water sit deliberately outside the vine</b>:
-  neither burglary nor burst pipes co-move with the storm track (the vine's root is
-  storm/rain-driven; cold is the one weather axis it does not carry), so both are
-  simulated as independent legs. Theft adds essentially no capital; escape of water
-  adds a small charge, because a hard national freeze (winter 2010 roughly doubled
-  the year's burst-pipe bill) is genuinely systemic. There is deliberately
+  comparison. <b>Theft, escape of water and fire sit deliberately outside the vine</b>:
+  none of burglary, burst pipes or dwelling fires co-move with the storm track (the
+  vine's root is storm/rain-driven; cold is the one weather axis it does not carry), so
+  all three are simulated as independent legs. Theft adds essentially no capital;
+  escape of water adds a small charge, because a hard national freeze (winter 2010
+  roughly doubled the year's burst-pipe bill) is genuinely systemic; fire adds none at
+  all &mdash; forty-five years of Home Office counts show no systemic fire years. There is deliberately
   no per-district <i>copula uplift</i> layer: at
   calibrated frequencies that difference is inside Monte Carlo noise, so it would be
   drawing noise across the country. The dependence effect is real, but it lives in the
@@ -1019,13 +1020,14 @@ page</a>.</p>
   <p><b>Calibration.</b> Each peril's claim frequency is scaled to the ABI's published
   domestic payouts &mdash; storm &pound;244m, flood &pound;312m, subsidence &pound;307m
   (2025), theft &pound;450m (2018, the last year the ABI published it), escape of water
-  ~&pound;657m (from the ABI's &pound;1.8m-a-day figure) over
+  ~&pound;657m (from the ABI's &pound;1.8m-a-day figure), fire ~&pound;434m (a documented
+  triangle: Home Office incident counts &times; the ABI's average fire payout) over
   ~15.5m policies &mdash; and severities take the published average claim as their mean.
-  Together the six insured perils come to ~&pound;126/policy/yr, over half of what
+  Together the seven insured perils come to ~&pound;154/policy/yr, around 70% of what
   all home claims cost. Coastal erosion is <i>not</i> in that figure and is not calibrated
   to ABI at all &mdash; it has no published payout, because it is not covered.
-  <b>These are six-peril premiums, not home insurance premiums:</b> a real
-  policy also covers fire and accidental damage, plus expenses and
+  <b>These are seven-peril premiums, not home insurance premiums:</b> a real
+  policy also covers accidental damage, plus expenses and
   profit. What is <i>not</i> fitted is the geography and the dependence.</p>
   <p><b>Rating groups.</b> Technical premium = expected loss + 6% cost-of-capital on the
   sector's <b>Euler-allocated</b> share of <i>portfolio</i> tail risk &mdash; its expected
@@ -1309,7 +1311,7 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 /* The popup is layered for a READER, not a debugger: what they tapped for
-   (rating, premium), then the six peril rows that explain it, then the
+   (rating, premium), then the seven peril rows that explain it, then the
    climate scenario — and everything else behind <details>, because a
    reader who tapped a district should not have to scroll past θ_wg and
    tvar99_indep to find the premium. The old flat table ran to 36 rows and
@@ -1342,7 +1344,10 @@ function popupHtml(p) {
     '<td>' + fmtGBP(p.el_th) + '/yr</td></tr>' +
     '<tr><td>Esc. of water</td>' +
     '<td>' + p.frost_days.toFixed(0) + ' air-frost days/yr</td>' +
-    '<td>' + fmtGBP(p.el_eow) + '/yr</td></tr>';
+    '<td>' + fmtGBP(p.el_eow) + '/yr</td></tr>' +
+    '<tr><td>Fire</td>' +
+    '<td>' + (100 * p.fire_rate).toFixed(2) + '%/yr dwelling fires</td>' +
+    '<td>' + fmtGBP(p.el_fire) + '/yr</td></tr>';
 
   const premiumFold = fold('How the premium is built',
     row('Expected loss, all perils', fmtGBP(p.el_total) + '/yr') +

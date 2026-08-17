@@ -487,6 +487,63 @@ districts**, used as the exposure weight throughout.
       WebFetch and render an empty Next.js shell in a real browser;
       re-find articles under the new path instead.
 
+28. **Accidental damage anchors — the AD peril's sources** (assembled
+    2026-08-17). Like fire, no public AD paid total exists (the ABI
+    never published one, even historically); unlike fire there is NO
+    open spatial driver at all — AD is behavioural, and every
+    frequency/severity anchor is insurer- or aggregator-attributed:
+    - **Claim-share (frequency leg):** GoCompare's 2025 quote-declared
+      claims table (`gocompare.com/home-insurance/common-home-insurance-claims/`
+      — bot-blocks plain fetches, use a real browser; 40,962 declared
+      claims): **accidental loss/damage AT home 23.35%**, away from
+      home 6.46%, outside home 1.18% — total 30.99%. Same source and
+      vintage as EoW's verified 29.38%, so the two shares are
+      internally consistent by construction. Cross-check from a
+      second, independent book: **Aviva (02 Apr 2026 release, claims
+      Jan 2022–Mar 2026): AD = 32% of all home claims, their most
+      common claim** — two books agree within a point. Applied to the
+      ABI's 560k 2025 home claims: at-home+outside ≈ 137k → ~0.89%/
+      policy on 15.5m; including away-from-home ≈ 174k → ~1.12%.
+      (Away-from-home is a separate optional personal-possessions
+      extension — decide the scope explicitly before wiring.)
+    - **Severity leg:** Aviva (same release): average AD claim
+      **£1,148 (2022) → £1,869 (2026)**, +63% in four years — the
+      2025 point interpolates to ~**£1,650**. Paymentshield
+      (Aug 2024–Jul 2025 book): **£1,159** average, AD = 25% of their
+      claims. AD is the smallest-severity peril in the book by far
+      (broken TVs — 18% of Aviva's AD claims — spilled drinks,
+      cracked sinks; children cause 8%).
+    - **Implied level:** ~137k × ~£1,650 ≈ **£225m/yr** (at-home
+      basis) to ~£290m (all-AD) ≈ 7–9% of 2025's £3.4bn home paid —
+      comfortably inside the ~£790m remainder after weather £758m,
+      EoW £657m, theft £450m, fire £434m, subsidence £307m.
+    - **Year-to-year variation (pins W_AD):** the 2020–21 lockdowns
+      were the largest stay-at-home behavioural shock on record, and
+      AD claim declarations rose only **~6% vs 2019** (GoCompare
+      press release, 26 Oct 2021, Jan–Aug 2021 quote data). Aviva's
+      category-level spikes (hot tubs +188%, exercise equipment
+      +200% in 2020) are tiny categories inside a stable aggregate.
+      So the worst systemic AD year ≈ 1.06× mean — between fire
+      (residual CV ~2%) and theft (±10–15%); W_AD lands ~5e-4 by the
+      CV(count) ≈ sqrt(w)·φ(z_p)/p derivation.
+    - **AD is optional add-on cover** (Aviva's own explainer:
+      "isn't always included as standard... an optional add-on to
+      buildings insurance, contents insurance, or both") — the
+      modelled premium prices the peril as if covered, same policy
+      basis as theft/EoW/fire; say so in the site copy.
+    - **Spatial driver: none exists in open data.** Candidates
+      examined and rejected as drivers rather than sources: fire's
+      incident data (different peril), police.uk (crime, not
+      accidents), EPC (dwelling age says nothing about toddlers with
+      juice). The honest options are a FLAT rate or a mild census
+      relativity (households with dependent children, tenure) —
+      decision recorded with the wiring, not assumed here.
+    - **Rejected:** pcla.co.uk's £615 average (undated, no
+      methodology); "25% of claims" aggregator repeats without a
+      book behind them; Admiral's "+39% AD claims after lockdown
+      eased" (that figure is MOTOR, not home — a trap when searching
+      this topic).
+
 ## Blocked on non-open data — what each would unblock
 
 Kept here so nobody re-derives the shopping list. None of these have an

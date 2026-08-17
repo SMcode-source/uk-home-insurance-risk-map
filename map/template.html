@@ -257,13 +257,16 @@ page</a>.</p>
   flood&ndash;subsidence; tree&nbsp;3 independent. 20,000 simulated years per district
   (Marshall&ndash;Olkin for the root pair, conditional h-function inversion for the other
   margins). A tau-matched 5-dim Gaussian copula and an independence run are computed for
-  comparison. <b>Theft, escape of water and fire sit deliberately outside the vine</b>:
-  none of burglary, burst pipes or dwelling fires co-move with the storm track (the
-  vine's root is storm/rain-driven; cold is the one weather axis it does not carry), so
-  all three are simulated as independent legs. Theft adds essentially no capital;
-  escape of water adds a small charge, because a hard national freeze (winter 2010
-  roughly doubled the year's burst-pipe bill) is genuinely systemic; fire adds none at
-  all &mdash; forty-five years of Home Office counts show no systemic fire years. There is deliberately
+  comparison. <b>Theft, escape of water, fire and accidental damage sit deliberately
+  outside the vine</b>: none of burglary, burst pipes, dwelling fires or dropped
+  televisions co-move with the storm track (the vine's root is storm/rain-driven; cold
+  is the one weather axis it does not carry), so all four are simulated as independent
+  legs. Theft adds essentially no capital; escape of water adds a small charge, because
+  a hard national freeze (winter 2010 roughly doubled the year's burst-pipe bill) is
+  genuinely systemic; fire adds none at all &mdash; forty-five years of Home Office
+  counts show no systemic fire years &mdash; and neither does accidental damage, whose
+  sternest test on record (the 2020&ndash;21 lockdowns, the whole country at home) moved
+  claims by only ~6%. There is deliberately
   no per-district <i>copula uplift</i> layer: at
   calibrated frequencies that difference is inside Monte Carlo noise, so it would be
   drawing noise across the country. The dependence effect is real, but it lives in the
@@ -272,13 +275,15 @@ page</a>.</p>
   domestic payouts &mdash; storm &pound;244m, flood &pound;312m, subsidence &pound;307m
   (2025), theft &pound;450m (2018, the last year the ABI published it), escape of water
   ~&pound;657m (from the ABI's &pound;1.8m-a-day figure), fire ~&pound;434m (a documented
-  triangle: Home Office incident counts &times; the ABI's average fire payout) over
+  triangle: Home Office incident counts &times; the ABI's average fire payout),
+  accidental damage ~&pound;227m (a triangle of its own: the ABI's claim count &times;
+  the market's at-home AD share &times; Aviva's average payout) over
   ~15.5m policies &mdash; and severities take the published average claim as their mean.
-  Together the seven insured perils come to ~&pound;154/policy/yr, around 70% of what
+  Together the eight insured perils come to ~&pound;170/policy/yr, around 77% of what
   all home claims cost. Coastal erosion is <i>not</i> in that figure and is not calibrated
   to ABI at all &mdash; it has no published payout, because it is not covered.
-  <b>These are seven-peril premiums, not home insurance premiums:</b> a real
-  policy also covers accidental damage, plus expenses and
+  <b>These are eight-peril premiums, not home insurance premiums:</b> a real
+  policy also carries expenses, commission and
   profit. What is <i>not</i> fitted is the geography and the dependence.</p>
   <p><b>Rating groups.</b> Technical premium = expected loss + 6% cost-of-capital on the
   __UNIT__'s <b>Euler-allocated</b> share of <i>portfolio</i> tail risk &mdash; its expected
@@ -557,7 +562,7 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 /* The popup is layered for a READER, not a debugger: what they tapped for
-   (rating, premium), then the seven peril rows that explain it, then the
+   (rating, premium), then the eight peril rows that explain it, then the
    climate scenario — and everything else behind <details>, because a
    reader who tapped a district should not have to scroll past θ_wg and
    tvar99_indep to find the premium. The old flat table ran to 36 rows and
@@ -593,7 +598,10 @@ function popupHtml(p) {
     '<td>' + fmtGBP(p.el_eow) + '/yr</td></tr>' +
     '<tr><td>Fire</td>' +
     '<td>' + (100 * p.fire_rate).toFixed(2) + '%/yr dwelling fires</td>' +
-    '<td>' + fmtGBP(p.el_fire) + '/yr</td></tr>';
+    '<td>' + fmtGBP(p.el_fire) + '/yr</td></tr>' +
+    '<tr><td>Acc. damage</td>' +
+    '<td>' + (100 * p.ad_rate).toFixed(2) + '%/yr AD claims</td>' +
+    '<td>' + fmtGBP(p.el_ad) + '/yr</td></tr>';
 
   const premiumFold = fold('How the premium is built',
     row('Expected loss, all perils', fmtGBP(p.el_total) + '/yr') +

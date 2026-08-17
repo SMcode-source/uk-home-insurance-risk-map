@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UK Home Insurance Risk Map — seven insured perils, one dependence model</title>
+<title>UK Home Insurance Risk Map — eight insured perils, one dependence model</title>
 <link rel="stylesheet" href="assets/site.css">
 __HEAD__
 </head>
@@ -14,15 +14,16 @@ __NAV__
 
   <section class="hero">
     <div class="eyebrow">Geospatial risk modelling · open data</div>
-    <h1>Seven insured perils.<br>2,736 postcode districts.<br>One dependence model.</h1>
+    <h1>Eight insured perils.<br>2,736 postcode districts.<br>One dependence model.</h1>
     <p class="lede">A UK home-insurance risk model that scores every postcode district for
     <b>subsidence</b>, <b>weather damage</b>, <b>flood</b>, <b>groundwater flooding</b>,
-    <b>theft</b>, <b>escape of water</b> and <b>fire</b> — the weather-driven four joined
-    by a vine copula, because the expensive years are the ones where several perils strike at once;
-    theft and escape of water priced independently, because burglary does not arrive on
-    the storm track and burst pipes answer to cold snaps, not storms. <b>Coastal
-    erosion</b> is modelled alongside them but kept out of the premium, because no
-    standard policy covers it.</p>
+    <b>theft</b>, <b>escape of water</b>, <b>fire</b> and <b>accidental damage</b> —
+    the weather-driven four joined by a vine copula, because the expensive years are
+    the ones where several perils strike at once; the other four priced independently,
+    because burglary does not arrive on the storm track, burst pipes answer to cold
+    snaps, and kitchen fires and dropped televisions pay no attention to the sky at
+    all. <b>Coastal erosion</b> is modelled alongside them but kept out of the premium,
+    because no standard policy covers it.</p>
     <div class="perils">
       <span class="chip"><i style="background:var(--sub)"></i>Subsidence · BGS geology</span>
       <span class="chip"><i style="background:var(--wx)"></i>Weather · Met Office</span>
@@ -31,6 +32,7 @@ __NAV__
       <span class="chip"><i style="background:var(--th)"></i>Theft · police.uk</span>
       <span class="chip"><i style="background:var(--eow)"></i>Escape of water · Met Office frost</span>
       <span class="chip"><i style="background:var(--fire)"></i>Fire · Home Office incidents</span>
+      <span class="chip"><i style="background:var(--ad)"></i>Accidental damage · Census children</span>
       <span class="chip"><i style="background:var(--er)"></i>Erosion · EA NCERM · not insured</span>
     </div>
     <div class="cta">
@@ -43,7 +45,7 @@ __NAV__
     <div class="tiles">
       <div class="tile"><div class="k">Districts &middot; households</div><div class="v">__N_DISTRICTS__</div><div class="d">__N_HOUSEHOLDS__ households (census-weighted)</div></div>
       <div class="tile"><div class="k">Simulated years</div><div class="v">__N_SIM__</div><div class="d">per district, seeded &amp; reproducible</div></div>
-      <div class="tile"><div class="k">Six-peril premium</div><div class="v">£__PREM_MIN__–__PREM_MAX__</div><div class="d">lowest to highest district</div></div>
+      <div class="tile"><div class="k">Eight-peril premium</div><div class="v">£__PREM_MIN__–__PREM_MAX__</div><div class="d">lowest to highest district</div></div>
       <div class="tile"><div class="k">Diversification credit</div><div class="v">__DIVERSIFICATION__%</div><div class="d">portfolio vs standalone tail</div></div>
     </div>
     <p class="note" style="margin-top:14px">Separately, __EROSION_N__ districts sit on a
@@ -176,12 +178,14 @@ __NAV__
         <p>Storm, flood and subsidence are calibrated separately to the ABI's 2025
         payouts — £244m, £312m and £307m across ~15.5m policies — theft to the last
         published theft total (~£450m), escape of water to the ABI's £1.8m-a-day
-        figure (~£657m a year), and fire to a documented triangle of Home Office
-        incident counts and the ABI's average fire payout (~£434m a year), rather than
-        to a single blended number. Together the seven
+        figure (~£657m a year), fire to a documented triangle of Home Office
+        incident counts and the ABI's average fire payout (~£434m a year), and
+        accidental damage to a triangle of its own — the ABI's claim count, the
+        market's at-home AD share and Aviva's average payout (~£227m a year) — rather
+        than to a single blended number. Together the eight
         insured perils come to <b>£__MEAN_EL__</b> per policy per year,
         __EL_CLAIMS_SHARE__% of what all home claims cost. The rest of a real premium is
-        accidental damage and expenses — neither of which this models — plus
+        expenses — which this does not model — plus
         commission and profit.
         <a href="methodology.html#calibration">How the calibration works →</a></p>
       </div>
@@ -243,8 +247,8 @@ __NAV__
     <div class="callout">
       <b>This is a demonstration model, not a priced product.</b> The hazard data is real and
       current, and each peril's loss level is pinned to published ABI payouts — but these are
-      <b>seven-peril technical premiums</b>, not home insurance premiums. A real policy also
-      covers accidental damage, and carries expenses,
+      <b>eight-peril technical premiums</b>, not home insurance premiums. A real policy
+      also carries expenses,
       commission and profit on top. The
       <a href="methodology.html#caveats">caveats section</a> is explicit about every assumption.
     </div>
@@ -312,6 +316,7 @@ __NAV__
            ['et', 'Theft', '--th'],
            ['ee', 'Esc. of water', '--eow'],
            ['efi', 'Fire', '--fire'],
+           ['ea', 'Acc. damage', '--ad'],
            ['c', 'Capital', '--ink-muted']]
             .filter(([k]) => d[k] > 0)
             .map(([k, name, col]) =>
@@ -324,6 +329,7 @@ __NAV__
            ['et', 'Theft', '--th'],
            ['ee', 'Esc. of water', '--eow'],
            ['efi', 'Fire', '--fire'],
+           ['ea', 'Acc. damage', '--ad'],
            ['c', 'Capital', '--ink-muted']]
             .filter(([k]) => d[k] > 0)
             .map(([k, name, col]) =>

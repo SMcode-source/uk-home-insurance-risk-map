@@ -39,6 +39,10 @@
   \* fire: a brick red darker than the subsidence orange. 6.9:1 against
      --page and 6.4:1 against --surface-2, so it can carry text. */
   --fire: #a4262c;
+  /* accidental damage: a magenta plum - redder than the groundwater
+     violet, bluer than the erosion rose. 6.7:1 against --page and
+     6.25:1 against --surface-2, so it can carry text. */
+  --ad: #7c4380;
   --shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
 }
 @media (prefers-color-scheme: dark) {
@@ -62,6 +66,7 @@
     --th: #d4af37;      /* 9.24:1 on the dark background */
     --eow: #45c6d4;     /* 9.52:1 on the dark background */
     --fire: #f28b82;    /* 8.14:1 on the dark background */
+    --ad: #e0a6d8;      /* 9.82:1 on the dark background */
     --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
     /* dark surface: #898781 is 4.85:1 and #3987e5 is 4.79:1, both pass */
     --link: #6da7ec;
@@ -89,6 +94,7 @@
   --th: #d4af37;      /* 9.24:1 on the dark background */
   --eow: #45c6d4;     /* 9.52:1 on the dark background */
   --fire: #f28b82;    /* 8.14:1 on the dark background */
+  --ad: #e0a6d8;      /* 9.82:1 on the dark background */
   --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
 }
 
