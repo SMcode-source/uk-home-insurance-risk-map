@@ -884,9 +884,14 @@ def test_published_geojson_satisfies_the_models_own_identities():
     el_fire = col("el_fire")
     if np.isnan(el_fire).all():
         el_fire = np.zeros(len(feats))
+    # Tolerance is the rounding budget, not a vibe: el_total and each of
+    # the SEVEN legs is written at 1dp (+-0.05 each), so the legitimate
+    # worst case is 8 x 0.05 = 0.40. The old 0.30 was sized for six legs
+    # and fire's arrival produced a sector that stacked its roundings to
+    # exactly 0.30 + 1e-13 - a real build failed on float epsilon.
     assert np.abs(el_total - (col("el_sub") + col("el_wx") + col("el_fl")
                               + col("el_gw") + el_th + el_eow
-                              + el_fire)).max() <= 0.30
+                              + el_fire)).max() <= 0.40
     assert np.abs(col("el_total5") - (el_total + col("el_er"))).max() <= 0.25
     assert (capital >= -1e-9).all()
 
