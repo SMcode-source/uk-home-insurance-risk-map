@@ -254,6 +254,61 @@ end-to-end: the fire lessons (identity budget scales with legs,
 tolerance widened with the wiring, raw artifact uploaded before the
 gate) all held without being needed.
 
+## Phase 2 plan (2026-08-17): sources verified, design set, nothing built yet
+
+Every source below was probed this session — grain, licence, size and
+edition confirmed, not assumed. All are OGL v3, no registration:
+
+- **CTSOP 1.1 / 3.1 / 4.1** (VOA, England & Wales, snapshot 31 Mar
+  2025, published 2025-09-25; next edition summer 2026): dwelling
+  counts by **council tax band / property type / build period at LSOA
+  grain**, direct zips 0.7–7.5 MB from assets.publishing.service.gov.uk
+  (URLs in the fetcher when it lands). Counts rounded to 10, <5
+  suppressed as "–", <1% unknown type/age — handle both in the parser.
+- **Scotland dwellings by council tax band, detailed** (NRS via
+  statistics.gov.scot, 10.6 MB zip, updated 2025-08-13): band × **2011
+  data zone** to 2023; **the 2024 year switches to 2022 data zones**
+  mid-series — use 2023 at 2011 DZ (postcode joins exist) or acquire
+  the 2022-DZ postcode index first. "Dwellings by Type" is a sibling.
+- **NDR stock of properties by MSOA/LSOA** (VOA, 2025 edition,
+  `ndr_stock_oa_2025.zip`, 7.1 MB): **non-domestic property counts at
+  LSOA** — the licence-clean route to the theft commercial fix.
+  Scotland needs nothing: theft there is already the flat national
+  override, so the commercial correction does not apply.
+
+Examined and NOT chosen (record so nobody re-treads):
+- **EPC bulk** (epc.opendatacommunities.org): registration wall, mixed
+  licence (address fields are Royal Mail copyright — unusable in a
+  public OGL repo), multi-GB, and coverage is only certificate-holding
+  stock (sold/let/built since 2008 — biased newer/rented). CTSOP4.1
+  gives build period for the FULL stock at the same grain with none of
+  that. EPC's unique add is floor area; defer until something needs it.
+- **VOA rating-list bulk** (voaratinglists.blob.core.windows.net):
+  free but under restricted terms, not OGL — the statistical LSOA
+  release replaces it. The data.gov.uk "VOA non-domestic" entry is a
+  dead 2016 record with no links.
+
+The design, in publish order (one experiment branch + priced evidence
+each; the user decides each publication):
+- **2a — theft commercial-exposure correction** (smallest first, and
+  already named "the proper fix" in the theft section): police.uk
+  burglary points include commercial break-ins; weight each district's
+  points by its residential share hh/(hh + non-domestic premises) from
+  NDR-stock-by-LSOA before the rate is formed, keeping the p99.9 cap
+  as backstop. Expect the cap to stop binding where it was doing crude
+  duty (W1J prices at the cap today).
+- **2c — severity relativities from council-tax band mix**: bands are
+  a sum-insured proxy. CRITICAL TRAP: the three nations' bands are
+  incompatible regimes (England A–H on 1991 values, Wales A–I on 2003
+  values, Scotland A–H on 1991 with its own ratios) — normalise WITHIN
+  nation to mean 1.0, then renormalise the district multiplier
+  exposure-weighted to 1.0 nationally (the depth-multiplier pattern:
+  relativities only, ABI level pinned by construction).
+- **2b — EoW dwelling-age slice**: CTSOP4.1 pre-war share as a second
+  slice beside the 15% freeze slice — but ONLY if a published anchor
+  for the age→EoW-frequency relationship can be found; without one it
+  is an undocumented knob and stays out, per house rules.
+
 ## Audited 2026-08-16: every published claim re-derived from the data
 
 A full don't-trust-the-docs pass. The code and data were CLEAN: the
