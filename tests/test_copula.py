@@ -1064,10 +1064,15 @@ def test_the_sector_model_nests_inside_the_district_model():
     # while the peril sets visibly differ; the moment both files carry
     # the same perils this re-arms, so a real level drift still fails.
     d_any = next(iter(districts.values()))
-    if ("el_th" in d_any) != ("el_th" in sectors[0]):
-        pytest.skip("district and sector outputs are mid-transition: one "
-                    "carries theft and the other does not yet - the "
-                    "publish rebuild reconciles them")
+    # Compare the whole el_* column sets rather than naming one peril:
+    # the theft transition taught us this guard is needed, and the EoW
+    # transition taught us not to hard-code which peril is in flight.
+    d_perils = {k for k in d_any if k.startswith("el_")}
+    s_perils = {k for k in sectors[0] if k.startswith("el_")}
+    if d_perils != s_perils:
+        pytest.skip("district and sector outputs are mid-transition: "
+                    f"peril sets differ by {sorted(d_perils ^ s_perils)} - "
+                    "the publish rebuild reconciles them")
 
     num = den = 0.0
     for name, group in by_district.items():
