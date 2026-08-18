@@ -205,62 +205,75 @@ __NAV__
         <tr>
           <th>Peril</th><th>Hazard data</th><th>What is measured</th>
           <th class="num">Claim freq.</th><th class="num">Median severity</th>
+          <th class="num">% of claim cost</th><th class="num">Buildings</th><th class="num">Contents</th>
         </tr>
         <tr>
           <td><strong style="color:var(--sub)">Subsidence</strong></td>
           <td>BGS Geology 625k bedrock</td>
           <td>Shrink–swell susceptibility of each formation, area-weighted over the district</td>
-          <td class="num">to 3.0%/yr</td><td class="num">£9,000</td>
+          <td class="num">to 3.0%/yr</td><td class="num">£__SEV_SUB__</td><td class="num">__PCT_SUB__%</td><td class="num">__BLD_SUB__%</td><td class="num">__CNT_SUB__%</td>
         </tr>
         <tr>
           <td><strong style="color:var(--wx)">Weather</strong></td>
           <td>Met Office (incl. MIDAS station gusts)</td>
           <td>Winter wind, wind-driven rain index, 1-in-50 gust, ≥10 mm rain days, annual rainfall</td>
-          <td class="num">to 10.0%/yr</td><td class="num">£3,500</td>
+          <td class="num">to 10.0%/yr</td><td class="num">£__SEV_WX__</td><td class="num">__PCT_WX__%</td><td class="num" colspan="2"><span class="pill">unsplit</span></td>
         </tr>
         <tr>
           <td><strong style="color:var(--fl)">Flood</strong></td>
           <td>EA NaFRA2, NRW FRAW, SEPA</td>
           <td>Share of district area inside river/sea and surface-water flood zones</td>
-          <td class="num">from zone area</td><td class="num">£30k / £15k</td>
+          <td class="num">from zone area</td><td class="num">£__SEV_FL_RS__ / £__SEV_FL_SW__</td><td class="num">__PCT_FL__%</td><td class="num">__BLD_FL__%<sup>†</sup></td><td class="num">__CNT_FL__%<sup>†</sup></td>
         </tr>
         <tr>
           <td><strong style="color:var(--gw)">Groundwater</strong></td>
           <td>EA flood-alert areas</td>
           <td>Share of unit postcodes inside a groundwater flood alert target area</td>
-          <td class="num">to 0.8%/yr</td><td class="num">£20,000</td>
+          <td class="num">to 0.8%/yr</td><td class="num">£__SEV_GW__</td><td class="num">__PCT_GW__%</td><td class="num">__BLD_GW__%<sup>†</sup></td><td class="num">__CNT_GW__%<sup>†</sup></td>
         </tr>
         <tr>
           <td><strong style="color:var(--th)">Theft</strong></td>
           <td>police.uk street-level crime, __TH_MONTHS__ months</td>
           <td>Burglary rate over households + VOA non-domestic premises (the residential share), p99.9 backstop cap</td>
-          <td class="num">to __TH_CAP_PCT__%/yr</td><td class="num">£2,300</td>
+          <td class="num">to __TH_CAP_PCT__%/yr</td><td class="num">£__SEV_TH__</td><td class="num">__PCT_TH__%</td><td class="num">__BLD_TH__%</td><td class="num">__CNT_TH__%</td>
         </tr>
         <tr>
           <td><strong style="color:var(--eow)">Escape of water</strong></td>
           <td>Met Office HadUK-Grid air-frost days</td>
           <td>Flat base plus a freeze-attributable slice scaled by annual air-frost days (1991–2020 normal)</td>
-          <td class="num">0.9–1.5%/yr</td><td class="num">£2,400</td>
+          <td class="num">0.9–1.5%/yr</td><td class="num">£__SEV_EOW__</td><td class="num">__PCT_EOW__%</td><td class="num" colspan="2"><span class="pill">unsplit</span></td>
         </tr>
         <tr>
           <td><strong style="color:var(--fire)">Fire</strong></td>
           <td>Home Office / SFRS / Welsh FRA incident data</td>
           <td>Dwelling fires per household — England at LSOA level, Scotland and Wales by local authority / FRA</td>
-          <td class="num">0.03–0.56%/yr</td><td class="num">£6,000</td>
+          <td class="num">0.03–0.56%/yr</td><td class="num">£__SEV_FIRE__</td><td class="num">__PCT_FIRE__%</td><td class="num">__BLD_FIRE__%</td><td class="num">__CNT_FIRE__%</td>
         </tr>
         <tr>
           <td><strong style="color:var(--ad)">Accidental damage</strong></td>
           <td>Census 2021 (E&amp;W) / Scotland's Census 2022</td>
           <td>Flat base plus a child-attributable slice scaled by the district's share of households with dependent children</td>
-          <td class="num">0.8–1.0%/yr</td><td class="num">£1,100</td>
+          <td class="num">0.8–1.0%/yr</td><td class="num">£__SEV_AD__</td><td class="num">__PCT_AD__%</td><td class="num" colspan="2"><span class="pill">unsplit</span></td>
         </tr>
         <tr>
           <td><strong style="color:var(--er)">Erosion</strong> <span class="pill">not insured</span></td>
           <td>EA NCERM National 2024</td>
           <td>Share of district area projected lost to coastal erosion by 2105</td>
-          <td class="num">zone ÷ 80 yr</td><td class="num">£250,000</td>
+          <td class="num">zone ÷ 80 yr</td><td class="num">£__SEV_ER__</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>
         </tr>
       </table>
+      <p class="note"><sup>†</sup> Three published conventions for
+      flood's buildings/contents split disagree: Flood Re's statutory
+      premium caps imply 66/34, the Multi-Coloured Manual's depth-damage
+      curves 48/52, and the Environment Agency's appraisal convention
+      25/75. The MCM figure is used here because it is the only one of the
+      three that measures damage to the property - the other two are a
+      reinsurance pricing artefact and a public-benefit appraisal rule.
+      Across all three the portfolio buildings share moves 4.9 percentage
+      points, against 42.8 points for the three perils left unsplit.
+      Groundwater follows flood. Weather, escape of water and accidental
+      damage have no published split and are shown unsplit rather than
+      given an invented one.</p>
     </div>
     <p class="note">Coastal erosion is the odd one out and is treated as such: it is
     modelled inside the vine but <b>excluded from the premium</b>, because standard UK
