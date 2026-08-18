@@ -591,10 +591,36 @@ districts**, used as the exposure weight throughout.
       found via search (all 404 — the media-hub move again, see #27),
       and the marketing "typical split" statistics that insurer and
       aggregator blogs quote without a book behind them.
-    - **Where a real anchor might still come from:** the IFoA's
-      withdrawn general-insurance research papers (try
-      `webarchive@actuaries.org.uk`), or a claims triangle (already the
-      top item on the blocked list below).
+    - **Second search pass, 2026-08-18 — three more routes closed.**
+      Each was checked directly rather than assumed:
+      - **IFoA research working parties: no such party exists.** The
+        current register runs Actuarial applications of vine copulas,
+        AI/ML for pricing, UK asbestos, Black swan, Capital research,
+        Claims inflation, Climate change, Cyber, Electric vehicles,
+        Fairness and inclusion, **Flood**, Liability exposure
+        management, ML in reserving, Managing the cycle, UK motor,
+        Pricing research, Reserving research, Risk drivers, Delegated
+        underwriting, Solvency UK, Third party, Optimal reserving.
+        Nothing on household, water damage, or claims-by-peril. The
+        Flood party is the only property-peril one, and flood is the
+        peril already anchored three times over.
+      - **FCA General Insurance Value Measures is product-level, not
+        peril-level.** It reports claims frequency, acceptance rate and
+        average payout per *product* (buildings, contents, combined) —
+        there is no peril dimension in the return, so it cannot yield a
+        peril x cover matrix at any level of effort. Confirms the
+        earlier rejection for a second reason beyond renter selection.
+      - **ABI property-claims releases give combined figures only.**
+        The quarterly and annual releases split weather vs non-weather
+        and quote per-peril totals and averages, but never buildings vs
+        contents within a peril. (The 2026 annual release URL also
+        404s to WebFetch — the media-hub move again, see #27.)
+    - **The one route left, and it needs the user:** the IFoA's
+      withdrawn general-insurance research papers, requestable from
+      `webarchive@actuaries.org.uk`. **Not contacted** — sending mail on
+      the user's behalf needs their say-so, and this is theirs to send.
+      Otherwise a claims triangle (top item on the blocked list below)
+      remains the only thing that would settle it.
 
 ## Blocked on non-open data — what each would unblock
 
