@@ -311,6 +311,12 @@ ABI = dict(
     sev_erosion=250_000.0,
 )
 # Target per-policy frequency for each modelled peril = paid / severity / policies
+#
+# "fl" is PROVISIONAL as written here and is re-derived by
+# calibrate_frequency() against the severity the flood legs actually
+# blend to. Flood is the only peril whose severity is built from
+# components rather than read from one ABI figure, so it is the only one
+# whose E[sev] can differ from the number in this denominator.
 ABI_TARGET_FREQ = {
     "wx": ABI["storm_paid"] / ABI["sev_weather"] / POLICIES,
     "fl": ABI["flood_paid"] / ABI["sev_flood"] / POLICIES,
@@ -341,6 +347,9 @@ SEV_SIGMA = dict(sub=0.90, wx=1.10, fl=0.90, gw=0.80, er=0.35,
 FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0, "th": 1.0,
               "eow": 1.0, "fire": 1.0, "ad": 1.0}
 GW_SHARE_OF_FLOOD = 0.10      # groundwater not published separately
+# The frequency-weighted mean flood severity the two legs actually blend
+# to, set by calibrate_frequency(). None until then.
+FLOOD_SEV_BLEND = None
 
 
 def calibrate_frequency(gdf):
@@ -366,6 +375,28 @@ def calibrate_frequency(gdf):
            "eow": float(np.average(m["p_eow"], weights=w)),
            "fire": float(np.average(m["p_fire"], weights=w)),
            "ad": float(np.average(m["p_ad"], weights=w))}
+    # Flood's severity is BUILT from components - fluvial and surface
+    # water, each with its own ABI figure, the latter carrying the
+    # district depth multiplier - so E[sev_fl] need not equal
+    # ABI["sev_flood"], and it does not. The EA zone areas make 66.3% of
+    # flood claims fluvial where the GBP30,000 blended headline implies
+    # 70.6%, and deriving the target frequency from that headline left
+    # flood 2.26% under its own paid anchor.
+    #
+    # Every OTHER peril satisfies EL == paid / POLICIES exactly, because
+    # its E[sev] is literally the figure in the denominator. Deriving
+    # flood's target from the severity the model actually delivers
+    # restores that invariant rather than inventing anything: the hard
+    # anchor is the published GBP312m paid, and GBP30,000 was only ever
+    # an intermediate for turning it into a frequency.
+    #
+    # Not circular, and idempotent: FREQ_SCALE scales p_fl uniformly, so
+    # it cannot move the p_rs:p_sw ratio this blend is weighted by.
+    global FLOOD_SEV_BLEND
+    FLOOD_SEV_BLEND = float(np.average(
+        np.exp(m["sev_fl"]["mu"] + m["sev_fl"]["sigma"] ** 2 / 2),
+        weights=w * m["p_fl"]))
+    ABI_TARGET_FREQ["fl"] = ABI["flood_paid"] / FLOOD_SEV_BLEND / POLICIES
     for k in ("sub", "wx", "fl", "th", "eow", "fire", "ad"):
         FREQ_SCALE[k] = ABI_TARGET_FREQ[k] / raw[k]
     # groundwater has no published total; peg it to a share of flood
@@ -374,6 +405,9 @@ def calibrate_frequency(gdf):
         print(f"  {k:4} frequency {raw[k]:.3%} -> ABI {ABI_TARGET_FREQ[k]:.3%}"
               f"  (x{FREQ_SCALE[k]:.3f})")
     print(f"  gw   frequency pegged at {GW_SHARE_OF_FLOOD:.0%} of flood")
+    print(f"  fl   severity blends to GBP{FLOOD_SEV_BLEND:,.0f} vs the ABI "
+          f"headline GBP{ABI['sev_flood']:,.0f}; target re-derived from the "
+          f"blend so flood reproduces its paid anchor exactly")
     return FREQ_SCALE
 
 
