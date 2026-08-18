@@ -10,7 +10,9 @@ just a pointer here)
 
 **Phase 1 of the roadmap (attritional perils: theft → escape of water
 → fire → accidental damage) is COMPLETE.** Phase 2 is EPC/VOA exposure
-realism; Phase 3 the buildings/contents split.
+realism — **2a (theft's residential denominator) is live since
+2026-08-18**, 2c sits built-but-unpublished on its branch. Phase 3 is
+the buildings/contents split.
 
 The site publishes the model at **two grains side by side**:
 `/map.html` over 2,736 postcode districts and `/sectors.html` over
@@ -22,7 +24,8 @@ methodology page draws the Hull comparison as an inline SVG generated
 from the published GeoJSON at build time — a screenshot would go stale
 at the next rebuild; this cannot.
 
-Current headline figures (bot commit 08be7f1, 2026-08-17):
+Current headline figures (bot commit ca83519, 2026-08-18 — 2a moved
+geography, not level, so these are the same numbers):
 exposure-weighted premium **£174.24** over 27.26m households; loss
 cost £169.75 ≈ 77% of the £219 all-home-claims cost; climate
 uplift diluted a fourth time by AD's flat ~£14.65 (each attritional
@@ -254,13 +257,72 @@ end-to-end: the fire lessons (identity budget scales with legs,
 tolerance widened with the wiring, raw artifact uploaded before the
 gate) all held without being needed.
 
-## Phase 2 status (2026-08-17, later): 2a and 2c evidence COMPLETE, decisions pending
+## PUBLISHED 2026-08-18: Phase 2a, theft's residential denominator
 
-Both experiment branches are built, verified and priced. NEITHER is
-merged - publishing is the user's decision, and none has been given.
+User decision: "2a only". LIVE at both resolutions (merge 6d24373,
+sector output crossed in 8204346 from sector-model run 11 bot 1a8f2d7,
+publish run 32085591133 bot commit ca83519). Theft's rate now divides by
+households PLUS VOA non-domestic premises, so each unit is charged only
+the residential share of its burglary points.
 
-- **2a - theft commercial denominator** (`exp/theft-commercial`,
-  eebb5c2+c22aa06; evidence run 32033558205): rate = burglaries /
+Effect. Exposure-weighted premium is UNCHANGED at £174.24 districts /
+£174.02 sectors — the calibration re-pins the level, so only geography
+moves — and el_th stays £29.03 to the penny at both grains. The p99.9
+cap is demoted from doing the commercial correction's job to a genuine
+tiny-denominator backstop: 6.22% → 3.400% (15 districts on it) and
+8.29% → 4.230% (78 sectors). Every non-theft column is bit-identical at
+both grains (49 of 68 sector columns untouched; only the theft-derived
+chain moves). Churn 9.6% of sectors, 54 by two groups or more; every
+large fall is a City of London sector (EC2N 4 −£266, EC2M 7 −£265,
+EC4V 4/5 −£260) and the rises are the renormalisation landing elsewhere
+at +£6 to +£7.
+
+**Three defects found while publishing, all fixed — read these first:**
+
+1. **The premises join had no coverage guard.** `prem_table.get(n, 0.0)`
+   is the right fallback for a genuinely absent area (Scotland has no
+   VOA premises and is overridden anyway), but it is also how a
+   mis-keyed file vanishes without trace: every lookup misses, the
+   denominator silently reverts to households-only, the correction
+   un-applies, and the run reports success. That is the households.csv
+   void-run trap. Now raises below 95% E&W coverage (both grains score
+   100.0% / 99.9%), with two tests — one pinning what the correction
+   does, one pinning that a sector-keyed file on a district build raises
+   AND that an E&W-complete file with no Scottish row still passes, so
+   the guard cannot be "fixed" by counting Scotland.
+
+2. **`docs/` was stale on the branch and the local check said fresh.**
+   The copy pass edited templates without rebuilding. Worse, verifying
+   with `build_site.py` alone gives a FALSE PASS: build_site only
+   *wraps* `map/uk_home_insurance_risk_map.html`, a gitignored
+   intermediate produced by `build_map.py`. Re-wrapping a stale
+   intermediate reproduces the stale page and the diff comes back clean.
+   **To check docs/ freshness run the full chain CI runs: `build_map.py`,
+   then `build_analysis.py`, then `build_site.py`.** Less is not a check.
+
+3. **The peril table hand-wrote the theft cap** at 3.4% — the value 2a
+   was expected to produce — while the prose two sections down injects
+   `__TH_CAP_PCT__` from committed output. The page contradicted itself
+   (table 3.4%, prose 6.2%) for as long as the branch sat unpublished.
+   The cell now takes the same injection.
+
+**One process lesson that cost a red run.** Crossing the sector output
+in its own commit (8204346) left `docs/assets/sector_data.geojson` and
+`uk_sector_risk.csv` behind the data they are built from, so tests went
+red in the transition window (run 32085591045). The existing
+mid-transition skip only covers template-ahead-of-columns, NOT
+data-ahead-of-assets, so it did not catch this. The bot commit
+reconciled it and a dispatched tests run on ca83519 is fully green
+(both jobs). **Next time: rebuild docs/ in the same commit that crosses
+the sector output**, or teach the skip guard this second window.
+
+## Phase 2 status: 2a PUBLISHED 2026-08-18, 2c built and NOT published
+
+Both experiment branches were built, verified and priced. The user chose
+**"2a only"**: 2a is live (see the section above), 2c stays on its branch.
+
+- **2a - theft commercial denominator** - **PUBLISHED, now on main**
+  (`exp/theft-commercial`, eebb5c2+c22aa06; evidence run 32033558205): rate = burglaries /
   (households + VOA premises), premises from NDR stock by LSOA
   (fetch_premises.py, data/premises.csv, DATA_SOURCES.md #29 on that
   branch). All non-theft columns bit-identical; el_th mean pinned
@@ -279,13 +341,13 @@ merged - publishing is the user's decision, and none has been given.
   pinned to the penny; premium 174.24 unchanged. Churn 69.1%, 929 by
   >=2 groups: prime London up to +282 (W1J), low-band city cores
   -78 (BD1/SR1). New test pins severity-not-frequency scaling.
-- **They COLLIDE in prime London** (2a cuts W1J, 2c raises it):
-  whichever publishes second must rebase and re-run evidence.
-  Suggested order: 2a first (smaller, promised in the theft section).
-- **Publishing either also needs**: sector-grain input via the
-  OUTWARD D seam on sector-model (premises.csv / ct_bands.csv), a
-  site copy pass (2a: the 6.22% cap figures; 2c: severity prose),
-  then merge -> rebuild commit=true -> live verify.
+- **They COLLIDE in prime London** (2a cut W1J, 2c raises it). 2a went
+  first, so **2c's evidence run is now stale**: to revisit it, rebase
+  `exp/ct-severity` onto published main, re-run the evidence (the churn
+  numbers above are measured against the pre-2a baseline and will move),
+  do the site copy pass for the severity prose, and take the OUTWARD D
+  seam for ct_bands.csv on sector-model - premises.csv already has it
+  (fetch_premises.py, 9e777f8: 9,700 sectors, 100.0% placed).
 - Known stale, untouched (predates both): dependence_check.py and
   sensitivity.py never gained the attritional rate columns, so both
   fail at _fields today.
