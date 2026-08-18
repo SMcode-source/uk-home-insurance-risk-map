@@ -558,8 +558,7 @@ real content of defect 1. The simulated columns move as they should:
 One honest caveat: `tvar99_vine` moves +14.7% between seeds (12,172 ->
 13,967). That is a portfolio-level far tail out of 20,000 years and is
 inherently noisy; it is a published column but nothing in the premium
-path reads it (premium uses `tvar99_euler`). I have NOT
-established
+path reads it (premium uses `tvar99_euler`). I have NOT established
 whether these changes made it more seed-sensitive than it was on main,
 only that it is sensitive. Worth a look before anyone quotes it.
 
