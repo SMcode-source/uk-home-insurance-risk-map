@@ -24,6 +24,13 @@ methodology page draws the Hull comparison as an inline SVG generated
 from the published GeoJSON at build time — a screenshot would go stale
 at the next rebuild; this cannot.
 
+**Two defects are open and UNFIXED** — the four vine perils take their
+EL from the draws instead of analytically, and flood severity is
+blended in log space. Neither is a publishing emergency (EL is
+paid ÷ policies by construction) but both are real; read "Model audit
+2026-08-18" below before touching the marginals, and re-measure with
+`.venv/Scripts/python.exe scripts/analytic_el_check.py`.
+
 Current headline figures (bot commit ca83519, 2026-08-18 — 2a moved
 geography, not level, so these are the same numbers):
 exposure-weighted premium **£174.24** over 27.26m households; loss
@@ -315,6 +322,122 @@ data-ahead-of-assets, so it did not catch this. The bot commit
 reconciled it and a dispatched tests run on ca83519 is fully green
 (both jobs). **Next time: rebuild docs/ in the same commit that crosses
 the sector output**, or teach the skip guard this second window.
+
+## Model audit 2026-08-18: reconciliation, and TWO UNFIXED defects
+
+The user asked whether escape of water is being counted twice through
+some other factor, and for an overall check that everything adds up to
+100% of claims. Reproduce any of this with
+`scripts/build_model.py`'s own constants — no simulation is involved
+in the analytic column, which is the point.
+
+**No double-counting.** Each of the eight perils has its own disjoint
+ABI anchor and its own driver, and no driver feeds two perils. The one
+place water could have been double-charged is freeze: `EOW_FREEZE_SHARE
+= 0.15` puts a frost-day slice into EoW, and frost appears nowhere
+else — flood is river/sea/surface-water zone fractions, weather is
+gust/wind-driven-rain/precip, neither has a freeze term. Storm-driven
+water ingress sits in `wx` and burst-pipe water sits in `eow`, which is
+the ABI's own boundary.
+
+**The money reconciles. The CLAIM COUNT does not.**
+
+| | paid £m | avg £ | claims | %/policy |
+|---|---|---|---|---|
+| subsidence | 307 | 17,820 | 17,228 | 0.111% |
+| weather | 244 | 2,450 | 99,592 | 0.643% |
+| flood | 312 | 30,000 | 10,400 | 0.067% |
+| theft | 450 | 3,800 | 118,421 | 0.764% |
+| escape of water | 657 | 4,000 | 164,250 | 1.060% |
+| fire | 434 | 14,000 | 31,000 | 0.200% |
+| accidental damage | 227 | 1,650 | 137,576 | 0.888% |
+| **modelled** | **2,631** | **4,548** | **578,466** | **3.732%** |
+| ABI all-home | 3,400 | 6,071 | 560,000 | |
+
+77.4% of the money — as documented — but **103.3% of the count**. The
+unmodelled remainder (subsidence-adjacent, liability, legal expenses,
+personal possessions away from home, alternative accommodation as a
+standalone head) would have to be **−18,466 claims for £769m** to
+close. It cannot be negative, so at least one of the four
+frequency-implied anchors is too high, and the modelled mix average
+(£4,548) sitting well under ABI's own £6,071 says the same thing from
+the other side.
+
+**The AD anchor is where the exposure is.** Theft, EoW and fire each
+have a published *paid total* and a published *average*, so their
+counts are derived. AD's is built the other way round: 24.53% of
+560,000 × £1,650. It is the one leg constructed FROM the count, so it
+is the one that can be moved without contradicting a published total.
+At the bottom of theft's documented vintage envelope (0.58%/policy —
+the "if claims fell with recorded burglary" end of DATA_SOURCES #25)
+the count drops to 98.2% and the residual becomes a sane 10,055 claims
+at £87,262 — still high, which is what you would expect of a remainder
+containing total losses and long-tail liability.
+
+**EL is immune to all of this**, which is why it is not a publishing
+emergency: each peril's EL is paid ÷ policies by construction, so the
+premium is right even if the implied count is not. What the count
+mismatch threatens is any future work that *reasons from frequency* —
+the buildings/contents split (Phase 3) is exactly that, so read this
+before using a modelled claim count as evidence for anything.
+
+### Defect 1: four perils take their EL from the DRAWS, not analytically
+
+`th`, `eow`, `fire` and `ad` compute EL as p × E[sev]. `sub`, `wx`,
+`fl` and `gw` take `ls.mean(axis=1)` — the mean of the simulated
+losses. Analytic vs published, exposure-weighted over the 2,736
+districts:
+
+| peril | analytic | published | published vs analytic | analytic vs ABI |
+|---|---|---|---|---|
+| sub | 19.8065 | 22.2725 | **+12.45%** | −0.00% |
+| wx | 15.7419 | 15.5256 | −1.37% | +0.00% |
+| fl | 18.9125 | 16.4712 | **−12.91%** | −6.04% |
+| gw | 1.3419 | 0.4118 | **−69.32%** | (no anchor) |
+| th | 29.0323 | 29.0339 | +0.01% | +0.00% |
+| eow | 42.3871 | 42.3865 | −0.00% | −0.00% |
+| fire | 28.0000 | 28.0007 | +0.00% | +0.00% |
+| ad | 14.6452 | 14.6457 | +0.00% | −0.00% |
+| TOTAL | 169.8673 | 168.7480 | −0.66% | |
+
+The analytic column lands on each ABI anchor to two decimal places, so
+**the calibration is exact and the simulation is what wanders.** This
+is the identical bug already fixed twice in this repo — for `el_er`
+("20,000 years give under one event") and for theft ("a peril sharing
+one uniform stream must take its EL analytically"): the districts share
+a systemic draw, so their errors are COMMON and do not average out
+across the map. Three seeds at production N_SIM on 400 districts moved
+sub +11.7/+2.7/+68.2%, wx −0.6/−21.1/+29.5%, fl −15.1/+15.5/+70.2%,
+gw −70.4/+6.0/+70.1% — the published values are one draw from that.
+Groundwater is worst because it is the rarest leg. Note `el_year =
+year_loss.mean(axis=1)` is a draw mean too, so **capital is exposed
+by the same mechanism**; the tail columns should keep using draws,
+which is what they are for.
+
+### Defect 2: flood severity is blended in LOG space
+
+```python
+mu_fl = (p_rs * mu_rs + p_sw * mu_sw) / np.maximum(p_fl, 1e-12)
+```
+
+That is a weighted mean of logs — a GEOMETRIC mean of the two
+severities. The intended quantity, and the one the published £30,000
+average is held to, is the frequency-weighted ARITHMETIC mean of
+£35,000 fluvial and £18,000 surface water. `exp` is convex, so the
+modelled mean sits below target; the gap is **independent of sigma**
+(the σ²/2 terms cancel) and runs −4% to −5% across plausible mixes.
+Measured, it is the −6.04% in the table above: flood is the ONLY
+calibrated peril whose analytic EL misses its own anchor, because
+`ABI_TARGET_FREQ["fl"] = flood_paid / 30,000 / POLICIES` assumes a mean
+severity the marginal does not deliver. The fix is to blend the MEANS
+and then take the log.
+
+**NEITHER IS FIXED.** Both are model changes: they need an experiment
+branch, a priced evidence run at both grains, and the user's publish
+decision — the same bar every peril cleared. Defect 2 raises the flood
+level ~6% and is a straight correction; defect 1 mostly REDUCES
+subsidence and RAISES groundwater, and its real prize is that the map
+stops depending on the seed.
 
 ## Phase 2 status: 2a PUBLISHED 2026-08-18, 2c built and NOT published
 
