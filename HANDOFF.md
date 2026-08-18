@@ -254,6 +254,59 @@ end-to-end: the fire lessons (identity budget scales with legs,
 tolerance widened with the wiring, raw artifact uploaded before the
 gate) all held without being needed.
 
+## Phase 3 REVISED (2026-08-18, later): 57% of the book CAN ship
+
+The "anchors don't exist" verdict below stands for the full per-peril
+split, and everything in it is still true. But it asked the wrong
+question. Having exhausted every free route (DATA_SOURCES #31 third
+pass, #32 the whole ABI web archive) and priced nothing, the user's
+call was: **use easily accessible data, or do a high-level breakdown by
+risk type.** Done — with no new data at all, and no invented parameter.
+
+The calibrated (analytic) EL per policy, split where a published anchor
+exists and left explicitly unsplit where none does. Flood and
+groundwater shown on the MCM convention, the middle of the three:
+
+| risk type | £/policy | % of cost | buildings | £ bldg | £ contents |
+|---|---|---|---|---|---|
+| escape of water | 42.39 | 25.0% | — | *unsplit* | *unsplit* |
+| theft | 29.03 | 17.1% | 25% | 7.26 | 21.77 |
+| fire | 28.00 | 16.5% | 78% | 21.84 | 6.16 |
+| subsidence | 19.81 | 11.7% | 100% | 19.81 | 0.00 |
+| flood | 18.91 | 11.1% | 48% | 9.08 | 9.83 |
+| weather | 15.74 | 9.3% | — | *unsplit* | *unsplit* |
+| accidental damage | 14.65 | 8.6% | — | *unsplit* | *unsplit* |
+| groundwater | 1.34 | 0.8% | 48% | 0.64 | 0.70 |
+| **anchored subtotal** | **97.09** | **57.2%** | **60%** | **58.63** | **38.47** |
+| **unsplit subtotal** | **72.77** | **42.8%** | | | |
+| **TOTAL** | **169.87** | **100.0%** | | | |
+
+**The finding that matters, and it inverts the entry below.** This file
+spends a paragraph on flood's three contradictory conventions (66 / 48
+/ 25). Swinging flood across all three moves the portfolio buildings
+share by **4.9 percentage points**. The three unanchored perils move it
+by **42.8**. The flood argument is a rounding error on the real
+problem; it was agonised over because it was the tractable part, not
+the important one. **Escape of water alone is 25.0% of claim cost —
+five times the entire flood-convention uncertainty.** Any future effort
+should go at EoW and nothing else.
+
+**What this means for the portfolio number.** It is a bound, not an
+estimate: **31.8%–79.5% buildings** depending on flood convention and
+on where the unanchored 42.8% falls. A 43-point band is not a headline
+figure and must never be published as one. What IS publishable is the
+table above — per-risk-type claim cost that sums to 100%, a cover split
+on the 57.2% that has anchors, and the other 42.8% named and left
+blank. That is honest, needs nothing bought, and is strictly more than
+the site says today (which is nothing).
+
+**Still true, and still the reason not to go further:** a fixed
+per-peril fraction cannot vary by geography, so even a complete split
+would move no district's *ranking* — it would re-label the premium, not
+re-rate it. Publishing the table is a disclosure improvement, not a
+model change, and needs no evidence run. **Not built into the site;
+that is the user's call.**
+
 ## Phase 3 verdict (2026-08-18): the mechanism WORKS, the anchors DON'T EXIST
 
 Phase 3 was to split each district's premium into buildings and contents
