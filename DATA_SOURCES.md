@@ -586,6 +586,96 @@ districts**, used as the exposure weight throughout.
       build period for the FULL stock at LSOA under plain OGL if
       Phase 2b/2c ever need it.
 
+
+32. **The ABI industry-data subscription, and how to read a withdrawn
+    ABI file** (found 2026-08-18; numbers 30 and 31 are taken by the
+    two unmerged branches, so this skips to 32 to merge cleanly).
+    Two separate things, both worth keeping.
+
+    **(a) The web-archive technique, which WORKS.** Entries #27 and #31
+    record ABI PDF and XLSX URLs that 404 after the media-hub move, and
+    treat them as dead. They are not dead — they are archived. The
+    Wayback CDX API enumerates them without an API key:
+
+        curl "http://web.archive.org/cdx/search/cdx?url=abi.org.uk*\
+        &output=text&fl=original,statuscode\
+        &filter=original:.*\.(xlsx|xls|csv)$&collapse=urlkey&limit=8000"
+
+    108 ABI spreadsheets survive at status 200. Fetch a specific one
+    with the `id_` modifier, which returns the raw bytes rather than
+    the archive's HTML wrapper:
+    `https://web.archive.org/web/<timestamp>id_/<original-url>`.
+    (`WebFetch` cannot reach web.archive.org from this project — use
+    curl. Old `.xls` needs `xlrd`, not `openpyxl`.) **Before recording
+    any abi.org.uk URL as dead, check the archive.**
+
+    What was actually recovered this way:
+    - `general-insurance-overview-statistics-2018.xlsx` — Property
+      sheet is Domestic vs Commercial premium/claims/outgo only. No
+      peril, no cover split. Dead end, but confirmed rather than
+      assumed.
+    - `industrydata/samples/1-full-statistics-bundle.xls` → the sample
+      of **"General insurance - property (2b)"**, the paid product.
+      This is the find.
+
+    **(b) The ABI's paid property dataset is exactly the missing
+    reconciliation source — and its schema is now documented.** The
+    sample is schema-only (every value cell stripped, which is what a
+    sales sample does), but the table structure is complete:
+    - **Table 5 — Summary, Gross Incurred Claims AND Number of Claims,
+      annual 1988–2012 plus quarterly from 1991Q1.** Columns: FIRE,
+      THEFT, BUSINESS INTERRUPTION, WEATHER, ESCAPE OF WATER, DOMESTIC
+      SUBSIDENCE, ACCIDENTAL DAMAGE, **OTHER DOMESTIC CLAIMS**, TOTAL.
+    - **Table 8 — Breakdown of quarterly DOMESTIC property claims and
+      number of claims.** Same peril columns, domestic only.
+    - **Table 9 — Weather Damage split into Commercial, Domestic
+      Pipes, Domestic Storm, Domestic Flood.**
+    - Table 13 — domestic subsidence back to 1987.
+
+    Read that peril list against this model's: fire, theft, weather,
+    escape of water, subsidence, accidental damage — **identical, plus
+    the residual bucket the model is missing.** This is the dataset
+    that settles the claim-count defect in HANDOFF's "Model audit
+    2026-08-18": the model implies 578,466 claims against ABI's
+    560,000 (103.3%), forcing a negative remainder, and Table 5's
+    per-peril *counts* plus OTHER DOMESTIC CLAIMS would resolve it
+    directly instead of by moving the AD anchor on judgement. Table 9's
+    Domestic **Pipes** column would also replace `EOW_FREEZE_SHARE =
+    0.15`, currently a reasoned figure rather than a measured one.
+    **It is a paid subscription** (ABI industry data; contact via the
+    data-and-analytics team) and the user's call — cost unpriced here.
+    It carries **no buildings/contents dimension**, so it does not
+    unblock Phase 3.
+
+    **(c) Proxies for the missing Phase 3 split — two tested, both
+    refuted.** Recorded so nobody proposes them again:
+    - *One universal split for every peril* (from the sum-insured
+      ratio, or any scalar). Refuted with no fitting required: the four
+      anchors are 25%, 78%, 100% and 48–66% buildings. A 75-point
+      spread is not one number.
+    - *Buildings share rises with average claim severity.* Fits the
+      three clean anchors at R² 0.979 — meaningless on three points and
+      two parameters — then fails out of sample. It predicts flood at
+      **118.9%**, missing every published convention by 53 to 94
+      points, and extrapolates accidental damage to **−14.2%** and
+      groundwater to **100.3%**. It also calls escape of water a 26%
+      buildings peril, when EoW's cost is drying, plaster, ceilings,
+      floors and fixtures: the proxy is measuring "theft steals
+      things", not damage physics. **42.9% of claim cost would have
+      rested on that extrapolation.**
+    The surviving lead is the MCM depth-damage file behind #31's
+    48/52 flood convention: it carries explicit
+    `Building_Fabric_Damage`, `Household_Inventory_Damage` and
+    `Domestic_CleanUp` columns per property type (FHRC licence; a
+    cut-down example ships free with Flood Modeller). Its value is not
+    flood — flood is already anchored three ways and is only 9.8% of
+    claim cost — but **escape of water**, which is 25.1%, has no anchor
+    at all, and is the same physical process: water in a dwelling,
+    damaging fabric, services and fixtures on one side and inventory on
+    the other. That transfer needs stating as an assumption (clean
+    water from above, no depth, no contamination) but it is a
+    documented one, which is more than the other three unanchored
+    perils have.
 ## Blocked on non-open data — what each would unblock
 
 Kept here so nobody re-derives the shopping list. None of these have an
