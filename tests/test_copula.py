@@ -363,6 +363,64 @@ def test_depth_severity_is_normalised_and_monotone(tmp_path, monkeypatch):
     assert abs(float(np.average(mult[:2], weights=households[:2])) - 1.0) < 1e-9
 
 
+def _theft_fixture(tmp_path, premises_rows):
+    """Minimal data dir for theft_from_police: two E&W areas and one
+    Scottish one, with whatever premises.csv the caller wants to test."""
+    (tmp_path / "burglary.csv").write_text(
+        "name,burglaries,months\nCORE,600,12\nHOME,60,12\nSCOT,30,12\n")
+    (tmp_path / "country.csv").write_text(
+        "name,country,share\nCORE,England,1.0\nHOME,England,1.0\n"
+        "SCOT,Scotland,1.0\n")
+    (tmp_path / "premises.csv").write_text(
+        "name,premises\n" + premises_rows)
+    return np.array(["CORE", "HOME", "SCOT"]), np.array([100.0, 5000.0, 900.0])
+
+
+def test_premises_denominator_lowers_the_commercial_core(tmp_path,
+                                                         monkeypatch):
+    """The 2a correction: a district that is mostly shops must be charged
+    a lower burglary rate than its households-only rate implies, because
+    most of those burglary points were never homes."""
+    import scores_real as sr
+    monkeypatch.setattr(sr, "DATA", str(tmp_path))
+
+    names, hh = _theft_fixture(tmp_path, "CORE,1900.0\nHOME,50.0\n")
+    with_prem = sr.theft_from_police(names, hh)
+    # same book, no premises data at all -> the OLD households-only rate
+    (tmp_path / "premises.csv").write_text("name,premises\nCORE,0.0\nHOME,0.0\n")
+    without = sr.theft_from_police(names, hh)
+
+    assert with_prem[0] < without[0]          # the commercial core falls
+    # 100 homes + 1900 premises: only 5% of its burglaries were homes
+    assert abs(with_prem[0] / without[0] - 100.0 / 2000.0) < 1e-9
+    # the residential district barely moves, and never upward
+    assert with_prem[1] <= without[1]
+    assert with_prem[1] / without[1] > 0.98
+
+
+def test_premises_join_failure_is_fatal_not_silent(tmp_path, monkeypatch):
+    """A premises.csv keyed on the wrong geography joins nothing, and the
+    .get(name, 0.0) fallback would quietly restore the households-only
+    denominator - a VOID run that looks like 'no impact'. It must raise.
+
+    This is the households.csv trap: patching a fetcher without
+    regenerating its output produced a run that changed nothing and
+    reported success. Guard, do not warn."""
+    import scores_real as sr
+    monkeypatch.setattr(sr, "DATA", str(tmp_path))
+
+    # sector-style keys ("CORE 1") against district-style names ("CORE")
+    names, hh = _theft_fixture(tmp_path, "CORE 1,1900.0\nHOME 2,50.0\n")
+    with pytest.raises(SystemExit, match="premises.csv covers only"):
+        sr.theft_from_police(names, hh)
+
+    # Scotland is overridden, so it must not count toward coverage: an
+    # E&W-complete file with no Scottish row is legitimate and must pass.
+    (tmp_path / "premises.csv").write_text(
+        "name,premises\nCORE,1900.0\nHOME,50.0\n")
+    sr.theft_from_police(names, hh)
+
+
 def test_erosion_expected_loss_is_analytic_not_simulated(monkeypatch):
     """Erosion's annual probability is ~1e-5, so even 20,000 simulated years
     give well under one event and a simulated mean would be noise. simulate()

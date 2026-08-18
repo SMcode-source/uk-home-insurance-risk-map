@@ -887,6 +887,24 @@ def theft_from_police(names, households):
 
     country = np.array(load_country(names))
     scot = country == "Scotland"
+
+    # A premises.csv keyed on the wrong geography joins NOTHING, and
+    # prem_table.get(n, 0.0) then silently restores the old
+    # households-only denominator: the correction vanishes and the run
+    # still succeeds, looking like "no impact". That is the households.csv
+    # void-run trap, and it is why this is an assertion and not a warning.
+    # VOA covers E&W only and Scotland is overridden just below, so the
+    # test is E&W-only; both published grains score >= 99.9%.
+    ew_names = [n for n, s in zip(names, scot) if not s]
+    if ew_names:
+        hit = sum(1 for n in ew_names if n in prem_table)
+        if hit / len(ew_names) < 0.95:
+            raise SystemExit(
+                f"premises.csv covers only {hit}/{len(ew_names)} E&W areas "
+                f"({hit / len(ew_names):.1%}) - wrong geography key, or a "
+                "district-keyed file on the sector branch? Rerun "
+                "scripts/fetch_premises.py (DATA_SOURCES.md #29)")
+
     if scot.any():
         scot_rate = SCOTLAND_HOUSEBREAKING_2024_25 / hh[scot].sum()
         rate[scot] = scot_rate
