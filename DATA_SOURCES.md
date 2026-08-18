@@ -647,6 +647,55 @@ districts**, used as the exposure weight throughout.
     It carries **no buildings/contents dimension**, so it does not
     unblock Phase 3.
 
+    **(b2) All 108 were harvested and indexed — nothing else is in
+    there.** Do not repeat this sweep. Every archived abi.org.uk
+    `.xls`/`.xlsx`/`.csv` at status 200 was downloaded via the `id_`
+    modifier (13 MB; the CDX `length` field is the COMPRESSED size, so
+    3.3 MB in the index became 13 MB on disk) and every sheet indexed:
+    **102 readable files, 441 sheets**, the remaining six being
+    login-wall HTML. Result:
+    - **No per-peril domestic claim counts anywhere.** Every
+      industry-data subscription sample is value-stripped, not just the
+      property one — confirmed by opening all of them.
+    - **No Domestic Pipes values**, so `EOW_FREEZE_SHARE` stays
+      reasoned rather than measured.
+    - **No buildings-vs-contents claims split**, at any grain, in any
+      file.
+    - The three login-walled entries expose real asset paths in their
+      `ReturnUrl=` query
+      (`annual-general-insurance-overview-statistics---2015.xlsx`,
+      `annual-long-term-insurance-overview-statistcs-2013.xls`,
+      `household-spending-on-insurance-tables.xlsx`). **All three were
+      retried against the archive directly and none has a snapshot** —
+      the wall was archived, the asset behind it never was.
+    - Two files look relevant by keyword and are not: `Motor.xls`'s
+      "Accidental Damage" is a motor claim category, and
+      `Home_Contents_Insurance_Table.xls` is a blank room-by-room
+      worksheet for a householder to total their own possessions.
+
+    **(b3) One real find in the harvest, and it is evidence for a
+    rejection rather than an anchor.**
+    `household-spending-on-insurance-tables.xlsx` (ABI, from the ONS
+    Living Costs and Food Survey) Table 6 analyses household insurance
+    expenditure **by tenure**, giving both average spend and the
+    percentage of households holding each cover:
+
+    | tenure | Structure | Contents |
+    |---|---|---|
+    | Local Authority rented | suppressed | £142.39, **40.7%** |
+    | Housing Association | suppressed | £135.43, **41.1%** |
+    | Rented furnished | suppressed | £177.12, **24.1%** |
+    | Owner occupied, being purchased | £218.87, **93.5%** | £178.03, 93.5% |
+    | Owner occupied, owned outright | £201.79, **93.5%** | £164.30, 94.7% |
+
+    Structure cover among renters is so rare the ONS **suppresses the
+    cell**, while 93.5% of owner-occupiers hold both. That measures the
+    renter-selection confound this file has twice asserted (against the
+    FCA GIVM product split, and against the ABI premium ratio) instead
+    of merely claiming it: a buildings-only versus contents-only
+    comparison sets a ~93%-penetration owner population against a
+    24–41% renter one. **Cite this table, not the assertion.**
+
     **(c) Proxies for the missing Phase 3 split — two tested, both
     refuted.** Recorded so nobody proposes them again:
     - *One universal split for every peril* (from the sum-insured
