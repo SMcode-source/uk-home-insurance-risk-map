@@ -61,7 +61,7 @@
     <div class="tiles">
       <div class="tile"><div class="k">Districts &middot; households</div><div class="v">2,736</div><div class="d">27.3m households (census-weighted)</div></div>
       <div class="tile"><div class="k">Simulated years</div><div class="v">20,000</div><div class="d">per district, seeded &amp; reproducible</div></div>
-      <div class="tile"><div class="k">Eight-peril premium</div><div class="v">£192–150</div><div class="d">lowest to highest district</div></div>
+      <div class="tile"><div class="k">Eight-peril premium</div><div class="v">£192–151</div><div class="d">lowest to highest district</div></div>
       <div class="tile"><div class="k">Diversification credit</div><div class="v">98%</div><div class="d">portfolio vs standalone tail</div></div>
     </div>
     <p class="note" style="margin-top:14px">Separately, 352 districts sit on a
@@ -135,15 +135,15 @@
     <p class="lede" style="margin-bottom:8px">Findings that fall out of the simulation.</p>
 
     <div class="finding">
-      <div class="num">5%<small>of districts hide a &gt;2× spread</small></div>
+      <div class="num">4%<small>of districts hide a &gt;2× spread</small></div>
       <div>
         <h3>A postcode district can be two different risks</h3>
         <p>Re-running the whole model at <b>postcode-sector</b> resolution —
         <b>10,398</b> units instead of 2,736 — reproduces the district
         answer when aggregated back, but shows what the district average was hiding:
-        in <b>123 districts</b> (5%) the cheapest and
+        in <b>87 districts</b> (4%) the cheapest and
         dearest sectors differ by more than <b>2×</b>, and in HU1 by
-        <b>4.1×</b> (£113–£461). The
+        <b>3.3×</b> (£113–£368). The
         splits are physical: a river through half a district, a clay boundary under the
         other. <a href="sectors.html">See the sector map →</a></p>
       </div>
@@ -211,7 +211,7 @@
         accidental damage to a triangle of its own — the ABI's claim count, the
         market's at-home AD share and Aviva's average payout (~£227m a year) — rather
         than to a single blended number. Together the eight
-        insured perils come to <b>£169</b> per policy per year,
+        insured perils come to <b>£167</b> per policy per year,
         77% of what all home claims cost. The rest of a real premium is
         expenses — which this does not model — plus
         commission and profit.
@@ -245,12 +245,12 @@
           <th class="num">Subs.</th><th class="num">Weather</th><th class="num">Flood</th><th class="num">Gr.water</th>
           <th>What drives it</th>
         </tr>
-        <tr><td><strong>BD1</strong></td><td>postcode area BD</td><td class="num"><strong>£447</strong></td><td class="num">0.28</td><td class="num">0.42</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + weather (65% / 21%)</td></tr>
-        <tr><td><strong>WC1E</strong></td><td>postcode area WC</td><td class="num"><strong>£421</strong></td><td class="num">1.00</td><td class="num">0.16</td><td class="num">0.60</td><td class="num">0.00</td><td>Subsidence-dominated (77% of E[loss])</td></tr>
-        <tr><td><strong>WC2R</strong></td><td>postcode area WC</td><td class="num"><strong>£413</strong></td><td class="num">0.53</td><td class="num">0.16</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + subsidence (57% / 33%)</td></tr>
-        <tr><td><strong>EC4R</strong></td><td>postcode area EC</td><td class="num"><strong>£411</strong></td><td class="num">0.53</td><td class="num">0.15</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + subsidence (63% / 29%)</td></tr>
-        <tr><td><strong>EC4V</strong></td><td>postcode area EC</td><td class="num"><strong>£403</strong></td><td class="num">0.53</td><td class="num">0.15</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + subsidence (60% / 30%)</td></tr>
-        <tr><td><strong>W1T</strong></td><td>postcode area W</td><td class="num"><strong>£402</strong></td><td class="num">0.90</td><td class="num">0.16</td><td class="num">0.59</td><td class="num">0.00</td><td>Subsidence-dominated (75% of E[loss])</td></tr>
+        <tr><td><strong>BD1</strong></td><td>postcode area BD</td><td class="num"><strong>£361</strong></td><td class="num">0.28</td><td class="num">0.42</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + weather (65% / 21%)</td></tr>
+        <tr><td><strong>HU2</strong></td><td>Hull</td><td class="num"><strong>£352</strong></td><td class="num">0.29</td><td class="num">0.17</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood-dominated (83% of E[loss])</td></tr>
+        <tr><td><strong>BS1</strong></td><td>postcode area BS</td><td class="num"><strong>£342</strong></td><td class="num">0.15</td><td class="num">0.36</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + weather (70% / 20%)</td></tr>
+        <tr><td><strong>WC1E</strong></td><td>postcode area WC</td><td class="num"><strong>£334</strong></td><td class="num">1.00</td><td class="num">0.16</td><td class="num">0.60</td><td class="num">0.00</td><td>Subsidence-dominated (77% of E[loss])</td></tr>
+        <tr><td><strong>W1T</strong></td><td>postcode area W</td><td class="num"><strong>£315</strong></td><td class="num">0.90</td><td class="num">0.16</td><td class="num">0.59</td><td class="num">0.00</td><td>Subsidence-dominated (75% of E[loss])</td></tr>
+        <tr><td><strong>WC1A</strong></td><td>postcode area WC</td><td class="num"><strong>£312</strong></td><td class="num">0.99</td><td class="num">0.16</td><td class="num">0.59</td><td class="num">0.00</td><td>Subsidence-dominated (78% of E[loss])</td></tr>
       </table>
     </div>
     <p class="note" style="margin-top:10px">Technical premium per policy per year =
