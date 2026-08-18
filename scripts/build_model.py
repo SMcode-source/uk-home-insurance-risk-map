@@ -1587,12 +1587,26 @@ def main():
             gdf[c] = np.nan
         gdf["cc_covered"] = 0
 
-    modelled = float(gdf["el_total"].mean())
-    print(f"  check: modelled loss cost for these four perils "
-          f"£{modelled:,.2f}/policy vs ABI £{ABI_LOSS_PER_POLICY:,.2f} "
-          f"({modelled / ABI_LOSS_PER_POLICY - 1:+.0%}); "
+    # This check is a GUARD, and until 2026-08-19 it could not do its job.
+    # It took an UNWEIGHTED district mean of el_total, compared it against
+    # ABI_LOSS_PER_POLICY (a national PER-POLICY figure), left groundwater
+    # on the modelled side when the ABI side has no groundwater anchor,
+    # and printed to zero decimals. Three mismatches, and the rounding hid
+    # the rest: it reported "-0%" while flood sat 2.26% under its own
+    # anchor. Exposure-weighted, gw-excluded and to 2dp it would have
+    # caught that the day it appeared. See HANDOFF, defect 5.
+    hh = gdf["households"].values
+    modelled = float(np.average(gdf["el_total"].values, weights=hh))
+    gw_el = float(np.average(gdf["el_gw"].values, weights=hh))
+    anchored = modelled - gw_el
+    print(f"  check: modelled loss cost, eight insured perils "
+          f"£{anchored:,.2f}/policy vs ABI £{ABI_LOSS_PER_POLICY:,.2f} "
+          f"({anchored / ABI_LOSS_PER_POLICY - 1:+.2%})")
+    print(f"         groundwater excluded (no published anchor), carried "
+          f"separately at £{gw_el:,.2f}/policy; "
           f"{modelled / (ABI['total_home_paid'] / POLICIES):.0%} of the "
-          f"£{ABI['total_home_paid'] / POLICIES:,.0f} all-perils home claims cost")
+          f"£{ABI['total_home_paid'] / POLICIES:,.0f} all-perils home "
+          f"claims cost")
 
     # Coastal erosion, reported alongside but NOT inside the premium.
     # Standard household policies exclude gradual erosion, so adding it to
