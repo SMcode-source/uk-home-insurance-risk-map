@@ -615,6 +615,37 @@ districts**, used as the exposure weight throughout.
         and quote per-peril totals and averages, but never buildings vs
         contents within a peril. (The 2026 annual release URL also
         404s to WebFetch — the media-hub move again, see #27.)
+    - **Third pass 2026-08-18 — the last two live routes, both closed.**
+      - **FCA GIVM re-checked against the 2025 release** (calendar 2025,
+        the fourth full year) in case the return had gained a peril
+        dimension. It has not: the five metrics are claims frequency,
+        acceptance rate, average payout, complaints rate, and claims
+        cost as a proportion of premium, for buildings / contents /
+        combined. Worth stating why the product split is not even an
+        *aggregate* cross-constraint on contents propensity: the three
+        lines are bought by different populations — contents-only is
+        overwhelmingly renters, buildings-only is landlords and
+        mortgage-driven owner cover — so their frequency ratio measures
+        who buys which product, not how a peril's cost divides between
+        covers. That is selection, not a split. (For scale: home claims
+        cost 48% of premium in 2025; acceptance 62% buildings, 71%
+        combined, contents down to 74%. Context, not an anchor.)
+      - **Restoration-industry escape-of-water cost composition.** The
+        trade and loss-assessing literature states the split
+        *qualitatively* — structure, floors, ceilings and fixed fittings
+        under buildings; furniture, carpets and belongings under
+        contents — and quotes whole-claim restoration ranges (~£1,500 to
+        £6,000 including drying and alternative accommodation). None
+        publishes the **proportion**. "Both are affected" cannot become
+        a number.
+      **The search is now exhausted**: four anchors, four perils with
+      none, three contradictory flood conventions. Do not re-run it
+      without new data.
+    - **One incidental find worth keeping, unrelated to Phase 3.** Flood
+      Re reports spending more repairing Council Tax Band G/H homes than
+      Band A/B homes in three of the past four years — independent
+      support for the Phase 2c severity relativity (`exp/ct-severity`,
+      #30), from a source that had no part in building it.
     - **The one route left, and it needs the user:** the IFoA's
       withdrawn general-insurance research papers, requestable from
       `webarchive@actuaries.org.uk`. **Not contacted** — sending mail on
