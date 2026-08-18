@@ -826,23 +826,30 @@ def theft_from_police(names, households):
     national level to the ABI theft figures, so the burglary-to-claim
     propensity cancels and never needs to be known.
 
-    Two corrections, both documented in DATA_SOURCES.md #25:
+    Three corrections, documented in DATA_SOURCES.md #25 and #29:
 
     - police.uk "Burglary" includes commercial premises, so districts
       with almost no residents show rates no household experiences
       (EC3V: 116 burglaries over 72 households = 54%/yr - offices).
-      Rates are capped at the household-weighted 99.9th percentile:
-      fewer than 1 in 1,000 households lives in a district above the
-      cap, and beyond it the excess is demonstrably shops and offices,
-      not homes. The proper fix is a commercial-premises denominator
-      from the VOA non-domestic rating list - a Phase 2 item, noted in
-      DATA_SOURCES.md #25.
+      The Phase 2 fix (2026-08-17): the denominator is households PLUS
+      the district's VOA non-domestic premises count, which attributes
+      each district only the residential share of its burglary points.
+      One propensity still cancels in FREQ_SCALE; what this changes is
+      WHERE the burglaries land, not how many claims they imply.
+
+    - The household-weighted 99.9th-percentile cap STAYS, as a backstop
+      for tiny-denominator districts the premises data cannot explain
+      (a hamlet with three burglaries in one bad month). Where the cap
+      was doing crude duty for commercial cores it should now bind
+      rarely - the evidence run counts exactly that.
 
     - Scotland is OVERRIDDEN, not filled: police.uk has no Scottish
       forces, but British Transport Police leaks a handful of Scottish
       railway burglaries into the data, so "has data" cannot be the
       test. Every Scottish district gets the national housebreaking
-      rate; Welsh/English districts keep their own.
+      rate; Welsh/English districts keep their own. (VOA covers E&W
+      only, so Scottish premises are 0 - irrelevant under the
+      override.)
     """
     path = os.path.join(DATA, "burglary.csv")
     if not os.path.exists(path):
@@ -859,9 +866,24 @@ def theft_from_police(names, households):
         raise SystemExit(f"burglary.csv is missing {len(missing)} districts "
                          f"(first: {missing[:5]}) - stale file? Rerun "
                          "scripts/fetch_burglary.py")
+
+    prem_path = os.path.join(DATA, "premises.csv")
+    if not os.path.exists(prem_path):
+        raise SystemExit("data/premises.csv missing - run "
+                         "scripts/fetch_premises.py first "
+                         "(DATA_SOURCES.md #29)")
+    prem_table = {}
+    with open(prem_path, newline="") as fh:
+        for row in csv.DictReader(fh):
+            prem_table[row["name"]] = float(row["premises"])
+    prem = np.array([prem_table.get(n, 0.0) for n in names])
+
     hh = np.maximum(np.asarray(households, dtype=float), 1.0)
     annual = np.array([table[n][0] / table[n][1] * 12.0 for n in names])
-    rate = annual / hh
+    # residential share of the district's burglary points: a burglary
+    # in a district that is half shops was, on average, half as likely
+    # to have hit a home. Equivalent to annual*(hh/(hh+prem))/hh.
+    rate = annual / (hh + prem)
 
     country = np.array(load_country(names))
     scot = country == "Scotland"

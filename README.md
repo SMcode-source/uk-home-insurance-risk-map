@@ -32,7 +32,7 @@ kept **out of the premium** — see
 [Coastal erosion: modelled, not priced](#coastal-erosion-modelled-not-priced).
 
 Every hazard input is **open data**, fetched by the scripts here — see
-**[DATA_SOURCES.md](DATA_SOURCES.md)** for all 28 datasets with their endpoints,
+**[DATA_SOURCES.md](DATA_SOURCES.md)** for all 29 datasets with their endpoints,
 licences, access quirks and the dead ends worth avoiding. Each peril's loss level
 is calibrated to published **ABI** claims payouts, and districts are weighted by
 **census household counts**.
@@ -81,6 +81,7 @@ scripts/
   fetch_history.py            35 years of ERA5 hazard drivers -> backtest
   fetch_households.py         ONS/NRS census households per district (exposure)
   fetch_burglary.py           police.uk street-level burglary points -> counts
+  fetch_premises.py           VOA non-domestic premises -> theft's residential share
                               per district (36-month archive, resumable)
   fetch_fires.py              dwelling fires -> annual rate per district
                               (England LSOA incidents, Scotland councils,
@@ -255,11 +256,14 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    burglary rate per household. One national multiplier scales that rate so
    the implied claim count hits the ABI theft anchors, which means the
    burglary→claim propensity **cancels out** — the police data contributes
-   only relativities. Two corrections: rates are **winsorised at the
-   exposure-weighted 99.9th percentile** (~6.2%/yr), because the police
-   "burglary" category includes commercial premises and shop-dense city cores
-   would otherwise carry retail break-ins as household risk; and **Scotland is
-   overridden** (not filled) with the national housebreaking rate from
+   only relativities. Three corrections: the rate divides by **households
+   plus VOA non-domestic premises** (`scripts/fetch_premises.py`, NDR stock
+   of properties at LSOA), because the police "burglary" category includes
+   commercial premises — the denominator hands each district only its
+   residential share, so the City and Mayfair price at the rate their actual
+   residents face; rates are still **winsorised at the exposure-weighted
+   99.9th percentile** (~3.4%/yr) as a tiny-denominator backstop; and
+   **Scotland is overridden** (not filled) with the national housebreaking rate from
    Recorded Crime in Scotland, because police.uk lacks Police Scotland and its
    only "Scottish" rows are British Transport Police railway incidents.
    **Theft sits outside the vine** — no meteorological driver — so it adds
@@ -304,8 +308,9 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    apportioned to districts through the ONS postcode lookup the household
    counts already use. `fire_rate` ships as a rate for the same 0.5-clip
    reason as `eow_rate`; rates are winsorised at the exposure-weighted
-   99.9th percentile (the same commercial-core guard as theft — W1J prices
-   at the cap, not at Mayfair's tiny household denominator). Severity is
+   99.9th percentile (the same tiny-denominator guard theft keeps as its
+   backstop — W1J's fire rate prices at the cap, not at Mayfair's tiny
+   household denominator). Severity is
    lognormal σ=1.3 (heaviest attritional tail, ~2% of claims above £100k),
    EL analytic for the shared-stream reason. **Fire buys no capital at
    all**: 45 years of FIRE0201 counts are a −2.5%/yr secular decline with
@@ -699,6 +704,7 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 #   .venv/Scripts/python -u scripts/derive_sectors.py   # -> data/sectors_gb.gpkg
 .venv/Scripts/python scripts/fetch_households.py     # ONS lookup + census -> data/households.csv (exposure, ~22MB dl)
 .venv/Scripts/python -u scripts/fetch_burglary.py    # police.uk archive (1.7 GB, resumable download) -> data/burglary.csv
+.venv/Scripts/python -u scripts/fetch_premises.py    # VOA NDR stock by LSOA -> data/premises.csv (theft denominator)
                                                      # (~6 min once the archive is cached; checkpoints every 100 files)
 .venv/Scripts/python -u scripts/fetch_fires.py       # Home Office LSOA incidents + SFRS + Welsh FRAs -> data/fires.csv
                                                      # (~40 MB of ODS; parses content.xml directly - pandas' odf

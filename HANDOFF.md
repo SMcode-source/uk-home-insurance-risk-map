@@ -6,23 +6,28 @@ just a pointer here)
 **Repo:** https://github.com/SMcode-source/uk-home-insurance-risk-map ·
 **Live:** https://smcode-source.github.io/uk-home-insurance-risk-map/
 
-## Status: complete, deployed, SEVEN insured perils at TWO resolutions
+## Status: complete, deployed, EIGHT insured perils at TWO resolutions
+
+**Phase 1 of the roadmap (attritional perils: theft → escape of water
+→ fire → accidental damage) is COMPLETE.** Phase 2 is EPC/VOA exposure
+realism; Phase 3 the buildings/contents split.
 
 The site publishes the model at **two grains side by side**:
 `/map.html` over 2,736 postcode districts and `/sectors.html` over
 10,398 derived postcode sectors. One template builds both pages, so
 they cannot drift; the layout suite runs every map invariant against
-both. **81 tests** (two of which skip only while a publish is
+both. **84 tests** (two of which skip only while a publish is
 mid-transition — see the theft section), CI green, Pages live. The
 methodology page draws the Hull comparison as an inline SVG generated
 from the published GeoJSON at build time — a screenshot would go stale
 at the next rebuild; this cannot.
 
-Current headline figures (bot commit 2ce5928, 2026-08-17):
-exposure-weighted premium **£159.60** over 27.26m households; climate
-uplift diluted again by fire's flat £28 (each attritional peril
-dilutes these — same £ of repricing on a bigger base; the site injects
-them, only this file and README carry them by hand).
+Current headline figures (bot commit 08be7f1, 2026-08-17):
+exposure-weighted premium **£174.24** over 27.26m households; loss
+cost £169.75 ≈ 77% of the £219 all-home-claims cost; climate
+uplift diluted a fourth time by AD's flat ~£14.65 (each attritional
+peril dilutes these — same £ of repricing on a bigger base; the site
+injects them, only this file and README carry them by hand).
 
 ## Published 2026-08-16: theft, the fifth insured peril (Phase 1)
 
@@ -195,7 +200,114 @@ The design, in one line each:
    last writer and says nothing.
 
 **Next in Phase 1**: AD (accidental damage), the last attritional
-peril, then Phase 2 (EPC/VOA exposure realism).
+peril, then Phase 2 (EPC/VOA exposure realism). *(Done — see the next
+section.)*
+
+## Published 2026-08-17: accidental damage, the eighth insured peril — Phase 1 COMPLETE
+
+User decision: "publish AD." Live at both resolutions since run
+32029400331 (merge 5e07868, bot commit 08be7f1). Premium £159.60 →
+**£174.24** (+£14.64: el_ad £14.65 to the penny minus a rounding
+epsilon, capital **+£0.00** — ties fire as the purest diversifier).
+All seven prior perils bit-identical through the change at both
+grains (sector run 32026714678 verified column-by-column against run
+9; the gated and raw artifacts were byte-identical this time — the
+(N+1)×0.05 identity budget, widened to 0.45 for eight legs IN THE
+SAME COMMIT as the wiring, held with no manual override).
+
+The design, in one line each:
+- **Level**: no UK domestic AD total has EVER been published, so the
+  anchor is a third documented triangle — ABI 560k home claims (2025)
+  × 24.53% at-home AD share (GoCompare claims mix: 23.35% at-home AD
+  + 1.18% at-home accidental loss; the 6.46% away-from-home slice
+  EXCLUDED as personal-possessions cover) × Aviva £1,650 average
+  payout (interpolated 2025 from published £1,148/2022 and
+  £1,869/2026) ≈ **£227m** → el_ad £14.65, freq 0.8876%/policy.
+  Cross-check: Aviva says AD is 32% of its home claims, GoCompare's
+  table sums to 31%. Weak leg: the severity interpolation
+  (DATA_SOURCES.md #28).
+- **Geography**: the gentlest in the book, because the only published
+  demographic driver is Aviva's "children cause 8% of AD claims" — a
+  flat base + 8% slice scaled by census dependent-children share
+  (E&W TS003 via NOMIS at LSOA, Scotland UV113 at 2022 OA through
+  NRS's postcode index; 27,291,882 households conserved exactly at
+  BOTH grains). District EL spread only £13.6 (L2) – £15.7 (B8); an
+  8%-of-claims driver cannot honestly move more. NO winsorisation —
+  a census share is bounded by construction. Cat-EL correlation
+  −0.16.
+- **Capital**: W_AD=0.00012, derived from the cleanest natural
+  experiment available: lockdown 2020–21 — the hardest a behavioural
+  peril can be shocked — moved home AD declarations only ~6%
+  (GoCompare, 26 Oct 2021) → CV 3% → loading 0.012%. AD buys NO
+  capital. **Search trap on the record**: the "+39% AD after
+  lockdown" figure everyone quotes is Admiral MOTOR, not home.
+- **EL analytic** (shared-stream), U_ad drawn AFTER U_fire so every
+  prior peril simulates bit-identically — additive evidence diffs,
+  fourth application of rate-not-relativity (FREQ_SCALE solves
+  ×1.000), lookup key "ea" ("ee" was already escape of water — the
+  duplicate-key lesson holds).
+
+Churn at publish: 46 districts (1.7%) moved one rating group, none
+two; 202 sectors (1.9%), none two — AD is nearly flat, so unlike
+fire's +£28 requantiling, the deciles barely breathe. Zero red runs
+end-to-end: the fire lessons (identity budget scales with legs,
+tolerance widened with the wiring, raw artifact uploaded before the
+gate) all held without being needed.
+
+## Phase 2 plan (2026-08-17): sources verified, design set, nothing built yet
+
+Every source below was probed this session — grain, licence, size and
+edition confirmed, not assumed. All are OGL v3, no registration:
+
+- **CTSOP 1.1 / 3.1 / 4.1** (VOA, England & Wales, snapshot 31 Mar
+  2025, published 2025-09-25; next edition summer 2026): dwelling
+  counts by **council tax band / property type / build period at LSOA
+  grain**, direct zips 0.7–7.5 MB from assets.publishing.service.gov.uk
+  (URLs in the fetcher when it lands). Counts rounded to 10, <5
+  suppressed as "–", <1% unknown type/age — handle both in the parser.
+- **Scotland dwellings by council tax band, detailed** (NRS via
+  statistics.gov.scot, 10.6 MB zip, updated 2025-08-13): band × **2011
+  data zone** to 2023; **the 2024 year switches to 2022 data zones**
+  mid-series — use 2023 at 2011 DZ (postcode joins exist) or acquire
+  the 2022-DZ postcode index first. "Dwellings by Type" is a sibling.
+- **NDR stock of properties by MSOA/LSOA** (VOA, 2025 edition,
+  `ndr_stock_oa_2025.zip`, 7.1 MB): **non-domestic property counts at
+  LSOA** — the licence-clean route to the theft commercial fix.
+  Scotland needs nothing: theft there is already the flat national
+  override, so the commercial correction does not apply.
+
+Examined and NOT chosen (record so nobody re-treads):
+- **EPC bulk** (epc.opendatacommunities.org): registration wall, mixed
+  licence (address fields are Royal Mail copyright — unusable in a
+  public OGL repo), multi-GB, and coverage is only certificate-holding
+  stock (sold/let/built since 2008 — biased newer/rented). CTSOP4.1
+  gives build period for the FULL stock at the same grain with none of
+  that. EPC's unique add is floor area; defer until something needs it.
+- **VOA rating-list bulk** (voaratinglists.blob.core.windows.net):
+  free but under restricted terms, not OGL — the statistical LSOA
+  release replaces it. The data.gov.uk "VOA non-domestic" entry is a
+  dead 2016 record with no links.
+
+The design, in publish order (one experiment branch + priced evidence
+each; the user decides each publication):
+- **2a — theft commercial-exposure correction** (smallest first, and
+  already named "the proper fix" in the theft section): police.uk
+  burglary points include commercial break-ins; weight each district's
+  points by its residential share hh/(hh + non-domestic premises) from
+  NDR-stock-by-LSOA before the rate is formed, keeping the p99.9 cap
+  as backstop. Expect the cap to stop binding where it was doing crude
+  duty (W1J prices at the cap today).
+- **2c — severity relativities from council-tax band mix**: bands are
+  a sum-insured proxy. CRITICAL TRAP: the three nations' bands are
+  incompatible regimes (England A–H on 1991 values, Wales A–I on 2003
+  values, Scotland A–H on 1991 with its own ratios) — normalise WITHIN
+  nation to mean 1.0, then renormalise the district multiplier
+  exposure-weighted to 1.0 nationally (the depth-multiplier pattern:
+  relativities only, ABI level pinned by construction).
+- **2b — EoW dwelling-age slice**: CTSOP4.1 pre-war share as a second
+  slice beside the 15% freeze slice — but ONLY if a published anchor
+  for the age→EoW-frequency relationship can be found; without one it
+  is an undocumented knob and stays out, per house rules.
 
 ## Audited 2026-08-16: every published claim re-derived from the data
 
