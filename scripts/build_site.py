@@ -693,11 +693,27 @@ def load_stats():
     # template rather than being given an invented number, which is why
     # only 57% of claim cost carries a split at all.
     COVER_BLD = {"SUB": 100, "FL": 48, "GW": 48, "TH": 25, "FIRE": 78}
-    peril_bits = {f"__PCT_{k}__": f"{100 * v / _psum:.1f}"
-                  for k, v in _pel.items()}
-    peril_bits.update({f"__BLD_{k}__": str(v) for k, v in COVER_BLD.items()})
-    peril_bits.update({f"__CNT_{k}__": str(100 - v)
-                       for k, v in COVER_BLD.items()})
+    # Spelled out as LITERAL keys, not built with f-strings in a
+    # comprehension. test_site_placeholders_all_resolve greps this file for
+    # double-quoted placeholder literals to prove every token in the templates has
+    # somewhere to come from; keys assembled dynamically are invisible to
+    # it, so a comprehension here silently disables the guard that stops
+    # raw __TOKENS__ shipping to the live page. Verbosity is the price of
+    # keeping that check able to see what it is checking.
+    _pct = lambda k: f"{100 * _pel[k] / _psum:.1f}"
+    _bld = lambda k: str(COVER_BLD[k])
+    _cnt = lambda k: str(100 - COVER_BLD[k])
+    peril_bits = {
+        "__PCT_SUB__": _pct("SUB"), "__PCT_WX__": _pct("WX"),
+        "__PCT_FL__": _pct("FL"), "__PCT_GW__": _pct("GW"),
+        "__PCT_TH__": _pct("TH"), "__PCT_EOW__": _pct("EOW"),
+        "__PCT_FIRE__": _pct("FIRE"), "__PCT_AD__": _pct("AD"),
+        "__BLD_SUB__": _bld("SUB"), "__CNT_SUB__": _cnt("SUB"),
+        "__BLD_FL__": _bld("FL"), "__CNT_FL__": _cnt("FL"),
+        "__BLD_GW__": _bld("GW"), "__CNT_GW__": _cnt("GW"),
+        "__BLD_TH__": _bld("TH"), "__CNT_TH__": _cnt("TH"),
+        "__BLD_FIRE__": _bld("FIRE"), "__CNT_FIRE__": _cnt("FIRE"),
+    }
     peril_bits.update({
         "__SEV_SUB__": _med("sev_subsidence", "sub"),
         "__SEV_WX__": _med("sev_weather", "wx"),
