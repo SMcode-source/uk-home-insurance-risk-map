@@ -325,6 +325,11 @@ the sector output**, or teach the skip guard this second window.
 
 ## Model audit 2026-08-18: reconciliation, and TWO UNFIXED defects
 
+> **Both defects below are now FIXED**, along with two more found
+> while fixing them, on branch `exp/el-and-flood-fixes` — see
+> "Built 2026-08-19" further down. Still NOT published. The
+> claim-count overshoot recorded here is deliberately untouched.
+
 The user asked whether escape of water is being counted twice through
 some other factor, and for an overall check that everything adds up to
 100% of claims. Reproduce any of this with
@@ -438,6 +443,167 @@ decision — the same bar every peril cleared. Defect 2 raises the flood
 level ~6% and is a straight correction; defect 1 mostly REDUCES
 subsidence and RAISES groundwater, and its real prize is that the map
 stops depending on the seed.
+
+## Built 2026-08-19, NOT PUBLISHED: four defects fixed, evidence run done
+
+Branch `exp/el-and-flood-fixes` (e025e46, 704866b). The two defects the
+2026-08-18 audit left OPEN are fixed, plus two more found while fixing
+them. Every scope decision was taken by the user before any code moved
+(a nine-question grilling); nothing here has been published, and the
+sector worktree and `main` are untouched.
+
+**Defect 1 — the four vine perils published draw-mean ELs.**
+`calibrate_frequency` solves `FREQ_SCALE[k] = ABI_TARGET_FREQ[k] /
+raw[k]` against the exposure-weighted mean of the ANALYTIC p; no draw
+enters that loop, and `_median_for_mean` pins `E[sev]`. So `p*E[sev]` IS
+the calibration target and the draw mean was only ever an estimate of
+it. The comment that stood at the `el_total` site claimed the ABI
+scaling had been "solved against" those draw means. It had not. That
+comment was wrong and is corrected in the code.
+
+Groundwater is the case that proves it, and it was hiding in plain
+sight: it published £0.412 against an analytic £1.342, a 3.3x gap. Its
+p is 6.7e-5 — between erosion's 1.5e-5 and the attritional legs — and
+its spatial loading is 0.70, the HIGHEST of the four, so districts claim
+together and the effective sample is ~20,000 correlated years, not
+2,736 x 20,000 district-years. That is precisely the trap this file
+already documents for erosion, at 4.5x erosion's frequency. The three
+commoner vine perils hid it because their noise looks like rounding.
+
+Capital follows: `el_year`, itself a draw mean and already +0.54%
+adrift, is replaced by `el_total` in `capital` and `capital_cc`.
+
+**Defect 2 — flood severity blended GEOMETRICALLY.** Probability-
+weighting `mu` makes `exp(w1*mu1 + w2*mu2)`, the weighted geometric mean
+of the medians, which sits strictly below the arithmetic mean the ABI
+anchor is stated on. Now moment-matched on mean AND variance, which
+makes sigma per-district; `inv_mixed_cdf` broadcasts sigma as it already
+broadcast mu. Closed the gap from -6.04% to -2.26%.
+
+**Defect 3 — the published "Median severity" column was stale.** Six of
+its nine cells were hand-written in the FIRST commit (28a0609), before
+eb288ee introduced the ABI calibration, and never revisited: weather
+read £3,500 against a true median of £1,338 (+162%), and groundwater and
+erosion showed MEANS under a median header. The four Phase 1 rows added
+later were correct, so the convention was right and only the old rows
+drifted. All nine are now injected from `ABI` and `SEV_SIGMA` and cannot
+go stale again. `SEV_SIGMA` is promoted to module level for that purpose
+only; no sigma value changes and every per-peril justification stays at
+its point of use.
+
+**Defect 4 — flood's target frequency came from a headline the model
+contradicts.** Found while measuring defect 2, which narrowed the gap
+but did not close it. Decomposed: the `sw_sev` normalisation basis is
+worth +0.16%, the fluvial/surface-water frequency mix -2.41%. The EA
+zone areas make 66.33% of flood claims fluvial; the £30,000 blended ABI
+headline implies 70.59%. `sev_flood` 30,000, `sev_flood_fluvial` 35,000
+and `sev_surface_water` 18,000 CANNOT all be consistent with the EA
+geography — any two determine the third.
+
+Flood is the only peril whose severity is BUILT from components rather
+than read from one ABI figure, so it is the only one where `E[sev]` can
+differ from the number used to turn paid into a frequency. For the other
+seven, `EL == paid / POLICIES` exactly. `calibrate_frequency` now
+derives flood's target from the £29,322 its legs actually blend to,
+restoring that invariant. The hard anchor is the published £312m paid;
+£30,000 was only ever an intermediate, and it is the one of the three
+figures the model does not otherwise use. Nothing is invented, no
+published component severity moves, and the +2.31% frequency rise is
+uniform so no district's ranking changes. Groundwater follows, pegged
+at 10% of flood.
+
+**Measured, analytic vs ABI:**
+
+| stage | flood gap |
+|---|---|
+| as published on main | -6.04% |
+| after defect 2 | -2.26% |
+| after defect 4 | **+0.00%** |
+
+sub, wx, th, eow, fire and ad are +0.00% at every stage.
+
+**Evidence run (district, seed 42, full chain build_model ->
+build_analysis -> build_site):**
+
+| column | published main | new | change |
+|---|---|---|---|
+| el_sub | 22.2725 | 19.8055 | -11.08% |
+| el_wx | 15.5256 | 15.7434 | +1.40% |
+| el_fl | 16.4712 | 20.1290 | +22.21% |
+| el_gw | 0.4118 | 1.3398 | +225.38% |
+| el_th, el_eow, el_fire, el_ad, el_er | — | — | **bit-identical** |
+| el_total | 168.7457 | 171.1136 | +1.40% |
+| capital | 5.4956 | 5.5427 | +0.86% |
+| premium | 174.2409 | 176.6581 | +1.39% |
+
+The four attritional legs are bit-identical across all 2,736 districts,
+max |delta| exactly 0.000e+00 — the U-draw order th->eow->fire->ad is
+preserved, as it must be.
+
+**The number that matters most.** Excluding groundwater, which has no
+published anchor, the model now reproduces `ABI_LOSS_PER_POLICY`:
+£169.7738 modelled against £169.7419 published, **+0.0188%**. Before
+these fixes that reconciliation was 77.4% of £3.4bn with a claim-count
+overshoot; the money side is now exact to two basis points.
+
+**Second-seed check (RNG_SEED 43), and it is stronger than the bar we
+set.** The bar asked that the four vine ELs "barely move" across seeds.
+They cannot move at all: now that every EL is analytic, all TEN el_*
+columns are bit-identical between seed 42 and seed 43, max |delta|
+exactly 0.000e+00 across all 2,736 districts. Seed dependence has been
+removed from the published expected-loss level entirely, which is the
+real content of defect 1. The simulated columns move as they should:
+`tvar99_euler` +0.431%, capital +1.228%, premium +0.039%.
+
+One honest caveat: `tvar99_vine` moves +14.7% between seeds (12,172 ->
+13,967). That is a portfolio-level far tail out of 20,000 years and is
+inherently noisy; it is a published column but nothing in the premium
+path reads it (premium uses `tvar99_euler`). I have NOT established
+whether these changes made it more seed-sensitive than it was on main,
+only that it is sensitive. Worth a look before anyone quotes it.
+
+**Defect 5, found and NOT yet fixed — the reconciliation check that
+should have caught defect 4 cannot.** `build_model.py`'s own check
+prints `float(gdf["el_total"].mean())` — an UNWEIGHTED district mean —
+against `ABI_LOSS_PER_POLICY`, a national per-policy figure, formatted
+to ZERO decimal places, and `el_total` includes groundwater while
+`ABI_LOSS_PER_POLICY` does not. Three mismatches at once. It reported
+"-0%" while flood was 2.26% under its anchor. Its label also still says
+"these four perils"; there are eight. Diagnostic only — no published
+number reads it — but it is the guard that failed, so it should be
+exposure-weighted, gw-excluded and printed to 2dp.
+
+**Not done, deliberately.** The 103.3% claim-count overshoot is
+untouched and still documented above: bundling a judgement-driven anchor
+move with arithmetic fixes would make this run unattributable. Phase 2c
+stays parked for the same reason.
+
+**Also on this branch: the Phase 3 disclosure.** The same peril table
+gains % of claim cost, and buildings/contents on the 57% of cost that
+has a published anchor, with weather, escape of water and accidental
+damage shown "unsplit" rather than given an invented number. Flood uses
+the MCM convention (48/52), footnoted with Flood Re's 66/34 and the EA's
+25/75 and why MCM is preferred — it is the only one of the three that
+measures damage to the property. NO portfolio headline figure: the
+honest bound is 31.8%-79.5% buildings, and a 43-point band is not a
+headline.
+
+**Determinism confirmed, and it caught a provenance slip.** Re-running
+`build_model.py` after the defect-5 print change reproduced
+`data/districts_risk.geojson` BYTE-IDENTICALLY - the build is
+deterministic given RNG_SEED. It also showed `data/year_analysis.json`
+changing, which was not nondeterminism but a mistake: the second-seed
+script restored the geojson from its saved seed-42 copy after the
+seed-43 run, and `build_model.py` writes year_analysis.json too, which
+was not restored. Commit 2bfb36e therefore carried a seed-43 year
+analysis beside seed-42 everything-else. Fixed in e5b623e;
+`docs/years.html` was unaffected, so nothing downstream had consumed it.
+**Lesson: build_model.py writes TWO artifacts. Any script that swaps
+seeds must restore both.**
+
+**Publishing is the user's call and has NOT been given.** Remaining, in
+order: fix defect 5, sector rebuild in the worktree, copy output across,
+merge to main, rebuild with commit=true, verify live.
 
 ## Phase 2 status: 2a PUBLISHED 2026-08-18, 2c built and NOT published
 
