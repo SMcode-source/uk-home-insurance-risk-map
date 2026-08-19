@@ -323,6 +323,20 @@ reconciled it and a dispatched tests run on ca83519 is fully green
 (both jobs). **Next time: rebuild docs/ in the same commit that crosses
 the sector output**, or teach the skip guard this second window.
 
+**A second ordering lesson, from the 2026-08-19 publish.** The four
+publishes before it crossed the sector output to main FIRST, then
+merged the model change. This one merged to main first, which put
+fixed district numbers and pre-fix sector numbers on the live site at
+the same time — the two grains disagreed by ~1.39% on premium for as
+long as the sector rebuild took. Nothing broke and no test can see it,
+because each grain is internally consistent; only the pair is wrong.
+**Rule: when a model change touches both grains, cross the sector
+output to main BEFORE merging the model change, so main never
+publishes a mixed pair.** If the sector run must come after (it needs
+the merged `build_model.py`, as it did here), merge into
+`sector-model` first, run it, and hold the main merge until its output
+is ready to cross in the same push.
+
 ## Model audit 2026-08-18: reconciliation, and TWO UNFIXED defects
 
 > **Both defects below are now FIXED**, along with two more found
