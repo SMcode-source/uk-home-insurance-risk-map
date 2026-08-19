@@ -667,7 +667,52 @@ def load_stats():
         "__SECTOR_IOU_70__": str(val["pct_above_70"]),
     })
 
+    # ---- methodology peril table. EVERY numeric cell in it is injected.
+    # The severity column was hand-written in the first commit and six of
+    # its nine cells had drifted by up to +162% once the ABI calibration
+    # landed (HANDOFF, defect 3), so the medians are derived from ABI and
+    # SEV_SIGMA here and cannot go stale again.
+    from build_model import SEV_SIGMA, _median_for_mean
+    _med = lambda anchor, sig: f"{_median_for_mean(ABI[anchor], SEV_SIGMA[sig]):,.0f}"
+    # Claim-cost shares over the INSURED book. Erosion is excluded for the
+    # same reason el_total excludes it - gradual coastal erosion is not
+    # covered, so it is not part of a claim-cost split.
+    _pcols = [("SUB", "el_sub"), ("WX", "el_wx"), ("FL", "el_fl"),
+              ("GW", "el_gw"), ("TH", "el_th"), ("EOW", "el_eow"),
+              ("FIRE", "el_fire"), ("AD", "el_ad")]
+    _pel = {k: float(np.average([p.get(c, 0.0) for p in feats], weights=_w))
+            for k, c in _pcols}
+    _psum = sum(_pel.values()) or 1.0
+    # Buildings/contents split. PUBLISHED ANCHORS ONLY (DATA_SOURCES #31):
+    # subsidence is a structural peril by definition, theft and fire have
+    # ABI/Aviva cover-level splits, and flood takes the Multi-Coloured
+    # Manual depth-damage convention (the table footnote names the two
+    # published conventions that disagree with it, and why MCM is used).
+    # Groundwater follows flood. Weather, escape of water and accidental
+    # damage have NO published split - they render as "unsplit" in the
+    # template rather than being given an invented number, which is why
+    # only 57% of claim cost carries a split at all.
+    COVER_BLD = {"SUB": 100, "FL": 48, "GW": 48, "TH": 25, "FIRE": 78}
+    peril_bits = {f"__PCT_{k}__": f"{100 * v / _psum:.1f}"
+                  for k, v in _pel.items()}
+    peril_bits.update({f"__BLD_{k}__": str(v) for k, v in COVER_BLD.items()})
+    peril_bits.update({f"__CNT_{k}__": str(100 - v)
+                       for k, v in COVER_BLD.items()})
+    peril_bits.update({
+        "__SEV_SUB__": _med("sev_subsidence", "sub"),
+        "__SEV_WX__": _med("sev_weather", "wx"),
+        "__SEV_FL_RS__": _med("sev_flood_fluvial", "fl"),
+        "__SEV_FL_SW__": _med("sev_surface_water", "fl"),
+        "__SEV_GW__": _med("sev_groundwater", "gw"),
+        "__SEV_TH__": _med("sev_theft", "th"),
+        "__SEV_EOW__": _med("sev_eow", "eow"),
+        "__SEV_FIRE__": _med("sev_fire", "fire"),
+        "__SEV_AD__": _med("sev_ad", "ad"),
+        "__SEV_ER__": _med("sev_erosion", "er"),
+    })
+
     return {
+        **peril_bits,
         **cc_bits,
         **th_bits,
         **eow_bits,

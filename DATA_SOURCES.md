@@ -586,6 +586,145 @@ districts**, used as the exposure weight throughout.
       build period for the FULL stock at LSOA under plain OGL if
       Phase 2b/2c ever need it.
 
+
+32. **The ABI industry-data subscription, and how to read a withdrawn
+    ABI file** (found 2026-08-18; numbers 30 and 31 are taken by the
+    two unmerged branches, so this skips to 32 to merge cleanly).
+    Two separate things, both worth keeping.
+
+    **(a) The web-archive technique, which WORKS.** Entries #27 and #31
+    record ABI PDF and XLSX URLs that 404 after the media-hub move, and
+    treat them as dead. They are not dead — they are archived. The
+    Wayback CDX API enumerates them without an API key:
+
+        curl "http://web.archive.org/cdx/search/cdx?url=abi.org.uk*\
+        &output=text&fl=original,statuscode\
+        &filter=original:.*\.(xlsx|xls|csv)$&collapse=urlkey&limit=8000"
+
+    108 ABI spreadsheets survive at status 200. Fetch a specific one
+    with the `id_` modifier, which returns the raw bytes rather than
+    the archive's HTML wrapper:
+    `https://web.archive.org/web/<timestamp>id_/<original-url>`.
+    (`WebFetch` cannot reach web.archive.org from this project — use
+    curl. Old `.xls` needs `xlrd`, not `openpyxl`.) **Before recording
+    any abi.org.uk URL as dead, check the archive.**
+
+    What was actually recovered this way:
+    - `general-insurance-overview-statistics-2018.xlsx` — Property
+      sheet is Domestic vs Commercial premium/claims/outgo only. No
+      peril, no cover split. Dead end, but confirmed rather than
+      assumed.
+    - `industrydata/samples/1-full-statistics-bundle.xls` → the sample
+      of **"General insurance - property (2b)"**, the paid product.
+      This is the find.
+
+    **(b) The ABI's paid property dataset is exactly the missing
+    reconciliation source — and its schema is now documented.** The
+    sample is schema-only (every value cell stripped, which is what a
+    sales sample does), but the table structure is complete:
+    - **Table 5 — Summary, Gross Incurred Claims AND Number of Claims,
+      annual 1988–2012 plus quarterly from 1991Q1.** Columns: FIRE,
+      THEFT, BUSINESS INTERRUPTION, WEATHER, ESCAPE OF WATER, DOMESTIC
+      SUBSIDENCE, ACCIDENTAL DAMAGE, **OTHER DOMESTIC CLAIMS**, TOTAL.
+    - **Table 8 — Breakdown of quarterly DOMESTIC property claims and
+      number of claims.** Same peril columns, domestic only.
+    - **Table 9 — Weather Damage split into Commercial, Domestic
+      Pipes, Domestic Storm, Domestic Flood.**
+    - Table 13 — domestic subsidence back to 1987.
+
+    Read that peril list against this model's: fire, theft, weather,
+    escape of water, subsidence, accidental damage — **identical, plus
+    the residual bucket the model is missing.** This is the dataset
+    that settles the claim-count defect in HANDOFF's "Model audit
+    2026-08-18": the model implies 578,466 claims against ABI's
+    560,000 (103.3%), forcing a negative remainder, and Table 5's
+    per-peril *counts* plus OTHER DOMESTIC CLAIMS would resolve it
+    directly instead of by moving the AD anchor on judgement. Table 9's
+    Domestic **Pipes** column would also replace `EOW_FREEZE_SHARE =
+    0.15`, currently a reasoned figure rather than a measured one.
+    **It is a paid subscription** (ABI industry data; contact via the
+    data-and-analytics team) and the user's call — cost unpriced here.
+    It carries **no buildings/contents dimension**, so it does not
+    unblock Phase 3.
+
+    **(b2) All 108 were harvested and indexed — nothing else is in
+    there.** Do not repeat this sweep. Every archived abi.org.uk
+    `.xls`/`.xlsx`/`.csv` at status 200 was downloaded via the `id_`
+    modifier (13 MB; the CDX `length` field is the COMPRESSED size, so
+    3.3 MB in the index became 13 MB on disk) and every sheet indexed:
+    **102 readable files, 441 sheets**, the remaining six being
+    login-wall HTML. Result:
+    - **No per-peril domestic claim counts anywhere.** Every
+      industry-data subscription sample is value-stripped, not just the
+      property one — confirmed by opening all of them.
+    - **No Domestic Pipes values**, so `EOW_FREEZE_SHARE` stays
+      reasoned rather than measured.
+    - **No buildings-vs-contents claims split**, at any grain, in any
+      file.
+    - The three login-walled entries expose real asset paths in their
+      `ReturnUrl=` query
+      (`annual-general-insurance-overview-statistics---2015.xlsx`,
+      `annual-long-term-insurance-overview-statistcs-2013.xls`,
+      `household-spending-on-insurance-tables.xlsx`). **All three were
+      retried against the archive directly and none has a snapshot** —
+      the wall was archived, the asset behind it never was.
+    - Two files look relevant by keyword and are not: `Motor.xls`'s
+      "Accidental Damage" is a motor claim category, and
+      `Home_Contents_Insurance_Table.xls` is a blank room-by-room
+      worksheet for a householder to total their own possessions.
+
+    **(b3) One real find in the harvest, and it is evidence for a
+    rejection rather than an anchor.**
+    `household-spending-on-insurance-tables.xlsx` (ABI, from the ONS
+    Living Costs and Food Survey) Table 6 analyses household insurance
+    expenditure **by tenure**, giving both average spend and the
+    percentage of households holding each cover:
+
+    | tenure | Structure | Contents |
+    |---|---|---|
+    | Local Authority rented | suppressed | £142.39, **40.7%** |
+    | Housing Association | suppressed | £135.43, **41.1%** |
+    | Rented furnished | suppressed | £177.12, **24.1%** |
+    | Owner occupied, being purchased | £218.87, **93.5%** | £178.03, 93.5% |
+    | Owner occupied, owned outright | £201.79, **93.5%** | £164.30, 94.7% |
+
+    Structure cover among renters is so rare the ONS **suppresses the
+    cell**, while 93.5% of owner-occupiers hold both. That measures the
+    renter-selection confound this file has twice asserted (against the
+    FCA GIVM product split, and against the ABI premium ratio) instead
+    of merely claiming it: a buildings-only versus contents-only
+    comparison sets a ~93%-penetration owner population against a
+    24–41% renter one. **Cite this table, not the assertion.**
+
+    **(c) Proxies for the missing Phase 3 split — two tested, both
+    refuted.** Recorded so nobody proposes them again:
+    - *One universal split for every peril* (from the sum-insured
+      ratio, or any scalar). Refuted with no fitting required: the four
+      anchors are 25%, 78%, 100% and 48–66% buildings. A 75-point
+      spread is not one number.
+    - *Buildings share rises with average claim severity.* Fits the
+      three clean anchors at R² 0.979 — meaningless on three points and
+      two parameters — then fails out of sample. It predicts flood at
+      **118.9%**, missing every published convention by 53 to 94
+      points, and extrapolates accidental damage to **−14.2%** and
+      groundwater to **100.3%**. It also calls escape of water a 26%
+      buildings peril, when EoW's cost is drying, plaster, ceilings,
+      floors and fixtures: the proxy is measuring "theft steals
+      things", not damage physics. **42.9% of claim cost would have
+      rested on that extrapolation.**
+    The surviving lead is the MCM depth-damage file behind #31's
+    48/52 flood convention: it carries explicit
+    `Building_Fabric_Damage`, `Household_Inventory_Damage` and
+    `Domestic_CleanUp` columns per property type (FHRC licence; a
+    cut-down example ships free with Flood Modeller). Its value is not
+    flood — flood is already anchored three ways and is only 9.8% of
+    claim cost — but **escape of water**, which is 25.1%, has no anchor
+    at all, and is the same physical process: water in a dwelling,
+    damaging fabric, services and fixtures on one side and inventory on
+    the other. That transfer needs stating as an assumption (clean
+    water from above, no depth, no contamination) but it is a
+    documented one, which is more than the other three unanchored
+    perils have.
 ## Blocked on non-open data — what each would unblock
 
 Kept here so nobody re-derives the shopping list. None of these have an

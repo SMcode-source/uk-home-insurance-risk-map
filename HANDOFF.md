@@ -10,7 +10,9 @@ just a pointer here)
 
 **Phase 1 of the roadmap (attritional perils: theft → escape of water
 → fire → accidental damage) is COMPLETE.** Phase 2 is EPC/VOA exposure
-realism; Phase 3 the buildings/contents split.
+realism — **2a (theft's residential denominator) is live since
+2026-08-18**, 2c sits built-but-unpublished on its branch. Phase 3 is
+the buildings/contents split.
 
 The site publishes the model at **two grains side by side**:
 `/map.html` over 2,736 postcode districts and `/sectors.html` over
@@ -22,7 +24,15 @@ methodology page draws the Hull comparison as an inline SVG generated
 from the published GeoJSON at build time — a screenshot would go stale
 at the next rebuild; this cannot.
 
-Current headline figures (bot commit 08be7f1, 2026-08-17):
+**Two defects are open and UNFIXED** — the four vine perils take their
+EL from the draws instead of analytically, and flood severity is
+blended in log space. Neither is a publishing emergency (EL is
+paid ÷ policies by construction) but both are real; read "Model audit
+2026-08-18" below before touching the marginals, and re-measure with
+`.venv/Scripts/python.exe scripts/analytic_el_check.py`.
+
+Current headline figures (bot commit ca83519, 2026-08-18 — 2a moved
+geography, not level, so these are the same numbers):
 exposure-weighted premium **£174.24** over 27.26m households; loss
 cost £169.75 ≈ 77% of the £219 all-home-claims cost; climate
 uplift diluted a fourth time by AD's flat ~£14.65 (each attritional
@@ -253,6 +263,383 @@ fire's +£28 requantiling, the deciles barely breathe. Zero red runs
 end-to-end: the fire lessons (identity budget scales with legs,
 tolerance widened with the wiring, raw artifact uploaded before the
 gate) all held without being needed.
+
+## PUBLISHED 2026-08-18: Phase 2a, theft's residential denominator
+
+User decision: "2a only". LIVE at both resolutions (merge 6d24373,
+sector output crossed in 8204346 from sector-model run 11 bot 1a8f2d7,
+publish run 32085591133 bot commit ca83519). Theft's rate now divides by
+households PLUS VOA non-domestic premises, so each unit is charged only
+the residential share of its burglary points.
+
+Effect. Exposure-weighted premium is UNCHANGED at £174.24 districts /
+£174.02 sectors — the calibration re-pins the level, so only geography
+moves — and el_th stays £29.03 to the penny at both grains. The p99.9
+cap is demoted from doing the commercial correction's job to a genuine
+tiny-denominator backstop: 6.22% → 3.400% (15 districts on it) and
+8.29% → 4.230% (78 sectors). Every non-theft column is bit-identical at
+both grains (49 of 68 sector columns untouched; only the theft-derived
+chain moves). Churn 9.6% of sectors, 54 by two groups or more; every
+large fall is a City of London sector (EC2N 4 −£266, EC2M 7 −£265,
+EC4V 4/5 −£260) and the rises are the renormalisation landing elsewhere
+at +£6 to +£7.
+
+**Three defects found while publishing, all fixed — read these first:**
+
+1. **The premises join had no coverage guard.** `prem_table.get(n, 0.0)`
+   is the right fallback for a genuinely absent area (Scotland has no
+   VOA premises and is overridden anyway), but it is also how a
+   mis-keyed file vanishes without trace: every lookup misses, the
+   denominator silently reverts to households-only, the correction
+   un-applies, and the run reports success. That is the households.csv
+   void-run trap. Now raises below 95% E&W coverage (both grains score
+   100.0% / 99.9%), with two tests — one pinning what the correction
+   does, one pinning that a sector-keyed file on a district build raises
+   AND that an E&W-complete file with no Scottish row still passes, so
+   the guard cannot be "fixed" by counting Scotland.
+
+2. **`docs/` was stale on the branch and the local check said fresh.**
+   The copy pass edited templates without rebuilding. Worse, verifying
+   with `build_site.py` alone gives a FALSE PASS: build_site only
+   *wraps* `map/uk_home_insurance_risk_map.html`, a gitignored
+   intermediate produced by `build_map.py`. Re-wrapping a stale
+   intermediate reproduces the stale page and the diff comes back clean.
+   **To check docs/ freshness run the full chain CI runs: `build_map.py`,
+   then `build_analysis.py`, then `build_site.py`.** Less is not a check.
+
+3. **The peril table hand-wrote the theft cap** at 3.4% — the value 2a
+   was expected to produce — while the prose two sections down injects
+   `__TH_CAP_PCT__` from committed output. The page contradicted itself
+   (table 3.4%, prose 6.2%) for as long as the branch sat unpublished.
+   The cell now takes the same injection.
+
+**One process lesson that cost a red run.** Crossing the sector output
+in its own commit (8204346) left `docs/assets/sector_data.geojson` and
+`uk_sector_risk.csv` behind the data they are built from, so tests went
+red in the transition window (run 32085591045). The existing
+mid-transition skip only covers template-ahead-of-columns, NOT
+data-ahead-of-assets, so it did not catch this. The bot commit
+reconciled it and a dispatched tests run on ca83519 is fully green
+(both jobs). **Next time: rebuild docs/ in the same commit that crosses
+the sector output**, or teach the skip guard this second window.
+
+## Model audit 2026-08-18: reconciliation, and TWO UNFIXED defects
+
+> **Both defects below are now FIXED**, along with two more found
+> while fixing them, on branch `exp/el-and-flood-fixes` — see
+> "Built 2026-08-19" further down. Still NOT published. The
+> claim-count overshoot recorded here is deliberately untouched.
+
+The user asked whether escape of water is being counted twice through
+some other factor, and for an overall check that everything adds up to
+100% of claims. Reproduce any of this with
+`scripts/build_model.py`'s own constants — no simulation is involved
+in the analytic column, which is the point.
+
+**No double-counting.** Each of the eight perils has its own disjoint
+ABI anchor and its own driver, and no driver feeds two perils. The one
+place water could have been double-charged is freeze: `EOW_FREEZE_SHARE
+= 0.15` puts a frost-day slice into EoW, and frost appears nowhere
+else — flood is river/sea/surface-water zone fractions, weather is
+gust/wind-driven-rain/precip, neither has a freeze term. Storm-driven
+water ingress sits in `wx` and burst-pipe water sits in `eow`, which is
+the ABI's own boundary.
+
+**The money reconciles. The CLAIM COUNT does not.**
+
+| | paid £m | avg £ | claims | %/policy |
+|---|---|---|---|---|
+| subsidence | 307 | 17,820 | 17,228 | 0.111% |
+| weather | 244 | 2,450 | 99,592 | 0.643% |
+| flood | 312 | 30,000 | 10,400 | 0.067% |
+| theft | 450 | 3,800 | 118,421 | 0.764% |
+| escape of water | 657 | 4,000 | 164,250 | 1.060% |
+| fire | 434 | 14,000 | 31,000 | 0.200% |
+| accidental damage | 227 | 1,650 | 137,576 | 0.888% |
+| **modelled** | **2,631** | **4,548** | **578,466** | **3.732%** |
+| ABI all-home | 3,400 | 6,071 | 560,000 | |
+
+77.4% of the money — as documented — but **103.3% of the count**. The
+unmodelled remainder (subsidence-adjacent, liability, legal expenses,
+personal possessions away from home, alternative accommodation as a
+standalone head) would have to be **−18,466 claims for £769m** to
+close. It cannot be negative, so at least one of the four
+frequency-implied anchors is too high, and the modelled mix average
+(£4,548) sitting well under ABI's own £6,071 says the same thing from
+the other side.
+
+**The AD anchor is where the exposure is.** Theft, EoW and fire each
+have a published *paid total* and a published *average*, so their
+counts are derived. AD's is built the other way round: 24.53% of
+560,000 × £1,650. It is the one leg constructed FROM the count, so it
+is the one that can be moved without contradicting a published total.
+At the bottom of theft's documented vintage envelope (0.58%/policy —
+the "if claims fell with recorded burglary" end of DATA_SOURCES #25)
+the count drops to 98.2% and the residual becomes a sane 10,055 claims
+at £87,262 — still high, which is what you would expect of a remainder
+containing total losses and long-tail liability.
+
+**EL is immune to all of this**, which is why it is not a publishing
+emergency: each peril's EL is paid ÷ policies by construction, so the
+premium is right even if the implied count is not. What the count
+mismatch threatens is any future work that *reasons from frequency* —
+the buildings/contents split (Phase 3) is exactly that, so read this
+before using a modelled claim count as evidence for anything.
+
+### Defect 1: four perils take their EL from the DRAWS, not analytically
+
+`th`, `eow`, `fire` and `ad` compute EL as p × E[sev]. `sub`, `wx`,
+`fl` and `gw` take `ls.mean(axis=1)` — the mean of the simulated
+losses. Analytic vs published, exposure-weighted over the 2,736
+districts:
+
+| peril | analytic | published | published vs analytic | analytic vs ABI |
+|---|---|---|---|---|
+| sub | 19.8065 | 22.2725 | **+12.45%** | −0.00% |
+| wx | 15.7419 | 15.5256 | −1.37% | +0.00% |
+| fl | 18.9125 | 16.4712 | **−12.91%** | −6.04% |
+| gw | 1.3419 | 0.4118 | **−69.32%** | (no anchor) |
+| th | 29.0323 | 29.0339 | +0.01% | +0.00% |
+| eow | 42.3871 | 42.3865 | −0.00% | −0.00% |
+| fire | 28.0000 | 28.0007 | +0.00% | +0.00% |
+| ad | 14.6452 | 14.6457 | +0.00% | −0.00% |
+| TOTAL | 169.8673 | 168.7480 | −0.66% | |
+
+The analytic column lands on each ABI anchor to two decimal places, so
+**the calibration is exact and the simulation is what wanders.** This
+is the identical bug already fixed twice in this repo — for `el_er`
+("20,000 years give under one event") and for theft ("a peril sharing
+one uniform stream must take its EL analytically"): the districts share
+a systemic draw, so their errors are COMMON and do not average out
+across the map. Three seeds at production N_SIM on 400 districts moved
+sub +11.7/+2.7/+68.2%, wx −0.6/−21.1/+29.5%, fl −15.1/+15.5/+70.2%,
+gw −70.4/+6.0/+70.1% — the published values are one draw from that.
+Groundwater is worst because it is the rarest leg. Note `el_year =
+year_loss.mean(axis=1)` is a draw mean too, so **capital is exposed
+by the same mechanism**; the tail columns should keep using draws,
+which is what they are for.
+
+### Defect 2: flood severity is blended in LOG space
+
+```python
+mu_fl = (p_rs * mu_rs + p_sw * mu_sw) / np.maximum(p_fl, 1e-12)
+```
+
+That is a weighted mean of logs — a GEOMETRIC mean of the two
+severities. The intended quantity, and the one the published £30,000
+average is held to, is the frequency-weighted ARITHMETIC mean of
+£35,000 fluvial and £18,000 surface water. `exp` is convex, so the
+modelled mean sits below target; the gap is **independent of sigma**
+(the σ²/2 terms cancel) and runs −4% to −5% across plausible mixes.
+Measured, it is the −6.04% in the table above: flood is the ONLY
+calibrated peril whose analytic EL misses its own anchor, because
+`ABI_TARGET_FREQ["fl"] = flood_paid / 30,000 / POLICIES` assumes a mean
+severity the marginal does not deliver. The fix is to blend the MEANS
+and then take the log.
+
+**NEITHER IS FIXED.** Both are model changes: they need an experiment
+branch, a priced evidence run at both grains, and the user's publish
+decision — the same bar every peril cleared. Defect 2 raises the flood
+level ~6% and is a straight correction; defect 1 mostly REDUCES
+subsidence and RAISES groundwater, and its real prize is that the map
+stops depending on the seed.
+
+## Built 2026-08-19, NOT PUBLISHED: four defects fixed, evidence run done
+
+Branch `exp/el-and-flood-fixes` (e025e46, 704866b). The two defects the
+2026-08-18 audit left OPEN are fixed, plus two more found while fixing
+them. Every scope decision was taken by the user before any code moved
+(a nine-question grilling); nothing here has been published, and the
+sector worktree and `main` are untouched.
+
+**Defect 1 — the four vine perils published draw-mean ELs.**
+`calibrate_frequency` solves `FREQ_SCALE[k] = ABI_TARGET_FREQ[k] /
+raw[k]` against the exposure-weighted mean of the ANALYTIC p; no draw
+enters that loop, and `_median_for_mean` pins `E[sev]`. So `p*E[sev]` IS
+the calibration target and the draw mean was only ever an estimate of
+it. The comment that stood at the `el_total` site claimed the ABI
+scaling had been "solved against" those draw means. It had not. That
+comment was wrong and is corrected in the code.
+
+Groundwater is the case that proves it, and it was hiding in plain
+sight: it published £0.412 against an analytic £1.342, a 3.3x gap. Its
+p is 6.7e-5 — between erosion's 1.5e-5 and the attritional legs — and
+its spatial loading is 0.70, the HIGHEST of the four, so districts claim
+together and the effective sample is ~20,000 correlated years, not
+2,736 x 20,000 district-years. That is precisely the trap this file
+already documents for erosion, at 4.5x erosion's frequency. The three
+commoner vine perils hid it because their noise looks like rounding.
+
+Capital follows: `el_year`, itself a draw mean and already +0.54%
+adrift, is replaced by `el_total` in `capital` and `capital_cc`.
+
+**Defect 2 — flood severity blended GEOMETRICALLY.** Probability-
+weighting `mu` makes `exp(w1*mu1 + w2*mu2)`, the weighted geometric mean
+of the medians, which sits strictly below the arithmetic mean the ABI
+anchor is stated on. Now moment-matched on mean AND variance, which
+makes sigma per-district; `inv_mixed_cdf` broadcasts sigma as it already
+broadcast mu. Closed the gap from -6.04% to -2.26%.
+
+**Defect 3 — the published "Median severity" column was stale.** Six of
+its nine cells were hand-written in the FIRST commit (28a0609), before
+eb288ee introduced the ABI calibration, and never revisited: weather
+read £3,500 against a true median of £1,338 (+162%), and groundwater and
+erosion showed MEANS under a median header. The four Phase 1 rows added
+later were correct, so the convention was right and only the old rows
+drifted. All nine are now injected from `ABI` and `SEV_SIGMA` and cannot
+go stale again. `SEV_SIGMA` is promoted to module level for that purpose
+only; no sigma value changes and every per-peril justification stays at
+its point of use.
+
+**Defect 4 — flood's target frequency came from a headline the model
+contradicts.** Found while measuring defect 2, which narrowed the gap
+but did not close it. Decomposed: the `sw_sev` normalisation basis is
+worth +0.16%, the fluvial/surface-water frequency mix -2.41%. The EA
+zone areas make 66.33% of flood claims fluvial; the £30,000 blended ABI
+headline implies 70.59%. `sev_flood` 30,000, `sev_flood_fluvial` 35,000
+and `sev_surface_water` 18,000 CANNOT all be consistent with the EA
+geography — any two determine the third.
+
+Flood is the only peril whose severity is BUILT from components rather
+than read from one ABI figure, so it is the only one where `E[sev]` can
+differ from the number used to turn paid into a frequency. For the other
+seven, `EL == paid / POLICIES` exactly. `calibrate_frequency` now
+derives flood's target from the £29,322 its legs actually blend to,
+restoring that invariant. The hard anchor is the published £312m paid;
+£30,000 was only ever an intermediate, and it is the one of the three
+figures the model does not otherwise use. Nothing is invented, no
+published component severity moves, and the +2.31% frequency rise is
+uniform so no district's ranking changes. Groundwater follows, pegged
+at 10% of flood.
+
+**Measured, analytic vs ABI:**
+
+| stage | flood gap |
+|---|---|
+| as published on main | -6.04% |
+| after defect 2 | -2.26% |
+| after defect 4 | **+0.00%** |
+
+sub, wx, th, eow, fire and ad are +0.00% at every stage.
+
+**Evidence run (district, seed 42, full chain build_model ->
+build_analysis -> build_site):**
+
+| column | published main | new | change |
+|---|---|---|---|
+| el_sub | 22.2725 | 19.8055 | -11.08% |
+| el_wx | 15.5256 | 15.7434 | +1.40% |
+| el_fl | 16.4712 | 20.1290 | +22.21% |
+| el_gw | 0.4118 | 1.3398 | +225.38% |
+| el_th, el_eow, el_fire, el_ad, el_er | — | — | **bit-identical** |
+| el_total | 168.7457 | 171.1136 | +1.40% |
+| capital | 5.4956 | 5.5427 | +0.86% |
+| premium | 174.2409 | 176.6581 | +1.39% |
+
+The four attritional legs are bit-identical across all 2,736 districts,
+max |delta| exactly 0.000e+00 — the U-draw order th->eow->fire->ad is
+preserved, as it must be.
+
+**The number that matters most.** Excluding groundwater, which has no
+published anchor, the model now reproduces `ABI_LOSS_PER_POLICY`:
+£169.7738 modelled against £169.7419 published, **+0.0188%**. Before
+these fixes that reconciliation was 77.4% of £3.4bn with a claim-count
+overshoot; the money side is now exact to two basis points.
+
+**Second-seed check (RNG_SEED 43), and it is stronger than the bar we
+set.** The bar asked that the four vine ELs "barely move" across seeds.
+They cannot move at all: now that every EL is analytic, all TEN el_*
+columns are bit-identical between seed 42 and seed 43, max |delta|
+exactly 0.000e+00 across all 2,736 districts. Seed dependence has been
+removed from the published expected-loss level entirely, which is the
+real content of defect 1. The simulated columns move as they should:
+`tvar99_euler` +0.431%, capital +1.228%, premium +0.039%.
+
+One honest caveat: `tvar99_vine` moves +14.7% between seeds (12,172 ->
+13,967). That is a portfolio-level far tail out of 20,000 years and is
+inherently noisy; it is a published column but nothing in the premium
+path reads it (premium uses `tvar99_euler`). I have NOT established
+whether these changes made it more seed-sensitive than it was on main,
+only that it is sensitive. Worth a look before anyone quotes it.
+
+**Defect 5, found and NOT yet fixed — the reconciliation check that
+should have caught defect 4 cannot.** `build_model.py`'s own check
+prints `float(gdf["el_total"].mean())` — an UNWEIGHTED district mean —
+against `ABI_LOSS_PER_POLICY`, a national per-policy figure, formatted
+to ZERO decimal places, and `el_total` includes groundwater while
+`ABI_LOSS_PER_POLICY` does not. Three mismatches at once. It reported
+"-0%" while flood was 2.26% under its anchor. Its label also still says
+"these four perils"; there are eight. Diagnostic only — no published
+number reads it — but it is the guard that failed, so it should be
+exposure-weighted, gw-excluded and printed to 2dp.
+
+**Not done, deliberately.** The 103.3% claim-count overshoot is
+untouched and still documented above: bundling a judgement-driven anchor
+move with arithmetic fixes would make this run unattributable. Phase 2c
+stays parked for the same reason.
+
+**Also on this branch: the Phase 3 disclosure.** The same peril table
+gains % of claim cost, and buildings/contents on the 57% of cost that
+has a published anchor, with weather, escape of water and accidental
+damage shown "unsplit" rather than given an invented number. Flood uses
+the MCM convention (48/52), footnoted with Flood Re's 66/34 and the EA's
+25/75 and why MCM is preferred — it is the only one of the three that
+measures damage to the property. NO portfolio headline figure: the
+honest bound is 31.8%-79.5% buildings, and a 43-point band is not a
+headline.
+
+**Determinism confirmed, and it caught a provenance slip.** Re-running
+`build_model.py` after the defect-5 print change reproduced
+`data/districts_risk.geojson` BYTE-IDENTICALLY - the build is
+deterministic given RNG_SEED. It also showed `data/year_analysis.json`
+changing, which was not nondeterminism but a mistake: the second-seed
+script restored the geojson from its saved seed-42 copy after the
+seed-43 run, and `build_model.py` writes year_analysis.json too, which
+was not restored. Commit 2bfb36e therefore carried a seed-43 year
+analysis beside seed-42 everything-else. Fixed in e5b623e;
+`docs/years.html` was unaffected, so nothing downstream had consumed it.
+**Lesson: build_model.py writes TWO artifacts. Any script that swaps
+seeds must restore both.**
+
+**Publishing is the user's call and has NOT been given.** Remaining, in
+order: fix defect 5, sector rebuild in the worktree, copy output across,
+merge to main, rebuild with commit=true, verify live.
+
+## Phase 2 status: 2a PUBLISHED 2026-08-18, 2c built and NOT published
+
+Both experiment branches were built, verified and priced. The user chose
+**"2a only"**: 2a is live (see the section above), 2c stays on its branch.
+
+- **2a - theft commercial denominator** - **PUBLISHED, now on main**
+  (`exp/theft-commercial`, eebb5c2+c22aa06; evidence run 32033558205): rate = burglaries /
+  (households + VOA premises), premises from NDR stock by LSOA
+  (fetch_premises.py, data/premises.csv, DATA_SOURCES.md #29 on that
+  branch). All non-theft columns bit-identical; el_th mean pinned
+  29.03; premium/capital unchanged to the penny. Churn 229 districts
+  (8.4%), 9 by >=2 groups - ALL commercial cores, all DOWN (EC3M
+  10->1, W1J 394->249). Cap re-solves 6.22%->3.40%, 15 at it.
+  Scottish el_th +9% via FREQ_SCALE renormalisation (flat override
+  absorbs more of the pinned level - mechanism, not bug).
+- **2c - CT band severity relativities** (`exp/ct-severity`, 185485c;
+  evidence run 32039330290): band mix (CTSOP1.1 E&W + NRS Scotland
+  2023-at-DZ2011) -> value relativity 0.69-1.94, statutory charge
+  ratios normalised WITHIN nation, scaling th/eow/fire/ad severities
+  with claim-weighted normalisation (fetch_ct_bands.py,
+  data/ct_bands.csv, DATA_SOURCES.md #30 on that branch). Weather
+  legs and every rate bit-identical; all four attritional EL means
+  pinned to the penny; premium 174.24 unchanged. Churn 69.1%, 929 by
+  >=2 groups: prime London up to +282 (W1J), low-band city cores
+  -78 (BD1/SR1). New test pins severity-not-frequency scaling.
+- **They COLLIDE in prime London** (2a cut W1J, 2c raises it). 2a went
+  first, so **2c's evidence run is now stale**: to revisit it, rebase
+  `exp/ct-severity` onto published main, re-run the evidence (the churn
+  numbers above are measured against the pre-2a baseline and will move),
+  do the site copy pass for the severity prose, and take the OUTWARD D
+  seam for ct_bands.csv on sector-model - premises.csv already has it
+  (fetch_premises.py, 9e777f8: 9,700 sectors, 100.0% placed).
+- Known stale, untouched (predates both): dependence_check.py and
+  sensitivity.py never gained the attritional rate columns, so both
+  fail at _fields today.
 
 ## Phase 2 plan (2026-08-17): sources verified, design set, nothing built yet
 
