@@ -588,6 +588,19 @@ measures damage to the property. NO portfolio headline figure: the
 honest bound is 31.8%-79.5% buildings, and a 43-point band is not a
 headline.
 
+**Determinism confirmed, and it caught a provenance slip.** Re-running
+`build_model.py` after the defect-5 print change reproduced
+`data/districts_risk.geojson` BYTE-IDENTICALLY - the build is
+deterministic given RNG_SEED. It also showed `data/year_analysis.json`
+changing, which was not nondeterminism but a mistake: the second-seed
+script restored the geojson from its saved seed-42 copy after the
+seed-43 run, and `build_model.py` writes year_analysis.json too, which
+was not restored. Commit 2bfb36e therefore carried a seed-43 year
+analysis beside seed-42 everything-else. Fixed in e5b623e;
+`docs/years.html` was unaffected, so nothing downstream had consumed it.
+**Lesson: build_model.py writes TWO artifacts. Any script that swaps
+seeds must restore both.**
+
 **Publishing is the user's call and has NOT been given.** Remaining, in
 order: fix defect 5, sector rebuild in the worktree, copy output across,
 merge to main, rebuild with commit=true, verify live.
