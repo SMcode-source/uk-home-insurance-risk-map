@@ -339,10 +339,10 @@ is ready to cross in the same push.
 
 ## Model audit 2026-08-18: reconciliation, and TWO UNFIXED defects
 
-> **Both defects below are now FIXED**, along with two more found
-> while fixing them, on branch `exp/el-and-flood-fixes` — see
-> "Built 2026-08-19" further down. Still NOT published. The
-> claim-count overshoot recorded here is deliberately untouched.
+> **Both defects below are now FIXED and PUBLISHED**, along with three
+> more found while fixing them — see "Built AND PUBLISHED 2026-08-19"
+> further down. The claim-count overshoot recorded here is
+> deliberately untouched and remains live.
 
 The user asked whether escape of water is being counted twice through
 some other factor, and for an overall check that everything adds up to
@@ -458,13 +458,30 @@ level ~6% and is a straight correction; defect 1 mostly REDUCES
 subsidence and RAISES groundwater, and its real prize is that the map
 stops depending on the seed.
 
-## Built 2026-08-19, NOT PUBLISHED: four defects fixed, evidence run done
+## Built AND PUBLISHED 2026-08-19: five defects fixed
 
-Branch `exp/el-and-flood-fixes` (e025e46, 704866b). The two defects the
-2026-08-18 audit left OPEN are fixed, plus two more found while fixing
-them. Every scope decision was taken by the user before any code moved
-(a nine-question grilling); nothing here has been published, and the
-sector worktree and `main` are untouched.
+**Live since 17be4b4** (rebuild run 34, tests run 32202273388 green on
+both jobs, both grains verified on the live site). Built on branch
+`exp/el-and-flood-fixes` (e025e46, 704866b), merged to main at 37f6885
+with a guard fix at 8ab6cbc, sector output crossed at 6805445.
+
+The two defects the 2026-08-18 audit left OPEN are fixed, plus three
+more found while fixing them. Every scope decision was taken by the
+user before any code moved (an eleven-question grilling).
+
+**What the live numbers moved to.** Exposure-weighted premium
+174.2409 -> 176.6581 (+1.39%), driven mostly by groundwater's EL going
+0.412 -> 1.3398 as it stopped being read off a starved draw. The
+sector grain landed at 176.6731, 0.0085% from the district grain.
+Analytic EL matches ABI to +0.00% for all seven anchored perils and
+the portfolio reconciles at +0.0188% excluding groundwater.
+
+**One caveat on the CI artifact.** CI's rebuild rewrote 276 of 2,736
+districts in `data/districts_risk.geojson` versus the laptop build,
+entirely in `capital`, `tvar99_euler`, `premium_cc`, `capital_cc` and
+`cc_uplift_pct` — max relative change 4.6e-04, last-digit float drift
+from a different BLAS in the TVaR Euler allocation. No `el_*` column
+and no `premium` value moved. The CI artifact is the published one.
 
 **Defect 1 — the four vine perils published draw-mean ELs.**
 `calibrate_frequency` solves `FREQ_SCALE[k] = ABI_TARGET_FREQ[k] /
