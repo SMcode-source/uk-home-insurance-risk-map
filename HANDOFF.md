@@ -458,6 +458,92 @@ level ~6% and is a straight correction; defect 1 mostly REDUCES
 subsidence and RAISES groundwater, and its real prize is that the map
 stops depending on the seed.
 
+
+## tvar99_vine seed sensitivity, measured 2026-08-22
+
+Six seeds (42-47) through `simulate()` on the real scored frame, both
+the published code and its pre-fix parent (1fdfbb5), same seeds, same
+spatial calibration. Reproduce with `scripts/seed_sweep.py` — but see
+the harness warning at the end, which cost a full wrong run.
+
+**The three questions, answered.**
+
+1. **Did the five fixes worsen it? No.** `tvar99_vine` relative SD
+   across six seeds: **12.25% before, 12.40% after**. The 0.15pp is
+   inside the noise of a six-seed estimate and is directionally what
+   the fatter moment-matched flood severity would do. This closes the
+   question the publish left open.
+
+2. **They removed a far bigger one.** Pre-fix, `el_total` itself was
+   seed-dependent — relative SD **7.31%**, range 166.52 to 199.80 —
+   because the four vine perils took their EL from draws. Premium
+   inherited it: **relative SD 6.69%, range 172.23 to 203.58, a 17.24%
+   spread**. Post-fix `el_total` is bit-identical across all six seeds
+   and premium spans **176.6576 to 176.7926, a 0.076% spread**. The
+   premium seed lottery shrank by a factor of ~227. Put plainly: the
+   premium published before 2026-08-19 was a draw from a ±17% seed
+   distribution, and 174.2409 happened to be near its low end.
+
+3. **The swing is 36%, not 14.7%, and the site does read it.** 14.7%
+   was just the 42->43 pair. Across six seeds `tvar99_vine` runs
+   **12,172 to 17,301**. And `build_site.py` injects it into
+   `__MEAN_STANDALONE__` and `__DIVERSIFICATION__`, and ships it as a
+   CSV column — so "nothing reads it" was wrong about the site even
+   though it stays true of the premium path.
+
+**Why it will not settle down.** Two independent causes, and the
+second is the interesting one.
+
+*It is a thin-sample estimator.* `tvar()` averages the worst
+`k = N_SIM/100 = 200` of 20,000 years. With severity sigma up to 1.30
+(fire) that mean is carried by a handful of draws.
+
+*Nothing averages it away.* `base` is drawn ONCE in `simulate()` and
+broadcast to every district, so year j is the same state of the world
+everywhere and the per-district errors are near-perfectly correlated.
+Measured directly: national relative SD divided by median per-district
+relative SD is **0.964**. Independent errors across 2,736 districts
+(effective N 1,812 on household weights) would give **0.023**. A
+national portfolio buys essentially NO error reduction on this number.
+Getting to 1% would need ~154x the years — about 3.1M per district.
+
+**Why `tvar99_euler` is fine and premium is fine.** The year view mixes
+each district's systemic factor with idiosyncratic noise at the
+CALIBRATED spatial loadings, and those are tiny — `SPATIAL_SCALE`
+solves to 0.025, giving w/f/s/g of 0.013/0.010/0.015/0.018. Districts
+are therefore nearly independent in that view, the portfolio aggregate
+does average down, and `tvar99_euler` lands at relative SD **0.33%**
+(263.5 to 265.7). Capital and premium ride on that, not on the vine
+tail. The two numbers behave differently for a real structural reason,
+not by luck.
+
+**What this means for the published page.** The premium map is sound.
+The exposure is confined to two injected numbers:
+
+| published | value | six-seed range | verdict |
+| --- | --- | --- | --- |
+| `__MEAN_STANDALONE__` | GBP11,956 | 11,956 - 17,118 (36.8%) | not a reliable point estimate; seed 42 is the LOWEST of six |
+| `__DIVERSIFICATION__` | 98% | 97.81% - 98.46% | robust — the ratio is stable even though its numerator is not, and rounding to 0dp hides the rest |
+| `premium` | 176.6581 | 176.658 - 176.793 (0.076%) | sound |
+
+So the homepage tile survives on its merits; the methodology sentence
+"a single policy's standalone TVaR99 is about GBP11,956" does not — the
+same model at seed 44 says GBP17,118. NOT CHANGED: fixing it is a
+publishing decision, and the options (drop the point estimate, quote a
+range, draw the standalone tail independently per district so the
+national mean averages down, or compute it semi-analytically) trade off
+against cross-district comparability, which shared draws currently buy.
+
+**Harness warning, learned the hard way.** `main()` calls
+`calibrate_frequency(gdf)` AND `calibrate_spatial(gdf)`. Any script
+that drives `simulate()` directly must call BOTH. Omitting the second
+leaves `SPATIAL_SCALE` at its module default of 1.0 — a 40x overstated
+spatial loading — which silently inflates `tvar99_euler` by 9.7x while
+leaving `tvar99_vine` and `el_total` bit-identical to the published
+run. The pricing view does not use the loadings and the year view does,
+so a harness can look perfectly validated on the columns you happen to
+check and be wrong on the ones you care about. `analytic_el_check.py`
+omits `calibrate_spatial` legitimately — it only needs marginals.
 ## Built AND PUBLISHED 2026-08-19: five defects fixed
 
 **Live since 17be4b4** (rebuild run 34, tests run 32202273388 green on
@@ -587,11 +673,16 @@ real content of defect 1. The simulated columns move as they should:
 `tvar99_euler` +0.431%, capital +1.228%, premium +0.039%.
 
 One honest caveat: `tvar99_vine` moves +14.7% between seeds (12,172 ->
-13,967). That is a portfolio-level far tail out of 20,000 years and is
-inherently noisy; it is a published column but nothing in the premium
-path reads it (premium uses `tvar99_euler`). I have NOT established
-whether these changes made it more seed-sensitive than it was on main,
-only that it is sensitive. Worth a look before anyone quotes it.
+13,967). That is a per-district far tail out of 20,000 years and is
+inherently noisy; premium uses `tvar99_euler`, not this. I have NOT
+established whether these changes made it more seed-sensitive than it
+was on main, only that it is sensitive.
+
+> **Resolved 2026-08-22 — see "tvar99_vine seed sensitivity" below.**
+> The answer is no: 12.25% -> 12.40% relative SD, immaterial. The same
+> measurement found something much larger that these fixes REMOVED, and
+> corrected two claims in the paragraph above: the swing is 36% across
+> six seeds, not 14.7%, and the site does read this column.
 
 **Defect 5, found and NOT yet fixed — the reconciliation check that
 should have caught defect 4 cannot.** `build_model.py`'s own check
@@ -956,6 +1047,12 @@ the auto-memory; these are the NEW ones:
 
 ## Evidence tooling now in the repo
 
+- `scripts/seed_sweep.py` — seed sensitivity of every simulated column
+  and of the premium, with the national/per-district noise ratio that
+  shows whether an error averages down across districts. Established
+  that `tvar99_vine` does not (ratio 0.964) while premium does.
+  Calls BOTH calibrations — read its docstring before writing any other
+  harness that drives `simulate()` directly.
 - `scripts/compare_rebuild.py` — experiment artifact vs published model
   (premium level, churn, movers). Both model decisions above used it.
 - `scripts/compare_gust_surfaces.py` — two gust point sets IDW'd to
