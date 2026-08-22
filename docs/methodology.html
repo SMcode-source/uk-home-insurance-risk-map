@@ -878,11 +878,22 @@
     structure on what a household pays runs through that 3% capital charge.</p>
     <p>And that charge is an <i>aggregate</i> quantity, not a personal one: it is
     <b>6% of the district's Euler-allocated share of the portfolio's</b> worst 1% of years,
-    not of its own. The gap is the whole point — a single policy's standalone TVaR₉₉ is
-    about <b>£11,956</b>, while its allocated share of the portfolio tail is
-    about <b>£262</b>, a <b>98% diversification credit</b>. An
-    earlier version charged 6% of the standalone figure and inflated premiums roughly
-    tenfold.</p>
+    not of its own. The gap is the whole point — a single policy's standalone TVaR₉₉ ran
+    <b>£11,900–£17,200</b> across 6 simulation seeds, while
+    its allocated share of the portfolio tail held at about <b>£262</b>, a
+    <b>98% diversification credit</b>. An earlier version charged 6% of
+    the standalone figure and inflated premiums roughly tenfold.</p>
+    <p class="note"><b>Why the first of those is a range and the other two are not.</b>
+    The standalone figure is the mean of each district's worst 200 years out of
+    20,000, and every district is simulated against the <i>same</i> draws — so its Monte
+    Carlo error is common to all 2,736 of them and does not average away. Across
+    6 seeds the national mean moved 37%, while the allocated
+    share moved 0.8%, the diversification credit stayed within
+    97.8–98.5%, and the premium moved 0.08%. Quoting one
+    standalone number would imply a precision the simulation does not have; the premium
+    map does not inherit the problem. The per-district <code>tvar99_vine</code> column in
+    the <a href="assets/uk_district_risk.csv">download</a> carries the same caveat.
+    Measured by <code>scripts/seed_sweep.py</code>.</p>
     <div class="callout">So the copula is doing real work, but only where many policies are
     added together. That is not a limitation of this implementation — it follows from the
     frequencies. It is also why the two halves below say such different things.</div>
