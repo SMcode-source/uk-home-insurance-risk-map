@@ -182,21 +182,75 @@ def main():
     print(f"    but the EoW anchor is                  "
           f"GBP {A['eow_paid'] / 1e6:6,.0f}m")
     print()
-    print("  DATA_SOURCES.md:472 and :518 then size the fire and")
-    print("  accidental damage triangles against a remainder built by")
-    print("  adding the GBP 758m weather line and the GBP 657m EoW anchor")
-    print("  as SEPARATE items. On line 402's own reading that")
-    print("  double-counts escape of water.")
-    other = A["subsidence_paid"] + A["theft_paid"] + A["fire_paid"]
-    print(f"    headroom as those two lines compute it GBP "
-          f"{(P_ABI - WEATHER_LINE - A['eow_paid'] - other) / 1e6:6,.0f}m")
-    print(f"    headroom if the weather line holds EoW GBP "
-          f"{(P_ABI - WEATHER_LINE - other) / 1e6:6,.0f}m")
+    print("  That was flagged as a contradiction on 2026-08-22. It is not")
+    print("  one, and the rest of this section is the correction.")
     print()
-    print("  Which reading is right decides whether storm and flood are")
-    print("  double-counted against EoW, or the headroom the fire and AD")
-    print("  triangles were sized against is 1.8x what was documented.")
-    print("  Settling it needs the ABI release itself.")
+    print("  RESOLVED 2026-08-23 against the primary releases: the water")
+    print("  component of the weather line is BURST PIPES only, not the")
+    print("  whole EoW book. The 2024-04 release itemises 2023 as storm")
+    print("  GBP 133m + flood GBP 286m + burst pipes GBP 153m = GBP 572m")
+    print("  against a GBP 573m total, so the 2025 residual of GBP 202m is")
+    print("  burst pipes and is a SUBSET of the GBP 657m EoW anchor. No")
+    print("  contradiction with that anchor. What survives: DATA_SOURCES")
+    print("  :472 and :518 double-count the GBP 202m overlap, overstating")
+    print("  the fire and AD headroom by that much - not by GBP 657m.")
+    print()
+    print(f"  Side effect worth pricing: burst pipes were GBP 153m of a GBP "
+          f"{A['eow_paid'] / 1e6:,.0f}m")
+    print(f"  EoW book in 2023 ({153 / (A['eow_paid'] / 1e6):.2f}) and GBP 202m "
+          f"in 2025 ({202 / (A['eow_paid'] / 1e6):.2f}). The model's")
+    print(f"  EOW_FREEZE_SHARE is {bm.EOW_FREEZE_SHARE:.2f}. Neither year "
+          f"supports it.")
+    print()
+
+    rule("THE ANCHOR SET IS A RECORD YEAR PRICED AS THE EXPECTATION")
+    print("  data/abi_annual.csv carries the ABI's own published annual")
+    print("  totals. Set the modelled book against them:")
+    print()
+    obs = {}
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "..", "data", "abi_annual.csv")
+    with open(path, newline="", encoding="utf-8") as fh:
+        import csv
+        for r in csv.DictReader(fh):
+            if r["basis"] in ("published", "derived"):
+                obs.setdefault(r["metric"], {})[int(r["year"])] = \
+                    float(r["value_gbp_m"])
+    print(f"{'year':8}{'ABI all-home paid':>20}{'modelled 7 perils':>20}"
+          f"{'model as % of it':>19}")
+    for y, v in sorted(obs.get("home_paid_total", {}).items()):
+        print(f"{y:<8}{v:>17,.0f}m{tot_p / 1e6:>17,.0f}m"
+              f"{100 * (tot_p / 1e6) / v:>18.0f}%")
+    print()
+    print("  The model's EXPECTED annual loss for SEVEN perils exceeds the")
+    print("  ABI's ACTUAL total for every home claim in 2022 and 2023 -")
+    print("  liability, legal expenses and personal possessions included.")
+    print("  That is not impossible on its own: those could have been two")
+    print("  cheap years. It is a strong signal, and the direction agrees")
+    print("  with every other check here. Claims inflation is part of it -")
+    print("  the ABI's average home claim rose 15% in 2025 alone - so a")
+    print("  fair comparison needs a price basis, which is the next thing")
+    print("  this repo does not have.")
+    print()
+    print(f"{'year':8}{'ABI storm':>12}{'ABI flood':>12}{'sum':>10}"
+          f"{'model anchor':>15}{'model %':>10}")
+    anch = (A["storm_paid"] + A["flood_paid"]) / 1e6
+    yrs = sorted(set(obs.get("storm_homes", {})) & set(obs.get("flood_homes", {})))
+    for y in yrs:
+        s, f = obs["storm_homes"][y], obs["flood_homes"][y]
+        print(f"{y:<8}{s:>12,.0f}{f:>12,.0f}{s + f:>10,.0f}"
+              f"{anch:>15,.0f}{100 * anch / (s + f):>9.0f}%")
+    if yrs:
+        m = sum(obs["storm_homes"][y] + obs["flood_homes"][y]
+                for y in yrs) / len(yrs)
+        print(f"{'mean':8}{'':12}{'':12}{m:>10,.0f}{anch:>15,.0f}"
+              f"{100 * anch / m:>9.0f}%")
+        print()
+        print(f"  Storm and flood are anchored {100 * anch / m - 100:.0f}% "
+              f"above their own {len(yrs)}-year average because")
+        print("  2025 is the anchor and 2025 was a record. That is the")
+        print("  level question; scripts/backtest_coverage.py asks whether")
+        print("  the SPREAD around it is right.")
 
 
 if __name__ == "__main__":

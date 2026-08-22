@@ -468,6 +468,98 @@ subsidence and RAISES groundwater, and its real prize is that the map
 stops depending on the seed.
 
 
+## The ABI releases, read properly, 2026-08-23
+
+The user asked for annual ABI data, used granularly, at whatever grain we
+actually have it. The primary releases are now transcribed one figure at
+a time into **`data/abi_annual.csv`**, each row carrying its source URL, a
+`published`/`derived` flag and the release it came from. Use that file.
+Do not re-derive these numbers from a search summary — the summaries
+disagree with the releases and with each other, which is how the error
+below survived a day.
+
+**What the £758m weather line actually is — and the correction to my own
+flag of 2026-08-22.** The 2026-02 release's footnote 3 says the weather
+figures cover *"damage caused by burst or frozen pipes, escape of water,
+as well as damage as a result from storms and flooding"*. Read alone,
+that says the whole EoW book is inside £758m, which contradicts the £657m
+EoW anchor — and that is what I flagged. **It is not a contradiction.**
+The 2024-04 release itemises the same line for 2023:
+
+| 2023 weather line | £m |
+|---|---|
+| storm damage to homes | 133 |
+| flooding | 286 |
+| **burst pipes** | **153** |
+| total (published 573) | 572 |
+
+The water component is **burst pipes only**, a subset of the EoW book —
+so 2025's residual, £758m − £244m − £312m = **£202m, is burst pipes**, and
+the £657m anchor stands. The "£1,451m alternative headroom" in my
+2026-08-22 note does not exist. What does survive: DATA_SOURCES:472 and
+:518 still add the weather line and the EoW anchor as separate remainder
+items, double-counting the **£202m** they overlap in — an overstatement of
+£202m, not £657m.
+
+**Also settled: the storm, flood and subsidence anchors are genuinely
+2025.** All three are quoted directly in the 2026-02 release (£244m,
+£312m, £307m), as are the £2,450 and £30,000 averages. Source 16's "2025"
+label is correct and the per-peril weather totals were not withdrawn.
+Storm's 17.78% claim share is therefore the ABI's own implication, not a
+modelling artefact — which removes storm as the second suspect behind the
+claim-count overshoot and leaves theft carrying it alone.
+
+**Three new findings, none of them yet acted on.**
+
+**1. The level is a record year priced as the expectation.**
+
+| year | ABI storm | ABI flood | sum | model anchor | model as % |
+|---|---|---|---|---|---|
+| 2023 | 133 | 286 | 419 | 556 | 133% |
+| 2024 | 185 | 226 | 411 | 556 | 135% |
+| 2025 | 244 | 312 | 556 | 556 | 100% |
+| **mean** | | | **462** | **556** | **120%** |
+
+Storm and flood are anchored **20% above their own three-year average**,
+because the anchor is 2025 and 2025 was a record. At book level the same
+thing shows up harder: the model's *expected* annual loss for seven
+perils is £2,631m, against the ABI's *actual* all-home totals of £2,330m
+(2022) and £2,550m (2023) — the expectation of a subset exceeding the
+observed whole. Two cheap years could do that, so it is a signal rather
+than a proof, and claims inflation is part of it (the ABI's average home
+claim rose 15% in 2025 alone). Which is the point: **there is no price
+basis in this repo**, and a multi-year level cannot be built without one.
+
+**2. `EOW_FREEZE_SHARE = 0.15` is below what the data implies.** Burst
+pipes were £153m of a £657m EoW book in 2023 (0.23) and £202m in 2025
+(0.31). Neither year supports 0.15. Raising it pushes EoW's geography
+harder onto frost days and changes its systemic loading, so it is a model
+change and needs an experiment branch.
+
+**3. `TAIL_FREQ_RATIO = 2.0` is an undocumented knob, and it sets the
+tail width of every published premium.** It appears in `build_model.py`
+and **nowhere else in the repo** — no DATA_SOURCES entry, no HANDOFF
+entry, no README, no methodology page. It is the sole target
+`calibrate_spatial` solves against, which fixes `SPATIAL_SCALE`, which
+drives the year view, `tvar99_euler`, capital and premium. The house rule
+is that a model parameter without a published anchor does not ship; this
+one shipped. Its inline comment calls the 2× "a storm phenomenon", but
+the only 2× in the documented sources is EoW's winter-2010 freeze (#26) —
+if that is where it came from, it is the wrong peril. This should be
+*measured*, not asserted: `data/history.csv` already holds 35 years of
+per-year hazard drivers for exactly this purpose.
+
+**One thing to know before trusting any of this as a time series: the ABI
+restates it, and its releases contradict each other.** The 2024-04
+release puts 2023 at £573m and calls it the record. The 2025-02 release
+puts 2024 at £585m, calls it *"£127 million (28%) higher than … 2023"*
+(implying £458m) and names **2022** the previous record. Both cannot be
+right. Footnote 3 of the 2024-04 release gives the mechanism — *"This
+figure will include claims not yet fully settled"* — but not the
+direction. `abi_annual.csv` carries both the 573 and the 458 rows,
+flagged. **Pick one vintage of the series and stay inside it; never mix a
+figure as-published with a later release's comparative.**
+
 ## Claim-count overshoot: attributed 2026-08-22
 
 Reproduce all of this in a second, with no simulation:
