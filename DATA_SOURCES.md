@@ -150,6 +150,38 @@ districts**, used as the exposure weight throughout.
     and the flood-prone north-west. Reduced to per-year national indices; the
     JJA rainfall deficit is measured against each point's own 1991–2020
     June–August normal.
+    - **This series is also the anchor for `TAIL_FREQ_RATIO = 2.0`**
+      (added 2026-08-23; the constant shipped before this with no source
+      anywhere in the repo, which is what the no-undocumented-knobs rule
+      exists to prevent). It is the sole target `calibrate_spatial` solves
+      against, so it fixes `SPATIAL_SCALE` and through it the year view,
+      `tvar99_euler`, capital and the published premium — the one number
+      that sets how wide the tail is.
+    - **What it has to be measured against.** `calibrate_spatial` reports
+      it as *"1-in-100 year claims Nx the mean year"*, so it is a ratio of
+      claim COUNTS. The proxy must drive how many homes claim, not how
+      hard each is hit: **`storm_days`** (days with gust ≥ 70 km/h) is the
+      right series and **`max_gust` is not**. One violent gust hurts a few
+      homes badly; a year with many storm days puts many homes into claim.
+    - **The measurement** (`scripts/tail_ratio_from_history.py`, 1990–2024,
+      35 years; `storm_days` shows no significant trend, −0.039 days/yr,
+      p = 0.77, so the raw spread is the right thing to fit):
+
+      | proxy | CV | obs max/mean | lognormal 1-in-100 | gamma |
+      |---|---|---|---|---|
+      | `storm_days` (primary) | 0.284 | 1.67 | **1.84** | 1.78 |
+      | `storm_days^1.5` | 0.419 | 2.09 | 2.35 | 2.22 |
+      | `rain5d` (flood count driver) | 0.129 | 1.33 | 1.34 | 1.32 |
+      | `max_gust` (wrong shape, shown to make that visible) | 0.077 | 1.17 | 1.19 | 1.19 |
+
+      **2.0 sits inside the 1.78–2.35 range** the primary proxy supports
+      once mild convexity is allowed. The knob was undocumented, not
+      wrong, so it keeps its value and gains this entry.
+    - **What this does not establish.** That storm days convert to claim
+      counts one-for-one. The proxy choice moves the answer far more than
+      the fitted distribution does — `max_gust` would have halved the tail
+      — so the assumption is argued rather than assumed. A claims triangle
+      would settle it; see HANDOFF, "What remains, honestly".
 16. **ABI aggregates** — published in ABI press releases and property-claims
     statistics; quoted (not scraped) in `build_model.py`'s `ABI` dict so the
     calibration is auditable in one place. Update the dict when newer figures

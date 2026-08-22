@@ -536,18 +536,36 @@ pipes were £153m of a £657m EoW book in 2023 (0.23) and £202m in 2025
 harder onto frost days and changes its systemic loading, so it is a model
 change and needs an experiment branch.
 
-**3. `TAIL_FREQ_RATIO = 2.0` is an undocumented knob, and it sets the
-tail width of every published premium.** It appears in `build_model.py`
-and **nowhere else in the repo** — no DATA_SOURCES entry, no HANDOFF
-entry, no README, no methodology page. It is the sole target
-`calibrate_spatial` solves against, which fixes `SPATIAL_SCALE`, which
-drives the year view, `tvar99_euler`, capital and premium. The house rule
-is that a model parameter without a published anchor does not ship; this
-one shipped. Its inline comment calls the 2× "a storm phenomenon", but
-the only 2× in the documented sources is EoW's winter-2010 freeze (#26) —
-if that is where it came from, it is the wrong peril. This should be
-*measured*, not asserted: `data/history.csv` already holds 35 years of
-per-year hazard drivers for exactly this purpose.
+**3. `TAIL_FREQ_RATIO = 2.0` was an undocumented knob that sets the tail
+width of every published premium — now MEASURED and DOCUMENTED, value
+unchanged.** It appeared in `build_model.py` and **nowhere else in the
+repo**: no DATA_SOURCES entry, no README, no methodology page. Yet it is
+the sole target `calibrate_spatial` solves against, which fixes
+`SPATIAL_SCALE`, which drives the year view, `tvar99_euler`, capital and
+premium. The house rule is that a parameter without a published anchor
+does not ship; this one shipped.
+
+`data/history.csv` had been sitting in the repo with 35 years of per-year
+hazard drivers, used for nothing but a chart. `scripts/tail_ratio_from_history.py`
+now measures the target against it. The target is a ratio of claim
+*counts*, so the proxy has to drive how many homes claim, not how hard
+each is hit — `storm_days` (gust ≥ 70 km/h), not `max_gust`:
+
+| proxy | CV | obs max/mean | lognormal 1-in-100 | gamma |
+|---|---|---|---|---|
+| `storm_days` (primary) | 0.284 | 1.67 | **1.84** | 1.78 |
+| `storm_days^1.5` | 0.419 | 2.09 | 2.35 | 2.22 |
+| `rain5d` | 0.129 | 1.33 | 1.34 | 1.32 |
+| `max_gust` (wrong shape) | 0.077 | 1.17 | 1.19 | 1.19 |
+
+**2.0 sits inside the supported range of 1.78–2.35**, so the knob was
+undocumented rather than wrong. It keeps its value and gains a
+DATA_SOURCES entry under source 15. `storm_days` shows no significant
+trend (−0.039 days/yr, p = 0.77), so fitting its raw spread is legitimate.
+What this does *not* establish is that storm days convert to claim counts
+one-for-one — and note the proxy choice moves the answer far more than
+the fitted distribution does, since `max_gust` would have halved the
+tail. A claims triangle would settle it.
 
 **One thing to know before trusting any of this as a time series: the ABI
 restates it, and its releases contradict each other.** The 2024-04
@@ -1297,6 +1315,21 @@ the auto-memory; these are the NEW ones:
   which counts are pinned by an outside source and which are not. This
   is what attributed the claim-count overshoot to theft — see
   "Claim-count overshoot: attributed 2026-08-22".
+- `scripts/tail_ratio_from_history.py` — measures `TAIL_FREQ_RATIO`
+  against the 35-year ERA5 driver series instead of asserting it, under
+  several proxies and three fitted distributions. Established that the
+  shipped 2.0 is inside the supported range. Instant, no simulation.
+  Writes `data/tail_ratio.json`.
+- `scripts/backtest_coverage.py` — the first check that the model's
+  distribution of years contains years that actually happened. Compares
+  the simulated national storm+flood annual distribution against the
+  ABI's published per-year totals in `data/abi_annual.csv`. Needs one
+  full simulation (~40 min on the laptop). Writes
+  `data/backtest_coverage.json`.
+- `data/abi_annual.csv` — the ABI's annual releases transcribed one
+  figure at a time, each row carrying its source URL and a
+  published/derived flag. The releases restate and contradict each
+  other; read the HANDOFF note before treating it as a clean series.
 - `scripts/compare_rebuild.py` — experiment artifact vs published model
   (premium level, churn, movers). Both model decisions above used it.
 - `scripts/compare_gust_surfaces.py` — two gust point sets IDW'd to
