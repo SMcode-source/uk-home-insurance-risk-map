@@ -400,7 +400,20 @@ districts**, used as the exposure weight throughout.
       across their material since ~2017; like theft, the ABI stopped
       publishing an annual per-peril total, and the 2025 full-year
       release folds EoW into a £758m "weather-related damage to homes"
-      line that also covers storm and flood). Cross-check that closes
+      line that also covers storm and flood). **UNRESOLVED, flagged
+      2026-08-22:** that reading cannot stand beside the anchors. £758m
+      less storm £244m and flood £312m leaves £202m for EoW, not £657m.
+      Worse, the remainder envelopes below (#27's "after EoW £657m,
+      weather £758m", #28's "~£790m after weather £758m, EoW £657m")
+      add the weather line and the EoW anchor as SEPARATE items, which
+      on this reading double-counts EoW and halves the headroom the
+      fire and AD triangles were sized against (£794m as computed vs
+      £1,451m if the weather line already contains EoW). Related: the
+      storm £244m and flood £312m anchors are tabled as "2025" (source
+      16) but this same note says the 2025 full-year release stopped
+      publishing per-peril weather totals — so their release needs
+      identifying. `scripts/anchor_budget.py` prints all of it; see
+      HANDOFF "Claim-count overshoot: attributed 2026-08-22". Cross-check that closes
       the triangle: EoW was **29.3% of 2025's 560,000 home claims**
       (GoCompare from ABI data) ≈ **164,000 claims/yr**, and
       £657m / 164k = **£4,005 average** — self-consistent, so

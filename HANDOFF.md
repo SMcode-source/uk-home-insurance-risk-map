@@ -343,6 +343,15 @@ is ready to cross in the same push.
 > more found while fixing them — see "Built AND PUBLISHED 2026-08-19"
 > further down. The claim-count overshoot recorded here is
 > deliberately untouched and remains live.
+>
+> **The attribution below is WRONG and was corrected 2026-08-22.** This
+> section blames the accidental-damage anchor as "the one that can be
+> moved without contradicting a published total". That is true of AD's
+> *paid* total and false of the quantity actually in dispute, which is
+> its *count* — AD's count is 24.53% of 560,000 from the same verified
+> GoCompare table that pins escape of water's 29.38%, so it is one of
+> the legs that cannot be moved. See "Claim-count overshoot: attributed
+> 2026-08-22" below, and run `scripts/anchor_budget.py`.
 
 The user asked whether escape of water is being counted twice through
 some other factor, and for an overall check that everything adds up to
@@ -458,6 +467,102 @@ level ~6% and is a straight correction; defect 1 mostly REDUCES
 subsidence and RAISES groundwater, and its real prize is that the map
 stops depending on the seed.
 
+
+## Claim-count overshoot: attributed 2026-08-22
+
+Reproduce all of this in a second, with no simulation:
+
+```
+.venv/Scripts/python.exe scripts/anchor_budget.py
+```
+
+**The count overshoot and the money undershoot are one fault, not two.**
+103.3% of the ABI's claims on 77.4% of its money means only one thing:
+the modelled book's average claim is £4,548 against the ABI's £6,071, a
+quarter too cheap. And the sign is wrong. What the model leaves out —
+legal expenses, personal possessions, liability, alternative
+accommodation — is the *cheap* end of a home book, so stripping it out
+should push the modelled subset's average **above** £6,071, not a
+quarter below it. Whatever is wrong is a leg carrying too many claims
+that are too small, and it will show up in the count budget.
+
+**Six of the seven counts are pinned by something outside their own
+leg. One is not.**
+
+| leg | claims | % of 560k | by-product | what pins the count |
+|---|---|---|---|---|
+| storm | 99,592 | 17.78% | count | ABI 2025 paid AND ABI 2025 average, one release |
+| flood | 10,400 | 1.86% | count | ABI 2025 paid AND ABI 2025 average, one release |
+| subsidence | 17,228 | 3.08% | count | ABI 2025 paid AND ABI 2025 average, one release |
+| escape of water | 164,250 | 29.33% | severity | GoCompare 29.38% — VERIFIED, and closes the triangle |
+| fire | 31,000 | 5.54% | paid | Home Office FIRE0201 attended dwelling fires 2024/25 |
+| accidental damage | 137,576 | 24.57% | paid | GoCompare 24.53% — VERIFIED (at home + outside) |
+| **theft** | **118,421** | **21.15%** | **count** | **nothing: 2018 paid ÷ 2025 average** |
+
+The six leave **99,955 claims (17.85%)** for theft and for everything
+unmodelled. Theft takes 118,421 — it **overruns the entire remaining
+budget by 18,466 claims on its own**, which is the whole overshoot,
+exactly.
+
+**And the remainder is not empty.** Away-from-home accidental damage is
+6.46% of the same GoCompare table; it is real, it is inside the ABI's
+560,000, and `build_model.py:296` deliberately excludes it from the
+model — so it is a charge against the remainder. That leaves **11.39%
+(63,779 claims)** for theft, before a single pound of liability or legal
+expenses. Theft does not fit on *any* reading of its own documented
+vintage envelope:
+
+| theft basis | %/policy | claims | % of 560k | fits? |
+|---|---|---|---|---|
+| as it ships (2018 paid ÷ 2025 average) | 0.76% | 118,421 | 21.15% | no |
+| 2018 paid at the 2018 average, as published | 0.97% | 150,350 | 26.85% | no |
+| floor: if claims fell with recorded burglary | 0.58% | 89,900 | 16.05% | no |
+
+**So theft is the largest single cause and is over on every reading —
+but it cannot be the only one.** Even the floor of its envelope is
+4.66pp (26,121 claims) over, with nothing left for liability. The two
+statements "theft ≤ 63,779" (from the budget) and "theft ≥ 89,900" (from
+its own documented floor) do not overlap, so one of the other six is
+also wrong.
+
+**The next suspect is storm, and there is provenance evidence against
+it.** Storm is the only other large count derived by dividing a paid
+total by an average: 17.78% of all UK home claims. Its £244m and
+flood's £312m are tabled in DATA_SOURCES as "UK domestic claims by
+peril, **2025**" (line 26) — but DATA_SOURCES:402 records that the ABI's
+2025 full-year release **stopped publishing per-peril weather totals**
+and reports one £758m "weather-related damage to homes" line instead.
+Both cannot be true of the same release. Source #16's narrative entry
+gives no vintage at all, so the storm and flood anchors need their
+release identified before storm's 17.78% can be defended or moved.
+
+**The same £758m line is separately self-contradictory on the money
+side.** DATA_SOURCES:402 says it covers storm, flood *and* escape of
+water. Beside the anchors that cannot hold: £758m − £556m of storm and
+flood leaves £202m for EoW, against an EoW anchor of £657m. Then
+DATA_SOURCES:472 and :518 size the fire and AD triangles against a
+remainder built by adding the £758m weather line and the £657m EoW
+anchor as *separate* items — which on line 402's own reading
+double-counts EoW. The headroom those two triangles were checked
+against is either £794m as documented, or £1,451m — a 1.8× difference.
+Settling it needs the ABI release itself.
+
+**None of this is a publishing emergency, for the reason already
+recorded:** each peril's EL is paid ÷ policies by construction, so the
+premium follows the *money* anchors and is untouched by the count
+budget. `el_total` is £171.11/policy and does not move. What a theft
+correction would move is the tail: holding theft's £450m and raising
+its severity to fit the budget means fewer, larger claims and a fatter
+tail, so `tvar99_euler`, capital and premium all rise; holding the
+£3,800 average and cutting the count instead drops theft's paid to
+~£242m and takes about 7.9% off EL. **Those are opposite directions on
+the premium, which is exactly why this needs an experiment branch with
+priced evidence and a decision from the user — not a quiet edit to the
+`ABI` dict.**
+
+Read this before any Phase 3 work. The buildings/contents split reasons
+from frequency, and theft's frequency is the number this section says
+is wrong.
 
 ## tvar99_vine seed sensitivity, measured 2026-08-22
 
@@ -1091,6 +1196,13 @@ the auto-memory; these are the NEW ones:
   laptop: a seed is ~3 min in CI (30 seeds = 95 min) and a sleeping laptop kills a long sweep.
   Calls BOTH calibrations — read its docstring before writing any other
   harness that drives `simulate()` directly.
+- `scripts/anchor_budget.py` — do the seven per-peril level anchors fit
+  inside the ABI's own 560,000 claims? No simulation, runs in a second,
+  reads `build_model`'s own `ABI` dict so it cannot drift. Reports which
+  of {paid, count, severity} is a by-product for each leg, and therefore
+  which counts are pinned by an outside source and which are not. This
+  is what attributed the claim-count overshoot to theft — see
+  "Claim-count overshoot: attributed 2026-08-22".
 - `scripts/compare_rebuild.py` — experiment artifact vs published model
   (premium level, churn, movers). Both model decisions above used it.
 - `scripts/compare_gust_surfaces.py` — two gust point sets IDW'd to
@@ -1140,6 +1252,17 @@ remains the no-account fallback and regenerates the pre-swap surface.
   sum insured and construction type.
 - **BGS superficial thickness** (licensed) would make `SUP_WEIGHT`
   physical instead of a bounded prior.
+
+**One open model question, attributed but not decided.** The theft
+level anchor is over its share of the ABI's claim count on every
+reading of its own vintage envelope, and the storm and flood anchors
+need their ABI release identified before storm's 17.78% share can be
+defended — see "Claim-count overshoot: attributed 2026-08-22" and run
+`scripts/anchor_budget.py`. Both directions of a theft correction move
+the published premium, in opposite directions, so this needs an
+experiment branch with priced evidence and a decision from the user.
+The published EL and premium are not wrong today: they follow the money
+anchors, which the count budget does not touch.
 
 Everything else that was ever on a pick-up list is done and live.
 
