@@ -203,7 +203,7 @@ def main():
           f"supports it.")
     print()
 
-    rule("THE ANCHOR SET IS A RECORD YEAR PRICED AS THE EXPECTATION")
+    rule("THE LEVEL IS FITTED TO ONE YEAR - IS THAT VISIBLE IN THE DATA?")
     print("  data/abi_annual.csv carries the ABI's own published annual")
     print("  totals. Set the modelled book against them:")
     print()
@@ -222,15 +222,33 @@ def main():
         print(f"{y:<8}{v:>17,.0f}m{tot_p / 1e6:>17,.0f}m"
               f"{100 * (tot_p / 1e6) / v:>18.0f}%")
     print()
-    print("  The model's EXPECTED annual loss for SEVEN perils exceeds the")
-    print("  ABI's ACTUAL total for every home claim in 2022 and 2023 -")
-    print("  liability, legal expenses and personal possessions included.")
-    print("  That is not impossible on its own: those could have been two")
-    print("  cheap years. It is a strong signal, and the direction agrees")
-    print("  with every other check here. Claims inflation is part of it -")
-    print("  the ABI's average home claim rose 15% in 2025 alone - so a")
-    print("  fair comparison needs a price basis, which is the next thing")
-    print("  this repo does not have.")
+    print("  At face value the model's EXPECTED loss for seven perils")
+    print("  exceeds the ABI's ACTUAL total for every home claim in 2022")
+    print("  and 2023. That looks damning and mostly is not: those are")
+    print("  2022 and 2023 pounds against a 2025-anchored model. The ABI's")
+    print("  average home claim rose 15% in 2025 ALONE. Index the older")
+    print("  years to 2025 and the comparison changes completely:")
+    print()
+    print(f"{'claims inflation assumed':28}{'2022 -> 2025':>14}"
+          f"{'2023 -> 2025':>14}   model as % of each")
+    hp = obs.get("home_paid_total", {})
+    for rate in (0.00, 0.05, 0.10, 0.15):
+        a = hp.get(2022, float("nan")) * (1 + rate) ** 3
+        b = hp.get(2023, float("nan")) * (1 + rate) ** 2
+        print(f"{100 * rate:>24.0f}%/yr{a:>14,.0f}{b:>14,.0f}   "
+              f"{100 * (tot_p / 1e6) / a:.0f}%  /  "
+              f"{100 * (tot_p / 1e6) / b:.0f}%")
+    print()
+    print("  At anything from about 8%/yr upward the model sits BELOW every")
+    print("  observed year, which is where a seven-peril subset of an")
+    print("  eleven-category book belongs. The apparent overshoot was")
+    print("  mostly a price-basis artefact.")
+    print()
+    print("  This repo has no claims-inflation index and no stated 'as at'")
+    print("  date for the premium. Until it has both, no multi-year level")
+    print("  can be built and comparisons like this one cannot be")
+    print("  resolved. That is the finding here - not that the level is")
+    print("  too high.")
     print()
     print(f"{'year':8}{'ABI storm':>12}{'ABI flood':>12}{'sum':>10}"
           f"{'model anchor':>15}{'model %':>10}")
@@ -247,10 +265,24 @@ def main():
               f"{100 * anch / m:>9.0f}%")
         print()
         print(f"  Storm and flood are anchored {100 * anch / m - 100:.0f}% "
-              f"above their own {len(yrs)}-year average because")
-        print("  2025 is the anchor and 2025 was a record. That is the")
-        print("  level question; scripts/backtest_coverage.py asks whether")
-        print("  the SPREAD around it is right.")
+              f"above their own {len(yrs)}-year average.")
+        print("  Do NOT read that as proof the level is too high. The")
+        print("  anchor IS the model's mean by construction, the simulated")
+        print("  distribution is strongly right-skewed (cv ~0.9, median")
+        print("  ~25% below mean), and most years fall below the mean of a")
+        print("  skewed distribution. Three years averaging below it is")
+        print("  what that looks like, not evidence against it.")
+        print("  scripts/backtest_coverage.py runs the actual test - a")
+        print("  bootstrap of 3-year windows - and it does not reject the")
+        print("  level.")
+        print()
+        print("  What DOES stand, and needs no data to see: E[loss] is")
+        print("  fitted to a SINGLE year. One year is one draw. The")
+        print("  systemic loadings W_* get multi-decade series while the")
+        print("  level gets n=1, which is backwards - every year gives you")
+        print("  a total, so the mean is the better-evidenced quantity of")
+        print("  the two. That is a methodology defect whether or not the")
+        print("  current value happens to be close.")
 
 
 if __name__ == "__main__":

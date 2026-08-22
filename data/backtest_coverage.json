@@ -1,0 +1,60 @@
+{
+ "comparison": "storm + flood, national annual, GBP m",
+ "generated_by": "scripts/backtest_coverage.py",
+ "model": {
+  "flood_mean": 304.9,
+  "mean": 547.2,
+  "percentiles": {
+   "p1": 51.0,
+   "p10": 139.9,
+   "p25": 237.5,
+   "p5": 101.8,
+   "p50": 413.3,
+   "p75": 701.4,
+   "p90": 1105.9,
+   "p95": 1435.3,
+   "p99": 2360.8
+  },
+  "sd": 484.1,
+  "storm_mean": 242.3,
+  "subsidence_mean": 312.9
+ },
+ "model_vs_observed_pct": 18.4,
+ "n_sim": 20000,
+ "observed": [
+  {
+   "basis": "published",
+   "flood": 286.0,
+   "pct": 50.7,
+   "return_period": 2.0,
+   "side": "high",
+   "storm": 133.0,
+   "total": 419.0,
+   "year": 2023
+  },
+  {
+   "basis": "part derived",
+   "flood": 226.0,
+   "pct": 49.73,
+   "return_period": 2.0,
+   "side": "low",
+   "storm": 185.0,
+   "total": 411.0,
+   "year": 2024
+  },
+  {
+   "basis": "published",
+   "flood": 312.0,
+   "pct": 64.76,
+   "return_period": 2.8,
+   "side": "high",
+   "storm": 244.0,
+   "total": 556.0,
+   "year": 2025
+  }
+ ],
+ "observed_mean": 462.0,
+ "seed": 42,
+ "years_below_model_median": 1,
+ "years_in_middle_half": 3
+}

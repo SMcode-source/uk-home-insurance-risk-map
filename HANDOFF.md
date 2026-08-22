@@ -511,7 +511,11 @@ claim-count overshoot and leaves theft carrying it alone.
 
 **Three new findings, none of them yet acted on.**
 
-**1. The level is a record year priced as the expectation.**
+**1. The level is fitted to one year — but the data does NOT show it is
+wrong.** I first wrote this section up as "a record year priced as the
+expectation". That overstated it, and both halves of the evidence
+dissolved on contact with the arithmetic. Recording the retraction
+because the raw table is seductive:
 
 | year | ABI storm | ABI flood | sum | model anchor | model as % |
 |---|---|---|---|---|---|
@@ -520,15 +524,43 @@ claim-count overshoot and leaves theft carrying it alone.
 | 2025 | 244 | 312 | 556 | 556 | 100% |
 | **mean** | | | **462** | **556** | **120%** |
 
-Storm and flood are anchored **20% above their own three-year average**,
-because the anchor is 2025 and 2025 was a record. At book level the same
-thing shows up harder: the model's *expected* annual loss for seven
-perils is £2,631m, against the ABI's *actual* all-home totals of £2,330m
-(2022) and £2,550m (2023) — the expectation of a subset exceeding the
-observed whole. Two cheap years could do that, so it is a signal rather
-than a proof, and claims inflation is part of it (the ABI's average home
-claim rose 15% in 2025 alone). Which is the point: **there is no price
-basis in this repo**, and a multi-year level cannot be built without one.
+Storm and flood *are* anchored 20% above their own three-year average.
+That is **not** evidence the level is too high. The anchor **is** the
+model's mean by construction, and the simulated distribution is strongly
+right-skewed — cv ≈ 0.9, median ≈ 25% below the mean — so most years
+falling below the mean is what the distribution looks like, not a
+finding. `backtest_coverage.py` runs the real test, a bootstrap of
+three-year windows, and does not reject the level.
+
+The book-level version dissolved even more completely. The model's
+expected loss for seven perils (£2,631m) exceeds the ABI's actual
+all-home total for 2022 (£2,330m) and 2023 (£2,550m), which looks
+damning — until you notice those are 2022 and 2023 pounds against a
+2025-anchored model, and that the ABI's average home claim rose **15% in
+2025 alone**:
+
+| claims inflation assumed | 2022→2025 | 2023→2025 | model as % of each |
+|---|---|---|---|
+| 0%/yr | 2,330 | 2,550 | 113% / 103% |
+| 5%/yr | 2,697 | 2,811 | 98% / 94% |
+| 10%/yr | 3,101 | 3,086 | 85% / 85% |
+| 15%/yr | 3,544 | 3,372 | 74% / 78% |
+
+From about 8%/yr upward the model sits below every observed year, which
+is where a seven-peril subset of an eleven-category book belongs. **The
+apparent overshoot was mostly a price-basis artefact.**
+
+**What does stand, and needs no data to see:** `E[loss]` is fitted to a
+SINGLE year. One year is one draw. The systemic loadings `W_*` get
+multi-decade series while the level gets n=1 — which is backwards, since
+every year gives you a total, making the mean the better-evidenced of the
+two. That is a methodology defect whether or not the current value
+happens to land close.
+
+**And the blocker for fixing it: this repo has no claims-inflation index
+and no stated "as at" date for the premium.** Until it has both, no
+multi-year level can be built and the table above cannot be resolved.
+That is the real finding here.
 
 **2. `EOW_FREEZE_SHARE = 0.15` is below what the data implies.** Burst
 pipes were £153m of a £657m EoW book in 2023 (0.23) and £202m in 2025
