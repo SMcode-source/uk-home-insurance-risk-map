@@ -14,9 +14,9 @@
  },
  "effective_n": 1812.3,
  "el_total": {
-  "max": 171.1148890062888,
-  "mean": 171.1148890062888,
-  "min": 171.1148890062888,
+  "max": 171.11488900628882,
+  "mean": 171.11488900628885,
+  "min": 171.11488900628882,
   "noise_ratio": null,
   "per_seed": [
    171.1149,
@@ -29,7 +29,7 @@
   "rel_sd_pct": 0.0,
   "spread_pct": 0.0
  },
- "generated_by": "scripts/seed_sweep.py --write-json  [PROVISIONAL: local sweep, pending CI]",
+ "generated_by": "scripts/seed_sweep.py --write-json",
  "independent_ratio": 0.0235,
  "n_sim": 20000,
  "port_tvar99": {
@@ -73,9 +73,9 @@
   47
  ],
  "standalone_tvar99": {
-  "max": 17117.602348789937,
-  "mean": 14035.606717930727,
-  "min": 11955.714721619333,
+  "max": 17117.602348789795,
+  "mean": 14035.606717930705,
+  "min": 11955.714721619435,
   "noise_ratio": 0.9791,
   "per_seed": [
    11955.7147,
