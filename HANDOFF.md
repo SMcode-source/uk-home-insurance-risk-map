@@ -580,7 +580,7 @@ omits `calibrate_spatial` legitimately — it only needs marginals.
 
 **Live since 17be4b4** (rebuild run 34, tests run 32202273388 green on
 both jobs, both grains verified on the live site). Built on branch
-`exp/el-and-flood-fixes` (e025e46, 704866b), merged to main at 37f6885
+`exp/el-and-flood-fixes` (e025e46, 704866b — branch deleted after merge, commits reachable from main), merged to main at 37f6885
 with a guard fix at 8ab6cbc, sector output crossed at 6805445.
 
 The two defects the 2026-08-18 audit left OPEN are fixed, plus three
@@ -765,7 +765,7 @@ Both experiment branches were built, verified and priced. The user chose
 **"2a only"**: 2a is live (see the section above), 2c stays on its branch.
 
 - **2a - theft commercial denominator** - **PUBLISHED, now on main**
-  (`exp/theft-commercial`, eebb5c2+c22aa06; evidence run 32033558205): rate = burglaries /
+  (`exp/theft-commercial`, eebb5c2+c22aa06 — branch deleted after merge; evidence run 32033558205): rate = burglaries /
   (households + VOA premises), premises from NDR stock by LSOA
   (fetch_premises.py, data/premises.csv, DATA_SOURCES.md #29 on that
   branch). All non-theft columns bit-identical; el_th mean pinned
