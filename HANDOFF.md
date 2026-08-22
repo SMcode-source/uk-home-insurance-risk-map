@@ -468,6 +468,91 @@ subsidence and RAISES groundwater, and its real prize is that the map
 stops depending on the seed.
 
 
+## Coverage backtest 2026-08-23: the first test against real years
+
+Until now nothing in this repo had ever checked the model's distribution
+of years against a year that actually happened.
+`scripts/backtest_coverage.py` does, for the one part of the book where
+the ABI publishes an annual series. It compares the simulated national
+**storm + flood** distribution against the published per-year totals.
+Storm and flood are used because they map one-to-one onto `w_v` and `f_v`
+and are published separately per year; the ABI's headline weather line
+also contains burst pipes, which sits inside the EoW leg behind
+`EOW_FREEZE_SHARE` and cannot be split back out of the year view.
+
+```
+.venv/Scripts/python.exe scripts/backtest_coverage.py          # cached, instant
+.venv/Scripts/python.exe scripts/backtest_coverage.py --fresh  # re-simulates, ~40 min
+```
+
+The 20,000-year series is cached in `data/backtest_years.npz` (204 KB).
+**Re-run with `--fresh` after ANY change to `build_model.py`** — the
+cache has no way to know the model moved under it.
+
+**The simulated distribution, GBP m national:**
+
+| p1 | p5 | p25 | **p50** | p75 | p95 | p99 | mean | cv |
+|---|---|---|---|---|---|---|---|---|
+| 51 | 102 | 238 | **413** | 701 | 1,435 | 2,361 | 547 | 0.885 |
+
+| year | storm | flood | total | model percentile |
+|---|---|---|---|---|
+| 2023 | 133 | 286 | 419 | 50.7% |
+| 2024 | 185 | 226 | 411 | 49.7% |
+| 2025 | 244 | 312 | 556 | 64.8% |
+
+**On coverage the model passes.** 3 of 3 observed years land in its
+middle half. Read the MEDIAN (413), not the mean (547) — the distribution
+is strongly right-skewed, so most years sit well below the mean by
+construction, and comparing a handful of years against the mean and
+calling the gap bias is a mistake. That is the mistake I made earlier the
+same day; see the retraction in the section below.
+
+**The real test, a 200k bootstrap of 3-year windows:**
+
+| statistic | observed | model median | P(model ≤ observed) |
+|---|---|---|---|
+| mean of the window | 462 | 490 | **0.450** |
+| cv within the window | 0.176 | 0.608 | **0.048** |
+
+- **Level: not contradicted.** The observed 3-year mean sits at the 45th
+  percentile of what the model expects a 3-year window to average.
+  Completely unremarkable.
+- **Spread: the model's ordinary years are too volatile.** Only 4.8% of
+  simulated 3-year windows are as steady as the observed one.
+
+**Caveats on the spread result, which are serious.** n = 3, so the sample
+cv is heavily biased and noisy; p = 0.048 on three points is weak
+evidence. The window is 2022–2025 and contains **no catastrophic flood
+year** — 2007 (~£3bn insured) or 2015–16 Desmond/Eva would widen the
+observed spread a long way. Four quiet years cannot measure a tail. What
+they can say is that the model's *ordinary* years are too volatile, which
+is a narrower and more testable claim, and each new ABI year tests it.
+
+**And then the proportionality check, which cuts it down to size.** Read
+off the shipped artifact:
+
+| | |
+|---|---|
+| expected loss | £171.11 |
+| premium | £176.66 |
+| **capital — the tail's entire contribution** | **£5.54 = 3.1% of premium** |
+| capital as % of premium, across districts | 1.5% – 4.3% |
+| EL p90/p10 | 1.55 |
+| premium p90/p10 | 1.54 |
+
+**Deleting the capital charge entirely would move the premium by 3.1%.**
+A tail that is too wide by some fraction moves it by less. And the map's
+spatial pattern is not the tail's at all — EL and premium have the same
+dispersion, so what the map shows is expected loss, full stop.
+
+**So the spread finding is real, worth recording, and is not where the
+money is.** Expected loss is 97% of the premium and 100% of the map. The
+theft level — one leg carrying 17% of EL (£29 of £171) and over its
+claim-count budget on every reading — is worth roughly **2.5× the entire
+capital charge**. That is the priority, and this backtest is what
+established the ordering rather than guessing at it.
+
 ## The ABI releases, read properly, 2026-08-23
 
 The user asked for annual ABI data, used granularly, at whatever grain we

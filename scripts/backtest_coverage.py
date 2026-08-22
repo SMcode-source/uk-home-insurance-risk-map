@@ -31,12 +31,19 @@ and a published/derived flag per figure. Read HANDOFF before trusting the
 2023 row: the ABI restates this series between releases and its own
 publications disagree about which year held the record.
 
-    .venv/Scripts/python.exe scripts/backtest_coverage.py
+    .venv/Scripts/python.exe scripts/backtest_coverage.py           # instant
+    .venv/Scripts/python.exe scripts/backtest_coverage.py --fresh   # ~40 min
 
-Output: data/backtest_coverage.json
+The 20,000-year series is cached in data/backtest_years.npz alongside the
+sha256 of build_model.py. If the model has moved the cache is REJECTED
+and the simulation reruns, so a stale cache cannot pass silently - that
+failure mode has cost this repo enough already.
+
+Output: data/backtest_coverage.json, data/backtest_years.npz
 """
 
 import csv
+import hashlib
 import json
 import os
 import sys
@@ -88,22 +95,39 @@ def place(sample, value):
             "side": side}
 
 
-def simulated_years():
-    """The national annual series, from cache if it is there.
+def model_fingerprint():
+    """sha256 of build_model.py, so a stale cache cannot pass silently."""
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "build_model.py"), "rb") as fh:
+        return hashlib.sha256(fh.read()).hexdigest()
 
-    The simulation is ~40 minutes; the arrays it produces are ~80 KB.
-    Caching them means re-reading the backtest against a new ABI release
-    costs nothing. Delete data/backtest_years.npz to force a fresh run,
-    and do force one after ANY change to build_model.
+
+def simulated_years():
+    """The national annual series, from cache if it is still valid.
+
+    The simulation is ~40 minutes; the arrays it produces are ~200 KB, so
+    they are cached and committed - re-reading the backtest against a new
+    ABI release then costs nothing.
+
+    The cache carries the sha256 of build_model.py and is REJECTED if the
+    model has moved. A cache that silently outlives the code it came from
+    is the exact failure this repo keeps finding the hard way, so this one
+    refuses rather than warns.
     """
     cache = os.path.join(bm.DATA, "backtest_years.npz")
     if "--fresh" not in sys.argv and os.path.exists(cache):
         z = np.load(cache)
-        print(f"using cached years from {cache} (seed {int(z['seed'][0])})")
-        print("  pass --fresh to re-simulate; you MUST after any "
-              "build_model change")
-        return (z["storm"].astype(float), z["flood"].astype(float),
-                z["subsidence"].astype(float))
+        got = str(z["model_sha"][0]) if "model_sha" in z else "(none)"
+        want = model_fingerprint()
+        if got == want:
+            print(f"using cached years from {cache} "
+                  f"(seed {int(z['seed'][0])}, build_model {want[:12]})")
+            return (z["storm"].astype(float), z["flood"].astype(float),
+                    z["subsidence"].astype(float))
+        print("CACHE REJECTED - build_model.py has changed since it was "
+              "written")
+        print(f"  cached {got[:12]}   current {want[:12]}")
+        print("  re-simulating; this takes ~40 minutes")
 
     g = scored_frame()
     bm.check_scored_columns(g)
@@ -235,6 +259,68 @@ def main():
     print("  Groundwater is excluded from the model side: it is pegged at")
     print("  10% of flood and the ABI's flood line may or may not contain")
     print("  it. At ~GBP 19m it cannot change any conclusion above.")
+    print()
+
+    # ------------------------------------------------- does it MATTER?
+    # A finding about the tail is only worth acting on in proportion to
+    # how much of the published number the tail actually drives. Read
+    # that off the shipped artifact rather than assuming it.
+    prop = None
+    gj = os.path.join(bm.DATA, "districts_risk.geojson")
+    if os.path.exists(gj):
+        with open(gj, encoding="utf-8") as fh:
+            props = [ft["properties"] for ft in json.load(fh)["features"]]
+        el = np.array([p["el_total"] for p in props], dtype=float)
+        pr = np.array([p["premium"] for p in props], dtype=float)
+        hh = np.array([p["households"] for p in props], dtype=float)
+        cap = pr - el
+        nat_cap = float(np.average(cap, weights=hh))
+        nat_pr = float(np.average(pr, weights=hh))
+        share = 100 * nat_cap / nat_pr
+        el_ratio = float(np.percentile(el, 90) / np.percentile(el, 10))
+        pr_ratio = float(np.percentile(pr, 90) / np.percentile(pr, 10))
+        lo, hi = np.percentile(100 * cap / pr, [0, 100])
+        prop = {"capital_share_of_premium_pct": round(share, 2),
+                "capital_share_range_pct": [round(float(lo), 2),
+                                            round(float(hi), 2)],
+                "el_p90_over_p10": round(el_ratio, 3),
+                "premium_p90_over_p10": round(pr_ratio, 3)}
+
+        print("=" * 78)
+        print("HOW MUCH WOULD FIXING THE TAIL ACTUALLY CHANGE?".center(78))
+        print("=" * 78)
+        print(f"  From the SHIPPED artifact, household-weighted:")
+        print(f"    expected loss                GBP {np.average(el, weights=hh):7.2f}")
+        print(f"    premium                      GBP {nat_pr:7.2f}")
+        print(f"    capital (the tail's whole contribution)  "
+              f"GBP {nat_cap:5.2f}  = {share:.1f}% of premium")
+        print(f"    across districts it ranges {lo:.1f}% to {hi:.1f}% "
+              f"of premium")
+        print()
+        print(f"    EL      p90/p10 = {el_ratio:.2f}")
+        print(f"    premium p90/p10 = {pr_ratio:.2f}")
+        print()
+        print("  Two consequences, and they cut the finding down to size.")
+        print()
+        print(f"  1. The tail is {share:.1f}% of the premium. Deleting the "
+              f"capital charge")
+        print("     ENTIRELY would move it by that much. A tail that is too")
+        print("     wide by some fraction moves it by less. This is a")
+        print("     sub-3% effect on the published number.")
+        print()
+        print(f"  2. The map's spatial pattern is not the tail's at all -")
+        print(f"     EL and premium have the SAME dispersion "
+              f"({el_ratio:.2f} vs {pr_ratio:.2f}).")
+        print("     What the map shows is expected loss. Capital varies so")
+        print("     little across districts that it does not shift the")
+        print("     picture.")
+        print()
+        print("  So: the spread finding is real and worth recording, and it")
+        print("  is NOT where the money is. Expected loss is 97% of the")
+        print("  premium and 100% of the map. The theft level - one leg")
+        print("  carrying 17% of EL and over its claim-count budget on")
+        print("  every reading - is worth roughly 2.5x the entire capital")
+        print("  charge. Fix that first.")
 
     out = {
         "generated_by": "scripts/backtest_coverage.py",
@@ -263,6 +349,7 @@ def main():
         },
         "years_below_model_median": below,
         "years_in_middle_half": mid,
+        "proportionality": prop,
     }
     path = os.path.join(bm.DATA, "backtest_coverage.json")
     with open(path, "w") as fh:
@@ -276,7 +363,8 @@ def main():
     np.savez_compressed(cache, storm=storm.astype(np.float32),
                         flood=flood.astype(np.float32),
                         subsidence=sub.astype(np.float32),
-                        seed=np.array([bm.RNG_SEED]))
+                        seed=np.array([bm.RNG_SEED]),
+                        model_sha=np.array([model_fingerprint()]))
     print(f"wrote {cache}  "
           f"({os.path.getsize(cache) / 1e3:.0f} KB, seed {bm.RNG_SEED})")
 

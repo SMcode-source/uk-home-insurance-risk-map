@@ -19,7 +19,8 @@
   "storm_mean": 242.3,
   "subsidence_mean": 312.9
  },
- "model_vs_observed_pct": 18.4,
+ "model_cv": 0.8847,
+ "model_median": 413.3,
  "n_sim": 20000,
  "observed": [
   {
@@ -54,7 +55,23 @@
   }
  ],
  "observed_mean": 462.0,
+ "proportionality": {
+  "capital_share_of_premium_pct": 3.14,
+  "capital_share_range_pct": [
+   1.46,
+   4.29
+  ],
+  "el_p90_over_p10": 1.549,
+  "premium_p90_over_p10": 1.544
+ },
  "seed": 42,
+ "window_test": {
+  "k_years": 3,
+  "observed_cv": 0.1764,
+  "observed_mean": 462.0,
+  "p_model_cv_below_observed": 0.0479,
+  "p_model_mean_below_observed": 0.4503
+ },
  "years_below_model_median": 1,
  "years_in_middle_half": 3
 }
