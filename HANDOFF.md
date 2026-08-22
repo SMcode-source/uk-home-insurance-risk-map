@@ -791,9 +791,11 @@ Both experiment branches were built, verified and priced. The user chose
   do the site copy pass for the severity prose, and take the OUTWARD D
   seam for ct_bands.csv on sector-model - premises.csv already has it
   (fetch_premises.py, 9e777f8: 9,700 sectors, 100.0% placed).
-- Known stale, untouched (predates both): dependence_check.py and
-  sensitivity.py never gained the attritional rate columns, so both
-  fail at _fields today.
+- ~~Known stale: dependence_check.py and sensitivity.py never gained
+  the attritional rate columns, so both fail at `_fields`.~~ **FIXED in
+  c7a26db** ("Analysis scripts learn the attritional rate columns").
+  Both now set th/eow/fire/ad rates plus er_frac and sw_sev. Re-checked
+  2026-08-22: this bullet had been stale for some time.
 
 ## Phase 2 plan (2026-08-17): sources verified, design set, nothing built yet
 
