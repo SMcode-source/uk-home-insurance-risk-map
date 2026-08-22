@@ -551,14 +551,16 @@ Settling it needs the ABI release itself.
 recorded:** each peril's EL is paid ÷ policies by construction, so the
 premium follows the *money* anchors and is untouched by the count
 budget. `el_total` is £171.11/policy and does not move. What a theft
-correction would move is the tail: holding theft's £450m and raising
-its severity to fit the budget means fewer, larger claims and a fatter
-tail, so `tvar99_euler`, capital and premium all rise; holding the
-£3,800 average and cutting the count instead drops theft's paid to
-~£242m and takes about 7.9% off EL. **Those are opposite directions on
-the premium, which is exactly why this needs an experiment branch with
-priced evidence and a decision from the user — not a quiet edit to the
-`ABI` dict.**
+correction would move is the tail. Holding theft's £450m and raising
+its severity to fit the budget means fewer, larger claims: EL is
+unchanged by construction and the tail should fatten, so `tvar99_euler`,
+capital and premium should rise — *expected, not measured; that is what
+the experiment branch is for*. Holding the £3,800 average and cutting
+the count instead drops theft's paid to ~£242m, which takes 7.9% off EL
+— that one is arithmetic, not a simulation result. **The two corrections
+move the premium in opposite directions, which is exactly why this needs
+an experiment branch with priced evidence and a decision from the user,
+not a quiet edit to the `ABI` dict.**
 
 Read this before any Phase 3 work. The buildings/contents split reasons
 from frequency, and theft's frequency is the number this section says
