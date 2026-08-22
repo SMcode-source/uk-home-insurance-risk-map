@@ -323,12 +323,26 @@ reconciled it and a dispatched tests run on ca83519 is fully green
 (both jobs). **Next time: rebuild docs/ in the same commit that crosses
 the sector output**, or teach the skip guard this second window.
 
+**A second ordering lesson, from the 2026-08-19 publish.** The four
+publishes before it crossed the sector output to main FIRST, then
+merged the model change. This one merged to main first, which put
+fixed district numbers and pre-fix sector numbers on the live site at
+the same time — the two grains disagreed by ~1.39% on premium for as
+long as the sector rebuild took. Nothing broke and no test can see it,
+because each grain is internally consistent; only the pair is wrong.
+**Rule: when a model change touches both grains, cross the sector
+output to main BEFORE merging the model change, so main never
+publishes a mixed pair.** If the sector run must come after (it needs
+the merged `build_model.py`, as it did here), merge into
+`sector-model` first, run it, and hold the main merge until its output
+is ready to cross in the same push.
+
 ## Model audit 2026-08-18: reconciliation, and TWO UNFIXED defects
 
-> **Both defects below are now FIXED**, along with two more found
-> while fixing them, on branch `exp/el-and-flood-fixes` — see
-> "Built 2026-08-19" further down. Still NOT published. The
-> claim-count overshoot recorded here is deliberately untouched.
+> **Both defects below are now FIXED and PUBLISHED**, along with three
+> more found while fixing them — see "Built AND PUBLISHED 2026-08-19"
+> further down. The claim-count overshoot recorded here is
+> deliberately untouched and remains live.
 
 The user asked whether escape of water is being counted twice through
 some other factor, and for an overall check that everything adds up to
@@ -444,13 +458,148 @@ level ~6% and is a straight correction; defect 1 mostly REDUCES
 subsidence and RAISES groundwater, and its real prize is that the map
 stops depending on the seed.
 
-## Built 2026-08-19, NOT PUBLISHED: four defects fixed, evidence run done
 
-Branch `exp/el-and-flood-fixes` (e025e46, 704866b). The two defects the
-2026-08-18 audit left OPEN are fixed, plus two more found while fixing
-them. Every scope decision was taken by the user before any code moved
-(a nine-question grilling); nothing here has been published, and the
-sector worktree and `main` are untouched.
+## tvar99_vine seed sensitivity, measured 2026-08-22
+
+Six seeds (42-47) through `simulate()` on the real scored frame, both
+the published code and its pre-fix parent (1fdfbb5), same seeds, same
+spatial calibration. Reproduce with `scripts/seed_sweep.py` — but see
+the harness warning at the end, which cost a full wrong run.
+
+**The three questions, answered.**
+
+1. **Did the five fixes worsen it? No.** `tvar99_vine` relative SD
+   across six seeds: **12.25% before, 12.40% after**. The 0.15pp is
+   inside the noise of a six-seed estimate and is directionally what
+   the fatter moment-matched flood severity would do. This closes the
+   question the publish left open.
+
+2. **They removed a far bigger one.** Pre-fix, `el_total` itself was
+   seed-dependent — relative SD **7.31%**, range 166.52 to 199.80 —
+   because the four vine perils took their EL from draws. Premium
+   inherited it: **relative SD 6.69%, range 172.23 to 203.58, a 17.24%
+   spread**. Post-fix `el_total` is bit-identical across all six seeds
+   and premium spans **176.6576 to 176.7926, a 0.076% spread**. The
+   premium seed lottery shrank by a factor of ~227. Put plainly: the
+   premium published before 2026-08-19 was a draw from a ±17% seed
+   distribution, and 174.2409 happened to be near its low end.
+
+3. **The swing is 36%, not 14.7%, and the site does read it.** 14.7%
+   was just the 42->43 pair. Across six seeds `tvar99_vine` runs
+   **12,172 to 17,301** (household-weighted; thirty seeds later widened the
+   unweighted mean to 10,157-17,515). And `build_site.py` injects it into
+   `__MEAN_STANDALONE__` and `__DIVERSIFICATION__`, and ships it as a
+   CSV column — so "nothing reads it" was wrong about the site even
+   though it stays true of the premium path.
+
+**Why it will not settle down.** Two independent causes, and the
+second is the interesting one.
+
+*It is a thin-sample estimator.* `tvar()` averages the worst
+`k = N_SIM/100 = 200` of 20,000 years. With severity sigma up to 1.30
+(fire) that mean is carried by a handful of draws.
+
+*Nothing averages it away.* `base` is drawn ONCE in `simulate()` and
+broadcast to every district, so year j is the same state of the world
+everywhere and the per-district errors are near-perfectly correlated.
+Measured directly: national relative SD divided by median per-district
+relative SD is **0.964**. Independent errors across 2,736 districts
+(effective N 1,812 on household weights) would give **0.023**. A
+national portfolio buys essentially NO error reduction on this number.
+Getting to 1% would need ~154x the years — about 3.1M per district.
+
+**Why `tvar99_euler` is fine and premium is fine.** The year view mixes
+each district's systemic factor with idiosyncratic noise at the
+CALIBRATED spatial loadings, and those are tiny — `SPATIAL_SCALE`
+solves to 0.025, giving w/f/s/g of 0.013/0.010/0.015/0.018. Districts
+are therefore nearly independent in that view, the portfolio aggregate
+does average down, and `tvar99_euler` lands at relative SD **0.33%**
+(263.5 to 265.7). Capital and premium ride on that, not on the vine
+tail. The two numbers behave differently for a real structural reason,
+not by luck.
+
+**What this means for the published page.** The premium map is sound.
+The exposure is confined to two injected numbers:
+
+| published | value | thirty-seed range | verdict |
+| --- | --- | --- | --- |
+| `__MEAN_STANDALONE__` | GBP11,956 | 10,157 - 17,515 (56.1%) | not a reliable point estimate; seed 42 ranks 9th of 30, in the lower third. RETIRED — replaced by `__STANDALONE_LO__`/`__STANDALONE_HI__` |
+| `__DIVERSIFICATION__` | 98% | 97.42% - 98.48% | robust — the ratio is stable even though its numerator is not, and rounding to 0dp hides the rest |
+| `premium` | 176.6581 | 176.58 - 176.92 (0.192%) | sound |
+
+So the homepage tile survives on its merits; the methodology sentence
+"a single policy's standalone TVaR99 is about GBP11,956" did not — the
+same model at seed 44 says GBP17,118.
+
+**FIXED and published 2026-08-22.** The sentence now quotes
+GBP10,100-GBP17,600 across THIRTY seeds (42-71, run 2), with a footnote
+giving the mechanism (shared draws, so the error does not average down)
+and the contrast that keeps the rest of the page trustworthy: allocated
+share 2.2%, diversification credit 97.42-98.48%, premium 0.19%. Bounds
+round OUTWARDS to the nearest GBP100 so the quoted range never claims
+to be tighter than what was measured. Nine placeholders are injected
+from `data/seed_sensitivity.json`, written by `scripts/seed_sweep.py
+--write-json` and regenerated by the manual `seed-sweep.yml` workflow —
+NOT hand-written, because hand-written cells are exactly how defect 3
+happened.
+
+**Six seeds understated it, exactly as a min-max must.** The first
+published range was 11,900-17,200 from seeds 42-47. Thirty seeds widen
+it to 10,100-17,600 — the spread goes 36.8% -> 56.1% while the relative
+SD barely moves, 12.60% -> 12.87%. That is the expected signature: the
+SD is a property of the estimator and converges quickly, the min-max is
+a property of the SAMPLE SIZE and keeps growing. Anyone re-running with
+more seeds should expect the quoted range to widen again and should NOT
+read that as the model degrading. If a stable interval is ever wanted,
+quote a percentile band or mean +/- k*SD instead of min-max — the JSON
+carries `per_seed` for all thirty, so no re-run is needed to switch.
+
+The three options not taken, and why: drawing the standalone tail
+independently per district would let the national mean average down but
+would destroy the cross-district comparability shared draws buy;
+computing it semi-analytically is real work for a column nothing prices
+off; and more simulated years is the only route to a genuinely tight
+point estimate — 20,000 -> 1% needs about 154x more, which is not worth
+it for a diagnostic. Quoting the range costs nothing and is honest.
+
+The premium survives the wider sweep: 0.192% across thirty seeds, so
+the map is still sound and the standalone tail is still the only
+exposed number.
+
+**Harness warning, learned the hard way.** `main()` calls
+`calibrate_frequency(gdf)` AND `calibrate_spatial(gdf)`. Any script
+that drives `simulate()` directly must call BOTH. Omitting the second
+leaves `SPATIAL_SCALE` at its module default of 1.0 — a 40x overstated
+spatial loading — which silently inflates `tvar99_euler` by 9.7x while
+leaving `tvar99_vine` and `el_total` bit-identical to the published
+run. The pricing view does not use the loadings and the year view does,
+so a harness can look perfectly validated on the columns you happen to
+check and be wrong on the ones you care about. `analytic_el_check.py`
+omits `calibrate_spatial` legitimately — it only needs marginals.
+## Built AND PUBLISHED 2026-08-19: five defects fixed
+
+**Live since 17be4b4** (rebuild run 34, tests run 32202273388 green on
+both jobs, both grains verified on the live site). Built on branch
+`exp/el-and-flood-fixes` (e025e46, 704866b — branch deleted after merge, commits reachable from main), merged to main at 37f6885
+with a guard fix at 8ab6cbc, sector output crossed at 6805445.
+
+The two defects the 2026-08-18 audit left OPEN are fixed, plus three
+more found while fixing them. Every scope decision was taken by the
+user before any code moved (an eleven-question grilling).
+
+**What the live numbers moved to.** Exposure-weighted premium
+174.2409 -> 176.6581 (+1.39%), driven mostly by groundwater's EL going
+0.412 -> 1.3398 as it stopped being read off a starved draw. The
+sector grain landed at 176.6731, 0.0085% from the district grain.
+Analytic EL matches ABI to +0.00% for all seven anchored perils and
+the portfolio reconciles at +0.0188% excluding groundwater.
+
+**One caveat on the CI artifact.** CI's rebuild rewrote 276 of 2,736
+districts in `data/districts_risk.geojson` versus the laptop build,
+entirely in `capital`, `tvar99_euler`, `premium_cc`, `capital_cc` and
+`cc_uplift_pct` — max relative change 4.6e-04, last-digit float drift
+from a different BLAS in the TVaR Euler allocation. No `el_*` column
+and no `premium` value moved. The CI artifact is the published one.
 
 **Defect 1 — the four vine perils published draw-mean ELs.**
 `calibrate_frequency` solves `FREQ_SCALE[k] = ABI_TARGET_FREQ[k] /
@@ -556,11 +705,16 @@ real content of defect 1. The simulated columns move as they should:
 `tvar99_euler` +0.431%, capital +1.228%, premium +0.039%.
 
 One honest caveat: `tvar99_vine` moves +14.7% between seeds (12,172 ->
-13,967). That is a portfolio-level far tail out of 20,000 years and is
-inherently noisy; it is a published column but nothing in the premium
-path reads it (premium uses `tvar99_euler`). I have NOT established
-whether these changes made it more seed-sensitive than it was on main,
-only that it is sensitive. Worth a look before anyone quotes it.
+13,967). That is a per-district far tail out of 20,000 years and is
+inherently noisy; premium uses `tvar99_euler`, not this. I have NOT
+established whether these changes made it more seed-sensitive than it
+was on main, only that it is sensitive.
+
+> **Resolved 2026-08-22 — see "tvar99_vine seed sensitivity" below.**
+> The answer is no: 12.25% -> 12.40% relative SD, immaterial. The same
+> measurement found something much larger that these fixes REMOVED, and
+> corrected two claims in the paragraph above: the swing is 36% across
+> six seeds, not 14.7%, and the site does read this column.
 
 **Defect 5, found and NOT yet fixed — the reconciliation check that
 should have caught defect 4 cannot.** `build_model.py`'s own check
@@ -611,7 +765,7 @@ Both experiment branches were built, verified and priced. The user chose
 **"2a only"**: 2a is live (see the section above), 2c stays on its branch.
 
 - **2a - theft commercial denominator** - **PUBLISHED, now on main**
-  (`exp/theft-commercial`, eebb5c2+c22aa06; evidence run 32033558205): rate = burglaries /
+  (`exp/theft-commercial`, eebb5c2+c22aa06 — branch deleted after merge; evidence run 32033558205): rate = burglaries /
   (households + VOA premises), premises from NDR stock by LSOA
   (fetch_premises.py, data/premises.csv, DATA_SOURCES.md #29 on that
   branch). All non-theft columns bit-identical; el_th mean pinned
@@ -925,6 +1079,16 @@ the auto-memory; these are the NEW ones:
 
 ## Evidence tooling now in the repo
 
+- `scripts/seed_sweep.py` — seed sensitivity of every simulated column
+  and of the premium, with the national/per-district noise ratio that
+  shows whether an error averages down across districts. Established
+  that `tvar99_vine` does not (ratio 0.964) while premium does.
+  With `--write-json` it writes `data/seed_sensitivity.json`, which
+  build_site injects so the methodology page can quote the standalone
+  tail as a range. Run it via the `seed-sweep.yml` workflow, not on a
+  laptop: a seed is ~3 min in CI (30 seeds = 95 min) and a sleeping laptop kills a long sweep.
+  Calls BOTH calibrations — read its docstring before writing any other
+  harness that drives `simulate()` directly.
 - `scripts/compare_rebuild.py` — experiment artifact vs published model
   (premium level, churn, movers). Both model decisions above used it.
 - `scripts/compare_gust_surfaces.py` — two gust point sets IDW'd to

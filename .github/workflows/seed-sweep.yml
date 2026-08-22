@@ -1,0 +1,118 @@
+name: seed sweep
+
+# Re-measures how much each simulated column moves when only RNG_SEED
+# changes, and writes data/seed_sensitivity.json - which the methodology
+# page injects so it can quote the standalone TVaR99 as a measured RANGE
+# rather than a point estimate.
+#
+# Manual only, and deliberately NOT part of rebuild.yml: this is N seeds
+# x a full 20,000-year simulation, so six seeds is roughly an hour. The
+# JSON is committed and read by build_site.py, exactly as
+# data/sector_validation.json is - CI does not regenerate it on a normal
+# rebuild.
+#
+# Why it runs here rather than on a laptop: the sweep is long enough that
+# a sleeping machine kills it, and the numbers should come from the same
+# runner that produces the published artifact (laptop and CI differ in
+# the last digit of the tail columns - see HANDOFF, "One caveat on the CI
+# artifact").
+on:
+  workflow_dispatch:
+    inputs:
+      seeds:
+        description: "Seeds to sweep (space-separated, 3 or more)"
+        default: "42 43 44 45 46 47"
+      commit:
+        description: "Commit data/seed_sensitivity.json back to main"
+        type: boolean
+        default: false
+
+concurrency:
+  group: seed-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    name: seed sensitivity sweep
+    runs-on: ubuntu-latest
+    # One full simulation per seed. Generous ceiling so a slow runner
+    # fails loudly rather than being killed at the default.
+    timeout-minutes: 300
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Clone postcode-district boundaries
+        run: |
+          git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git \
+            data/uk-postcode-polygons
+
+      # Same mirror, same pinned hashes as rebuild.yml - see the long note
+      # there for why BGS itself cannot be reached from GitHub runners.
+      - name: Download BGS geology from the data mirror
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download data-bgs-625k-v1 --dir data \
+            --pattern 'bgs_625k_*.geojson.gz'
+          gunzip data/bgs_625k_bedrock.geojson.gz \
+                 data/bgs_625k_superficial.geojson.gz
+          sha256sum -c <<'SUMS'
+          66524b94dfeb491a746994dfa5e334b52a9b15a42f82c15977df1d5c100c3fb7  data/bgs_625k_bedrock.geojson
+          a029e2ab61190c7103983c33d77c24743c7bb2c9fcfcd25ebd063ab9f3c38aee  data/bgs_625k_superficial.geojson
+          SUMS
+
+      - name: Reject incomplete geology
+        run: |
+          if ls data/*.partial 2>/dev/null; then
+            echo "::error::a geology layer is incomplete (.partial) - refusing to sweep"
+            exit 1
+          fi
+          python -u scripts/fetch_bgs.py --verify
+
+      - name: Sweep seeds
+        run: python -u scripts/seed_sweep.py --write-json ${{ inputs.seeds }}
+
+      - name: Show the measurement
+        run: cat data/seed_sensitivity.json
+
+      # The site reads this file, so prove it still renders before the
+      # JSON is committed - a schema change here ships broken placeholders
+      # to the live methodology page otherwise.
+      - name: Check the site still builds against the new measurement
+        run: |
+          python -u scripts/build_map.py
+          python -u scripts/build_analysis.py
+          python -u scripts/build_site.py
+          python -m pytest tests -q -k placeholders
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seed-sensitivity
+          path: data/seed_sensitivity.json
+          retention-days: 30
+
+      - name: Commit the measurement
+        if: ${{ inputs.commit }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/seed_sensitivity.json
+          if git diff --cached --quiet; then
+            echo "measurement unchanged - nothing to commit"
+          else
+            git commit -m "Seed sensitivity measurement (GitHub Actions run ${{ github.run_number }})"
+            git push
+          fi
