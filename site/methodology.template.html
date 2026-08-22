@@ -862,11 +862,22 @@ __NAV__
     structure on what a household pays runs through that __CAPITAL_SHARE__% capital charge.</p>
     <p>And that charge is an <i>aggregate</i> quantity, not a personal one: it is
     <b>6% of the district's Euler-allocated share of the portfolio's</b> worst 1% of years,
-    not of its own. The gap is the whole point — a single policy's standalone TVaR₉₉ is
-    about <b>£__MEAN_STANDALONE__</b>, while its allocated share of the portfolio tail is
-    about <b>£__PORT_TVAR__</b>, a <b>__DIVERSIFICATION__% diversification credit</b>. An
-    earlier version charged 6% of the standalone figure and inflated premiums roughly
-    tenfold.</p>
+    not of its own. The gap is the whole point — a single policy's standalone TVaR₉₉ ran
+    <b>£__STANDALONE_LO__–£__STANDALONE_HI__</b> across __SEED_N__ simulation seeds, while
+    its allocated share of the portfolio tail held at about <b>£__PORT_TVAR__</b>, a
+    <b>__DIVERSIFICATION__% diversification credit</b>. An earlier version charged 6% of
+    the standalone figure and inflated premiums roughly tenfold.</p>
+    <p class="note"><b>Why the first of those is a range and the other two are not.</b>
+    The standalone figure is the mean of each district's worst __TAIL_YEARS__ years out of
+    __N_SIM__, and every district is simulated against the <i>same</i> draws — so its Monte
+    Carlo error is common to all __N_DISTRICTS__ of them and does not average away. Across
+    __SEED_N__ seeds the national mean moved __STANDALONE_SPREAD__%, while the allocated
+    share moved __PORT_SPREAD__%, the diversification credit stayed within
+    __DIV_LO__–__DIV_HI__%, and the premium moved __PREMIUM_SPREAD__%. Quoting one
+    standalone number would imply a precision the simulation does not have; the premium
+    map does not inherit the problem. The per-district <code>tvar99_vine</code> column in
+    the <a href="assets/uk_district_risk.csv">download</a> carries the same caveat.
+    Measured by <code>scripts/seed_sweep.py</code>.</p>
     <div class="callout">So the copula is doing real work, but only where many policies are
     added together. That is not a limitation of this implementation — it follows from the
     frequencies. It is also why the two halves below say such different things.</div>

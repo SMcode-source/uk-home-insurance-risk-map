@@ -24,14 +24,23 @@ tvar99_euler ~9.7x while leaving tvar99_vine and el_total bit-identical
 to the published run. A harness can look validated on the columns you
 check and be wrong on the ones you care about.
 
+With --write-json it also writes `data/seed_sensitivity.json`, which the
+site injects so the methodology page can quote the standalone tail as a
+measured RANGE instead of a point estimate. That file is committed and
+CI does not regenerate it (a six-seed sweep is an hour of simulation),
+exactly as `data/sector_validation.json` works.
+
     .venv/Scripts/python.exe scripts/seed_sweep.py 42 43 44
+    .venv/Scripts/python.exe scripts/seed_sweep.py --write-json 42 43 44
 """
-import sys, os, time
+import sys, os, time, json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np
 import build_model as bm
 
-SEEDS = [int(a) for a in sys.argv[1:]] or [42, 43]
+ARGS = [a for a in sys.argv[1:] if a != "--write-json"]
+WRITE_JSON = "--write-json" in sys.argv
+SEEDS = [int(a) for a in ARGS] or [42, 43]
 COLS = ["el_total", "el_year", "tvar99_euler", "var995_vine",
         "tvar99_indep", "tvar99_vine", "tvar99_gauss"]
 
@@ -116,6 +125,58 @@ def main():
               f"{ratio:10.3f}  {vals}")
     print(f"\nratio ~1.00 = errors comonotone across districts, no averaging;"
           f"\nindependent errors would give {1 / np.sqrt(n_eff):.3f}.")
+
+    if not WRITE_JSON:
+        return
+    if len(SEEDS) < 3:
+        sys.exit("--write-json needs at least 3 seeds to quote a range")
+
+    # build_site injects these. The site quotes the standalone tail as a
+    # range because its error is comonotone across districts (see above);
+    # the allocated share and the premium are quoted as points because
+    # theirs is not. Both claims come from the same numbers.
+    def summary(col, weighted=True):
+        M = np.stack([runs[s][col] for s in SEEDS])
+        nat = np.array([np.average(M[i], weights=w) if weighted
+                        else M[i].mean() for i in range(len(SEEDS))])
+        s_dis = float(np.median(M.std(axis=0, ddof=1)
+                                / np.maximum(M.mean(axis=0), 1e-12)))
+        s_nat = float(nat.std(ddof=1) / nat.mean())
+        return {
+            "per_seed": [round(float(v), 4) for v in nat],
+            "min": float(nat.min()), "max": float(nat.max()),
+            "mean": float(nat.mean()),
+            "rel_sd_pct": round(100 * s_nat, 4),
+            "spread_pct": round(100 * (nat.max() - nat.min()) / nat.mean(), 4),
+            # >0.5 means the national mean is as noisy as one district
+            "noise_ratio": round(s_nat / s_dis, 4) if s_dis > 1e-12 else None,
+        }
+
+    # the site's two figures use a PLAIN mean over districts, as
+    # build_site.py does - not the household-weighted one
+    stand = summary("tvar99_vine", weighted=False)
+    port = summary("tvar99_euler", weighted=False)
+    div = [100 * (1 - p / s)
+           for s, p in zip(stand["per_seed"], port["per_seed"])]
+    out = {
+        "generated_by": "scripts/seed_sweep.py --write-json",
+        "n_sim": bm.N_SIM,
+        "seeds": SEEDS,
+        "districts": int(len(w)),
+        "effective_n": round(float(n_eff), 1),
+        "independent_ratio": round(float(1 / np.sqrt(n_eff)), 4),
+        "standalone_tvar99": stand,
+        "port_tvar99": port,
+        "premium": summary("premium"),
+        "el_total": summary("el_total"),
+        "diversification_pct": {"min": min(div), "max": max(div),
+                                "per_seed": [round(d, 4) for d in div]},
+    }
+    path = os.path.join(bm.DATA, "seed_sensitivity.json")
+    with open(path, "w") as fh:
+        json.dump(out, fh, indent=1, sort_keys=True)
+        fh.write("\n")
+    print(f"\nwrote {path}")
 
 
 if __name__ == "__main__":
