@@ -468,6 +468,78 @@ subsidence and RAISES groundwater, and its real prize is that the map
 stops depending on the seed.
 
 
+## exp/theft-level, priced 2026-08-23 — AWAITING THE USER'S DECISION
+
+Branch `exp/theft-level`, CI run
+[32607071195](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32607071195),
+`commit=false`. **Not merged. The swap is the user's call.**
+
+**One input changed:** `theft_paid` 450e6 → **341.6e6**, severity held at
+the current published ABI average of £3,800. The direction is the
+defensible one — theft's *paid total* is the stale half (2018), its
+*average* is current (2025) — and 0.58%/policy × 15.5m × £3,800 = £341.6m
+is the bottom of the envelope DATA_SOURCES #25 already documents.
+
+**The dose-response across theft's own documented envelope** (analytic;
+EL is `paid ÷ policies` by construction, so this needs no simulation):
+
+| theft level | £m | claims | % of 560k | book EL | premium | vs published |
+|---|---|---|---|---|---|---|
+| 2018 paid at 2018 avg (envelope top) | 571 | 150,350 | 26.85% | 179.00 | 184.55 | +4.5% |
+| **as shipped** (2018 paid ÷ 2025 avg) | 450 | 118,421 | 21.15% | 171.11 | 176.66 | — |
+| **this branch** — floor, claims fell with burglary | 342 | 89,900 | 16.05% | 164.06 | 169.61 | −4.0% |
+| fits the count budget alone | 242 | 63,779 | 11.39% | 157.61 | 163.16 | −7.6% |
+
+**What CI actually produced**, against the published artifact:
+
+| | published | branch | change |
+|---|---|---|---|
+| expected loss | 171.11 | 164.12 | **−4.09%** |
+| premium | 176.66 | 169.66 | **−3.96%** |
+| capital | 5.54 | 5.54 | **−0.03%** |
+
+**Capital does not move at all**, which confirms the mechanism rather
+than assuming it: `W_THEFT = 0.0013` makes theft almost fully
+diversifying, so its contribution to the worst 1% of years is its mean,
+`tvar99_euler` falls exactly with EL, and the correction is a **pure
+level change with no tail effect**. The analytic prediction was −4.0% and
+CI returned −3.96%.
+
+**Distribution of the move:** median −3.2%, p10 −6.3%, p90 −1.4%, range
+−11.9% to +0.1%. 2,657 districts fall, 1 rises. Rating-group churn 731 of
+2,736 (26.7%), 27.2% of households, but **only 3 move by ≥2 groups**.
+Premium Spearman **0.993** — the ranking survives.
+
+**Who loses most:** EC3V −11.9%, B40 −11.4%, EC4M −11.4%, LS2 −11.2%,
+W1C −11.0%, WC2E −11.0%, WC2H −10.9%, LS1 −10.6%, SR1 −10.2%. Every one
+is a commercial-core or city-centre district — the high-burglary end,
+which is exactly where a theft level cut should land. All stay in
+group 10.
+
+**Dispersion barely changes:** EL p90/p10 1.549 → 1.524, premium 1.544 →
+1.517. The map compresses slightly and tells the same story.
+
+### Two things to weigh before deciding
+
+**1. Even the floor does not fully fit the count budget.** 89,895 claims
+clears the 99,955 the six pinned legs leave, with 10,060 spare — but
+away-from-home accidental damage alone needs 36,176 of those, before any
+liability or legal expenses. So this correction improves the book without
+closing it, and theft is probably not the last word.
+
+**2. The attribution rests on two shares that may not be the right
+population.** Two of the six "pinned" counts — EoW 29.38% and AD 24.53% —
+come from GoCompare's **quote-declared** claims table (40,962 claims
+declared at quote, typically a five-year lookback). The model applies
+those shares to the ABI's 560,000 *paid* claims in a single year. Those
+are different populations. DATA_SOURCES is internally inconsistent about
+it: #26 calls the EoW figure "GoCompare from ABI data" while #28 says it
+is the quote-declared table and that EoW's share comes from the same
+place. **If either share is overstated, theft's budget is larger and the
+case for this cut is weaker.** GoCompare bot-blocks fetches, so this
+could not be resolved here. It is the first thing to settle if the
+decision is close.
+
 ## Coverage backtest 2026-08-23: the first test against real years
 
 Until now nothing in this repo had ever checked the model's distribution
