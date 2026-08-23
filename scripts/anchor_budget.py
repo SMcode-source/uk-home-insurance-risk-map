@@ -123,9 +123,15 @@ def main():
           f"{100 * left / N_ABI:6.2f}%")
     print(f"  theft as it ships                  {n['theft']:9,.0f}  "
           f"{100 * n['theft'] / N_ABI:6.2f}%")
-    print(f"  theft alone overruns that budget by "
-          f"{n['theft'] - left:,.0f} claims, before a")
-    print("  single unmodelled category is allowed for.")
+    over = n["theft"] - left
+    if over > 0:
+        print(f"  theft alone overruns that budget by {over:,.0f} claims, "
+              f"before a")
+        print("  single unmodelled category is allowed for.")
+    else:
+        print(f"  theft fits, with {-over:,.0f} claims to spare - but see")
+        print("  the next section: away-from-home accidental damage alone")
+        print("  needs 36,176 of them.")
     print()
 
     rule("AND THE REMAINDER IS NOT EMPTY")
