@@ -201,12 +201,30 @@ def main():
     print("  :472 and :518 double-count the GBP 202m overlap, overstating")
     print("  the fire and AD headroom by that much - not by GBP 657m.")
     print()
-    print(f"  Side effect worth pricing: burst pipes were GBP 153m of a GBP "
-          f"{A['eow_paid'] / 1e6:,.0f}m")
-    print(f"  EoW book in 2023 ({153 / (A['eow_paid'] / 1e6):.2f}) and GBP 202m "
-          f"in 2025 ({202 / (A['eow_paid'] / 1e6):.2f}). The model's")
-    print(f"  EOW_FREEZE_SHARE is {bm.EOW_FREEZE_SHARE:.2f}. Neither year "
-          f"supports it.")
+    print("  Side effect worth pricing: the burst-pipes line measures")
+    print("  EOW_FREEZE_SHARE, which the model asserts rather than derives.")
+    print()
+    print("  Divide both years by the SAME standing EoW figure and you get")
+    print("  0.23 and 0.31, which looks unstable - but that is an artefact")
+    print("  of putting two different years over one 2017-vintage number.")
+    print("  Scale EoW to each year's book instead and it is steady:")
+    print()
+    bp = {2023: 153.0, 2025: 202.0}
+    eow_share = (A["eow_paid"] / 1e6) / (P_ABI / 1e6)
+    hp = obs.get("home_paid_total", {}) if "obs" in dir() else {}
+    print(f"{'year':8}{'burst pipes':>13}{'home paid':>12}"
+          f"{'% of book':>11}{'EoW at 19.3%':>14}{'freeze share':>14}")
+    for y, v in sorted(bp.items()):
+        h = {2023: 2550.0, 2025: 3400.0}[y]
+        eow_y = eow_share * h
+        print(f"{y:<8}{v:>12,.0f}m{h:>11,.0f}m{100 * v / h:>10.2f}%"
+              f"{eow_y:>13,.0f}m{v / eow_y:>14.3f}")
+    print()
+    print(f"  Burst pipes are 5.9-6.0% of the whole home book in both years")
+    print(f"  and the implied freeze share is 0.31 in both. The model ships")
+    print(f"  {bm.EOW_FREEZE_SHARE:.2f} - about half. Two years is two years, "
+          f"but they agree")
+    print("  with each other far better than either agrees with 0.15.")
     print()
 
     rule("THE LEVEL IS FITTED TO ONE YEAR - IS THAT VISIBLE IN THE DATA?")
