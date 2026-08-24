@@ -279,35 +279,55 @@ groundwater shown on the MCM convention, the middle of the three:
 
 | risk type | £/policy | % of cost | buildings | £ bldg | £ contents |
 |---|---|---|---|---|---|
-| escape of water | 42.39 | 25.0% | — | *unsplit* | *unsplit* |
-| theft | 29.03 | 17.1% | 25% | 7.26 | 21.77 |
-| fire | 28.00 | 16.5% | 78% | 21.84 | 6.16 |
-| subsidence | 19.81 | 11.7% | 100% | 19.81 | 0.00 |
-| flood | 18.91 | 11.1% | 48% | 9.08 | 9.83 |
-| weather | 15.74 | 9.3% | — | *unsplit* | *unsplit* |
-| accidental damage | 14.65 | 8.6% | — | *unsplit* | *unsplit* |
-| groundwater | 1.34 | 0.8% | 48% | 0.64 | 0.70 |
-| **anchored subtotal** | **97.09** | **57.2%** | **60%** | **58.63** | **38.47** |
-| **unsplit subtotal** | **72.77** | **42.8%** | | | |
-| **TOTAL** | **169.87** | **100.0%** | | | |
+| escape of water | 42.39 | 25.8% | — | *unsplit* | *unsplit* |
+| fire | 28.00 | 17.1% | 78.0% | 21.84 | 6.16 |
+| theft | 22.04 | 13.4% | 24.2% | 5.33 | 16.70 |
+| flood | 20.13 | 12.3% | 48.0% | 9.66 | 10.47 |
+| subsidence | 19.81 | 12.1% | 100.0% | 19.81 | 0.00 |
+| weather | 15.74 | 9.6% | — | *unsplit* | *unsplit* |
+| accidental damage | 14.65 | 8.9% | — | *unsplit* | *unsplit* |
+| groundwater | 1.34 | 0.8% | 48.0% | 0.64 | 0.70 |
+| **anchored subtotal** | **91.31** | **55.6%** | **63%** | **57.28** | **34.03** |
+| **unsplit subtotal** | **72.81** | **44.4%** | | | |
+| **TOTAL** | **164.12** | **100.0%** | | | |
+
+**Recomputed 2026-08-25** against the published basis after theft's
+level correction and the EoW freeze share went live. Three things moved
+and all three point the same way. Theft fell from 17.1% of claim cost to
+**13.4%**, so an ANCHORED peril shrank and the anchored subtotal fell
+from 57.2% to **55.6%** — the split now covers less of the book, not
+more. Fire is the second-largest cause. And the buildings fractions
+themselves were corrected: `SPLIT_BUILDINGS` had carried the
+placeholders written with the mechanism (theft 0.20, fire 0.70, flood
+0.65, groundwater 0.80) rather than the anchors the later search
+established (0.242 / 0.78 / 0.48 / 0.48), so the previous table's
+"anchored" column was partly not.
 
 **The finding that matters, and it inverts the entry below.** This file
 spends a paragraph on flood's three contradictory conventions (66 / 48
 / 25). Swinging flood across all three moves the portfolio buildings
 share by **4.9 percentage points**. The three unanchored perils move it
-by **42.8**. The flood argument is a rounding error on the real
+by **44.4**. The flood argument is a rounding error on the real
 problem; it was agonised over because it was the tractable part, not
-the important one. **Escape of water alone is 25.0% of claim cost —
-five times the entire flood-convention uncertainty.** Any future effort
-should go at EoW and nothing else.
+the important one. **Escape of water alone is 25.8% of claim cost —
+more than five times the entire flood-convention uncertainty.** Any
+future effort should go at EoW and nothing else.
+
+The 2026-08-25 recompute sharpens this rather than softening it: the
+unanchored block grew from 42.8% to **44.4%** of claim cost, because the
+peril that shrank (theft) was one of the anchored ones. The gap between
+what can be split and what cannot is widening, not closing.
 
 **What this means for the portfolio number.** It is a bound, not an
-estimate: **31.8%–79.5% buildings** depending on flood convention and
-on where the unanchored 42.8% falls. A 43-point band is not a headline
-figure and must never be published as one. What IS publishable is the
-table above — per-risk-type claim cost that sums to 100%, a cover split
-on the 57.2% that has anchors, and the other 42.8% named and left
-blank. That is honest, needs nothing bought, and is strictly more than
+estimate: on the recomputed basis **31.9%–81.6% buildings** across both
+free choices together — the flood convention (EA 25/75 at one end,
+Flood Re 66/34 at the other) and where the unanchored 44.4% falls.
+Holding flood at the middle MCM convention narrows it only to
+34.9%–79.3%, which is still a 44-point band — and a 44-point band is not
+a headline figure and must never be published as one. What IS
+publishable is the table above — per-risk-type claim cost that sums to
+100%, a cover split on the 55.6% that has anchors, and the other 44.4%
+named and left blank. That is honest, needs nothing bought, and is strictly more than
 the site says today (which is nothing).
 
 **Still true, and still the reason not to go further:** a fixed

@@ -538,14 +538,42 @@ AD_CHILD_SHARE = 0.08
 # PROVISIONAL - every entry below is awaiting its published anchor and
 # this dict must not ship until each carries a citation, on the rule
 # that killed the Phase 2b age slice: no published anchor, no knob.
+# Buildings share of each peril's claim cost. FOUR of the eight are
+# anchored to a published source and four are not; the difference is the
+# whole story of Phase 3 and is why no portfolio-level split ships.
+#
+# These were placeholders until 2026-08-25. The mechanism (c4b12a8) was
+# written BEFORE the anchor search (bcfcba1, 66f4665) and its provisional
+# numbers were never reconciled with what that search found, so the four
+# anchored perils sat at 0.20/0.70/0.65/0.80 against anchors of
+# 0.242/0.78/0.48/0.48. Shipping the branch in that state would have
+# published the placeholders and called them anchors. See DATA_SOURCES #31.
 SPLIT_BUILDINGS = {
-    "sub": 1.00,    # structural movement damages the structure
+    # --- anchored: a published source pins these ---
+    "sub": 1.00,     # ~100%: subsidence damages foundations and walls,
+                     # and contents are excluded in all four policy
+                     # wordings checked
+    "th": 0.242,     # ONS CSEW nature-of-crime: damage to the fabric
+                     # (forced doors, windows, frames) is 24.2% of
+                     # burglary cost; the stolen goods are contents
+    "fire": 0.78,    # Home Office "Economic and social cost of fire":
+                     # property damage in dwelling fires is ~22% contents
+    "fl": 0.48,      # Multi-Coloured Manual depth-damage curves. THREE
+                     # published conventions contradict each other here
+                     # (Flood Re caps imply 66/34, MCM 48/52, the EA's
+                     # appraisal convention 25/75); MCM is the middle one
+                     # and the choice moves the portfolio share by only
+                     # 4.9 points, so it is not the thing that matters
+    "gw": 0.48,      # same water-in-a-dwelling physics as flood, and
+                     # 0.8% of claim cost either way
+    # --- NOT anchored: no published source exists for any of these, and
+    # they are 42.5% of claim cost. They are a central guess kept so the
+    # mechanism runs and the sensitivity can be computed. The portfolio
+    # buildings share is a 31.8%-79.5% BOUND, not an estimate, and must
+    # never be published as a headline figure. Only the per-risk-type
+    # table over the anchored 57.5% is publishable.
     "wx": 0.85,
-    "fl": 0.65,
-    "gw": 0.80,
-    "th": 0.20,     # stolen goods are contents; forced entry is buildings
     "eow": 0.75,
-    "fire": 0.70,
     "ad": 0.45,
 }
 
