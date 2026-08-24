@@ -262,7 +262,17 @@ ABI = dict(
     # 2018's (~0.97%) and what today's would be if claims fell with
     # recorded burglary (~0.58%) - that envelope is the documented
     # uncertainty on the theft LEVEL. See DATA_SOURCES.md #25.
-    theft_paid=450e6, sev_theft=3_800.0,
+    #
+    # EXPERIMENT exp/theft-level, 2026-08-23. Moved to the BOTTOM of that
+    # documented envelope: 0.58%/policy x 15.5m x GBP 3,800 = GBP 341.6m.
+    # Rationale in HANDOFF "Claim-count overshoot: attributed 2026-08-22"
+    # - the shipped 450e6/3800 implies 118,421 claims, 21.15% of the
+    # ABI's 560,000, when the six legs whose counts are pinned by an
+    # outside source leave only 99,955 for theft AND every unmodelled
+    # category. Severity is held at the CURRENT published ABI average;
+    # it is the paid total that is stale (2018), so it is the paid total
+    # that moves.
+    theft_paid=341.6e6, sev_theft=3_800.0,
     # Escape of water. Like theft, the ABI publishes no annual per-peril
     # total any more; the standing figure is "£1.8m every day" (~£657m/yr,
     # quoted since ~2017). The triangle closes: EoW was 29.3% of 2025's
