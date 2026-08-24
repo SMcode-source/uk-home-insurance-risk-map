@@ -11,31 +11,35 @@ just a pointer here)
 **Phase 1 of the roadmap (attritional perils: theft → escape of water
 → fire → accidental damage) is COMPLETE.** Phase 2 is EPC/VOA exposure
 realism — **2a (theft's residential denominator) is live since
-2026-08-18**, 2c sits built-but-unpublished on its branch. Phase 3 is
-the buildings/contents split.
+2026-08-18**, 2c sits built-but-unpublished on its branch (re-priced
+2026-08-25; the open question is in its section below). Phase 3 is the
+buildings/contents split, built on `exp/buildings-contents` and not
+published. **Two anchor corrections went live 2026-08-25**: theft's
+paid total and the escape-of-water freeze share.
 
 The site publishes the model at **two grains side by side**:
 `/map.html` over 2,736 postcode districts and `/sectors.html` over
 10,398 derived postcode sectors. One template builds both pages, so
 they cannot drift; the layout suite runs every map invariant against
-both. **84 tests** (two of which skip only while a publish is
+both. **86 tests** (two of which skip only while a publish is
 mid-transition — see the theft section), CI green, Pages live. The
 methodology page draws the Hull comparison as an inline SVG generated
 from the published GeoJSON at build time — a screenshot would go stale
 at the next rebuild; this cannot.
 
-**Two defects are open and UNFIXED** — the four vine perils take their
-EL from the draws instead of analytically, and flood severity is
-blended in log space. Neither is a publishing emergency (EL is
-paid ÷ policies by construction) but both are real; read "Model audit
-2026-08-18" below before touching the marginals, and re-measure with
+~~**Two defects are open and UNFIXED**~~ — **both were FIXED and
+published 2026-08-19**, along with three more found while fixing them;
+see "Built AND PUBLISHED 2026-08-19: five defects fixed" below. The
+four vine perils now take their EL analytically and flood severity is
+no longer blended in log space. Re-measure any marginal change with
 `.venv/Scripts/python.exe scripts/analytic_el_check.py`.
 
-Current headline figures (bot commit ca83519, 2026-08-18 — 2a moved
-geography, not level, so these are the same numbers):
-exposure-weighted premium **£174.24** over 27.26m households; loss
-cost £169.75 ≈ 77% of the £219 all-home-claims cost; climate
-uplift diluted a fourth time by AD's flat ~£14.65 (each attritional
+Current headline figures (2026-08-25 publish, CI 32789547647
+verified): exposure-weighted premium **£169.66** over 27.26m
+households; loss cost £164.12 ≈ 75% of the £219 all-home-claims cost.
+The fall from £176.66 is theft's level correction (−3.96%); the EoW
+freeze share moved geography only and cost the level nothing. Climate
+uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
@@ -467,12 +471,199 @@ level ~6% and is a straight correction; defect 1 mostly REDUCES
 subsidence and RAISES groundwater, and its real prize is that the map
 stops depending on the seed.
 
+## exp/ct-severity (Phase 2c), re-priced 2026-08-25 — AWAITING THE USER'S DECISION
 
-## exp/theft-level, priced 2026-08-23 — AWAITING THE USER'S DECISION
+Branch `exp/ct-severity`, rebased onto published main (afcf0a5; the old
+185485c evidence was measured against the pre-2a baseline and is
+superseded). CI run
+[32788080788](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32788080788),
+`commit=false`. **Not merged. This is the user's call, and of the three
+open experiments it is by far the largest change to the map.**
+
+**What it does:** the four attritional severities (theft, EoW, fire, AD)
+are flat national ABI anchors with no geography at all. This scales each
+by the district's council-tax band mix — the only full-stock, small-area,
+OGL property-value proxy in Great Britain — using each nation's statutory
+charge ratios as band weights.
+
+**The national level does not move**, by construction: the multiplier is
+normalised to a CLAIM-weighted mean of exactly 1 per peril (households ×
+that peril's rate), so each peril lands back on its ABI level.
+
+| | published | branch | change |
+|---|---|---|---|
+| expected loss | 171.11 | 171.11 | **0.00%** |
+| premium | 176.66 | 176.66 | **−0.00%** |
+| capital | 5.54 | 5.54 | −0.01% |
+| tvar99_euler | 263.49 | 263.49 | −0.00% |
+
+**The mechanism was verified per district, not assumed.** On SW1X
+(relativity 1.940) the four scaled perils came back at 1.950 / 1.938 /
+1.979 / 1.944 and flood and subsidence at exactly 1.000; on CF43
+(relativity 0.691) at 0.697 / 0.691 / 0.702 / 0.692, flood and
+subsidence again 1.000. The small per-peril spread is the separate
+claim-weight normaliser each peril gets, which is the intended design.
+
+**But the map moves hard.** Churn **1,908 of 2,736 districts (69.7%)**,
+69.6% of households, and **974 move by ≥2 rating groups**. Premium
+Spearman **0.8219** — against 0.993 for both other open experiments.
+Dispersion widens 1.544 → **1.624**. Median +1.33%, p5 −14.3%, p95
++22.8%; 1,516 rise, 1,216 fall.
+
+**Risers** are prime London and one affluent Aberdeen suburb: SW1X
++72.4% (Belgravia), W1K +68.8% (Mayfair), W1J +66.1%, SW1Y +64.1%, SW7
++59.7% (South Kensington), AB13 +56.5% (Milltimber), W1C +55.5%, W1S
++55.3%, W8 +53.6% (Kensington), SW1E +52.3%.
+
+**Fallers** are post-industrial urban cores: TS1 −21.3% (Middlesbrough),
+L6 −21.3%, L7 −20.6%, L4 −19.8%, L5 −19.7% (Liverpool), S14 −20.8%, S5
+−20.3%, S2 −20.1%, S4 −20.0% (Sheffield), SR1 −19.7% (Sunderland).
+
+**This is the collision this file predicted:** 2a cut prime London on
+theft's commercial denominator, 2c raises it on value. They are not
+contradictory — one is claim frequency, the other claim size — but if
+both ship, W1J's net move is the thing to check, not either in isolation.
+
+### Two checks run against it, one of which it passed
+
+**PASSED — the cross-nation schedule artefact does not exist.** England's
+statutory ratios span 3.0× (6→18 over bands A→H) but Scotland's
+post-2017 ratios span 3.68× (240→882), so normalising within nation pins
+the level while potentially leaving Scottish districts a mechanically
+wider *spread* — an artefact of local-government finance, not of housing.
+Measured, it does not happen: relativity p95/p5 is **1.69 England, 1.65
+Scotland, 1.56 Wales**. The schedules differ; the resulting dispersion
+does not.
+
+**OPEN — council-tax band tracks MARKET value; insurance pays
+REINSTATEMENT.** Buildings cover excludes land, and land is most of what
+separates Belgravia from Bootle. The saving grace is that the statutory
+ratios compress enormously — band H is 2× band D in charge terms against
+perhaps 10× in market value — so the district relativity spans only
+1.68× p5–p95 (2.8× extremes) where raw market value across these
+districts spans 15–25×. The direction is not in doubt: dear areas do
+have dearer contents and costlier reinstatement. **What has no anchor is
+the assumption that a 1991-valuation local-government charge schedule is
+the correct compression for insurance severity.** Nothing published says
+it is. This matters most for fire, which Phase 3 puts at 78% buildings,
+and least for theft at 25%.
+
+That is the decision in one line: the direction is well founded and the
+mechanism is exact, but the *magnitude* rests on a schedule built for
+council tax, and it re-rates 70% of the map.
+
+## PUBLISHED 2026-08-25: two knobs at once, verified before it shipped
+
+User decision: **"yes go ahead and publish"** on the recommendation to
+take `exp/eow-freeze` and `exp/theft-level` and to HOLD
+`exp/ct-severity`. Merges 930b99b and 0fa5aa4; both parameter comments
+rewritten from experiment framing to shipped-model prose in 768a88f.
+
+**Verified as a pair before publishing, not after.** Each branch had
+only ever been priced against published main on its own, and rating
+groups are quantiles, so combined churn is not the sum of the two. CI
+[32789547647](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32789547647)
+ran the merged main with `commit=false` first.
+
+| | published | merged | change |
+|---|---|---|---|
+| expected loss | 171.11 | 164.12 | −4.09% |
+| premium | 176.66 | 169.66 | **−3.96%** |
+| capital | 5.54 | 5.54 | −0.03% |
+| tvar99_euler | 263.49 | 256.47 | −2.66% |
+
+**They compose with no interaction at all**, which is what the perils
+predicted: theft-level alone was −4.09% EL and −3.96% premium, and the
+pair returns exactly the same. National `el_th` moved −24.10%, which is
+341.6/450 to the second decimal, and national `el_eow` moved −0.00%.
+Both mechanisms are present and neither disturbed the other.
+
+**The two effects remain separable in the output.** PH10's EoW EL rose
+58.6 → 75.8 and TR22's fell 36.2 → 29.5 while the national EoW level did
+not move, so the freeze redistribution survived the merge intact;
+EC3V's theft EL fell 127.9 → 97.1 on the level cut.
+
+**Net map effect:** 2,462 districts fall, 265 rise, 9 flat. Median
+−3.32%, p5 −7.90%, p95 +1.22%. Spearman **0.9854** against published;
+dispersion tightens 1.544 → 1.507. Biggest fallers are commercial cores
+losing theft (EC3V −13.4%, EC4M −13.0%, WC2E −12.4%, W1C −12.3%, WC2H
+−12.3%, W1F −12.1%, LS2 −11.7%); the risers are the frost-exposed
+Highlands, where the EoW gain outweighs the theft cut.
+
+**Still held, deliberately:** `exp/ct-severity` (Phase 2c). Not a
+rejection — the open question is recorded in its own section above.
+
+## PUBLISHED 2026-08-25: exp/eow-freeze, the EoW freeze share
+
+Branch `exp/eow-freeze`, CI run
+[32787462774](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32787462774),
+`commit=false`. **MERGED to main 930b99b on the user's decision
+("yes go ahead and publish", 2026-08-25) and published in the combined
+run below.**
+
+**One input changed:** `EOW_FREEZE_SHARE` 0.15 → **0.31** — the fraction
+of escape-of-water claim cost that is freeze-driven (burst pipes) rather
+than year-round plumbing failure. The shipped 0.15 had no published
+anchor; the replacement has two, and they agree.
+
+**The derivation** (committed to main separately, 45ba0b3, so the anchor
+exists whether or not this branch merges): ABI puts burst-pipe cost at
+**6.00% of total home paid in 2023 and 5.94% in 2025**. Escape of water
+is 19.3% of the book. On a consistent basis that is a freeze share of
+**0.311 and 0.307** — two independent release years landing within 0.004
+of each other, against a shipped value less than half either.
+
+**What CI actually produced**, against the published artifact:
+
+| | published | branch | change |
+|---|---|---|---|
+| expected loss | 171.11 | 171.11 | **0.00%** |
+| premium | 176.66 | 176.66 | **−0.00%** |
+| capital | 5.54 | 5.54 | −0.03% |
+| tvar99_euler | 263.49 | 263.47 | −0.01% |
+
+**The national level does not move at all, by construction.** The frost
+relativity is normalised to an exposure-weighted mean of exactly 1
+before it reaches `eow_rate`, and `calibrate_frequency` re-pins the level
+regardless, so this is a **pure redistribution**: it changes where EoW
+claims fall, never how many there are. That is the cleanest kind of
+model change — no re-levelling to defend, only geography.
+
+**Where it moves, and it is the right places.** Risers are the Scottish
+Highlands, the frostiest districts in the UK: PH10 +11.2% (group 4→7),
+AB36 +10.7%, IV4 +10.3%, PH18 +10.2%, PH20 +9.5%, PH26 +9.3%, IV13
++8.9%, PH22 +8.8%, AB35 +8.7%. Fallers are the mildest, near-frost-free
+coast: TR22 −5.5%, TR23 −5.2%, TR21 −5.0%, TR24 −4.9% (Isles of Scilly),
+TR5 −4.6%, PL29 −4.5%, TR25 −4.4%, PL28 −4.3%, TR19 −4.3%, TR26 −4.3%
+(west Cornwall). Raising the freeze-sensitive slice should shift burst
+pipes from Penzance to Aviemore, and that is precisely what it did — the
+sign test passes on both tails at once.
+
+**Distribution:** median +0.14%, p5 −2.27%, p95 +3.03%; 1,444 rise, 1,224
+fall, 68 flat. Rating-group churn 579 of 2,736 (21.2%), 17.1% of
+households, **16 move by ≥2 groups**. Premium Spearman **0.9933**;
+dispersion p90/p10 1.544 → 1.531, so the map barely widens or narrows.
+
+**The case for taking it:** it replaces an unanchored knob with a
+two-year-consistent published one, at zero cost to the national level,
+and moves the geography in the direction the physics demands. It is the
+least contentious of the three open experiments — nothing about the
+headline premium changes, so there is no re-levelling to justify.
+
+**The one caveat:** 0.31 is derived from burst-pipe cost as a share of
+*total home paid*, divided by EoW's *share of the book*. Both numerators
+come from ABI releases, but the 19.3% EoW share and the burst-pipe
+percentage are not stated in the same table, so the ratio is assembled
+rather than published. Two years agreeing to 0.004 is strong evidence
+the assembly is sound; it is not the same as ABI printing 0.31.
+
+## PUBLISHED 2026-08-25: exp/theft-level, theft's paid total
 
 Branch `exp/theft-level`, CI run
 [32607071195](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32607071195),
-`commit=false`. **Not merged. The swap is the user's call.**
+`commit=false`. **MERGED to main 0fa5aa4 on the user's decision
+("yes go ahead and publish", 2026-08-25) and published in the combined
+run below.**
 
 **One input changed:** `theft_paid` 450e6 → **341.6e6**, severity held at
 the current published ABI average of £3,800. The direction is the
@@ -1191,12 +1382,15 @@ Both experiment branches were built, verified and priced. The user chose
   >=2 groups: prime London up to +282 (W1J), low-band city cores
   -78 (BD1/SR1). New test pins severity-not-frequency scaling.
 - **They COLLIDE in prime London** (2a cut W1J, 2c raises it). 2a went
-  first, so **2c's evidence run is now stale**: to revisit it, rebase
-  `exp/ct-severity` onto published main, re-run the evidence (the churn
-  numbers above are measured against the pre-2a baseline and will move),
-  do the site copy pass for the severity prose, and take the OUTWARD D
-  seam for ct_bands.csv on sector-model - premises.csv already has it
-  (fetch_premises.py, 9e777f8: 9,700 sectors, 100.0% placed).
+  first, so the churn numbers in the bullet above are measured against
+  the pre-2a baseline. ~~2c's evidence run is now stale.~~ **REDONE
+  2026-08-25:** `exp/ct-severity` rebased onto published main (afcf0a5)
+  and re-priced by CI 32788080788 - see "exp/ct-severity (Phase 2c),
+  re-priced 2026-08-25" above for the current numbers (churn 69.7%, 974
+  by >=2 groups, Spearman 0.822, premium level unchanged). Still to do
+  if it ships: the site copy pass for the severity prose, and the
+  OUTWARD D seam for ct_bands.csv on sector-model - premises.csv already
+  has it (fetch_premises.py, 9e777f8: 9,700 sectors, 100.0% placed).
 - ~~Known stale: dependence_check.py and sensitivity.py never gained
   the attritional rate columns, so both fail at `_fields`.~~ **FIXED in
   c7a26db** ("Analysis scripts learn the attritional rate columns").
