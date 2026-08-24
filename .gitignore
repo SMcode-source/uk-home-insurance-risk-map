@@ -3,6 +3,15 @@
 __pycache__/
 *.pyc
 
+# Sibling worktrees of THIS repo, kept inside the project folder so both
+# resolutions live in one place (moved here 2026-08-23).
+# .worktrees/sector-model is the `sector-model` branch - the same model at
+# postcode-SECTOR resolution. It must be ignored: a worktree nested inside
+# another worktree of the same repo otherwise shows up as ~20 MB of
+# untracked content and can be committed to main by accident.
+# Remember the one-way rule - main merges INTO sector-model, never back.
+.worktrees/
+
 # Large raw source data — not redistributed; refetch with the scripts.
 # See DATA_SOURCES.md for every endpoint, licence and manual-download URL.
 # data/bgs_625k_bedrock.geojson  (~32 MB) -> scripts/fetch_bgs.py

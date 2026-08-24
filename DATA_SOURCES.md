@@ -150,6 +150,38 @@ districts**, used as the exposure weight throughout.
     and the flood-prone north-west. Reduced to per-year national indices; the
     JJA rainfall deficit is measured against each point's own 1991–2020
     June–August normal.
+    - **This series is also the anchor for `TAIL_FREQ_RATIO = 2.0`**
+      (added 2026-08-23; the constant shipped before this with no source
+      anywhere in the repo, which is what the no-undocumented-knobs rule
+      exists to prevent). It is the sole target `calibrate_spatial` solves
+      against, so it fixes `SPATIAL_SCALE` and through it the year view,
+      `tvar99_euler`, capital and the published premium — the one number
+      that sets how wide the tail is.
+    - **What it has to be measured against.** `calibrate_spatial` reports
+      it as *"1-in-100 year claims Nx the mean year"*, so it is a ratio of
+      claim COUNTS. The proxy must drive how many homes claim, not how
+      hard each is hit: **`storm_days`** (days with gust ≥ 70 km/h) is the
+      right series and **`max_gust` is not**. One violent gust hurts a few
+      homes badly; a year with many storm days puts many homes into claim.
+    - **The measurement** (`scripts/tail_ratio_from_history.py`, 1990–2024,
+      35 years; `storm_days` shows no significant trend, −0.039 days/yr,
+      p = 0.77, so the raw spread is the right thing to fit):
+
+      | proxy | CV | obs max/mean | lognormal 1-in-100 | gamma |
+      |---|---|---|---|---|
+      | `storm_days` (primary) | 0.284 | 1.67 | **1.84** | 1.78 |
+      | `storm_days^1.5` | 0.419 | 2.09 | 2.35 | 2.22 |
+      | `rain5d` (flood count driver) | 0.129 | 1.33 | 1.34 | 1.32 |
+      | `max_gust` (wrong shape, shown to make that visible) | 0.077 | 1.17 | 1.19 | 1.19 |
+
+      **2.0 sits inside the 1.78–2.35 range** the primary proxy supports
+      once mild convexity is allowed. The knob was undocumented, not
+      wrong, so it keeps its value and gains this entry.
+    - **What this does not establish.** That storm days convert to claim
+      counts one-for-one. The proxy choice moves the answer far more than
+      the fitted distribution does — `max_gust` would have halved the tail
+      — so the assumption is argued rather than assumed. A claims triangle
+      would settle it; see HANDOFF, "What remains, honestly".
 16. **ABI aggregates** — published in ABI press releases and property-claims
     statistics; quoted (not scraped) in `build_model.py`'s `ABI` dict so the
     calibration is auditable in one place. Update the dict when newer figures
@@ -400,7 +432,56 @@ districts**, used as the exposure weight throughout.
       across their material since ~2017; like theft, the ABI stopped
       publishing an annual per-peril total, and the 2025 full-year
       release folds EoW into a £758m "weather-related damage to homes"
-      line that also covers storm and flood). Cross-check that closes
+      line that also covers storm and flood). **RESOLVED 2026-08-23
+      against the primary releases — and the resolution corrects both
+      this note and the flag raised here on 2026-08-22.** The releases
+      are now transcribed with per-figure provenance in
+      `data/abi_annual.csv`; read that, not this paragraph, for the
+      numbers. What they say:
+      - The 2025 weather line's scope, footnote 3 of the 2026-02
+        release verbatim: *"These weather-related figures cover damage
+        caused by burst or frozen pipes, escape of water, as well as
+        damage as a result from storms and flooding."*
+      - The 2024-04 release **itemises the same line for 2023**:
+        storm £133m + flood £286m + **burst pipes £153m** = £572m
+        against a £573m total. So the water component of the weather
+        line is **burst pipes only, not the whole EoW book** — and by
+        the same subtraction the 2025 residual is
+        £758m − £244m − £312m = **£202m of burst pipes**.
+      - Therefore there is **no contradiction with the £657m EoW
+        anchor**: burst pipes are a SUBSET of it. The 2026-08-22 flag
+        claiming £758m "leaves £202m for EoW, not £657m" was wrong on
+        that point, and the £1,451m alternative headroom it offered
+        does not exist.
+      - What survives the correction: #27 and #28 below still add
+        "weather £758m" and "EoW £657m" as separate remainder items,
+        which double-counts the **£202m** they overlap in. The
+        headroom those two triangles were sized against is overstated
+        by £202m, not by £657m.
+      - Also settled: storm £244m, flood £312m and subsidence £307m
+        **are** 2025 full-year figures, quoted directly in the 2026-02
+        release, so source 16's "2025" label is correct. The
+        per-peril weather totals were not withdrawn — they sit beside
+        the aggregate line.
+      **Two things this opens, both unresolved:**
+      - **`EOW_FREEZE_SHARE = 0.15` looks low.** Burst pipes were
+        £153m of a £657m EoW book in 2023 (0.23) and £202m in 2025
+        (0.31). Neither year supports 0.15. Changing it is a model
+        change: it moves EoW's geography onto frost days harder and
+        alters its systemic loading, so it needs an experiment branch.
+      - **The ABI restates this series and its releases disagree.**
+        The 2024-04 release puts 2023 at £573m and calls it the record;
+        the 2025-02 release puts 2024 at £585m, describes it as
+        *"£127 million (28%) higher than ... 2023"* (implying £458m for
+        2023) and calls **2022** the previous record. Both cannot be
+        right. The 2024-04 release's own footnote 3 gives the
+        mechanism — *"This figure will include claims not yet fully
+        settled"* — but not the direction. Pick ONE vintage of the
+        series and stay in it; never mix a figure as-published with a
+        later comparative.
+      `scripts/anchor_budget.py` and `scripts/backtest_coverage.py`
+      print the consequences; see HANDOFF "Claim-count overshoot:
+      attributed 2026-08-22" and "Coverage backtest 2026-08-23". Cross-check that closes
       the triangle: EoW was **29.3% of 2025's 560,000 home claims**
       (GoCompare from ABI data) ≈ **164,000 claims/yr**, and
       £657m / 164k = **£4,005 average** — self-consistent, so

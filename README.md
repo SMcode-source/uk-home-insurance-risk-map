@@ -697,7 +697,15 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 #   .venv/Scripts/python scripts/fetch_gusts.py      # ERA5 -> data/gusts.csv (Open-Meteo free tier has a daily
 #                                                    # quota - if it 429s, rerun next day; the weather blend
 #                                                    # auto-includes gusts once >=60 points exist)
-.venv/Scripts/python scripts/fetch_history.py        # 35yr ERA5 hazard drivers -> data/history.csv (backtest)
+.venv/Scripts/python scripts/fetch_history.py        # 35yr ERA5 hazard drivers -> data/history.csv (backtest,
+#                                                    # and the anchor for TAIL_FREQ_RATIO - DATA_SOURCES #15)
+# data/abi_annual.csv is HAND-TRANSCRIBED from the ABI's full-year property
+# releases (one every February) - there is no feed and the site bot-blocks
+# scrapers. When the next one lands, add its rows with the source URL and a
+# published/derived flag, DO NOT overwrite prior years (the ABI restates
+# them, and both readings are kept side by side), then re-run:
+#   .venv/Scripts/python scripts/anchor_budget.py           # instant
+#   .venv/Scripts/python scripts/backtest_coverage.py       # ~40 min, one full sim
 # Optional, not a model input: derive postcode-SECTOR polygons (open data;
 # only Scotland publishes official ones) - DATA_SOURCES.md #23:
 #   .venv/Scripts/python scripts/fetch_codepoint.py
