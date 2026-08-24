@@ -268,7 +268,24 @@ ABI = dict(
     # 2018's (~0.97%) and what today's would be if claims fell with
     # recorded burglary (~0.58%) - that envelope is the documented
     # uncertainty on the theft LEVEL. See DATA_SOURCES.md #25.
-    theft_paid=450e6, sev_theft=3_800.0,
+    #
+    # The level sits at the BOTTOM of that envelope: 0.58%/policy x
+    # 15.5m x GBP 3,800 = GBP 341.6m. It was moved there on 2026-08-25
+    # (exp/theft-level, CI 32607071195) because theft was carrying the
+    # WHOLE of the model's claim-count overshoot. The previous
+    # 450e6/3800 implies 118,421 claims, 21.15% of the ABI's 560,000,
+    # when the six legs whose counts are pinned by an outside source
+    # leave only 99,955 for theft AND every unmodelled category - an
+    # overrun of 18,466, which is the overshoot exactly. Theft is also
+    # the only leg with nothing pinning its count: its paid total is
+    # 2018 and its average is 2025. Severity is therefore held at the
+    # CURRENT published ABI average and the stale paid total is what
+    # moves. Priced at EL -4.09%, premium -3.96%, capital -0.03%; see
+    # HANDOFF "Claim-count overshoot: attributed 2026-08-22" and
+    # "exp/theft-level, priced 2026-08-23". NOTE this improves the count
+    # budget without closing it: away-from-home accidental damage alone
+    # still needs 36,176 of the 10,060 claims left spare.
+    theft_paid=341.6e6, sev_theft=3_800.0,
     # Escape of water. Like theft, the ABI publishes no annual per-peril
     # total any more; the standing figure is "£1.8m every day" (~£657m/yr,
     # quoted since ~2017). The triangle closes: EoW was 29.3% of 2025's
@@ -317,6 +334,12 @@ ABI = dict(
     sev_erosion=250_000.0,
 )
 # Target per-policy frequency for each modelled peril = paid / severity / policies
+#
+# "fl" is PROVISIONAL as written here and is re-derived by
+# calibrate_frequency() against the severity the flood legs actually
+# blend to. Flood is the only peril whose severity is built from
+# components rather than read from one ABI figure, so it is the only one
+# whose E[sev] can differ from the number in this denominator.
 ABI_TARGET_FREQ = {
     "wx": ABI["storm_paid"] / ABI["sev_weather"] / POLICIES,
     "fl": ABI["flood_paid"] / ABI["sev_flood"] / POLICIES,
@@ -334,10 +357,22 @@ ABI_LOSS_PER_POLICY = (ABI["storm_paid"] + ABI["flood_paid"]
 # lognormal median that gives the target MEAN for a given sigma
 _median_for_mean = lambda mean, sigma: mean / np.exp(sigma ** 2 / 2)
 
+# Severity lognormal sigmas. Module-level ONLY so build_site.py can render
+# the implied medians (mean / exp(sigma^2/2)) instead of restating them by
+# hand - the methodology table's severity column was hand-written from the
+# first commit and drifted six cells wide once the ABI calibration landed
+# (HANDOFF, defect 3). The per-peril REASONING for each value stays at the
+# point of use in marginal_params, which is the only place they are read.
+SEV_SIGMA = dict(sub=0.90, wx=1.10, fl=0.90, gw=0.80, er=0.35,
+                 th=1.00, eow=1.00, fire=1.30, ad=0.90)
+
 # One multiplier per peril, set by calibrate_frequency() before simulating.
 FREQ_SCALE = {"sub": 1.0, "wx": 1.0, "fl": 1.0, "gw": 1.0, "th": 1.0,
               "eow": 1.0, "fire": 1.0, "ad": 1.0}
 GW_SHARE_OF_FLOOD = 0.10      # groundwater not published separately
+# The frequency-weighted mean flood severity the two legs actually blend
+# to, set by calibrate_frequency(). None until then.
+FLOOD_SEV_BLEND = None
 
 
 def calibrate_frequency(gdf):
@@ -363,6 +398,28 @@ def calibrate_frequency(gdf):
            "eow": float(np.average(m["p_eow"], weights=w)),
            "fire": float(np.average(m["p_fire"], weights=w)),
            "ad": float(np.average(m["p_ad"], weights=w))}
+    # Flood's severity is BUILT from components - fluvial and surface
+    # water, each with its own ABI figure, the latter carrying the
+    # district depth multiplier - so E[sev_fl] need not equal
+    # ABI["sev_flood"], and it does not. The EA zone areas make 66.3% of
+    # flood claims fluvial where the GBP30,000 blended headline implies
+    # 70.6%, and deriving the target frequency from that headline left
+    # flood 2.26% under its own paid anchor.
+    #
+    # Every OTHER peril satisfies EL == paid / POLICIES exactly, because
+    # its E[sev] is literally the figure in the denominator. Deriving
+    # flood's target from the severity the model actually delivers
+    # restores that invariant rather than inventing anything: the hard
+    # anchor is the published GBP312m paid, and GBP30,000 was only ever
+    # an intermediate for turning it into a frequency.
+    #
+    # Not circular, and idempotent: FREQ_SCALE scales p_fl uniformly, so
+    # it cannot move the p_rs:p_sw ratio this blend is weighted by.
+    global FLOOD_SEV_BLEND
+    FLOOD_SEV_BLEND = float(np.average(
+        np.exp(m["sev_fl"]["mu"] + m["sev_fl"]["sigma"] ** 2 / 2),
+        weights=w * m["p_fl"]))
+    ABI_TARGET_FREQ["fl"] = ABI["flood_paid"] / FLOOD_SEV_BLEND / POLICIES
     for k in ("sub", "wx", "fl", "th", "eow", "fire", "ad"):
         FREQ_SCALE[k] = ABI_TARGET_FREQ[k] / raw[k]
     # groundwater has no published total; peg it to a share of flood
@@ -371,6 +428,9 @@ def calibrate_frequency(gdf):
         print(f"  {k:4} frequency {raw[k]:.3%} -> ABI {ABI_TARGET_FREQ[k]:.3%}"
               f"  (x{FREQ_SCALE[k]:.3f})")
     print(f"  gw   frequency pegged at {GW_SHARE_OF_FLOOD:.0%} of flood")
+    print(f"  fl   severity blends to GBP{FLOOD_SEV_BLEND:,.0f} vs the ABI "
+          f"headline GBP{ABI['sev_flood']:,.0f}; target re-derived from the "
+          f"blend so flood reproduces its paid anchor exactly")
     return FREQ_SCALE
 
 
@@ -419,7 +479,23 @@ W_EOW = 0.026
 # driven; ~15% is the defensible middle. The base is FLAT: plumbing and
 # appliance failure has no open spatial predictor until Phase 2 gives
 # dwelling age (EPC) and a commercial denominator (VOA).
-EOW_FREEZE_SHARE = 0.15
+#
+# That judgement call was REPLACED by a measurement on 2026-08-25
+# (exp/eow-freeze, CI 32787462774). The ABI's weather line itemises burst
+# pipes separately: GBP 153m in 2023 and GBP 202m in 2025
+# (data/abi_annual.csv). Scaled to each year's own home book those are
+# 6.00% and 5.94% of total home paid, and against EoW at its 19.3% share
+# of that book they imply a freeze share of 0.311 and 0.307 - two
+# independent years agreeing to within 0.004, and both about double the
+# old 0.15. Run scripts/anchor_budget.py for the derivation.
+#
+# This costs the national level NOTHING: the frost relativity is
+# normalised to an exposure-weighted mean of 1 and calibrate_frequency
+# re-pins the level regardless, so the change is pure geography. It moved
+# the frostiest districts up (PH10 +11.2%, AB36 +10.7%, IV4 +10.3%) and
+# the mildest down (Isles of Scilly and west Cornwall, -4.3% to -5.5%),
+# which is the sign test passing on both tails at once.
+EOW_FREEZE_SHARE = 0.31
 # Fire's loading comes from the same derivation as theft's and EoW's,
 # and lands even lower than theft. The FIRE0201 national series
 # (1981/82-2025/26) shows a steady secular DECLINE of -2.5%/yr - a
@@ -585,18 +661,20 @@ def marginal_params(f):
     # It arrives as a RATE (~0.9%), so the 0.5 clip never bites.
     p_ad = f["ad"]
 
-    s_sub, s_wx, s_fl, s_gw, s_er = 0.90, 1.10, 0.90, 0.80, 0.35
+    s_sub, s_wx, s_fl, s_gw, s_er = (SEV_SIGMA["sub"], SEV_SIGMA["wx"],
+                                     SEV_SIGMA["fl"], SEV_SIGMA["gw"],
+                                     SEV_SIGMA["er"])
     # Theft severity spread: most claims are a few thousand (forced entry
     # damage + electronics), a tail of jewellery/watch losses reaches
     # tens of thousands. sigma=1.0 puts ~5% of claims above 4x the mean,
     # in line with the shape the ABI's high-value-theft commentary
     # describes; the MEAN is pinned to the published average regardless.
-    s_th = 1.00
+    s_th = SEV_SIGMA["th"]
     # EoW severity spread: the bulk is trace-and-access plus drying out
     # (low thousands), the tail is full ground-floor reinstatement after
     # an unattended leak. sigma=1.0 (same shape as theft); the MEAN is
     # pinned to the £4,000 the anchor triangle implies.
-    s_eow = 1.00
+    s_eow = SEV_SIGMA["eow"]
     # Fire severity spread: the widest of the attritional perils. The
     # £14,000 mean mixes a majority of contained kitchen/appliance
     # fires (low thousands: smoke damage, one room) with a real tail
@@ -606,7 +684,7 @@ def marginal_params(f):
     # most dwelling fires are confined to the item or room of origin,
     # a few percent spread further). The MEAN stays pinned to the
     # anchor regardless.
-    s_fire = 1.30
+    s_fire = SEV_SIGMA["fire"]
     # AD severity spread: the narrowest of the attritional perils. The
     # £1,650 mean is broken TVs (18% of Aviva's AD claims), spilled
     # drinks into sofas and carpets, cracked sinks and hobs - hundreds
@@ -615,7 +693,7 @@ def marginal_params(f):
     # puts ~0.7% of claims above £10k and essentially none above
     # £50k, which is what AD's own definition (sudden one-off damage
     # to part of a home) enforces. The MEAN stays pinned regardless.
-    s_ad = 0.90
+    s_ad = SEV_SIGMA["ad"]
     sev_sub = dict(mu=np.log(_median_for_mean(ABI["sev_subsidence"], s_sub)),
                    sigma=s_sub)
     sev_wx = dict(mu=np.log(_median_for_mean(ABI["sev_weather"], s_wx)),
@@ -629,8 +707,26 @@ def marginal_params(f):
     mu_rs = np.log(_median_for_mean(ABI["sev_flood_fluvial"], s_fl))
     mu_sw = np.log(_median_for_mean(
         ABI["sev_surface_water"] * f["sw_sev"], s_fl))
-    mu_fl = (p_rs * mu_rs + p_sw * mu_sw) / np.maximum(p_fl, 1e-12)
-    sev_fl = dict(mu=mu_fl, sigma=s_fl)
+    # The two legs are a MIXTURE, moment-matched to a single lognormal on
+    # mean AND variance. Probability-weighting the mu values (which this
+    # did until 2026-08-18) blends the components GEOMETRICALLY:
+    # exp(w1*mu1 + w2*mu2) is the weighted geometric mean of the medians,
+    # which sits strictly below the arithmetic mean the ABI anchor is
+    # stated on whenever the two legs differ. The gap is sigma-independent
+    # and measured at -6.04%, so flood was paying 6% under its own
+    # calibration target. Matching the first two moments is exact in the
+    # mean and lands TVaR99 within +-0.5% of the true mixture, against
+    # -6.0% to -10.3% for a mean-only match - which is why sigma is now
+    # per-district rather than the scalar s_fl.
+    w_rs = p_rs / np.maximum(p_fl, 1e-12)
+    w_sw = p_sw / np.maximum(p_fl, 1e-12)
+    m1_fl = (w_rs * np.exp(mu_rs + s_fl ** 2 / 2)
+             + w_sw * np.exp(mu_sw + s_fl ** 2 / 2))
+    m2_fl = (w_rs * np.exp(2 * mu_rs + 2 * s_fl ** 2)
+             + w_sw * np.exp(2 * mu_sw + 2 * s_fl ** 2))
+    sig_fl = np.sqrt(np.log(m2_fl / m1_fl ** 2))
+    mu_fl = np.log(m1_fl) - sig_fl ** 2 / 2
+    sev_fl = dict(mu=mu_fl, sigma=sig_fl)
     sev_gw = dict(mu=np.log(_median_for_mean(ABI["sev_groundwater"], s_gw)),
                   sigma=s_gw)
     # erosion destroys the property outright, so severity is a sum insured
@@ -672,14 +768,17 @@ def _fields(src):
 def inv_mixed_cdf(u, p, mu, sigma):
     """Quantile of Bernoulli(p) * LogNormal(mu, sigma).
 
-    mu may be a scalar or an array broadcastable to u's shape.
+    mu and sigma may each be a scalar or an array broadcastable to u's
+    shape. sigma became per-district when the flood severity mixture
+    started matching variance as well as mean (see marginal_params).
     """
     loss = np.zeros_like(u)
     hit = u > (1.0 - p)
     uu = (u[hit] - (1.0 - p[hit])) / p[hit]
     uu = np.clip(uu, 1e-12, 1 - 1e-12)
     mu_e = np.broadcast_to(mu, u.shape)[hit] if np.ndim(mu) else mu
-    loss[hit] = np.exp(mu_e + sigma * stats.norm.ppf(uu))
+    sg_e = np.broadcast_to(sigma, u.shape)[hit] if np.ndim(sigma) else sigma
+    loss[hit] = np.exp(mu_e + sg_e * stats.norm.ppf(uu))
     return loss
 
 
@@ -1153,10 +1252,35 @@ def simulate(district_df):
         t_v, t_n, t_i = tvar(tot_v), tvar(tot_n), tvar(tot_i)
 
         loc = {}
-        loc["el_sub"] = (ls.mean(axis=1))
-        loc["el_wx"] = (lw.mean(axis=1))
-        loc["el_fl"] = (lf.mean(axis=1))
-        loc["el_gw"] = (lg.mean(axis=1))
+        # The four vine perils' ELs are ANALYTIC, for exactly the reason
+        # already given for erosion and the four attritional legs below:
+        # a draw mean is a noisy estimator of a quantity the calibration
+        # pins EXACTLY. calibrate_frequency solves
+        # FREQ_SCALE[k] = ABI_TARGET_FREQ[k] / raw[k] against the
+        # exposure-weighted mean of the analytic p - the draws are
+        # nowhere in that loop - and _median_for_mean pins E[sev] to the
+        # published average. So p*E[sev] IS the calibration target, and
+        # the draw mean is an estimate of it.
+        #
+        # Groundwater showed how badly that estimate can miss: it
+        # published GBP0.412 against an analytic GBP1.342, a 3.3x gap.
+        # Its p is 6.7e-5 - between erosion's 1.5e-5 and the attritional
+        # legs - and its spatial loading is 0.70, the HIGHEST of the four,
+        # so districts claim together and the effective sample is ~20,000
+        # correlated years rather than 2,736 x 20,000 district-years. That
+        # is erosion's trap exactly, at 4.5x erosion's frequency, and it
+        # went unnoticed because the other three vine perils are frequent
+        # enough for the noise to look like rounding.
+        #
+        # The DRAWS still feed every tail (tot_v/tot_n/tot_i, the year
+        # views, tvar99_euler), where the dependence is the whole point.
+        _an = lambda p, sev: (m[p] * np.exp(m[sev]["mu"]
+                                            + m[sev]["sigma"] ** 2 / 2)
+                              ).ravel()
+        loc["el_sub"] = _an("p_sub", "sev_sub")
+        loc["el_wx"] = _an("p_wx", "sev_wx")
+        loc["el_fl"] = _an("p_fl", "sev_fl")
+        loc["el_gw"] = _an("p_gw", "sev_gw")
         # Theft's expected loss is ANALYTIC for the same reason erosion's
         # is (below), with a different failure mode: every district shares
         # ONE U_th stream, so the ~150 draws that clear a p~0.8% threshold
@@ -1197,10 +1321,14 @@ def simulate(district_df):
                                     + m["sev_er"]["sigma"] ** 2 / 2)).ravel()
         loc["el_er"] = (el_er)
         # The published expected-loss level must be the CALIBRATED one, so
-        # el_total sums the four weather-peril draw means (which the ABI
-        # scaling was solved against) with the analytic theft leg - the
-        # same construction el_total5 has always used for erosion.
-        loc["el_total"] = ((ls + lw + lf + lg).mean(axis=1)
+        # el_total sums the ANALYTIC leg of every peril - the construction
+        # el_total5 has always used for erosion, and el_th/eow/fire/ad
+        # since those perils were added. Until 2026-08-18 the four vine
+        # legs entered here as draw means, and the comment that stood in
+        # this spot claimed the ABI scaling had been "solved against"
+        # them. It had not: calibrate_frequency never touches a draw.
+        loc["el_total"] = (loc["el_sub"] + loc["el_wx"] + loc["el_fl"]
+                           + loc["el_gw"]
                            + el_th + el_eow + el_fire + el_ad)
         loc["el_total5"] = (loc["el_total"] + el_er)
         # Buildings share of the SAME construction - draw means for the
@@ -1528,7 +1656,7 @@ def main():
     # district's ALLOCATED share of portfolio tail risk (Euler), not on its
     # standalone TVaR - an insurer holds capital against the portfolio.
     gdf["capital"] = 0.06 * np.maximum(
-        gdf["tvar99_euler"] - gdf["el_year"], 0.0)
+        gdf["tvar99_euler"] - gdf["el_total"], 0.0)
     gdf["premium"] = gdf["el_total"] + gdf["capital"]
 
     # ---- buildings / contents cover split -----------------------------
@@ -1581,7 +1709,7 @@ def main():
         sim_cc, _ = simulate(fut)
         gdf["el_total_cc"] = sim_cc["el_total"]
         gdf["capital_cc"] = 0.06 * np.maximum(
-            sim_cc["tvar99_euler"] - sim_cc["el_year"], 0.0)
+            sim_cc["tvar99_euler"] - sim_cc["el_total"], 0.0)
         gdf["premium_cc"] = gdf["el_total_cc"] + gdf["capital_cc"]
         gdf["cc_covered"] = cc_covered.astype(int)
         gdf["cc_uplift_pct"] = np.where(
@@ -1602,12 +1730,26 @@ def main():
             gdf[c] = np.nan
         gdf["cc_covered"] = 0
 
-    modelled = float(gdf["el_total"].mean())
-    print(f"  check: modelled loss cost for these four perils "
-          f"£{modelled:,.2f}/policy vs ABI £{ABI_LOSS_PER_POLICY:,.2f} "
-          f"({modelled / ABI_LOSS_PER_POLICY - 1:+.0%}); "
+    # This check is a GUARD, and until 2026-08-19 it could not do its job.
+    # It took an UNWEIGHTED district mean of el_total, compared it against
+    # ABI_LOSS_PER_POLICY (a national PER-POLICY figure), left groundwater
+    # on the modelled side when the ABI side has no groundwater anchor,
+    # and printed to zero decimals. Three mismatches, and the rounding hid
+    # the rest: it reported "-0%" while flood sat 2.26% under its own
+    # anchor. Exposure-weighted, gw-excluded and to 2dp it would have
+    # caught that the day it appeared. See HANDOFF, defect 5.
+    hh = gdf["households"].values
+    modelled = float(np.average(gdf["el_total"].values, weights=hh))
+    gw_el = float(np.average(gdf["el_gw"].values, weights=hh))
+    anchored = modelled - gw_el
+    print(f"  check: modelled loss cost, eight insured perils "
+          f"£{anchored:,.2f}/policy vs ABI £{ABI_LOSS_PER_POLICY:,.2f} "
+          f"({anchored / ABI_LOSS_PER_POLICY - 1:+.2%})")
+    print(f"         groundwater excluded (no published anchor), carried "
+          f"separately at £{gw_el:,.2f}/policy; "
           f"{modelled / (ABI['total_home_paid'] / POLICIES):.0%} of the "
-          f"£{ABI['total_home_paid'] / POLICIES:,.0f} all-perils home claims cost")
+          f"£{ABI['total_home_paid'] / POLICIES:,.0f} all-perils home "
+          f"claims cost")
 
     # Coastal erosion, reported alongside but NOT inside the premium.
     # Standard household policies exclude gradual erosion, so adding it to

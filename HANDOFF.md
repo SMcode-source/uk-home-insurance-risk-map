@@ -10,7 +10,9 @@ just a pointer here)
 
 **Phase 1 of the roadmap (attritional perils: theft → escape of water
 → fire → accidental damage) is COMPLETE.** Phase 2 is EPC/VOA exposure
-realism; Phase 3 the buildings/contents split.
+realism — **2a (theft's residential denominator) is live since
+2026-08-18**, 2c sits built-but-unpublished on its branch. Phase 3 is
+the buildings/contents split.
 
 The site publishes the model at **two grains side by side**:
 `/map.html` over 2,736 postcode districts and `/sectors.html` over
@@ -22,7 +24,15 @@ methodology page draws the Hull comparison as an inline SVG generated
 from the published GeoJSON at build time — a screenshot would go stale
 at the next rebuild; this cannot.
 
-Current headline figures (bot commit 08be7f1, 2026-08-17):
+**Two defects are open and UNFIXED** — the four vine perils take their
+EL from the draws instead of analytically, and flood severity is
+blended in log space. Neither is a publishing emergency (EL is
+paid ÷ policies by construction) but both are real; read "Model audit
+2026-08-18" below before touching the marginals, and re-measure with
+`.venv/Scripts/python.exe scripts/analytic_el_check.py`.
+
+Current headline figures (bot commit ca83519, 2026-08-18 — 2a moved
+geography, not level, so these are the same numbers):
 exposure-weighted premium **£174.24** over 27.26m households; loss
 cost £169.75 ≈ 77% of the £219 all-home-claims cost; climate
 uplift diluted a fourth time by AD's flat ~£14.65 (each attritional
@@ -365,13 +375,1056 @@ SUP_WEIGHT precedent), not a single shipped split. Or unblock it properly
 with the IFoA's withdrawn GI papers (`webarchive@actuaries.org.uk`) or a
 claims triangle.
 
-## Phase 2 status (2026-08-17, later): 2a and 2c evidence COMPLETE, decisions pending
+## PUBLISHED 2026-08-18: Phase 2a, theft's residential denominator
 
-Both experiment branches are built, verified and priced. NEITHER is
-merged - publishing is the user's decision, and none has been given.
+User decision: "2a only". LIVE at both resolutions (merge 6d24373,
+sector output crossed in 8204346 from sector-model run 11 bot 1a8f2d7,
+publish run 32085591133 bot commit ca83519). Theft's rate now divides by
+households PLUS VOA non-domestic premises, so each unit is charged only
+the residential share of its burglary points.
 
-- **2a - theft commercial denominator** (`exp/theft-commercial`,
-  eebb5c2+c22aa06; evidence run 32033558205): rate = burglaries /
+Effect. Exposure-weighted premium is UNCHANGED at £174.24 districts /
+£174.02 sectors — the calibration re-pins the level, so only geography
+moves — and el_th stays £29.03 to the penny at both grains. The p99.9
+cap is demoted from doing the commercial correction's job to a genuine
+tiny-denominator backstop: 6.22% → 3.400% (15 districts on it) and
+8.29% → 4.230% (78 sectors). Every non-theft column is bit-identical at
+both grains (49 of 68 sector columns untouched; only the theft-derived
+chain moves). Churn 9.6% of sectors, 54 by two groups or more; every
+large fall is a City of London sector (EC2N 4 −£266, EC2M 7 −£265,
+EC4V 4/5 −£260) and the rises are the renormalisation landing elsewhere
+at +£6 to +£7.
+
+**Three defects found while publishing, all fixed — read these first:**
+
+1. **The premises join had no coverage guard.** `prem_table.get(n, 0.0)`
+   is the right fallback for a genuinely absent area (Scotland has no
+   VOA premises and is overridden anyway), but it is also how a
+   mis-keyed file vanishes without trace: every lookup misses, the
+   denominator silently reverts to households-only, the correction
+   un-applies, and the run reports success. That is the households.csv
+   void-run trap. Now raises below 95% E&W coverage (both grains score
+   100.0% / 99.9%), with two tests — one pinning what the correction
+   does, one pinning that a sector-keyed file on a district build raises
+   AND that an E&W-complete file with no Scottish row still passes, so
+   the guard cannot be "fixed" by counting Scotland.
+
+2. **`docs/` was stale on the branch and the local check said fresh.**
+   The copy pass edited templates without rebuilding. Worse, verifying
+   with `build_site.py` alone gives a FALSE PASS: build_site only
+   *wraps* `map/uk_home_insurance_risk_map.html`, a gitignored
+   intermediate produced by `build_map.py`. Re-wrapping a stale
+   intermediate reproduces the stale page and the diff comes back clean.
+   **To check docs/ freshness run the full chain CI runs: `build_map.py`,
+   then `build_analysis.py`, then `build_site.py`.** Less is not a check.
+
+3. **The peril table hand-wrote the theft cap** at 3.4% — the value 2a
+   was expected to produce — while the prose two sections down injects
+   `__TH_CAP_PCT__` from committed output. The page contradicted itself
+   (table 3.4%, prose 6.2%) for as long as the branch sat unpublished.
+   The cell now takes the same injection.
+
+**One process lesson that cost a red run.** Crossing the sector output
+in its own commit (8204346) left `docs/assets/sector_data.geojson` and
+`uk_sector_risk.csv` behind the data they are built from, so tests went
+red in the transition window (run 32085591045). The existing
+mid-transition skip only covers template-ahead-of-columns, NOT
+data-ahead-of-assets, so it did not catch this. The bot commit
+reconciled it and a dispatched tests run on ca83519 is fully green
+(both jobs). **Next time: rebuild docs/ in the same commit that crosses
+the sector output**, or teach the skip guard this second window.
+
+**A second ordering lesson, from the 2026-08-19 publish.** The four
+publishes before it crossed the sector output to main FIRST, then
+merged the model change. This one merged to main first, which put
+fixed district numbers and pre-fix sector numbers on the live site at
+the same time — the two grains disagreed by ~1.39% on premium for as
+long as the sector rebuild took. Nothing broke and no test can see it,
+because each grain is internally consistent; only the pair is wrong.
+**Rule: when a model change touches both grains, cross the sector
+output to main BEFORE merging the model change, so main never
+publishes a mixed pair.** If the sector run must come after (it needs
+the merged `build_model.py`, as it did here), merge into
+`sector-model` first, run it, and hold the main merge until its output
+is ready to cross in the same push.
+
+## Model audit 2026-08-18: reconciliation, and TWO UNFIXED defects
+
+> **Both defects below are now FIXED and PUBLISHED**, along with three
+> more found while fixing them — see "Built AND PUBLISHED 2026-08-19"
+> further down. The claim-count overshoot recorded here is
+> deliberately untouched and remains live.
+>
+> **The attribution below is WRONG and was corrected 2026-08-22.** This
+> section blames the accidental-damage anchor as "the one that can be
+> moved without contradicting a published total". That is true of AD's
+> *paid* total and false of the quantity actually in dispute, which is
+> its *count* — AD's count is 24.53% of 560,000 from the same verified
+> GoCompare table that pins escape of water's 29.38%, so it is one of
+> the legs that cannot be moved. See "Claim-count overshoot: attributed
+> 2026-08-22" below, and run `scripts/anchor_budget.py`.
+
+The user asked whether escape of water is being counted twice through
+some other factor, and for an overall check that everything adds up to
+100% of claims. Reproduce any of this with
+`scripts/build_model.py`'s own constants — no simulation is involved
+in the analytic column, which is the point.
+
+**No double-counting.** Each of the eight perils has its own disjoint
+ABI anchor and its own driver, and no driver feeds two perils. The one
+place water could have been double-charged is freeze: `EOW_FREEZE_SHARE
+= 0.15` puts a frost-day slice into EoW, and frost appears nowhere
+else — flood is river/sea/surface-water zone fractions, weather is
+gust/wind-driven-rain/precip, neither has a freeze term. Storm-driven
+water ingress sits in `wx` and burst-pipe water sits in `eow`, which is
+the ABI's own boundary.
+
+**The money reconciles. The CLAIM COUNT does not.**
+
+| | paid £m | avg £ | claims | %/policy |
+|---|---|---|---|---|
+| subsidence | 307 | 17,820 | 17,228 | 0.111% |
+| weather | 244 | 2,450 | 99,592 | 0.643% |
+| flood | 312 | 30,000 | 10,400 | 0.067% |
+| theft | 450 | 3,800 | 118,421 | 0.764% |
+| escape of water | 657 | 4,000 | 164,250 | 1.060% |
+| fire | 434 | 14,000 | 31,000 | 0.200% |
+| accidental damage | 227 | 1,650 | 137,576 | 0.888% |
+| **modelled** | **2,631** | **4,548** | **578,466** | **3.732%** |
+| ABI all-home | 3,400 | 6,071 | 560,000 | |
+
+77.4% of the money — as documented — but **103.3% of the count**. The
+unmodelled remainder (subsidence-adjacent, liability, legal expenses,
+personal possessions away from home, alternative accommodation as a
+standalone head) would have to be **−18,466 claims for £769m** to
+close. It cannot be negative, so at least one of the four
+frequency-implied anchors is too high, and the modelled mix average
+(£4,548) sitting well under ABI's own £6,071 says the same thing from
+the other side.
+
+**The AD anchor is where the exposure is.** Theft, EoW and fire each
+have a published *paid total* and a published *average*, so their
+counts are derived. AD's is built the other way round: 24.53% of
+560,000 × £1,650. It is the one leg constructed FROM the count, so it
+is the one that can be moved without contradicting a published total.
+At the bottom of theft's documented vintage envelope (0.58%/policy —
+the "if claims fell with recorded burglary" end of DATA_SOURCES #25)
+the count drops to 98.2% and the residual becomes a sane 10,055 claims
+at £87,262 — still high, which is what you would expect of a remainder
+containing total losses and long-tail liability.
+
+**EL is immune to all of this**, which is why it is not a publishing
+emergency: each peril's EL is paid ÷ policies by construction, so the
+premium is right even if the implied count is not. What the count
+mismatch threatens is any future work that *reasons from frequency* —
+the buildings/contents split (Phase 3) is exactly that, so read this
+before using a modelled claim count as evidence for anything.
+
+### Defect 1: four perils take their EL from the DRAWS, not analytically
+
+`th`, `eow`, `fire` and `ad` compute EL as p × E[sev]. `sub`, `wx`,
+`fl` and `gw` take `ls.mean(axis=1)` — the mean of the simulated
+losses. Analytic vs published, exposure-weighted over the 2,736
+districts:
+
+| peril | analytic | published | published vs analytic | analytic vs ABI |
+|---|---|---|---|---|
+| sub | 19.8065 | 22.2725 | **+12.45%** | −0.00% |
+| wx | 15.7419 | 15.5256 | −1.37% | +0.00% |
+| fl | 18.9125 | 16.4712 | **−12.91%** | −6.04% |
+| gw | 1.3419 | 0.4118 | **−69.32%** | (no anchor) |
+| th | 29.0323 | 29.0339 | +0.01% | +0.00% |
+| eow | 42.3871 | 42.3865 | −0.00% | −0.00% |
+| fire | 28.0000 | 28.0007 | +0.00% | +0.00% |
+| ad | 14.6452 | 14.6457 | +0.00% | −0.00% |
+| TOTAL | 169.8673 | 168.7480 | −0.66% | |
+
+The analytic column lands on each ABI anchor to two decimal places, so
+**the calibration is exact and the simulation is what wanders.** This
+is the identical bug already fixed twice in this repo — for `el_er`
+("20,000 years give under one event") and for theft ("a peril sharing
+one uniform stream must take its EL analytically"): the districts share
+a systemic draw, so their errors are COMMON and do not average out
+across the map. Three seeds at production N_SIM on 400 districts moved
+sub +11.7/+2.7/+68.2%, wx −0.6/−21.1/+29.5%, fl −15.1/+15.5/+70.2%,
+gw −70.4/+6.0/+70.1% — the published values are one draw from that.
+Groundwater is worst because it is the rarest leg. Note `el_year =
+year_loss.mean(axis=1)` is a draw mean too, so **capital is exposed
+by the same mechanism**; the tail columns should keep using draws,
+which is what they are for.
+
+### Defect 2: flood severity is blended in LOG space
+
+```python
+mu_fl = (p_rs * mu_rs + p_sw * mu_sw) / np.maximum(p_fl, 1e-12)
+```
+
+That is a weighted mean of logs — a GEOMETRIC mean of the two
+severities. The intended quantity, and the one the published £30,000
+average is held to, is the frequency-weighted ARITHMETIC mean of
+£35,000 fluvial and £18,000 surface water. `exp` is convex, so the
+modelled mean sits below target; the gap is **independent of sigma**
+(the σ²/2 terms cancel) and runs −4% to −5% across plausible mixes.
+Measured, it is the −6.04% in the table above: flood is the ONLY
+calibrated peril whose analytic EL misses its own anchor, because
+`ABI_TARGET_FREQ["fl"] = flood_paid / 30,000 / POLICIES` assumes a mean
+severity the marginal does not deliver. The fix is to blend the MEANS
+and then take the log.
+
+**NEITHER IS FIXED.** Both are model changes: they need an experiment
+branch, a priced evidence run at both grains, and the user's publish
+decision — the same bar every peril cleared. Defect 2 raises the flood
+level ~6% and is a straight correction; defect 1 mostly REDUCES
+subsidence and RAISES groundwater, and its real prize is that the map
+stops depending on the seed.
+
+## exp/ct-severity (Phase 2c), re-priced 2026-08-25 — AWAITING THE USER'S DECISION
+
+Branch `exp/ct-severity`, rebased onto published main (afcf0a5; the old
+185485c evidence was measured against the pre-2a baseline and is
+superseded). CI run
+[32788080788](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32788080788),
+`commit=false`. **Not merged. This is the user's call, and of the three
+open experiments it is by far the largest change to the map.**
+
+**What it does:** the four attritional severities (theft, EoW, fire, AD)
+are flat national ABI anchors with no geography at all. This scales each
+by the district's council-tax band mix — the only full-stock, small-area,
+OGL property-value proxy in Great Britain — using each nation's statutory
+charge ratios as band weights.
+
+**The national level does not move**, by construction: the multiplier is
+normalised to a CLAIM-weighted mean of exactly 1 per peril (households ×
+that peril's rate), so each peril lands back on its ABI level.
+
+| | published | branch | change |
+|---|---|---|---|
+| expected loss | 171.11 | 171.11 | **0.00%** |
+| premium | 176.66 | 176.66 | **−0.00%** |
+| capital | 5.54 | 5.54 | −0.01% |
+| tvar99_euler | 263.49 | 263.49 | −0.00% |
+
+**The mechanism was verified per district, not assumed.** On SW1X
+(relativity 1.940) the four scaled perils came back at 1.950 / 1.938 /
+1.979 / 1.944 and flood and subsidence at exactly 1.000; on CF43
+(relativity 0.691) at 0.697 / 0.691 / 0.702 / 0.692, flood and
+subsidence again 1.000. The small per-peril spread is the separate
+claim-weight normaliser each peril gets, which is the intended design.
+
+**But the map moves hard.** Churn **1,908 of 2,736 districts (69.7%)**,
+69.6% of households, and **974 move by ≥2 rating groups**. Premium
+Spearman **0.8219** — against 0.993 for both other open experiments.
+Dispersion widens 1.544 → **1.624**. Median +1.33%, p5 −14.3%, p95
++22.8%; 1,516 rise, 1,216 fall.
+
+**Risers** are prime London and one affluent Aberdeen suburb: SW1X
++72.4% (Belgravia), W1K +68.8% (Mayfair), W1J +66.1%, SW1Y +64.1%, SW7
++59.7% (South Kensington), AB13 +56.5% (Milltimber), W1C +55.5%, W1S
++55.3%, W8 +53.6% (Kensington), SW1E +52.3%.
+
+**Fallers** are post-industrial urban cores: TS1 −21.3% (Middlesbrough),
+L6 −21.3%, L7 −20.6%, L4 −19.8%, L5 −19.7% (Liverpool), S14 −20.8%, S5
+−20.3%, S2 −20.1%, S4 −20.0% (Sheffield), SR1 −19.7% (Sunderland).
+
+**This is the collision this file predicted:** 2a cut prime London on
+theft's commercial denominator, 2c raises it on value. They are not
+contradictory — one is claim frequency, the other claim size — but if
+both ship, W1J's net move is the thing to check, not either in isolation.
+
+### Two checks run against it, one of which it passed
+
+**PASSED — the cross-nation schedule artefact does not exist.** England's
+statutory ratios span 3.0× (6→18 over bands A→H) but Scotland's
+post-2017 ratios span 3.68× (240→882), so normalising within nation pins
+the level while potentially leaving Scottish districts a mechanically
+wider *spread* — an artefact of local-government finance, not of housing.
+Measured, it does not happen: relativity p95/p5 is **1.69 England, 1.65
+Scotland, 1.56 Wales**. The schedules differ; the resulting dispersion
+does not.
+
+**OPEN — council-tax band tracks MARKET value; insurance pays
+REINSTATEMENT.** Buildings cover excludes land, and land is most of what
+separates Belgravia from Bootle. The saving grace is that the statutory
+ratios compress enormously — band H is 2× band D in charge terms against
+perhaps 10× in market value — so the district relativity spans only
+1.68× p5–p95 (2.8× extremes) where raw market value across these
+districts spans 15–25×. The direction is not in doubt: dear areas do
+have dearer contents and costlier reinstatement. **What has no anchor is
+the assumption that a 1991-valuation local-government charge schedule is
+the correct compression for insurance severity.** Nothing published says
+it is. This matters most for fire, which Phase 3 puts at 78% buildings,
+and least for theft at 25%.
+
+That is the decision in one line: the direction is well founded and the
+mechanism is exact, but the *magnitude* rests on a schedule built for
+council tax, and it re-rates 70% of the map.
+
+## exp/eow-freeze, priced 2026-08-25 — AWAITING THE USER'S DECISION
+
+Branch `exp/eow-freeze`, CI run
+[32787462774](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32787462774),
+`commit=false`. **Not merged. The swap is the user's call.**
+
+**One input changed:** `EOW_FREEZE_SHARE` 0.15 → **0.31** — the fraction
+of escape-of-water claim cost that is freeze-driven (burst pipes) rather
+than year-round plumbing failure. The shipped 0.15 had no published
+anchor; the replacement has two, and they agree.
+
+**The derivation** (committed to main separately, 45ba0b3, so the anchor
+exists whether or not this branch merges): ABI puts burst-pipe cost at
+**6.00% of total home paid in 2023 and 5.94% in 2025**. Escape of water
+is 19.3% of the book. On a consistent basis that is a freeze share of
+**0.311 and 0.307** — two independent release years landing within 0.004
+of each other, against a shipped value less than half either.
+
+**What CI actually produced**, against the published artifact:
+
+| | published | branch | change |
+|---|---|---|---|
+| expected loss | 171.11 | 171.11 | **0.00%** |
+| premium | 176.66 | 176.66 | **−0.00%** |
+| capital | 5.54 | 5.54 | −0.03% |
+| tvar99_euler | 263.49 | 263.47 | −0.01% |
+
+**The national level does not move at all, by construction.** The frost
+relativity is normalised to an exposure-weighted mean of exactly 1
+before it reaches `eow_rate`, and `calibrate_frequency` re-pins the level
+regardless, so this is a **pure redistribution**: it changes where EoW
+claims fall, never how many there are. That is the cleanest kind of
+model change — no re-levelling to defend, only geography.
+
+**Where it moves, and it is the right places.** Risers are the Scottish
+Highlands, the frostiest districts in the UK: PH10 +11.2% (group 4→7),
+AB36 +10.7%, IV4 +10.3%, PH18 +10.2%, PH20 +9.5%, PH26 +9.3%, IV13
++8.9%, PH22 +8.8%, AB35 +8.7%. Fallers are the mildest, near-frost-free
+coast: TR22 −5.5%, TR23 −5.2%, TR21 −5.0%, TR24 −4.9% (Isles of Scilly),
+TR5 −4.6%, PL29 −4.5%, TR25 −4.4%, PL28 −4.3%, TR19 −4.3%, TR26 −4.3%
+(west Cornwall). Raising the freeze-sensitive slice should shift burst
+pipes from Penzance to Aviemore, and that is precisely what it did — the
+sign test passes on both tails at once.
+
+**Distribution:** median +0.14%, p5 −2.27%, p95 +3.03%; 1,444 rise, 1,224
+fall, 68 flat. Rating-group churn 579 of 2,736 (21.2%), 17.1% of
+households, **16 move by ≥2 groups**. Premium Spearman **0.9933**;
+dispersion p90/p10 1.544 → 1.531, so the map barely widens or narrows.
+
+**The case for taking it:** it replaces an unanchored knob with a
+two-year-consistent published one, at zero cost to the national level,
+and moves the geography in the direction the physics demands. It is the
+least contentious of the three open experiments — nothing about the
+headline premium changes, so there is no re-levelling to justify.
+
+**The one caveat:** 0.31 is derived from burst-pipe cost as a share of
+*total home paid*, divided by EoW's *share of the book*. Both numerators
+come from ABI releases, but the 19.3% EoW share and the burst-pipe
+percentage are not stated in the same table, so the ratio is assembled
+rather than published. Two years agreeing to 0.004 is strong evidence
+the assembly is sound; it is not the same as ABI printing 0.31.
+
+## exp/theft-level, priced 2026-08-23 — AWAITING THE USER'S DECISION
+
+Branch `exp/theft-level`, CI run
+[32607071195](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32607071195),
+`commit=false`. **Not merged. The swap is the user's call.**
+
+**One input changed:** `theft_paid` 450e6 → **341.6e6**, severity held at
+the current published ABI average of £3,800. The direction is the
+defensible one — theft's *paid total* is the stale half (2018), its
+*average* is current (2025) — and 0.58%/policy × 15.5m × £3,800 = £341.6m
+is the bottom of the envelope DATA_SOURCES #25 already documents.
+
+**The dose-response across theft's own documented envelope** (analytic;
+EL is `paid ÷ policies` by construction, so this needs no simulation):
+
+| theft level | £m | claims | % of 560k | book EL | premium | vs published |
+|---|---|---|---|---|---|---|
+| 2018 paid at 2018 avg (envelope top) | 571 | 150,350 | 26.85% | 179.00 | 184.55 | +4.5% |
+| **as shipped** (2018 paid ÷ 2025 avg) | 450 | 118,421 | 21.15% | 171.11 | 176.66 | — |
+| **this branch** — floor, claims fell with burglary | 342 | 89,900 | 16.05% | 164.06 | 169.61 | −4.0% |
+| fits the count budget alone | 242 | 63,779 | 11.39% | 157.61 | 163.16 | −7.6% |
+
+**What CI actually produced**, against the published artifact:
+
+| | published | branch | change |
+|---|---|---|---|
+| expected loss | 171.11 | 164.12 | **−4.09%** |
+| premium | 176.66 | 169.66 | **−3.96%** |
+| capital | 5.54 | 5.54 | **−0.03%** |
+
+**Capital does not move at all**, which confirms the mechanism rather
+than assuming it: `W_THEFT = 0.0013` makes theft almost fully
+diversifying, so its contribution to the worst 1% of years is its mean,
+`tvar99_euler` falls exactly with EL, and the correction is a **pure
+level change with no tail effect**. The analytic prediction was −4.0% and
+CI returned −3.96%.
+
+**Distribution of the move:** median −3.2%, p10 −6.3%, p90 −1.4%, range
+−11.9% to +0.1%. 2,657 districts fall, 1 rises. Rating-group churn 731 of
+2,736 (26.7%), 27.2% of households, but **only 3 move by ≥2 groups**.
+Premium Spearman **0.993** — the ranking survives.
+
+**Who loses most:** EC3V −11.9%, B40 −11.4%, EC4M −11.4%, LS2 −11.2%,
+W1C −11.0%, WC2E −11.0%, WC2H −10.9%, LS1 −10.6%, SR1 −10.2%. Every one
+is a commercial-core or city-centre district — the high-burglary end,
+which is exactly where a theft level cut should land. All stay in
+group 10.
+
+**Dispersion barely changes:** EL p90/p10 1.549 → 1.524, premium 1.544 →
+1.517. The map compresses slightly and tells the same story.
+
+### Two things to weigh before deciding
+
+**1. Even the floor does not fully fit the count budget.** 89,895 claims
+clears the 99,955 the six pinned legs leave, with 10,060 spare — but
+away-from-home accidental damage alone needs 36,176 of those, before any
+liability or legal expenses. So this correction improves the book without
+closing it, and theft is probably not the last word.
+
+**2. The attribution rests on two shares that may not be the right
+population.** Two of the six "pinned" counts — EoW 29.38% and AD 24.53% —
+come from GoCompare's **quote-declared** claims table (40,962 claims
+declared at quote, typically a five-year lookback). The model applies
+those shares to the ABI's 560,000 *paid* claims in a single year. Those
+are different populations. DATA_SOURCES is internally inconsistent about
+it: #26 calls the EoW figure "GoCompare from ABI data" while #28 says it
+is the quote-declared table and that EoW's share comes from the same
+place. **If either share is overstated, theft's budget is larger and the
+case for this cut is weaker.** GoCompare bot-blocks fetches, so this
+could not be resolved here. It is the first thing to settle if the
+decision is close.
+
+## Coverage backtest 2026-08-23: the first test against real years
+
+Until now nothing in this repo had ever checked the model's distribution
+of years against a year that actually happened.
+`scripts/backtest_coverage.py` does, for the one part of the book where
+the ABI publishes an annual series. It compares the simulated national
+**storm + flood** distribution against the published per-year totals.
+Storm and flood are used because they map one-to-one onto `w_v` and `f_v`
+and are published separately per year; the ABI's headline weather line
+also contains burst pipes, which sits inside the EoW leg behind
+`EOW_FREEZE_SHARE` and cannot be split back out of the year view.
+
+```
+.venv/Scripts/python.exe scripts/backtest_coverage.py          # cached, instant
+.venv/Scripts/python.exe scripts/backtest_coverage.py --fresh  # re-simulates, ~40 min
+```
+
+The 20,000-year series is cached in `data/backtest_years.npz` (204 KB).
+**Re-run with `--fresh` after ANY change to `build_model.py`** — the
+cache has no way to know the model moved under it.
+
+**The simulated distribution, GBP m national:**
+
+| p1 | p5 | p25 | **p50** | p75 | p95 | p99 | mean | cv |
+|---|---|---|---|---|---|---|---|---|
+| 51 | 102 | 238 | **413** | 701 | 1,435 | 2,361 | 547 | 0.885 |
+
+| year | storm | flood | total | model percentile |
+|---|---|---|---|---|
+| 2023 | 133 | 286 | 419 | 50.7% |
+| 2024 | 185 | 226 | 411 | 49.7% |
+| 2025 | 244 | 312 | 556 | 64.8% |
+
+**On coverage the model passes.** 3 of 3 observed years land in its
+middle half. Read the MEDIAN (413), not the mean (547) — the distribution
+is strongly right-skewed, so most years sit well below the mean by
+construction, and comparing a handful of years against the mean and
+calling the gap bias is a mistake. That is the mistake I made earlier the
+same day; see the retraction in the section below.
+
+**The real test, a 200k bootstrap of 3-year windows:**
+
+| statistic | observed | model median | P(model ≤ observed) |
+|---|---|---|---|
+| mean of the window | 462 | 490 | **0.450** |
+| cv within the window | 0.176 | 0.608 | **0.048** |
+
+- **Level: not contradicted.** The observed 3-year mean sits at the 45th
+  percentile of what the model expects a 3-year window to average.
+  Completely unremarkable.
+- **Spread: the model's ordinary years are too volatile.** Only 4.8% of
+  simulated 3-year windows are as steady as the observed one.
+
+**Caveats on the spread result, which are serious.** n = 3, so the sample
+cv is heavily biased and noisy; p = 0.048 on three points is weak
+evidence. The window is 2022–2025 and contains **no catastrophic flood
+year** — 2007 (~£3bn insured) or 2015–16 Desmond/Eva would widen the
+observed spread a long way. Four quiet years cannot measure a tail. What
+they can say is that the model's *ordinary* years are too volatile, which
+is a narrower and more testable claim, and each new ABI year tests it.
+
+**And then the proportionality check, which cuts it down to size.** Read
+off the shipped artifact:
+
+| | |
+|---|---|
+| expected loss | £171.11 |
+| premium | £176.66 |
+| **capital — the tail's entire contribution** | **£5.54 = 3.1% of premium** |
+| capital as % of premium, across districts | 1.5% – 4.3% |
+| EL p90/p10 | 1.55 |
+| premium p90/p10 | 1.54 |
+
+**Deleting the capital charge entirely would move the premium by 3.1%.**
+A tail that is too wide by some fraction moves it by less. And the map's
+spatial pattern is not the tail's at all — EL and premium have the same
+dispersion, so what the map shows is expected loss, full stop.
+
+**So the spread finding is real, worth recording, and is not where the
+money is.** Expected loss is 97% of the premium and 100% of the map. The
+theft level — one leg carrying 17% of EL (£29 of £171) and over its
+claim-count budget on every reading — is worth roughly **2.5× the entire
+capital charge**. That is the priority, and this backtest is what
+established the ordering rather than guessing at it.
+
+## The ABI releases, read properly, 2026-08-23
+
+The user asked for annual ABI data, used granularly, at whatever grain we
+actually have it. The primary releases are now transcribed one figure at
+a time into **`data/abi_annual.csv`**, each row carrying its source URL, a
+`published`/`derived` flag and the release it came from. Use that file.
+Do not re-derive these numbers from a search summary — the summaries
+disagree with the releases and with each other, which is how the error
+below survived a day.
+
+**What the £758m weather line actually is — and the correction to my own
+flag of 2026-08-22.** The 2026-02 release's footnote 3 says the weather
+figures cover *"damage caused by burst or frozen pipes, escape of water,
+as well as damage as a result from storms and flooding"*. Read alone,
+that says the whole EoW book is inside £758m, which contradicts the £657m
+EoW anchor — and that is what I flagged. **It is not a contradiction.**
+The 2024-04 release itemises the same line for 2023:
+
+| 2023 weather line | £m |
+|---|---|
+| storm damage to homes | 133 |
+| flooding | 286 |
+| **burst pipes** | **153** |
+| total (published 573) | 572 |
+
+The water component is **burst pipes only**, a subset of the EoW book —
+so 2025's residual, £758m − £244m − £312m = **£202m, is burst pipes**, and
+the £657m anchor stands. The "£1,451m alternative headroom" in my
+2026-08-22 note does not exist. What does survive: DATA_SOURCES:472 and
+:518 still add the weather line and the EoW anchor as separate remainder
+items, double-counting the **£202m** they overlap in — an overstatement of
+£202m, not £657m.
+
+**Also settled: the storm, flood and subsidence anchors are genuinely
+2025.** All three are quoted directly in the 2026-02 release (£244m,
+£312m, £307m), as are the £2,450 and £30,000 averages. Source 16's "2025"
+label is correct and the per-peril weather totals were not withdrawn.
+Storm's 17.78% claim share is therefore the ABI's own implication, not a
+modelling artefact — which removes storm as the second suspect behind the
+claim-count overshoot and leaves theft carrying it alone.
+
+**Three new findings, none of them yet acted on.**
+
+**1. The level is fitted to one year — but the data does NOT show it is
+wrong.** I first wrote this section up as "a record year priced as the
+expectation". That overstated it, and both halves of the evidence
+dissolved on contact with the arithmetic. Recording the retraction
+because the raw table is seductive:
+
+| year | ABI storm | ABI flood | sum | model anchor | model as % |
+|---|---|---|---|---|---|
+| 2023 | 133 | 286 | 419 | 556 | 133% |
+| 2024 | 185 | 226 | 411 | 556 | 135% |
+| 2025 | 244 | 312 | 556 | 556 | 100% |
+| **mean** | | | **462** | **556** | **120%** |
+
+Storm and flood *are* anchored 20% above their own three-year average.
+That is **not** evidence the level is too high. The anchor **is** the
+model's mean by construction, and the simulated distribution is strongly
+right-skewed — cv ≈ 0.9, median ≈ 25% below the mean — so most years
+falling below the mean is what the distribution looks like, not a
+finding. `backtest_coverage.py` runs the real test, a bootstrap of
+three-year windows, and does not reject the level.
+
+The book-level version dissolved even more completely. The model's
+expected loss for seven perils (£2,631m) exceeds the ABI's actual
+all-home total for 2022 (£2,330m) and 2023 (£2,550m), which looks
+damning — until you notice those are 2022 and 2023 pounds against a
+2025-anchored model, and that the ABI's average home claim rose **15% in
+2025 alone**:
+
+| claims inflation assumed | 2022→2025 | 2023→2025 | model as % of each |
+|---|---|---|---|
+| 0%/yr | 2,330 | 2,550 | 113% / 103% |
+| 5%/yr | 2,697 | 2,811 | 98% / 94% |
+| 10%/yr | 3,101 | 3,086 | 85% / 85% |
+| 15%/yr | 3,544 | 3,372 | 74% / 78% |
+
+From about 8%/yr upward the model sits below every observed year, which
+is where a seven-peril subset of an eleven-category book belongs. **The
+apparent overshoot was mostly a price-basis artefact.**
+
+**What does stand, and needs no data to see:** `E[loss]` is fitted to a
+SINGLE year. One year is one draw. The systemic loadings `W_*` get
+multi-decade series while the level gets n=1 — which is backwards, since
+every year gives you a total, making the mean the better-evidenced of the
+two. That is a methodology defect whether or not the current value
+happens to land close.
+
+**And the blocker for fixing it: this repo has no claims-inflation index
+and no stated "as at" date for the premium.** Until it has both, no
+multi-year level can be built and the table above cannot be resolved.
+That is the real finding here.
+
+**2. `EOW_FREEZE_SHARE = 0.15` is below what the data implies.** Burst
+pipes were £153m of a £657m EoW book in 2023 (0.23) and £202m in 2025
+(0.31). Neither year supports 0.15. Raising it pushes EoW's geography
+harder onto frost days and changes its systemic loading, so it is a model
+change and needs an experiment branch.
+
+**3. `TAIL_FREQ_RATIO = 2.0` was an undocumented knob that sets the tail
+width of every published premium — now MEASURED and DOCUMENTED, value
+unchanged.** It appeared in `build_model.py` and **nowhere else in the
+repo**: no DATA_SOURCES entry, no README, no methodology page. Yet it is
+the sole target `calibrate_spatial` solves against, which fixes
+`SPATIAL_SCALE`, which drives the year view, `tvar99_euler`, capital and
+premium. The house rule is that a parameter without a published anchor
+does not ship; this one shipped.
+
+`data/history.csv` had been sitting in the repo with 35 years of per-year
+hazard drivers, used for nothing but a chart. `scripts/tail_ratio_from_history.py`
+now measures the target against it. The target is a ratio of claim
+*counts*, so the proxy has to drive how many homes claim, not how hard
+each is hit — `storm_days` (gust ≥ 70 km/h), not `max_gust`:
+
+| proxy | CV | obs max/mean | lognormal 1-in-100 | gamma |
+|---|---|---|---|---|
+| `storm_days` (primary) | 0.284 | 1.67 | **1.84** | 1.78 |
+| `storm_days^1.5` | 0.419 | 2.09 | 2.35 | 2.22 |
+| `rain5d` | 0.129 | 1.33 | 1.34 | 1.32 |
+| `max_gust` (wrong shape) | 0.077 | 1.17 | 1.19 | 1.19 |
+
+**2.0 sits inside the supported range of 1.78–2.35**, so the knob was
+undocumented rather than wrong. It keeps its value and gains a
+DATA_SOURCES entry under source 15. `storm_days` shows no significant
+trend (−0.039 days/yr, p = 0.77), so fitting its raw spread is legitimate.
+What this does *not* establish is that storm days convert to claim counts
+one-for-one — and note the proxy choice moves the answer far more than
+the fitted distribution does, since `max_gust` would have halved the
+tail. A claims triangle would settle it.
+
+**One thing to know before trusting any of this as a time series: the ABI
+restates it, and its releases contradict each other.** The 2024-04
+release puts 2023 at £573m and calls it the record. The 2025-02 release
+puts 2024 at £585m, calls it *"£127 million (28%) higher than … 2023"*
+(implying £458m) and names **2022** the previous record. Both cannot be
+right. Footnote 3 of the 2024-04 release gives the mechanism — *"This
+figure will include claims not yet fully settled"* — but not the
+direction. `abi_annual.csv` carries both the 573 and the 458 rows,
+flagged. **Pick one vintage of the series and stay inside it; never mix a
+figure as-published with a later release's comparative.**
+
+## Claim-count overshoot: attributed 2026-08-22
+
+Reproduce all of this in a second, with no simulation:
+
+```
+.venv/Scripts/python.exe scripts/anchor_budget.py
+```
+
+**The count overshoot and the money undershoot are one fault, not two.**
+103.3% of the ABI's claims on 77.4% of its money means only one thing:
+the modelled book's average claim is £4,548 against the ABI's £6,071, a
+quarter too cheap. And the sign is wrong. What the model leaves out —
+legal expenses, personal possessions, liability, alternative
+accommodation — is the *cheap* end of a home book, so stripping it out
+should push the modelled subset's average **above** £6,071, not a
+quarter below it. Whatever is wrong is a leg carrying too many claims
+that are too small, and it will show up in the count budget.
+
+**Six of the seven counts are pinned by something outside their own
+leg. One is not.**
+
+| leg | claims | % of 560k | by-product | what pins the count |
+|---|---|---|---|---|
+| storm | 99,592 | 17.78% | count | ABI 2025 paid AND ABI 2025 average, one release |
+| flood | 10,400 | 1.86% | count | ABI 2025 paid AND ABI 2025 average, one release |
+| subsidence | 17,228 | 3.08% | count | ABI 2025 paid AND ABI 2025 average, one release |
+| escape of water | 164,250 | 29.33% | severity | GoCompare 29.38% — VERIFIED, and closes the triangle |
+| fire | 31,000 | 5.54% | paid | Home Office FIRE0201 attended dwelling fires 2024/25 |
+| accidental damage | 137,576 | 24.57% | paid | GoCompare 24.53% — VERIFIED (at home + outside) |
+| **theft** | **118,421** | **21.15%** | **count** | **nothing: 2018 paid ÷ 2025 average** |
+
+The six leave **99,955 claims (17.85%)** for theft and for everything
+unmodelled. Theft takes 118,421 — it **overruns the entire remaining
+budget by 18,466 claims on its own**, which is the whole overshoot,
+exactly.
+
+**And the remainder is not empty.** Away-from-home accidental damage is
+6.46% of the same GoCompare table; it is real, it is inside the ABI's
+560,000, and `build_model.py:296` deliberately excludes it from the
+model — so it is a charge against the remainder. That leaves **11.39%
+(63,779 claims)** for theft, before a single pound of liability or legal
+expenses. Theft does not fit on *any* reading of its own documented
+vintage envelope:
+
+| theft basis | %/policy | claims | % of 560k | fits? |
+|---|---|---|---|---|
+| as it ships (2018 paid ÷ 2025 average) | 0.76% | 118,421 | 21.15% | no |
+| 2018 paid at the 2018 average, as published | 0.97% | 150,350 | 26.85% | no |
+| floor: if claims fell with recorded burglary | 0.58% | 89,900 | 16.05% | no |
+
+**So theft is the largest single cause and is over on every reading —
+but it cannot be the only one.** Even the floor of its envelope is
+4.66pp (26,121 claims) over, with nothing left for liability. The two
+statements "theft ≤ 63,779" (from the budget) and "theft ≥ 89,900" (from
+its own documented floor) do not overlap, so one of the other six is
+also wrong.
+
+**The next suspect is storm, and there is provenance evidence against
+it.** Storm is the only other large count derived by dividing a paid
+total by an average: 17.78% of all UK home claims. Its £244m and
+flood's £312m are tabled in DATA_SOURCES as "UK domestic claims by
+peril, **2025**" (line 26) — but DATA_SOURCES:402 records that the ABI's
+2025 full-year release **stopped publishing per-peril weather totals**
+and reports one £758m "weather-related damage to homes" line instead.
+Both cannot be true of the same release. Source #16's narrative entry
+gives no vintage at all, so the storm and flood anchors need their
+release identified before storm's 17.78% can be defended or moved.
+
+**The same £758m line is separately self-contradictory on the money
+side.** DATA_SOURCES:402 says it covers storm, flood *and* escape of
+water. Beside the anchors that cannot hold: £758m − £556m of storm and
+flood leaves £202m for EoW, against an EoW anchor of £657m. Then
+DATA_SOURCES:472 and :518 size the fire and AD triangles against a
+remainder built by adding the £758m weather line and the £657m EoW
+anchor as *separate* items — which on line 402's own reading
+double-counts EoW. The headroom those two triangles were checked
+against is either £794m as documented, or £1,451m — a 1.8× difference.
+Settling it needs the ABI release itself.
+
+**None of this is a publishing emergency, for the reason already
+recorded:** each peril's EL is paid ÷ policies by construction, so the
+premium follows the *money* anchors and is untouched by the count
+budget. `el_total` is £171.11/policy and does not move. What a theft
+correction would move is the tail. Holding theft's £450m and raising
+its severity to fit the budget means fewer, larger claims: EL is
+unchanged by construction and the tail should fatten, so `tvar99_euler`,
+capital and premium should rise — *expected, not measured; that is what
+the experiment branch is for*. Holding the £3,800 average and cutting
+the count instead drops theft's paid to ~£242m, which takes 7.9% off EL
+— that one is arithmetic, not a simulation result. **The two corrections
+move the premium in opposite directions, which is exactly why this needs
+an experiment branch with priced evidence and a decision from the user,
+not a quiet edit to the `ABI` dict.**
+
+Read this before any Phase 3 work. The buildings/contents split reasons
+from frequency, and theft's frequency is the number this section says
+is wrong.
+
+## tvar99_vine seed sensitivity, measured 2026-08-22
+
+Six seeds (42-47) through `simulate()` on the real scored frame, both
+the published code and its pre-fix parent (1fdfbb5), same seeds, same
+spatial calibration. Reproduce with `scripts/seed_sweep.py` — but see
+the harness warning at the end, which cost a full wrong run.
+
+**The three questions, answered.**
+
+1. **Did the five fixes worsen it? No.** `tvar99_vine` relative SD
+   across six seeds: **12.25% before, 12.40% after**. The 0.15pp is
+   inside the noise of a six-seed estimate and is directionally what
+   the fatter moment-matched flood severity would do. This closes the
+   question the publish left open.
+
+2. **They removed a far bigger one.** Pre-fix, `el_total` itself was
+   seed-dependent — relative SD **7.31%**, range 166.52 to 199.80 —
+   because the four vine perils took their EL from draws. Premium
+   inherited it: **relative SD 6.69%, range 172.23 to 203.58, a 17.24%
+   spread**. Post-fix `el_total` is bit-identical across all six seeds
+   and premium spans **176.6576 to 176.7926, a 0.076% spread**. The
+   premium seed lottery shrank by a factor of ~227. Put plainly: the
+   premium published before 2026-08-19 was a draw from a ±17% seed
+   distribution, and 174.2409 happened to be near its low end.
+
+3. **The swing is 36%, not 14.7%, and the site does read it.** 14.7%
+   was just the 42->43 pair. Across six seeds `tvar99_vine` runs
+   **12,172 to 17,301** (household-weighted; thirty seeds later widened the
+   unweighted mean to 10,157-17,515). And `build_site.py` injects it into
+   `__MEAN_STANDALONE__` and `__DIVERSIFICATION__`, and ships it as a
+   CSV column — so "nothing reads it" was wrong about the site even
+   though it stays true of the premium path.
+
+**Why it will not settle down.** Two independent causes, and the
+second is the interesting one.
+
+*It is a thin-sample estimator.* `tvar()` averages the worst
+`k = N_SIM/100 = 200` of 20,000 years. With severity sigma up to 1.30
+(fire) that mean is carried by a handful of draws.
+
+*Nothing averages it away.* `base` is drawn ONCE in `simulate()` and
+broadcast to every district, so year j is the same state of the world
+everywhere and the per-district errors are near-perfectly correlated.
+Measured directly: national relative SD divided by median per-district
+relative SD is **0.964**. Independent errors across 2,736 districts
+(effective N 1,812 on household weights) would give **0.023**. A
+national portfolio buys essentially NO error reduction on this number.
+Getting to 1% would need ~154x the years — about 3.1M per district.
+
+**Why `tvar99_euler` is fine and premium is fine.** The year view mixes
+each district's systemic factor with idiosyncratic noise at the
+CALIBRATED spatial loadings, and those are tiny — `SPATIAL_SCALE`
+solves to 0.025, giving w/f/s/g of 0.013/0.010/0.015/0.018. Districts
+are therefore nearly independent in that view, the portfolio aggregate
+does average down, and `tvar99_euler` lands at relative SD **0.33%**
+(263.5 to 265.7). Capital and premium ride on that, not on the vine
+tail. The two numbers behave differently for a real structural reason,
+not by luck.
+
+**What this means for the published page.** The premium map is sound.
+The exposure is confined to two injected numbers:
+
+| published | value | thirty-seed range | verdict |
+| --- | --- | --- | --- |
+| `__MEAN_STANDALONE__` | GBP11,956 | 10,157 - 17,515 (56.1%) | not a reliable point estimate; seed 42 ranks 9th of 30, in the lower third. RETIRED — replaced by `__STANDALONE_LO__`/`__STANDALONE_HI__` |
+| `__DIVERSIFICATION__` | 98% | 97.42% - 98.48% | robust — the ratio is stable even though its numerator is not, and rounding to 0dp hides the rest |
+| `premium` | 176.6581 | 176.58 - 176.92 (0.192%) | sound |
+
+So the homepage tile survives on its merits; the methodology sentence
+"a single policy's standalone TVaR99 is about GBP11,956" did not — the
+same model at seed 44 says GBP17,118.
+
+**FIXED and published 2026-08-22.** The sentence now quotes
+GBP10,100-GBP17,600 across THIRTY seeds (42-71, run 2), with a footnote
+giving the mechanism (shared draws, so the error does not average down)
+and the contrast that keeps the rest of the page trustworthy: allocated
+share 2.2%, diversification credit 97.42-98.48%, premium 0.19%. Bounds
+round OUTWARDS to the nearest GBP100 so the quoted range never claims
+to be tighter than what was measured. Nine placeholders are injected
+from `data/seed_sensitivity.json`, written by `scripts/seed_sweep.py
+--write-json` and regenerated by the manual `seed-sweep.yml` workflow —
+NOT hand-written, because hand-written cells are exactly how defect 3
+happened.
+
+**Six seeds understated it, exactly as a min-max must.** The first
+published range was 11,900-17,200 from seeds 42-47. Thirty seeds widen
+it to 10,100-17,600 — the spread goes 36.8% -> 56.1% while the relative
+SD barely moves, 12.60% -> 12.87%. That is the expected signature: the
+SD is a property of the estimator and converges quickly, the min-max is
+a property of the SAMPLE SIZE and keeps growing. Anyone re-running with
+more seeds should expect the quoted range to widen again and should NOT
+read that as the model degrading. If a stable interval is ever wanted,
+quote a percentile band or mean +/- k*SD instead of min-max — the JSON
+carries `per_seed` for all thirty, so no re-run is needed to switch.
+
+The three options not taken, and why: drawing the standalone tail
+independently per district would let the national mean average down but
+would destroy the cross-district comparability shared draws buy;
+computing it semi-analytically is real work for a column nothing prices
+off; and more simulated years is the only route to a genuinely tight
+point estimate — 20,000 -> 1% needs about 154x more, which is not worth
+it for a diagnostic. Quoting the range costs nothing and is honest.
+
+The premium survives the wider sweep: 0.192% across thirty seeds, so
+the map is still sound and the standalone tail is still the only
+exposed number.
+
+**Harness warning, learned the hard way.** `main()` calls
+`calibrate_frequency(gdf)` AND `calibrate_spatial(gdf)`. Any script
+that drives `simulate()` directly must call BOTH. Omitting the second
+leaves `SPATIAL_SCALE` at its module default of 1.0 — a 40x overstated
+spatial loading — which silently inflates `tvar99_euler` by 9.7x while
+leaving `tvar99_vine` and `el_total` bit-identical to the published
+run. The pricing view does not use the loadings and the year view does,
+so a harness can look perfectly validated on the columns you happen to
+check and be wrong on the ones you care about. `analytic_el_check.py`
+omits `calibrate_spatial` legitimately — it only needs marginals.
+## Built AND PUBLISHED 2026-08-19: five defects fixed
+
+**Live since 17be4b4** (rebuild run 34, tests run 32202273388 green on
+both jobs, both grains verified on the live site). Built on branch
+`exp/el-and-flood-fixes` (e025e46, 704866b — branch deleted after merge, commits reachable from main), merged to main at 37f6885
+with a guard fix at 8ab6cbc, sector output crossed at 6805445.
+
+The two defects the 2026-08-18 audit left OPEN are fixed, plus three
+more found while fixing them. Every scope decision was taken by the
+user before any code moved (an eleven-question grilling).
+
+**What the live numbers moved to.** Exposure-weighted premium
+174.2409 -> 176.6581 (+1.39%), driven mostly by groundwater's EL going
+0.412 -> 1.3398 as it stopped being read off a starved draw. The
+sector grain landed at 176.6731, 0.0085% from the district grain.
+Analytic EL matches ABI to +0.00% for all seven anchored perils and
+the portfolio reconciles at +0.0188% excluding groundwater.
+
+**One caveat on the CI artifact.** CI's rebuild rewrote 276 of 2,736
+districts in `data/districts_risk.geojson` versus the laptop build,
+entirely in `capital`, `tvar99_euler`, `premium_cc`, `capital_cc` and
+`cc_uplift_pct` — max relative change 4.6e-04, last-digit float drift
+from a different BLAS in the TVaR Euler allocation. No `el_*` column
+and no `premium` value moved. The CI artifact is the published one.
+
+**Defect 1 — the four vine perils published draw-mean ELs.**
+`calibrate_frequency` solves `FREQ_SCALE[k] = ABI_TARGET_FREQ[k] /
+raw[k]` against the exposure-weighted mean of the ANALYTIC p; no draw
+enters that loop, and `_median_for_mean` pins `E[sev]`. So `p*E[sev]` IS
+the calibration target and the draw mean was only ever an estimate of
+it. The comment that stood at the `el_total` site claimed the ABI
+scaling had been "solved against" those draw means. It had not. That
+comment was wrong and is corrected in the code.
+
+Groundwater is the case that proves it, and it was hiding in plain
+sight: it published £0.412 against an analytic £1.342, a 3.3x gap. Its
+p is 6.7e-5 — between erosion's 1.5e-5 and the attritional legs — and
+its spatial loading is 0.70, the HIGHEST of the four, so districts claim
+together and the effective sample is ~20,000 correlated years, not
+2,736 x 20,000 district-years. That is precisely the trap this file
+already documents for erosion, at 4.5x erosion's frequency. The three
+commoner vine perils hid it because their noise looks like rounding.
+
+Capital follows: `el_year`, itself a draw mean and already +0.54%
+adrift, is replaced by `el_total` in `capital` and `capital_cc`.
+
+**Defect 2 — flood severity blended GEOMETRICALLY.** Probability-
+weighting `mu` makes `exp(w1*mu1 + w2*mu2)`, the weighted geometric mean
+of the medians, which sits strictly below the arithmetic mean the ABI
+anchor is stated on. Now moment-matched on mean AND variance, which
+makes sigma per-district; `inv_mixed_cdf` broadcasts sigma as it already
+broadcast mu. Closed the gap from -6.04% to -2.26%.
+
+**Defect 3 — the published "Median severity" column was stale.** Six of
+its nine cells were hand-written in the FIRST commit (28a0609), before
+eb288ee introduced the ABI calibration, and never revisited: weather
+read £3,500 against a true median of £1,338 (+162%), and groundwater and
+erosion showed MEANS under a median header. The four Phase 1 rows added
+later were correct, so the convention was right and only the old rows
+drifted. All nine are now injected from `ABI` and `SEV_SIGMA` and cannot
+go stale again. `SEV_SIGMA` is promoted to module level for that purpose
+only; no sigma value changes and every per-peril justification stays at
+its point of use.
+
+**Defect 4 — flood's target frequency came from a headline the model
+contradicts.** Found while measuring defect 2, which narrowed the gap
+but did not close it. Decomposed: the `sw_sev` normalisation basis is
+worth +0.16%, the fluvial/surface-water frequency mix -2.41%. The EA
+zone areas make 66.33% of flood claims fluvial; the £30,000 blended ABI
+headline implies 70.59%. `sev_flood` 30,000, `sev_flood_fluvial` 35,000
+and `sev_surface_water` 18,000 CANNOT all be consistent with the EA
+geography — any two determine the third.
+
+Flood is the only peril whose severity is BUILT from components rather
+than read from one ABI figure, so it is the only one where `E[sev]` can
+differ from the number used to turn paid into a frequency. For the other
+seven, `EL == paid / POLICIES` exactly. `calibrate_frequency` now
+derives flood's target from the £29,322 its legs actually blend to,
+restoring that invariant. The hard anchor is the published £312m paid;
+£30,000 was only ever an intermediate, and it is the one of the three
+figures the model does not otherwise use. Nothing is invented, no
+published component severity moves, and the +2.31% frequency rise is
+uniform so no district's ranking changes. Groundwater follows, pegged
+at 10% of flood.
+
+**Measured, analytic vs ABI:**
+
+| stage | flood gap |
+|---|---|
+| as published on main | -6.04% |
+| after defect 2 | -2.26% |
+| after defect 4 | **+0.00%** |
+
+sub, wx, th, eow, fire and ad are +0.00% at every stage.
+
+**Evidence run (district, seed 42, full chain build_model ->
+build_analysis -> build_site):**
+
+| column | published main | new | change |
+|---|---|---|---|
+| el_sub | 22.2725 | 19.8055 | -11.08% |
+| el_wx | 15.5256 | 15.7434 | +1.40% |
+| el_fl | 16.4712 | 20.1290 | +22.21% |
+| el_gw | 0.4118 | 1.3398 | +225.38% |
+| el_th, el_eow, el_fire, el_ad, el_er | — | — | **bit-identical** |
+| el_total | 168.7457 | 171.1136 | +1.40% |
+| capital | 5.4956 | 5.5427 | +0.86% |
+| premium | 174.2409 | 176.6581 | +1.39% |
+
+The four attritional legs are bit-identical across all 2,736 districts,
+max |delta| exactly 0.000e+00 — the U-draw order th->eow->fire->ad is
+preserved, as it must be.
+
+**The number that matters most.** Excluding groundwater, which has no
+published anchor, the model now reproduces `ABI_LOSS_PER_POLICY`:
+£169.7738 modelled against £169.7419 published, **+0.0188%**. Before
+these fixes that reconciliation was 77.4% of £3.4bn with a claim-count
+overshoot; the money side is now exact to two basis points.
+
+**Second-seed check (RNG_SEED 43), and it is stronger than the bar we
+set.** The bar asked that the four vine ELs "barely move" across seeds.
+They cannot move at all: now that every EL is analytic, all TEN el_*
+columns are bit-identical between seed 42 and seed 43, max |delta|
+exactly 0.000e+00 across all 2,736 districts. Seed dependence has been
+removed from the published expected-loss level entirely, which is the
+real content of defect 1. The simulated columns move as they should:
+`tvar99_euler` +0.431%, capital +1.228%, premium +0.039%.
+
+One honest caveat: `tvar99_vine` moves +14.7% between seeds (12,172 ->
+13,967). That is a per-district far tail out of 20,000 years and is
+inherently noisy; premium uses `tvar99_euler`, not this. I have NOT
+established whether these changes made it more seed-sensitive than it
+was on main, only that it is sensitive.
+
+> **Resolved 2026-08-22 — see "tvar99_vine seed sensitivity" below.**
+> The answer is no: 12.25% -> 12.40% relative SD, immaterial. The same
+> measurement found something much larger that these fixes REMOVED, and
+> corrected two claims in the paragraph above: the swing is 36% across
+> six seeds, not 14.7%, and the site does read this column.
+
+**Defect 5, found and NOT yet fixed — the reconciliation check that
+should have caught defect 4 cannot.** `build_model.py`'s own check
+prints `float(gdf["el_total"].mean())` — an UNWEIGHTED district mean —
+against `ABI_LOSS_PER_POLICY`, a national per-policy figure, formatted
+to ZERO decimal places, and `el_total` includes groundwater while
+`ABI_LOSS_PER_POLICY` does not. Three mismatches at once. It reported
+"-0%" while flood was 2.26% under its anchor. Its label also still says
+"these four perils"; there are eight. Diagnostic only — no published
+number reads it — but it is the guard that failed, so it should be
+exposure-weighted, gw-excluded and printed to 2dp.
+
+**Not done, deliberately.** The 103.3% claim-count overshoot is
+untouched and still documented above: bundling a judgement-driven anchor
+move with arithmetic fixes would make this run unattributable. Phase 2c
+stays parked for the same reason.
+
+**Also on this branch: the Phase 3 disclosure.** The same peril table
+gains % of claim cost, and buildings/contents on the 57% of cost that
+has a published anchor, with weather, escape of water and accidental
+damage shown "unsplit" rather than given an invented number. Flood uses
+the MCM convention (48/52), footnoted with Flood Re's 66/34 and the EA's
+25/75 and why MCM is preferred — it is the only one of the three that
+measures damage to the property. NO portfolio headline figure: the
+honest bound is 31.8%-79.5% buildings, and a 43-point band is not a
+headline.
+
+**Determinism confirmed, and it caught a provenance slip.** Re-running
+`build_model.py` after the defect-5 print change reproduced
+`data/districts_risk.geojson` BYTE-IDENTICALLY - the build is
+deterministic given RNG_SEED. It also showed `data/year_analysis.json`
+changing, which was not nondeterminism but a mistake: the second-seed
+script restored the geojson from its saved seed-42 copy after the
+seed-43 run, and `build_model.py` writes year_analysis.json too, which
+was not restored. Commit 2bfb36e therefore carried a seed-43 year
+analysis beside seed-42 everything-else. Fixed in e5b623e;
+`docs/years.html` was unaffected, so nothing downstream had consumed it.
+**Lesson: build_model.py writes TWO artifacts. Any script that swaps
+seeds must restore both.**
+
+**Publishing is the user's call and has NOT been given.** Remaining, in
+order: fix defect 5, sector rebuild in the worktree, copy output across,
+merge to main, rebuild with commit=true, verify live.
+
+## Phase 2 status: 2a PUBLISHED 2026-08-18, 2c built and NOT published
+
+Both experiment branches were built, verified and priced. The user chose
+**"2a only"**: 2a is live (see the section above), 2c stays on its branch.
+
+- **2a - theft commercial denominator** - **PUBLISHED, now on main**
+  (`exp/theft-commercial`, eebb5c2+c22aa06 — branch deleted after merge; evidence run 32033558205): rate = burglaries /
   (households + VOA premises), premises from NDR stock by LSOA
   (fetch_premises.py, data/premises.csv, DATA_SOURCES.md #29 on that
   branch). All non-theft columns bit-identical; el_th mean pinned
@@ -390,16 +1443,21 @@ merged - publishing is the user's decision, and none has been given.
   pinned to the penny; premium 174.24 unchanged. Churn 69.1%, 929 by
   >=2 groups: prime London up to +282 (W1J), low-band city cores
   -78 (BD1/SR1). New test pins severity-not-frequency scaling.
-- **They COLLIDE in prime London** (2a cuts W1J, 2c raises it):
-  whichever publishes second must rebase and re-run evidence.
-  Suggested order: 2a first (smaller, promised in the theft section).
-- **Publishing either also needs**: sector-grain input via the
-  OUTWARD D seam on sector-model (premises.csv / ct_bands.csv), a
-  site copy pass (2a: the 6.22% cap figures; 2c: severity prose),
-  then merge -> rebuild commit=true -> live verify.
-- Known stale, untouched (predates both): dependence_check.py and
-  sensitivity.py never gained the attritional rate columns, so both
-  fail at _fields today.
+- **They COLLIDE in prime London** (2a cut W1J, 2c raises it). 2a went
+  first, so the churn numbers in the bullet above are measured against
+  the pre-2a baseline. ~~2c's evidence run is now stale.~~ **REDONE
+  2026-08-25:** `exp/ct-severity` rebased onto published main (afcf0a5)
+  and re-priced by CI 32788080788 - see "exp/ct-severity (Phase 2c),
+  re-priced 2026-08-25" above for the current numbers (churn 69.7%, 974
+  by >=2 groups, Spearman 0.822, premium level unchanged). Still to do
+  if it ships: the site copy pass for the severity prose, and the
+  OUTWARD D seam for ct_bands.csv on sector-model - premises.csv already
+  has it (fetch_premises.py, 9e777f8: 9,700 sectors, 100.0% placed).
+- ~~Known stale: dependence_check.py and sensitivity.py never gained
+  the attritional rate columns, so both fail at `_fields`.~~ **FIXED in
+  c7a26db** ("Analysis scripts learn the attritional rate columns").
+  Both now set th/eow/fire/ad rates plus er_frac and sw_sev. Re-checked
+  2026-08-22: this bullet had been stale for some time.
 
 ## Phase 2 plan (2026-08-17): sources verified, design set, nothing built yet
 
@@ -685,6 +1743,38 @@ the auto-memory; these are the NEW ones:
 
 ## Evidence tooling now in the repo
 
+- `scripts/seed_sweep.py` — seed sensitivity of every simulated column
+  and of the premium, with the national/per-district noise ratio that
+  shows whether an error averages down across districts. Established
+  that `tvar99_vine` does not (ratio 0.964) while premium does.
+  With `--write-json` it writes `data/seed_sensitivity.json`, which
+  build_site injects so the methodology page can quote the standalone
+  tail as a range. Run it via the `seed-sweep.yml` workflow, not on a
+  laptop: a seed is ~3 min in CI (30 seeds = 95 min) and a sleeping laptop kills a long sweep.
+  Calls BOTH calibrations — read its docstring before writing any other
+  harness that drives `simulate()` directly.
+- `scripts/anchor_budget.py` — do the seven per-peril level anchors fit
+  inside the ABI's own 560,000 claims? No simulation, runs in a second,
+  reads `build_model`'s own `ABI` dict so it cannot drift. Reports which
+  of {paid, count, severity} is a by-product for each leg, and therefore
+  which counts are pinned by an outside source and which are not. This
+  is what attributed the claim-count overshoot to theft — see
+  "Claim-count overshoot: attributed 2026-08-22".
+- `scripts/tail_ratio_from_history.py` — measures `TAIL_FREQ_RATIO`
+  against the 35-year ERA5 driver series instead of asserting it, under
+  several proxies and three fitted distributions. Established that the
+  shipped 2.0 is inside the supported range. Instant, no simulation.
+  Writes `data/tail_ratio.json`.
+- `scripts/backtest_coverage.py` — the first check that the model's
+  distribution of years contains years that actually happened. Compares
+  the simulated national storm+flood annual distribution against the
+  ABI's published per-year totals in `data/abi_annual.csv`. Needs one
+  full simulation (~40 min on the laptop). Writes
+  `data/backtest_coverage.json`.
+- `data/abi_annual.csv` — the ABI's annual releases transcribed one
+  figure at a time, each row carrying its source URL and a
+  published/derived flag. The releases restate and contradict each
+  other; read the HANDOFF note before treating it as a clean series.
 - `scripts/compare_rebuild.py` — experiment artifact vs published model
   (premium level, churn, movers). Both model decisions above used it.
 - `scripts/compare_gust_surfaces.py` — two gust point sets IDW'd to
@@ -714,6 +1804,23 @@ never `file://`; CRLF makes checked-out files hash differently from
 served ones; Windows silently strips trailing dots in path lookups, so
 a path-existence test can pass here and fail on Linux CI.
 
+**Where the two resolutions live (moved 2026-08-23).** Both are worktrees
+of this one repo, now under one roof:
+
+```
+C:/Users/sapta/Documents/Geospacial Map UK                          [main]
+C:/Users/sapta/Documents/Geospacial Map UK/.worktrees/sector-model  [sector-model]
+```
+
+It used to sit at `C:/Users/sapta/Documents/GeoUK-sector-model`; that path
+is gone. `.worktrees/` is gitignored — a worktree nested inside another
+worktree of the same repo otherwise appears as ~20 MB of untracked
+content and can reach main by accident. Verified after the move: main's
+`git status` is clean, no script globs recurse from the repo root, and
+all 86 tests pass. **The one-way rule is unchanged: merge main INTO
+`sector-model`, never `sector-model` into main** — only its output
+crosses, renamed `data/sectors_risk.geojson`.
+
 MIDAS specifics: the 8.4 GB mirror sits in gitignored `data/midas/`
 (refetch: `fetch_midas.py`, needs a fresh CEDA token in
 `~/.ceda_token` — tokens live ~72 h and are never committed or
@@ -734,6 +1841,17 @@ remains the no-account fallback and regenerates the pre-swap surface.
   sum insured and construction type.
 - **BGS superficial thickness** (licensed) would make `SUP_WEIGHT`
   physical instead of a bounded prior.
+
+**One open model question, attributed but not decided.** The theft
+level anchor is over its share of the ABI's claim count on every
+reading of its own vintage envelope, and the storm and flood anchors
+need their ABI release identified before storm's 17.78% share can be
+defended — see "Claim-count overshoot: attributed 2026-08-22" and run
+`scripts/anchor_budget.py`. Both directions of a theft correction move
+the published premium, in opposite directions, so this needs an
+experiment branch with priced evidence and a decision from the user.
+The published EL and premium are not wrong today: they follow the money
+anchors, which the count budget does not touch.
 
 Everything else that was ever on a pick-up list is done and live.
 

@@ -205,62 +205,75 @@ __NAV__
         <tr>
           <th>Peril</th><th>Hazard data</th><th>What is measured</th>
           <th class="num">Claim freq.</th><th class="num">Median severity</th>
+          <th class="num">% of claim cost</th><th class="num">Buildings</th><th class="num">Contents</th>
         </tr>
         <tr>
           <td><strong style="color:var(--sub)">Subsidence</strong></td>
           <td>BGS Geology 625k bedrock</td>
           <td>Shrink–swell susceptibility of each formation, area-weighted over the district</td>
-          <td class="num">to 3.0%/yr</td><td class="num">£9,000</td>
+          <td class="num">to 3.0%/yr</td><td class="num">£__SEV_SUB__</td><td class="num">__PCT_SUB__%</td><td class="num">__BLD_SUB__%</td><td class="num">__CNT_SUB__%</td>
         </tr>
         <tr>
           <td><strong style="color:var(--wx)">Weather</strong></td>
           <td>Met Office (incl. MIDAS station gusts)</td>
           <td>Winter wind, wind-driven rain index, 1-in-50 gust, ≥10 mm rain days, annual rainfall</td>
-          <td class="num">to 10.0%/yr</td><td class="num">£3,500</td>
+          <td class="num">to 10.0%/yr</td><td class="num">£__SEV_WX__</td><td class="num">__PCT_WX__%</td><td class="num" colspan="2"><span class="pill">unsplit</span></td>
         </tr>
         <tr>
           <td><strong style="color:var(--fl)">Flood</strong></td>
           <td>EA NaFRA2, NRW FRAW, SEPA</td>
           <td>Share of district area inside river/sea and surface-water flood zones</td>
-          <td class="num">from zone area</td><td class="num">£30k / £15k</td>
+          <td class="num">from zone area</td><td class="num">£__SEV_FL_RS__ / £__SEV_FL_SW__</td><td class="num">__PCT_FL__%</td><td class="num">__BLD_FL__%<sup>†</sup></td><td class="num">__CNT_FL__%<sup>†</sup></td>
         </tr>
         <tr>
           <td><strong style="color:var(--gw)">Groundwater</strong></td>
           <td>EA flood-alert areas</td>
           <td>Share of unit postcodes inside a groundwater flood alert target area</td>
-          <td class="num">to 0.8%/yr</td><td class="num">£20,000</td>
+          <td class="num">to 0.8%/yr</td><td class="num">£__SEV_GW__</td><td class="num">__PCT_GW__%</td><td class="num">__BLD_GW__%<sup>†</sup></td><td class="num">__CNT_GW__%<sup>†</sup></td>
         </tr>
         <tr>
           <td><strong style="color:var(--th)">Theft</strong></td>
           <td>police.uk street-level crime, __TH_MONTHS__ months</td>
-          <td>Burglary rate per household, winsorised at the exposure-weighted 99.9th percentile</td>
-          <td class="num">to 5.3%/yr</td><td class="num">£2,300</td>
+          <td>Burglary rate over households + VOA non-domestic premises (the residential share), p99.9 backstop cap</td>
+          <td class="num">to __TH_CAP_PCT__%/yr</td><td class="num">£__SEV_TH__</td><td class="num">__PCT_TH__%</td><td class="num">__BLD_TH__%</td><td class="num">__CNT_TH__%</td>
         </tr>
         <tr>
           <td><strong style="color:var(--eow)">Escape of water</strong></td>
           <td>Met Office HadUK-Grid air-frost days</td>
           <td>Flat base plus a freeze-attributable slice scaled by annual air-frost days (1991–2020 normal)</td>
-          <td class="num">0.9–1.5%/yr</td><td class="num">£2,400</td>
+          <td class="num">0.9–1.5%/yr</td><td class="num">£__SEV_EOW__</td><td class="num">__PCT_EOW__%</td><td class="num" colspan="2"><span class="pill">unsplit</span></td>
         </tr>
         <tr>
           <td><strong style="color:var(--fire)">Fire</strong></td>
           <td>Home Office / SFRS / Welsh FRA incident data</td>
           <td>Dwelling fires per household — England at LSOA level, Scotland and Wales by local authority / FRA</td>
-          <td class="num">0.03–0.56%/yr</td><td class="num">£6,000</td>
+          <td class="num">0.03–0.56%/yr</td><td class="num">£__SEV_FIRE__</td><td class="num">__PCT_FIRE__%</td><td class="num">__BLD_FIRE__%</td><td class="num">__CNT_FIRE__%</td>
         </tr>
         <tr>
           <td><strong style="color:var(--ad)">Accidental damage</strong></td>
           <td>Census 2021 (E&amp;W) / Scotland's Census 2022</td>
           <td>Flat base plus a child-attributable slice scaled by the district's share of households with dependent children</td>
-          <td class="num">0.8–1.0%/yr</td><td class="num">£1,100</td>
+          <td class="num">0.8–1.0%/yr</td><td class="num">£__SEV_AD__</td><td class="num">__PCT_AD__%</td><td class="num" colspan="2"><span class="pill">unsplit</span></td>
         </tr>
         <tr>
           <td><strong style="color:var(--er)">Erosion</strong> <span class="pill">not insured</span></td>
           <td>EA NCERM National 2024</td>
           <td>Share of district area projected lost to coastal erosion by 2105</td>
-          <td class="num">zone ÷ 80 yr</td><td class="num">£250,000</td>
+          <td class="num">zone ÷ 80 yr</td><td class="num">£__SEV_ER__</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>
         </tr>
       </table>
+      <p class="note"><sup>†</sup> Three published conventions for
+      flood's buildings/contents split disagree: Flood Re's statutory
+      premium caps imply 66/34, the Multi-Coloured Manual's depth-damage
+      curves 48/52, and the Environment Agency's appraisal convention
+      25/75. The MCM figure is used here because it is the only one of the
+      three that measures damage to the property - the other two are a
+      reinsurance pricing artefact and a public-benefit appraisal rule.
+      Across all three the portfolio buildings share moves 4.9 percentage
+      points, against 42.8 points for the three perils left unsplit.
+      Groundwater follows flood. Weather, escape of water and accidental
+      damage have no published split and are shown unsplit rather than
+      given an invented one.</p>
     </div>
     <p class="note">Coastal erosion is the odd one out and is treated as such: it is
     modelled inside the vine but <b>excluded from the premium</b>, because standard UK
@@ -326,17 +339,22 @@ __NAV__
     become home-insurance claims) <b>cancels out and never has to be assumed</b>. The
     police data contributes only what it actually knows: which districts have more
     burglaries than which.</p>
-    <p>Two corrections the raw data needs, both visible in the map:</p>
+    <p>Three corrections the raw data needs, all visible in the map:</p>
     <ul style="color:var(--ink-2); font-size:14px; line-height:1.7">
       <li><b>Commercial contamination.</b> The police "burglary" category includes shops,
       offices and warehouses, and a city-core district can have few households under
-      thousands of retail break-ins — the raw rate exceeds 50%/yr in the worst case, which
-      is not a household risk. Rates are therefore <b>winsorised at the exposure-weighted
-      99.9th percentile</b> (__TH_CAP_PCT__% per year), which leaves <b>__TH_CLIPPED__</b>
-      districts sitting at the cap — the shop-dense cores — while leaving genuinely burglary-heavy
-      residential city centres their measured rates. A tighter cap (the 99th percentile)
-      would have clipped real signal in dense city-centre living districts, which is why
-      it was rejected.</li>
+      thousands of retail break-ins — the raw per-household rate exceeds 50%/yr in the
+      worst case, which is not a household risk. The rate is therefore formed over
+      <b>households plus non-domestic premises</b> (VOA stock-of-properties counts at
+      LSOA, apportioned like the households are), which hands each district only its
+      residential share of the burglary points: the City of London and Mayfair fall to
+      the rate their actual residents face, while dense residential city centres keep
+      their measured rates — nothing is clipped away to achieve it.</li>
+      <li><b>A backstop cap.</b> Rates are still <b>winsorised at the exposure-weighted
+      99.9th percentile</b> (__TH_CAP_PCT__% per year, <b>__TH_CLIPPED__</b> districts at
+      it) — no longer doing the commercial correction's job, just guarding the handful of
+      districts whose combined denominator is so small that a few incidents would
+      otherwise swing the rate wildly.</li>
       <li><b>Scotland.</b> Police Scotland does not publish to police.uk, so Scottish
       districts carry the <b>national housebreaking rate</b> (__TH_SCOT_PCT__%/yr) from
       Recorded Crime in Scotland instead — an override, not a fill, because the only
@@ -416,8 +434,8 @@ __NAV__
     with Glasgow's peripheral estates and dense urban cores at the top and
     rural districts at a fifth of the mean. Rates are winsorised at the
     exposure-weighted 99.9th percentile (__FIRE_CAP_PCT__% of households a
-    year; __FIRE_CLIPPED__ districts sit at the cap), the same guard theft
-    uses.</p>
+    year; __FIRE_CLIPPED__ districts sit at the cap), the same
+    tiny-denominator backstop theft keeps.</p>
     <p><b>Fire buys no capital at all.</b> Forty-five years of national
     counts show a steady secular decline with year-to-year residuals of
     ±2–3%: there are no systemic fire years in the record (even the 2022
@@ -844,11 +862,22 @@ __NAV__
     structure on what a household pays runs through that __CAPITAL_SHARE__% capital charge.</p>
     <p>And that charge is an <i>aggregate</i> quantity, not a personal one: it is
     <b>6% of the district's Euler-allocated share of the portfolio's</b> worst 1% of years,
-    not of its own. The gap is the whole point — a single policy's standalone TVaR₉₉ is
-    about <b>£__MEAN_STANDALONE__</b>, while its allocated share of the portfolio tail is
-    about <b>£__PORT_TVAR__</b>, a <b>__DIVERSIFICATION__% diversification credit</b>. An
-    earlier version charged 6% of the standalone figure and inflated premiums roughly
-    tenfold.</p>
+    not of its own. The gap is the whole point — a single policy's standalone TVaR₉₉ ran
+    <b>£__STANDALONE_LO__–£__STANDALONE_HI__</b> across __SEED_N__ simulation seeds, while
+    its allocated share of the portfolio tail held at about <b>£__PORT_TVAR__</b>, a
+    <b>__DIVERSIFICATION__% diversification credit</b>. An earlier version charged 6% of
+    the standalone figure and inflated premiums roughly tenfold.</p>
+    <p class="note"><b>Why the first of those is a range and the other two are not.</b>
+    The standalone figure is the mean of each district's worst __TAIL_YEARS__ years out of
+    __N_SIM__, and every district is simulated against the <i>same</i> draws — so its Monte
+    Carlo error is common to all __N_DISTRICTS__ of them and does not average away. Across
+    __SEED_N__ seeds the national mean moved __STANDALONE_SPREAD__%, while the allocated
+    share moved __PORT_SPREAD__%, the diversification credit stayed within
+    __DIV_LO__–__DIV_HI__%, and the premium moved __PREMIUM_SPREAD__%. Quoting one
+    standalone number would imply a precision the simulation does not have; the premium
+    map does not inherit the problem. The per-district <code>tvar99_vine</code> column in
+    the <a href="assets/uk_district_risk.csv">download</a> carries the same caveat.
+    Measured by <code>scripts/seed_sweep.py</code>.</p>
     <div class="callout">So the copula is doing real work, but only where many policies are
     added together. That is not a limitation of this implementation — it follows from the
     frequencies. It is also why the two halves below say such different things.</div>
@@ -1063,6 +1092,7 @@ __NAV__
         <tr><td><strong>ONS</strong> (via NOMIS)</td><td>Census 2021 TS041 households by LSOA (England &amp; Wales)</td></tr>
         <tr><td><strong>National Records of Scotland</strong></td><td>Scotland's Census 2022 household total</td></tr>
         <tr><td><strong>police.uk</strong></td><td>Street-level crime archive, latest 36 months — burglary points (England, Wales, BTP)</td><td>Theft</td></tr>
+        <tr><td><strong>VOA</strong></td><td>Non-domestic rating: stock of properties 2025 — premises counts by LSOA (England &amp; Wales)</td><td>Theft residential share</td></tr>
         <tr><td><strong>Scottish Government</strong></td><td>Recorded Crime in Scotland 2024–25 — national housebreaking count</td><td>Theft (Scotland override)</td></tr>
         <tr><td><strong>ABI</strong></td><td>Domestic claims paid by peril, 2025 (theft: 2018, the last published; escape of water: the "£1.8m a day" figure; fire: average-payout quote only)</td><td>Loss calibration</td></tr>
         <tr><td><strong>Home Office / MHCLG</strong></td><td>Fire statistics: incident-level low-level-geography dataset (LSOA), FIRE0201 national series to 1981/82</td><td>Fire frequency, geography and loading</td></tr>
@@ -1097,6 +1127,7 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 .venv/Scripts/python scripts/fetch_history.py        # 35yr ERA5 drivers, for the backtest
 .venv/Scripts/python scripts/fetch_households.py     # census households -> exposure weights
 .venv/Scripts/python scripts/fetch_burglary.py       # police.uk burglary points (1.7 GB archive, resumable)
+.venv/Scripts/python scripts/fetch_premises.py       # VOA non-domestic premises -> theft's residential share
 .venv/Scripts/python scripts/fetch_fires.py          # dwelling fires: England LSOA + Scotland + Wales
 .venv/Scripts/python scripts/fetch_children.py       # census dependent-children shares -> AD driver
 

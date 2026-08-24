@@ -150,6 +150,38 @@ districts**, used as the exposure weight throughout.
     and the flood-prone north-west. Reduced to per-year national indices; the
     JJA rainfall deficit is measured against each point's own 1991–2020
     June–August normal.
+    - **This series is also the anchor for `TAIL_FREQ_RATIO = 2.0`**
+      (added 2026-08-23; the constant shipped before this with no source
+      anywhere in the repo, which is what the no-undocumented-knobs rule
+      exists to prevent). It is the sole target `calibrate_spatial` solves
+      against, so it fixes `SPATIAL_SCALE` and through it the year view,
+      `tvar99_euler`, capital and the published premium — the one number
+      that sets how wide the tail is.
+    - **What it has to be measured against.** `calibrate_spatial` reports
+      it as *"1-in-100 year claims Nx the mean year"*, so it is a ratio of
+      claim COUNTS. The proxy must drive how many homes claim, not how
+      hard each is hit: **`storm_days`** (days with gust ≥ 70 km/h) is the
+      right series and **`max_gust` is not**. One violent gust hurts a few
+      homes badly; a year with many storm days puts many homes into claim.
+    - **The measurement** (`scripts/tail_ratio_from_history.py`, 1990–2024,
+      35 years; `storm_days` shows no significant trend, −0.039 days/yr,
+      p = 0.77, so the raw spread is the right thing to fit):
+
+      | proxy | CV | obs max/mean | lognormal 1-in-100 | gamma |
+      |---|---|---|---|---|
+      | `storm_days` (primary) | 0.284 | 1.67 | **1.84** | 1.78 |
+      | `storm_days^1.5` | 0.419 | 2.09 | 2.35 | 2.22 |
+      | `rain5d` (flood count driver) | 0.129 | 1.33 | 1.34 | 1.32 |
+      | `max_gust` (wrong shape, shown to make that visible) | 0.077 | 1.17 | 1.19 | 1.19 |
+
+      **2.0 sits inside the 1.78–2.35 range** the primary proxy supports
+      once mild convexity is allowed. The knob was undocumented, not
+      wrong, so it keeps its value and gains this entry.
+    - **What this does not establish.** That storm days convert to claim
+      counts one-for-one. The proxy choice moves the answer far more than
+      the fitted distribution does — `max_gust` would have halved the tail
+      — so the assumption is argued rather than assumed. A claims triangle
+      would settle it; see HANDOFF, "What remains, honestly".
 16. **ABI aggregates** — published in ABI press releases and property-claims
     statistics; quoted (not scraped) in `build_model.py`'s `ABI` dict so the
     calibration is auditable in one place. Update the dict when newer figures
@@ -400,7 +432,56 @@ districts**, used as the exposure weight throughout.
       across their material since ~2017; like theft, the ABI stopped
       publishing an annual per-peril total, and the 2025 full-year
       release folds EoW into a £758m "weather-related damage to homes"
-      line that also covers storm and flood). Cross-check that closes
+      line that also covers storm and flood). **RESOLVED 2026-08-23
+      against the primary releases — and the resolution corrects both
+      this note and the flag raised here on 2026-08-22.** The releases
+      are now transcribed with per-figure provenance in
+      `data/abi_annual.csv`; read that, not this paragraph, for the
+      numbers. What they say:
+      - The 2025 weather line's scope, footnote 3 of the 2026-02
+        release verbatim: *"These weather-related figures cover damage
+        caused by burst or frozen pipes, escape of water, as well as
+        damage as a result from storms and flooding."*
+      - The 2024-04 release **itemises the same line for 2023**:
+        storm £133m + flood £286m + **burst pipes £153m** = £572m
+        against a £573m total. So the water component of the weather
+        line is **burst pipes only, not the whole EoW book** — and by
+        the same subtraction the 2025 residual is
+        £758m − £244m − £312m = **£202m of burst pipes**.
+      - Therefore there is **no contradiction with the £657m EoW
+        anchor**: burst pipes are a SUBSET of it. The 2026-08-22 flag
+        claiming £758m "leaves £202m for EoW, not £657m" was wrong on
+        that point, and the £1,451m alternative headroom it offered
+        does not exist.
+      - What survives the correction: #27 and #28 below still add
+        "weather £758m" and "EoW £657m" as separate remainder items,
+        which double-counts the **£202m** they overlap in. The
+        headroom those two triangles were sized against is overstated
+        by £202m, not by £657m.
+      - Also settled: storm £244m, flood £312m and subsidence £307m
+        **are** 2025 full-year figures, quoted directly in the 2026-02
+        release, so source 16's "2025" label is correct. The
+        per-peril weather totals were not withdrawn — they sit beside
+        the aggregate line.
+      **Two things this opens, both unresolved:**
+      - **`EOW_FREEZE_SHARE = 0.15` looks low.** Burst pipes were
+        £153m of a £657m EoW book in 2023 (0.23) and £202m in 2025
+        (0.31). Neither year supports 0.15. Changing it is a model
+        change: it moves EoW's geography onto frost days harder and
+        alters its systemic loading, so it needs an experiment branch.
+      - **The ABI restates this series and its releases disagree.**
+        The 2024-04 release puts 2023 at £573m and calls it the record;
+        the 2025-02 release puts 2024 at £585m, describes it as
+        *"£127 million (28%) higher than ... 2023"* (implying £458m for
+        2023) and calls **2022** the previous record. Both cannot be
+        right. The 2024-04 release's own footnote 3 gives the
+        mechanism — *"This figure will include claims not yet fully
+        settled"* — but not the direction. Pick ONE vintage of the
+        series and stay in it; never mix a figure as-published with a
+        later comparative.
+      `scripts/anchor_budget.py` and `scripts/backtest_coverage.py`
+      print the consequences; see HANDOFF "Claim-count overshoot:
+      attributed 2026-08-22" and "Coverage backtest 2026-08-23". Cross-check that closes
       the triangle: EoW was **29.3% of 2025's 560,000 home claims**
       (GoCompare from ABI data) ≈ **164,000 claims/yr**, and
       £657m / 164k = **£4,005 average** — self-consistent, so
@@ -544,10 +625,52 @@ districts**, used as the exposure weight throughout.
       eased" (that figure is MOTOR, not home — a trap when searching
       this topic).
 
+29. **VOA non-domestic premises counts — theft's commercial
+    denominator** (fetched 2026-08-17, `fetch_premises.py` →
+    `data/premises.csv`). The Phase 2a fix promised in #25: police.uk
+    "Burglary" includes commercial break-ins, so the theft rate now
+    divides by households PLUS non-domestic premises instead of
+    leaning on the p99.9 cap to hide commercial cores (the cap stays
+    as a tiny-denominator backstop).
+    - **Source:** "Non-domestic rating: stock of properties 2025"
+      (VOA, OGL v3, snapshot 31 Mar 2025, published summer 2025) —
+      `ndr_stock_oa_2025.zip` (7.1 MB) from
+      assets.publishing.service.gov.uk, member
+      `SOP_OA_counts_all.csv`, rows filtered to `geography == "LSOA"`,
+      the `2025` year column. 35,672 LSOAs (**LSOA2021 codes** — the
+      count matches the 2021 census geography exactly, and the ONS
+      lookup's `lsoa21cd` covers 100.0% of premises; the fetcher
+      matches both vintages and asserts ≥97% coverage so a future
+      boundary revision fails loudly), 2,136,290 premises. Counts are
+      rounded to 10; 3,873 suppressed small cells ("[c]") treated as
+      0. Apportioned to districts by live-postcode share through the
+      same ONS lookup the household counts use — 100.0% of premises
+      placed, 2,415 of 2,736 districts have any. Most commercial:
+      SE1 7,696 / E1 6,620 / E14 6,397.
+    - **Scotland deliberately absent:** VOA covers E&W only, and
+      theft's Scotland is a flat national override (#25), so a
+      commercial correction there would adjust nothing.
+    - **Effect (local check against the published rates):** cap falls
+      6.22% → 3.40% and binds 14 districts instead of doing crude
+      duty for every commercial core; W1J 6.22% → 1.85% real rate,
+      EC3V 6.22% → 3.40% (still capped); correlation with the old
+      geography 0.89; the −8% E&W mean shift is re-pinned to the ABI
+      level by FREQ_SCALE at calibration.
+    - **Dead ends:** the VOA **rating-list bulk** downloads
+      (voaratinglists.blob.core.windows.net) are free but under
+      restricted terms, not OGL — unusable in this public repo when
+      the statistical LSOA release exists; the data.gov.uk "VOA
+      non-domestic rating" catalogue entry is a dead 2016 record with
+      no links; **EPC bulk** (epc.opendatacommunities.org) needs
+      registration, carries Royal Mail copyright on address fields,
+      and covers only certificate-holding stock — CTSOP4.1 gives
+      build period for the FULL stock at LSOA under plain OGL if
+      Phase 2b/2c ever need it.
+
 31. **Buildings/contents split anchors — searched 2026-08-17/18, and the
-    search FAILED for half the book.** (Numbers 29 and 30 are taken by
-    the two Phase 2 branches; this one skips ahead so all three merge
-    cleanly.) Phase 3 needs, for each peril, the share of claims *cost*
+    search FAILED for half the book.** (Number 29 published with Phase
+    2a; number 30 is still held by `exp/ct-severity`, so this one skips
+    ahead of it and the two merge cleanly in either order.) Phase 3 needs, for each peril, the share of claims *cost*
     falling on the buildings section rather than contents. **No published
     UK source gives a peril × cover-type matrix.** Not the ABI, not the
     FCA, not any regulator. What does exist, per peril:
@@ -653,6 +776,144 @@ districts**, used as the exposure weight throughout.
       Otherwise a claims triangle (top item on the blocked list below)
       remains the only thing that would settle it.
 
+32. **The ABI industry-data subscription, and how to read a withdrawn
+    ABI file** (found 2026-08-18; number 30 is still held by
+    `exp/ct-severity`, so this skips past it to merge cleanly).
+    Two separate things, both worth keeping.
+
+    **(a) The web-archive technique, which WORKS.** Entries #27 and #31
+    record ABI PDF and XLSX URLs that 404 after the media-hub move, and
+    treat them as dead. They are not dead — they are archived. The
+    Wayback CDX API enumerates them without an API key:
+
+        curl "http://web.archive.org/cdx/search/cdx?url=abi.org.uk*\
+        &output=text&fl=original,statuscode\
+        &filter=original:.*\.(xlsx|xls|csv)$&collapse=urlkey&limit=8000"
+
+    108 ABI spreadsheets survive at status 200. Fetch a specific one
+    with the `id_` modifier, which returns the raw bytes rather than
+    the archive's HTML wrapper:
+    `https://web.archive.org/web/<timestamp>id_/<original-url>`.
+    (`WebFetch` cannot reach web.archive.org from this project — use
+    curl. Old `.xls` needs `xlrd`, not `openpyxl`.) **Before recording
+    any abi.org.uk URL as dead, check the archive.**
+
+    What was actually recovered this way:
+    - `general-insurance-overview-statistics-2018.xlsx` — Property
+      sheet is Domestic vs Commercial premium/claims/outgo only. No
+      peril, no cover split. Dead end, but confirmed rather than
+      assumed.
+    - `industrydata/samples/1-full-statistics-bundle.xls` → the sample
+      of **"General insurance - property (2b)"**, the paid product.
+      This is the find.
+
+    **(b) The ABI's paid property dataset is exactly the missing
+    reconciliation source — and its schema is now documented.** The
+    sample is schema-only (every value cell stripped, which is what a
+    sales sample does), but the table structure is complete:
+    - **Table 5 — Summary, Gross Incurred Claims AND Number of Claims,
+      annual 1988–2012 plus quarterly from 1991Q1.** Columns: FIRE,
+      THEFT, BUSINESS INTERRUPTION, WEATHER, ESCAPE OF WATER, DOMESTIC
+      SUBSIDENCE, ACCIDENTAL DAMAGE, **OTHER DOMESTIC CLAIMS**, TOTAL.
+    - **Table 8 — Breakdown of quarterly DOMESTIC property claims and
+      number of claims.** Same peril columns, domestic only.
+    - **Table 9 — Weather Damage split into Commercial, Domestic
+      Pipes, Domestic Storm, Domestic Flood.**
+    - Table 13 — domestic subsidence back to 1987.
+
+    Read that peril list against this model's: fire, theft, weather,
+    escape of water, subsidence, accidental damage — **identical, plus
+    the residual bucket the model is missing.** This is the dataset
+    that settles the claim-count defect in HANDOFF's "Model audit
+    2026-08-18": the model implies 578,466 claims against ABI's
+    560,000 (103.3%), forcing a negative remainder, and Table 5's
+    per-peril *counts* plus OTHER DOMESTIC CLAIMS would resolve it
+    directly instead of by moving the AD anchor on judgement. Table 9's
+    Domestic **Pipes** column would also replace `EOW_FREEZE_SHARE =
+    0.15`, currently a reasoned figure rather than a measured one.
+    **It is a paid subscription** (ABI industry data; contact via the
+    data-and-analytics team) and the user's call — cost unpriced here.
+    It carries **no buildings/contents dimension**, so it does not
+    unblock Phase 3.
+
+    **(b2) All 108 were harvested and indexed — nothing else is in
+    there.** Do not repeat this sweep. Every archived abi.org.uk
+    `.xls`/`.xlsx`/`.csv` at status 200 was downloaded via the `id_`
+    modifier (13 MB; the CDX `length` field is the COMPRESSED size, so
+    3.3 MB in the index became 13 MB on disk) and every sheet indexed:
+    **102 readable files, 441 sheets**, the remaining six being
+    login-wall HTML. Result:
+    - **No per-peril domestic claim counts anywhere.** Every
+      industry-data subscription sample is value-stripped, not just the
+      property one — confirmed by opening all of them.
+    - **No Domestic Pipes values**, so `EOW_FREEZE_SHARE` stays
+      reasoned rather than measured.
+    - **No buildings-vs-contents claims split**, at any grain, in any
+      file.
+    - The three login-walled entries expose real asset paths in their
+      `ReturnUrl=` query
+      (`annual-general-insurance-overview-statistics---2015.xlsx`,
+      `annual-long-term-insurance-overview-statistcs-2013.xls`,
+      `household-spending-on-insurance-tables.xlsx`). **All three were
+      retried against the archive directly and none has a snapshot** —
+      the wall was archived, the asset behind it never was.
+    - Two files look relevant by keyword and are not: `Motor.xls`'s
+      "Accidental Damage" is a motor claim category, and
+      `Home_Contents_Insurance_Table.xls` is a blank room-by-room
+      worksheet for a householder to total their own possessions.
+
+    **(b3) One real find in the harvest, and it is evidence for a
+    rejection rather than an anchor.**
+    `household-spending-on-insurance-tables.xlsx` (ABI, from the ONS
+    Living Costs and Food Survey) Table 6 analyses household insurance
+    expenditure **by tenure**, giving both average spend and the
+    percentage of households holding each cover:
+
+    | tenure | Structure | Contents |
+    |---|---|---|
+    | Local Authority rented | suppressed | £142.39, **40.7%** |
+    | Housing Association | suppressed | £135.43, **41.1%** |
+    | Rented furnished | suppressed | £177.12, **24.1%** |
+    | Owner occupied, being purchased | £218.87, **93.5%** | £178.03, 93.5% |
+    | Owner occupied, owned outright | £201.79, **93.5%** | £164.30, 94.7% |
+
+    Structure cover among renters is so rare the ONS **suppresses the
+    cell**, while 93.5% of owner-occupiers hold both. That measures the
+    renter-selection confound this file has twice asserted (against the
+    FCA GIVM product split, and against the ABI premium ratio) instead
+    of merely claiming it: a buildings-only versus contents-only
+    comparison sets a ~93%-penetration owner population against a
+    24–41% renter one. **Cite this table, not the assertion.**
+
+    **(c) Proxies for the missing Phase 3 split — two tested, both
+    refuted.** Recorded so nobody proposes them again:
+    - *One universal split for every peril* (from the sum-insured
+      ratio, or any scalar). Refuted with no fitting required: the four
+      anchors are 25%, 78%, 100% and 48–66% buildings. A 75-point
+      spread is not one number.
+    - *Buildings share rises with average claim severity.* Fits the
+      three clean anchors at R² 0.979 — meaningless on three points and
+      two parameters — then fails out of sample. It predicts flood at
+      **118.9%**, missing every published convention by 53 to 94
+      points, and extrapolates accidental damage to **−14.2%** and
+      groundwater to **100.3%**. It also calls escape of water a 26%
+      buildings peril, when EoW's cost is drying, plaster, ceilings,
+      floors and fixtures: the proxy is measuring "theft steals
+      things", not damage physics. **42.9% of claim cost would have
+      rested on that extrapolation.**
+    The surviving lead is the MCM depth-damage file behind #31's
+    48/52 flood convention: it carries explicit
+    `Building_Fabric_Damage`, `Household_Inventory_Damage` and
+    `Domestic_CleanUp` columns per property type (FHRC licence; a
+    cut-down example ships free with Flood Modeller). Its value is not
+    flood — flood is already anchored three ways and is only 9.8% of
+    claim cost — but **escape of water**, which is 25.1%, has no anchor
+    at all, and is the same physical process: water in a dwelling,
+    damaging fabric, services and fixtures on one side and inventory on
+    the other. That transfer needs stating as an assumption (clean
+    water from above, no depth, no contamination) but it is a
+    documented one, which is more than the other three unanchored
+    perils have.
 ## Blocked on non-open data — what each would unblock
 
 Kept here so nobody re-derives the shopping list. None of these have an
@@ -682,6 +943,17 @@ open substitute; every open path was checked (see dead ends below).
 
 ## Not used / dead ends (so you don't repeat them)
 
+- **EoW dwelling-age slice (Phase 2b) — dropped for want of an anchor
+  (2026-08-17).** CTSOP4.1 gives build period per LSOA for the full
+  E&W stock (OGL, trivial to fetch), but no UK publication quantifies
+  the dwelling-age → escape-of-water frequency relationship: every
+  hit is qualitative "older pipes corrode" marketing copy (Alan
+  Boswell, Oakleafe, MA Group's rooms-affected trend), and the US
+  figures that do exist (ISO/III ~1.6%/yr water-damage claim rate)
+  are a different market and peril mix. Without a citable number the
+  slice size would be an undocumented knob, so EoW's geography stays
+  freeze-only. Revisit only if an insurer publishes age-banded claim
+  rates.
 - `environment.data.gov.uk/arcgis/rest/...` — EA's old ArcGIS root: gone.
 - Legacy `risk-of-flooding-from-surface-water-extent-*` spatialdata slugs: 404
   (superseded by NaFRA2).
