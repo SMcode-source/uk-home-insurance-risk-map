@@ -456,7 +456,16 @@ W_EOW = 0.026
 # driven; ~15% is the defensible middle. The base is FLAT: plumbing and
 # appliance failure has no open spatial predictor until Phase 2 gives
 # dwelling age (EPC) and a commercial denominator (VOA).
-EOW_FREEZE_SHARE = 0.15
+#
+# EXPERIMENT exp/eow-freeze, 2026-08-23. 0.15 -> 0.31, replacing "the
+# defensible middle" of a judgement call with a measurement. The ABI's
+# weather line itemises burst pipes separately: GBP 153m in 2023 and GBP
+# 202m in 2025 (data/abi_annual.csv). Scaled to each year's own home book
+# those are 6.00% and 5.94% of total home paid, and against EoW at its
+# 19.3% share of that book they imply a freeze share of 0.311 and 0.307 -
+# two independent years agreeing to within 0.004, and both about double
+# what ships. Run scripts/anchor_budget.py for the derivation.
+EOW_FREEZE_SHARE = 0.31
 # Fire's loading comes from the same derivation as theft's and EoW's,
 # and lands even lower than theft. The FIRE0201 national series
 # (1981/82-2025/26) shows a steady secular DECLINE of -2.5%/yr - a
