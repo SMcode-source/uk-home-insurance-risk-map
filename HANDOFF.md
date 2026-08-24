@@ -467,6 +467,87 @@ level ~6% and is a straight correction; defect 1 mostly REDUCES
 subsidence and RAISES groundwater, and its real prize is that the map
 stops depending on the seed.
 
+## exp/ct-severity (Phase 2c), re-priced 2026-08-25 — AWAITING THE USER'S DECISION
+
+Branch `exp/ct-severity`, rebased onto published main (afcf0a5; the old
+185485c evidence was measured against the pre-2a baseline and is
+superseded). CI run
+[32788080788](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32788080788),
+`commit=false`. **Not merged. This is the user's call, and of the three
+open experiments it is by far the largest change to the map.**
+
+**What it does:** the four attritional severities (theft, EoW, fire, AD)
+are flat national ABI anchors with no geography at all. This scales each
+by the district's council-tax band mix — the only full-stock, small-area,
+OGL property-value proxy in Great Britain — using each nation's statutory
+charge ratios as band weights.
+
+**The national level does not move**, by construction: the multiplier is
+normalised to a CLAIM-weighted mean of exactly 1 per peril (households ×
+that peril's rate), so each peril lands back on its ABI level.
+
+| | published | branch | change |
+|---|---|---|---|
+| expected loss | 171.11 | 171.11 | **0.00%** |
+| premium | 176.66 | 176.66 | **−0.00%** |
+| capital | 5.54 | 5.54 | −0.01% |
+| tvar99_euler | 263.49 | 263.49 | −0.00% |
+
+**The mechanism was verified per district, not assumed.** On SW1X
+(relativity 1.940) the four scaled perils came back at 1.950 / 1.938 /
+1.979 / 1.944 and flood and subsidence at exactly 1.000; on CF43
+(relativity 0.691) at 0.697 / 0.691 / 0.702 / 0.692, flood and
+subsidence again 1.000. The small per-peril spread is the separate
+claim-weight normaliser each peril gets, which is the intended design.
+
+**But the map moves hard.** Churn **1,908 of 2,736 districts (69.7%)**,
+69.6% of households, and **974 move by ≥2 rating groups**. Premium
+Spearman **0.8219** — against 0.993 for both other open experiments.
+Dispersion widens 1.544 → **1.624**. Median +1.33%, p5 −14.3%, p95
++22.8%; 1,516 rise, 1,216 fall.
+
+**Risers** are prime London and one affluent Aberdeen suburb: SW1X
++72.4% (Belgravia), W1K +68.8% (Mayfair), W1J +66.1%, SW1Y +64.1%, SW7
++59.7% (South Kensington), AB13 +56.5% (Milltimber), W1C +55.5%, W1S
++55.3%, W8 +53.6% (Kensington), SW1E +52.3%.
+
+**Fallers** are post-industrial urban cores: TS1 −21.3% (Middlesbrough),
+L6 −21.3%, L7 −20.6%, L4 −19.8%, L5 −19.7% (Liverpool), S14 −20.8%, S5
+−20.3%, S2 −20.1%, S4 −20.0% (Sheffield), SR1 −19.7% (Sunderland).
+
+**This is the collision this file predicted:** 2a cut prime London on
+theft's commercial denominator, 2c raises it on value. They are not
+contradictory — one is claim frequency, the other claim size — but if
+both ship, W1J's net move is the thing to check, not either in isolation.
+
+### Two checks run against it, one of which it passed
+
+**PASSED — the cross-nation schedule artefact does not exist.** England's
+statutory ratios span 3.0× (6→18 over bands A→H) but Scotland's
+post-2017 ratios span 3.68× (240→882), so normalising within nation pins
+the level while potentially leaving Scottish districts a mechanically
+wider *spread* — an artefact of local-government finance, not of housing.
+Measured, it does not happen: relativity p95/p5 is **1.69 England, 1.65
+Scotland, 1.56 Wales**. The schedules differ; the resulting dispersion
+does not.
+
+**OPEN — council-tax band tracks MARKET value; insurance pays
+REINSTATEMENT.** Buildings cover excludes land, and land is most of what
+separates Belgravia from Bootle. The saving grace is that the statutory
+ratios compress enormously — band H is 2× band D in charge terms against
+perhaps 10× in market value — so the district relativity spans only
+1.68× p5–p95 (2.8× extremes) where raw market value across these
+districts spans 15–25×. The direction is not in doubt: dear areas do
+have dearer contents and costlier reinstatement. **What has no anchor is
+the assumption that a 1991-valuation local-government charge schedule is
+the correct compression for insurance severity.** Nothing published says
+it is. This matters most for fire, which Phase 3 puts at 78% buildings,
+and least for theft at 25%.
+
+That is the decision in one line: the direction is well founded and the
+mechanism is exact, but the *magnitude* rests on a schedule built for
+council tax, and it re-rates 70% of the map.
+
 ## exp/eow-freeze, priced 2026-08-25 — AWAITING THE USER'S DECISION
 
 Branch `exp/eow-freeze`, CI run
@@ -1252,12 +1333,15 @@ Both experiment branches were built, verified and priced. The user chose
   >=2 groups: prime London up to +282 (W1J), low-band city cores
   -78 (BD1/SR1). New test pins severity-not-frequency scaling.
 - **They COLLIDE in prime London** (2a cut W1J, 2c raises it). 2a went
-  first, so **2c's evidence run is now stale**: to revisit it, rebase
-  `exp/ct-severity` onto published main, re-run the evidence (the churn
-  numbers above are measured against the pre-2a baseline and will move),
-  do the site copy pass for the severity prose, and take the OUTWARD D
-  seam for ct_bands.csv on sector-model - premises.csv already has it
-  (fetch_premises.py, 9e777f8: 9,700 sectors, 100.0% placed).
+  first, so the churn numbers in the bullet above are measured against
+  the pre-2a baseline. ~~2c's evidence run is now stale.~~ **REDONE
+  2026-08-25:** `exp/ct-severity` rebased onto published main (afcf0a5)
+  and re-priced by CI 32788080788 - see "exp/ct-severity (Phase 2c),
+  re-priced 2026-08-25" above for the current numbers (churn 69.7%, 974
+  by >=2 groups, Spearman 0.822, premium level unchanged). Still to do
+  if it ships: the site copy pass for the severity prose, and the
+  OUTWARD D seam for ct_bands.csv on sector-model - premises.csv already
+  has it (fetch_premises.py, 9e777f8: 9,700 sectors, 100.0% placed).
 - ~~Known stale: dependence_check.py and sensitivity.py never gained
   the attritional rate columns, so both fail at `_fields`.~~ **FIXED in
   c7a26db** ("Analysis scripts learn the attritional rate columns").
