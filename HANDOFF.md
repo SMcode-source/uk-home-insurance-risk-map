@@ -1548,6 +1548,23 @@ never `file://`; CRLF makes checked-out files hash differently from
 served ones; Windows silently strips trailing dots in path lookups, so
 a path-existence test can pass here and fail on Linux CI.
 
+**Where the two resolutions live (moved 2026-08-23).** Both are worktrees
+of this one repo, now under one roof:
+
+```
+C:/Users/sapta/Documents/Geospacial Map UK                          [main]
+C:/Users/sapta/Documents/Geospacial Map UK/.worktrees/sector-model  [sector-model]
+```
+
+It used to sit at `C:/Users/sapta/Documents/GeoUK-sector-model`; that path
+is gone. `.worktrees/` is gitignored — a worktree nested inside another
+worktree of the same repo otherwise appears as ~20 MB of untracked
+content and can reach main by accident. Verified after the move: main's
+`git status` is clean, no script globs recurse from the repo root, and
+all 86 tests pass. **The one-way rule is unchanged: merge main INTO
+`sector-model`, never `sector-model` into main** — only its output
+crosses, renamed `data/sectors_risk.geojson`.
+
 MIDAS specifics: the 8.4 GB mirror sits in gitignored `data/midas/`
 (refetch: `fetch_midas.py`, needs a fresh CEDA token in
 `~/.ceda_token` — tokens live ~72 h and are never committed or
