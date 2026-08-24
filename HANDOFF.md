@@ -11,31 +11,35 @@ just a pointer here)
 **Phase 1 of the roadmap (attritional perils: theft → escape of water
 → fire → accidental damage) is COMPLETE.** Phase 2 is EPC/VOA exposure
 realism — **2a (theft's residential denominator) is live since
-2026-08-18**, 2c sits built-but-unpublished on its branch. Phase 3 is
-the buildings/contents split.
+2026-08-18**, 2c sits built-but-unpublished on its branch (re-priced
+2026-08-25; the open question is in its section below). Phase 3 is the
+buildings/contents split, built on `exp/buildings-contents` and not
+published. **Two anchor corrections went live 2026-08-25**: theft's
+paid total and the escape-of-water freeze share.
 
 The site publishes the model at **two grains side by side**:
 `/map.html` over 2,736 postcode districts and `/sectors.html` over
 10,398 derived postcode sectors. One template builds both pages, so
 they cannot drift; the layout suite runs every map invariant against
-both. **84 tests** (two of which skip only while a publish is
+both. **86 tests** (two of which skip only while a publish is
 mid-transition — see the theft section), CI green, Pages live. The
 methodology page draws the Hull comparison as an inline SVG generated
 from the published GeoJSON at build time — a screenshot would go stale
 at the next rebuild; this cannot.
 
-**Two defects are open and UNFIXED** — the four vine perils take their
-EL from the draws instead of analytically, and flood severity is
-blended in log space. Neither is a publishing emergency (EL is
-paid ÷ policies by construction) but both are real; read "Model audit
-2026-08-18" below before touching the marginals, and re-measure with
+~~**Two defects are open and UNFIXED**~~ — **both were FIXED and
+published 2026-08-19**, along with three more found while fixing them;
+see "Built AND PUBLISHED 2026-08-19: five defects fixed" below. The
+four vine perils now take their EL analytically and flood severity is
+no longer blended in log space. Re-measure any marginal change with
 `.venv/Scripts/python.exe scripts/analytic_el_check.py`.
 
-Current headline figures (bot commit ca83519, 2026-08-18 — 2a moved
-geography, not level, so these are the same numbers):
-exposure-weighted premium **£174.24** over 27.26m households; loss
-cost £169.75 ≈ 77% of the £219 all-home-claims cost; climate
-uplift diluted a fourth time by AD's flat ~£14.65 (each attritional
+Current headline figures (2026-08-25 publish, CI 32789547647
+verified): exposure-weighted premium **£169.66** over 27.26m
+households; loss cost £164.12 ≈ 75% of the £219 all-home-claims cost.
+The fall from £176.66 is theft's level correction (−3.96%); the EoW
+freeze share moved geography only and cost the level nothing. Climate
+uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
@@ -548,11 +552,54 @@ That is the decision in one line: the direction is well founded and the
 mechanism is exact, but the *magnitude* rests on a schedule built for
 council tax, and it re-rates 70% of the map.
 
-## exp/eow-freeze, priced 2026-08-25 — AWAITING THE USER'S DECISION
+## PUBLISHED 2026-08-25: two knobs at once, verified before it shipped
+
+User decision: **"yes go ahead and publish"** on the recommendation to
+take `exp/eow-freeze` and `exp/theft-level` and to HOLD
+`exp/ct-severity`. Merges 930b99b and 0fa5aa4; both parameter comments
+rewritten from experiment framing to shipped-model prose in 768a88f.
+
+**Verified as a pair before publishing, not after.** Each branch had
+only ever been priced against published main on its own, and rating
+groups are quantiles, so combined churn is not the sum of the two. CI
+[32789547647](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32789547647)
+ran the merged main with `commit=false` first.
+
+| | published | merged | change |
+|---|---|---|---|
+| expected loss | 171.11 | 164.12 | −4.09% |
+| premium | 176.66 | 169.66 | **−3.96%** |
+| capital | 5.54 | 5.54 | −0.03% |
+| tvar99_euler | 263.49 | 256.47 | −2.66% |
+
+**They compose with no interaction at all**, which is what the perils
+predicted: theft-level alone was −4.09% EL and −3.96% premium, and the
+pair returns exactly the same. National `el_th` moved −24.10%, which is
+341.6/450 to the second decimal, and national `el_eow` moved −0.00%.
+Both mechanisms are present and neither disturbed the other.
+
+**The two effects remain separable in the output.** PH10's EoW EL rose
+58.6 → 75.8 and TR22's fell 36.2 → 29.5 while the national EoW level did
+not move, so the freeze redistribution survived the merge intact;
+EC3V's theft EL fell 127.9 → 97.1 on the level cut.
+
+**Net map effect:** 2,462 districts fall, 265 rise, 9 flat. Median
+−3.32%, p5 −7.90%, p95 +1.22%. Spearman **0.9854** against published;
+dispersion tightens 1.544 → 1.507. Biggest fallers are commercial cores
+losing theft (EC3V −13.4%, EC4M −13.0%, WC2E −12.4%, W1C −12.3%, WC2H
+−12.3%, W1F −12.1%, LS2 −11.7%); the risers are the frost-exposed
+Highlands, where the EoW gain outweighs the theft cut.
+
+**Still held, deliberately:** `exp/ct-severity` (Phase 2c). Not a
+rejection — the open question is recorded in its own section above.
+
+## PUBLISHED 2026-08-25: exp/eow-freeze, the EoW freeze share
 
 Branch `exp/eow-freeze`, CI run
 [32787462774](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32787462774),
-`commit=false`. **Not merged. The swap is the user's call.**
+`commit=false`. **MERGED to main 930b99b on the user's decision
+("yes go ahead and publish", 2026-08-25) and published in the combined
+run below.**
 
 **One input changed:** `EOW_FREEZE_SHARE` 0.15 → **0.31** — the fraction
 of escape-of-water claim cost that is freeze-driven (burst pipes) rather
@@ -610,11 +657,13 @@ percentage are not stated in the same table, so the ratio is assembled
 rather than published. Two years agreeing to 0.004 is strong evidence
 the assembly is sound; it is not the same as ABI printing 0.31.
 
-## exp/theft-level, priced 2026-08-23 — AWAITING THE USER'S DECISION
+## PUBLISHED 2026-08-25: exp/theft-level, theft's paid total
 
 Branch `exp/theft-level`, CI run
 [32607071195](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32607071195),
-`commit=false`. **Not merged. The swap is the user's call.**
+`commit=false`. **MERGED to main 0fa5aa4 on the user's decision
+("yes go ahead and publish", 2026-08-25) and published in the combined
+run below.**
 
 **One input changed:** `theft_paid` 450e6 → **341.6e6**, severity held at
 the current published ABI average of £3,800. The direction is the
