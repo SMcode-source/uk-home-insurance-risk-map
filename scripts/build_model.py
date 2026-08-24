@@ -1331,15 +1331,24 @@ def simulate(district_df):
                            + loc["el_gw"]
                            + el_th + el_eow + el_fire + el_ad)
         loc["el_total5"] = (loc["el_total"] + el_er)
-        # Buildings share of the SAME construction - draw means for the
-        # four weather perils, analytic for the four attritional ones -
-        # so el_buildings and el_contents (taken as the remainder in
-        # main) add back to el_total exactly, with no second estimate of
-        # anything. Erosion stays out of both, as it is out of el_total:
-        # no policy pays it.
+        # Buildings share of the SAME construction el_total uses - the
+        # ANALYTIC leg of every peril - so el_buildings and el_contents
+        # (taken as the remainder in main) add back to el_total exactly,
+        # with no second estimate of anything. Erosion stays out of both,
+        # as it is out of el_total: no policy pays it.
+        #
+        # This used the four weather DRAW means until 2026-08-25. That was
+        # correct when it was written and was silently invalidated by the
+        # 2026-08-18 audit fix directly above, which moved el_total off
+        # draw means and onto the calibrated analytic legs. The two then
+        # no longer added up: with every SPLIT_BUILDINGS fraction forced
+        # to 1.0 the buildings leg came back at 0.625 and 0.658 of
+        # el_total instead of exactly 1. The identity test caught it on
+        # the first merge of main into this branch, which is the whole
+        # reason that test forces the degenerate corners.
         loc["el_buildings"] = (
-            (B["sub"] * ls + B["wx"] * lw + B["fl"] * lf
-             + B["gw"] * lg).mean(axis=1)
+            B["sub"] * loc["el_sub"] + B["wx"] * loc["el_wx"]
+            + B["fl"] * loc["el_fl"] + B["gw"] * loc["el_gw"]
             + B["th"] * el_th + B["eow"] * el_eow
             + B["fire"] * el_fire + B["ad"] * el_ad)
         # var995_vine is published; the gauss and indep siblings are NOT in
