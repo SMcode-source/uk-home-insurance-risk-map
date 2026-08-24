@@ -467,6 +467,67 @@ level ~6% and is a straight correction; defect 1 mostly REDUCES
 subsidence and RAISES groundwater, and its real prize is that the map
 stops depending on the seed.
 
+## exp/eow-freeze, priced 2026-08-25 — AWAITING THE USER'S DECISION
+
+Branch `exp/eow-freeze`, CI run
+[32787462774](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32787462774),
+`commit=false`. **Not merged. The swap is the user's call.**
+
+**One input changed:** `EOW_FREEZE_SHARE` 0.15 → **0.31** — the fraction
+of escape-of-water claim cost that is freeze-driven (burst pipes) rather
+than year-round plumbing failure. The shipped 0.15 had no published
+anchor; the replacement has two, and they agree.
+
+**The derivation** (committed to main separately, 45ba0b3, so the anchor
+exists whether or not this branch merges): ABI puts burst-pipe cost at
+**6.00% of total home paid in 2023 and 5.94% in 2025**. Escape of water
+is 19.3% of the book. On a consistent basis that is a freeze share of
+**0.311 and 0.307** — two independent release years landing within 0.004
+of each other, against a shipped value less than half either.
+
+**What CI actually produced**, against the published artifact:
+
+| | published | branch | change |
+|---|---|---|---|
+| expected loss | 171.11 | 171.11 | **0.00%** |
+| premium | 176.66 | 176.66 | **−0.00%** |
+| capital | 5.54 | 5.54 | −0.03% |
+| tvar99_euler | 263.49 | 263.47 | −0.01% |
+
+**The national level does not move at all, by construction.** The frost
+relativity is normalised to an exposure-weighted mean of exactly 1
+before it reaches `eow_rate`, and `calibrate_frequency` re-pins the level
+regardless, so this is a **pure redistribution**: it changes where EoW
+claims fall, never how many there are. That is the cleanest kind of
+model change — no re-levelling to defend, only geography.
+
+**Where it moves, and it is the right places.** Risers are the Scottish
+Highlands, the frostiest districts in the UK: PH10 +11.2% (group 4→7),
+AB36 +10.7%, IV4 +10.3%, PH18 +10.2%, PH20 +9.5%, PH26 +9.3%, IV13
++8.9%, PH22 +8.8%, AB35 +8.7%. Fallers are the mildest, near-frost-free
+coast: TR22 −5.5%, TR23 −5.2%, TR21 −5.0%, TR24 −4.9% (Isles of Scilly),
+TR5 −4.6%, PL29 −4.5%, TR25 −4.4%, PL28 −4.3%, TR19 −4.3%, TR26 −4.3%
+(west Cornwall). Raising the freeze-sensitive slice should shift burst
+pipes from Penzance to Aviemore, and that is precisely what it did — the
+sign test passes on both tails at once.
+
+**Distribution:** median +0.14%, p5 −2.27%, p95 +3.03%; 1,444 rise, 1,224
+fall, 68 flat. Rating-group churn 579 of 2,736 (21.2%), 17.1% of
+households, **16 move by ≥2 groups**. Premium Spearman **0.9933**;
+dispersion p90/p10 1.544 → 1.531, so the map barely widens or narrows.
+
+**The case for taking it:** it replaces an unanchored knob with a
+two-year-consistent published one, at zero cost to the national level,
+and moves the geography in the direction the physics demands. It is the
+least contentious of the three open experiments — nothing about the
+headline premium changes, so there is no re-levelling to justify.
+
+**The one caveat:** 0.31 is derived from burst-pipe cost as a share of
+*total home paid*, divided by EoW's *share of the book*. Both numerators
+come from ABI releases, but the 19.3% EoW share and the burst-pipe
+percentage are not stated in the same table, so the ratio is assembled
+rather than published. Two years agreeing to 0.004 is strong evidence
+the assembly is sound; it is not the same as ABI printing 0.31.
 
 ## exp/theft-level, priced 2026-08-23 — AWAITING THE USER'S DECISION
 
