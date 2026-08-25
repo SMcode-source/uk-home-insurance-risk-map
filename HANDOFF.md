@@ -719,8 +719,25 @@ control, which is the reason to always run one.
 
 Every branch that exists, why it exists, and what would retire it. All
 four are merged up to current main as of this date, and all pass their
-own suites (main 87, `exp/ct-severity` 88, `exp/buildings-contents` 89 —
-each gained the draw-mean guard test when main was merged forward).
+own suites (main 87, `exp/ct-severity` 88, `exp/buildings-contents` 92,
+`sector-model` 86 + 1 skip — each gained the draw-mean guard test when
+main was merged forward on 2026-08-25).
+
+**`sector-model`'s one skip is deliberate.**
+`test_the_sector_model_nests_inside_the_district_model` had been red on
+that branch since it was written, and not because of a defect: the
+branch's `build_model` writes the SECTOR grain to the generic output
+path, so its `data/districts_risk.geojson` holds 10,398 sector rows and
+there is no district build to nest against. It now detects that and
+skips. The skip was **not** ported to main, where sector grain in
+`districts_risk.geojson` would be the real thing — the 2026-08-25
+publish-ordering mistake — and must keep failing loudly.
+
+So the cross-grain test I said did not exist, when owning that
+publish-order mistake, **does** exist and runs on main. What it does
+not do is gate the *publish*: it checks two files already on disk, so
+it catches a mismatched pair after a build, not an out-of-order deploy.
+The gap I described is real; I described its location wrongly.
 
 | branch | state | why it is kept |
 |---|---|---|
