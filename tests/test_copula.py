@@ -1613,3 +1613,46 @@ def test_uncovered_district_with_surface_water_is_not_read_as_shallow(
     assert np.isnan(depth[1])
     # and the covered one is normalised on its own, so it is exactly 1.0 too
     assert abs(mult[0] - 1.0) < 1e-9
+
+
+def test_cover_split_capital_uses_the_same_basis_as_combined_capital(monkeypatch):
+    """capital_buildings must be built on the ANALYTIC EL, like capital.
+
+    This is the corner the older split test could not reach: it exercised
+    simulate() only, and the capital columns are assembled afterwards in
+    main(). Send every peril to buildings and capital_buildings must equal
+    capital exactly; send every peril to contents and it must vanish.
+    Against a draw-mean EL (`el_year_b`, which is what shipped until
+    2026-08-25) the first corner came back 0.2-0.3% low, and the
+    additivity assertion in apply_cover_split could not see it because
+    capital_contents is defined as the remainder.
+    """
+    import pandas as pd
+    monkeypatch.setattr(bm, "N_SIM", 400)
+    monkeypatch.setattr(bm, "BATCH", 8)
+    df = _cover_split_frame()
+
+    def split_at(fraction):
+        monkeypatch.setattr(bm, "SPLIT_BUILDINGS",
+                            {k: fraction for k in bm.SPLIT_BUILDINGS})
+        sim, _ = bm.simulate(df)
+        g = pd.DataFrame({k: sim[k] for k in
+                          ("el_total", "el_buildings", "tvar99_euler",
+                           "tvar99_euler_b", "el_year_b")})
+        g["capital"] = 0.06 * np.maximum(g["tvar99_euler"] - g["el_total"], 0.0)
+        g["premium"] = g["el_total"] + g["capital"]
+        return bm.apply_cover_split(g)
+
+    allb = split_at(1.0)
+    assert allb["capital_buildings"].values == pytest.approx(
+        allb["capital"].values, abs=1e-9)
+    assert allb["capital_contents"].values == pytest.approx(0.0, abs=1e-9)
+    assert allb["premium_buildings"].values == pytest.approx(
+        allb["premium"].values, abs=1e-9)
+
+    allc = split_at(0.0)
+    assert allc["capital_buildings"].values == pytest.approx(0.0, abs=1e-9)
+    assert allc["capital_contents"].values == pytest.approx(
+        allc["capital"].values, abs=1e-9)
+    assert allc["premium_contents"].values == pytest.approx(
+        allc["premium"].values, abs=1e-9)

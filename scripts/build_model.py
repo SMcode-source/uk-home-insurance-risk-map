@@ -1572,6 +1572,44 @@ def year_analysis(year, n_districts):
 # ---------------------------------------------------------------- main
 
 
+def apply_cover_split(gdf):
+    """Split EL, capital and premium into buildings and contents cover.
+
+    Extracted from main() so the degenerate corners can be TESTED. They
+    could not be before, and that hid a defect: `capital_buildings` was
+    computed against `el_year_b`, a DRAW mean, while `capital` next to it
+    uses the analytic `el_total`. The 2026-08-18 audit made exactly that
+    substitution for `capital` and this sibling was missed. In the
+    all-buildings corner `capital_buildings` must equal `capital`, and it
+    came back 0.2-0.3% low instead - small only because capital is 6% of
+    (TVaR - EL) and TVaR dwarfs EL; the underlying el_year/el_total gap
+    was 4-6%. The additivity assertion below cannot see it, because
+    `capital_contents` is DEFINED as the remainder and so adds up no
+    matter which basis the buildings leg used.
+
+    Contents is the remainder throughout, so the two premiums add back to
+    the combined one to the penny. The max(...,0) is the one nonlinearity
+    that could break that: it only bites if a cover's bad-year loss falls
+    BELOW its own mean, which cannot happen while the bad years are the
+    portfolio's worst - so it is asserted rather than assumed.
+    """
+    gdf["capital_buildings"] = 0.06 * np.maximum(
+        gdf["tvar99_euler_b"] - gdf["el_buildings"], 0.0)
+    gdf["capital_contents"] = gdf["capital"] - gdf["capital_buildings"]
+    gdf["el_contents"] = gdf["el_total"] - gdf["el_buildings"]
+    gdf["premium_buildings"] = gdf["el_buildings"] + gdf["capital_buildings"]
+    gdf["premium_contents"] = gdf["el_contents"] + gdf["capital_contents"]
+    worst = float(np.abs(gdf["premium_buildings"] + gdf["premium_contents"]
+                         - gdf["premium"]).max())
+    assert worst < 1e-6, (
+        f"cover split is not additive (worst district off by {worst:g}) - "
+        "the capital floor must have clipped one cover")
+    assert (gdf["capital_contents"] >= -1e-9).all(), (
+        "contents capital came out negative - buildings absorbed more "
+        "than the whole allocation")
+    return gdf
+
+
 def main():
     print("loading district polygons...")
     gdf = load_districts()
@@ -1697,26 +1735,7 @@ def main():
     gdf["premium"] = gdf["el_total"] + gdf["capital"]
 
     # ---- buildings / contents cover split -----------------------------
-    # Same formula on the buildings-only Euler allocation; contents is
-    # the remainder, so the two premiums add back to the combined one to
-    # the penny. The max(...,0) is the one nonlinearity that could break
-    # that: it only bites if a cover's bad-year loss falls BELOW its own
-    # mean, which cannot happen while the bad years are the portfolio's
-    # worst - so it is asserted rather than assumed.
-    gdf["capital_buildings"] = 0.06 * np.maximum(
-        gdf["tvar99_euler_b"] - gdf["el_year_b"], 0.0)
-    gdf["capital_contents"] = gdf["capital"] - gdf["capital_buildings"]
-    gdf["el_contents"] = gdf["el_total"] - gdf["el_buildings"]
-    gdf["premium_buildings"] = gdf["el_buildings"] + gdf["capital_buildings"]
-    gdf["premium_contents"] = gdf["el_contents"] + gdf["capital_contents"]
-    worst = float(np.abs(gdf["premium_buildings"] + gdf["premium_contents"]
-                         - gdf["premium"]).max())
-    assert worst < 1e-6, (
-        f"cover split is not additive (worst district off by {worst:g}) - "
-        "the capital floor must have clipped one cover")
-    assert (gdf["capital_contents"] >= -1e-9).all(), (
-        "contents capital came out negative - buildings absorbed more "
-        "than the whole allocation")
+    apply_cover_split(gdf)
     w = gdf["households"].values
     print(f"  cover split: buildings £{np.average(gdf['premium_buildings'], weights=w):,.2f}"
           f" + contents £{np.average(gdf['premium_contents'], weights=w):,.2f}"
