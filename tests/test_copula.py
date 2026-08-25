@@ -1656,3 +1656,60 @@ def test_cover_split_capital_uses_the_same_basis_as_combined_capital(monkeypatch
         allc["capital"].values, abs=1e-9)
     assert allc["premium_contents"].values == pytest.approx(
         allc["premium"].values, abs=1e-9)
+
+
+def test_every_split_peril_has_a_published_anchor():
+    """SPLIT_ANCHORED may only name perils DATA_SOURCES #31 anchors.
+
+    The site splits exactly this set and leaves the rest blank, so adding
+    a peril here silently promotes a guess to a published figure. That
+    already happened once: SPLIT_BUILDINGS shipped theft 0.20, fire 0.70,
+    flood 0.65 and groundwater 0.80 as though they were anchors, when the
+    anchor search had settled on 0.242, 0.78, 0.48 and 0.48. This pins
+    the anchored values to the sources so the two cannot drift apart
+    again without a test failing.
+    """
+    anchors = {"sub": 1.00,    # contents excluded in every wording checked
+               "th": 0.242,    # ONS CSEW nature-of-crime damage share
+               "fire": 0.78,   # Home Office economic and social cost of fire
+               "fl": 0.48,     # Multi-Coloured Manual depth-damage curves
+               "gw": 0.48}     # same curves, same water
+    assert set(bm.SPLIT_ANCHORED) == set(anchors), (
+        "SPLIT_ANCHORED changed - every member needs a source in "
+        "DATA_SOURCES #31 before the site is allowed to split it")
+    for peril, expected in anchors.items():
+        assert bm.SPLIT_BUILDINGS[peril] == pytest.approx(expected), (
+            f"{peril} is declared anchored but carries "
+            f"{bm.SPLIT_BUILDINGS[peril]}, not the published {expected}")
+    assert set(bm.SPLIT_ANCHORED) < set(bm.SPLIT_BUILDINGS)
+    assert set(bm.PERIL_LABELS) == set(bm.SPLIT_BUILDINGS)
+
+
+def test_the_published_cover_table_adds_up():
+    """The risk-type table must reconcile to el_total and split only the
+    anchored perils - it is a disclosure, so its arithmetic is the claim."""
+    import json
+    import numpy as np
+    path = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "data", "districts_risk.geojson")
+    if not os.path.exists(path):
+        pytest.skip("no built model output")
+    with open(path, encoding="utf-8") as fh:
+        feats = [f["properties"] for f in json.load(fh)["features"]]
+    w = np.array([p.get("households", 1) for p in feats], dtype=float)
+    tot = np.average([p["el_total"] for p in feats], weights=w)
+    legs = {k: float(np.average([p["el_" + k] for p in feats], weights=w))
+            for k in bm.PERIL_LABELS}
+    # The eight labelled perils ARE el_total; erosion is deliberately out.
+    # Tolerance is set by the PUBLISHED file, which carries one decimal
+    # place: eight rounded legs against one rounded total leaves ~0.03 on
+    # 164, so 2e-3 absorbs the rounding. It still catches a dropped peril
+    # - the smallest, groundwater, is 0.8% of cost, forty times the
+    # tolerance.
+    assert sum(legs.values()) == pytest.approx(tot, rel=2e-3), (
+        "the risk-type table does not reconcile to el_total - a peril is "
+        "missing from PERIL_LABELS, or erosion has leaked into el_total")
+    anchored = sum(v for k, v in legs.items() if k in bm.SPLIT_ANCHORED)
+    assert 0.4 * tot < anchored < 0.8 * tot, (
+        f"anchored share is {100 * anchored / tot:.1f}% - if this moved a "
+        "long way the table's headline claim needs rewriting, not the bound")

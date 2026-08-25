@@ -577,6 +577,22 @@ SPLIT_BUILDINGS = {
     "ad": 0.45,
 }
 
+# Which of the eight have a published anchor. This is the line the whole
+# of Phase 3 turns on, so it is data rather than a comment: the site
+# splits ONLY these and leaves the rest named and blank, and the
+# per-risk-type table is built from this set. Keep it in step with
+# DATA_SOURCES #31 - adding a peril here without a source there is
+# exactly the placeholder-as-anchor mistake that shipped once already.
+SPLIT_ANCHORED = frozenset({"sub", "th", "fire", "fl", "gw"})
+
+# Human labels for the eight, in the order the risk-type table reads
+# best (by claim cost, resolved at build time).
+PERIL_LABELS = {
+    "eow": "escape of water", "fire": "fire", "th": "theft",
+    "fl": "flood", "sub": "subsidence", "wx": "weather",
+    "ad": "accidental damage", "gw": "groundwater",
+}
+
 
 def calibrate_spatial(gdf, target_ratio=TAIL_FREQ_RATIO):
     """Pick the spatial loading multiplier analytically.
