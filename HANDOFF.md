@@ -334,6 +334,47 @@ publishable is the table above — per-risk-type claim cost that sums to
 named and left blank. That is honest, needs nothing bought, and is strictly more than
 the site says today (which is nothing).
 
+### BUILT 2026-08-25: the disclosure ships, the mechanism does not
+
+The table above is now a section on the methodology page
+(`site/methodology.template.html` id="cover", rows injected by
+`build_site.cover_split`). **Not published — it lives on
+`exp/buildings-contents` and merging it is the user's call.**
+
+**The structural finding that made it shippable:** the table needs no
+model change at all. It is the per-peril ELs the model already publishes
+multiplied by five constants that have sources, so `build_site.py`
+computes it from the committed GeoJSON and never reads `el_buildings`,
+`capital_buildings` or anything else this branch adds. That cleanly
+separates the disclosure, which is defensible today, from the mechanism,
+which cannot ship while three of eight fractions do not exist. The
+mechanism stays here, exact and unpublished.
+
+`SPLIT_ANCHORED` and `PERIL_LABELS` were added to `build_model.py` so
+"which perils have an anchor" is data rather than a comment — that one
+line is what the whole phase turns on.
+
+**Three guards, one of which caught a real bug on the way in:**
+`test_every_split_peril_has_a_published_anchor` pins each anchored peril
+to its documented value so the placeholder-as-anchor mistake cannot
+recur; `test_the_published_cover_table_adds_up` reconciles the table to
+`el_total` (tolerance set by the published file's one-decimal rounding,
+still forty times tighter than the smallest peril); and the layout suite
+rejected the table for overflowing on phone until it used the existing
+`.tablewrap`/`.data` convention.
+
+**A second draw-mean defect was found and fixed while doing this.**
+`capital_buildings` was computed against `el_year_b`, a draw mean, while
+the `capital` it splits uses the analytic `el_total` — the same
+substitution the 2026-08-18 audit made for `capital`, with this sibling
+missed. In the all-buildings corner `capital_buildings` must equal
+`capital` and came back 0.30% and 0.23% low. **The additivity assertion
+sitting three lines below it could never have caught this**, because
+`capital_contents` is defined as the remainder and so adds up whatever
+basis the buildings leg used. The block is extracted to
+`apply_cover_split()` so the corners are testable at all, and the new
+test was checked against the old formula first: it fails there.
+
 **Still true, and still the reason not to go further:** a fixed
 per-peril fraction cannot vary by geography, so even a complete split
 would move no district's *ranking* — it would re-label the premium, not
