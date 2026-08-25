@@ -263,7 +263,24 @@ ABI = dict(
     # 2018's (~0.97%) and what today's would be if claims fell with
     # recorded burglary (~0.58%) - that envelope is the documented
     # uncertainty on the theft LEVEL. See DATA_SOURCES.md #25.
-    theft_paid=450e6, sev_theft=3_800.0,
+    #
+    # The level sits at the BOTTOM of that envelope: 0.58%/policy x
+    # 15.5m x GBP 3,800 = GBP 341.6m. It was moved there on 2026-08-25
+    # (exp/theft-level, CI 32607071195) because theft was carrying the
+    # WHOLE of the model's claim-count overshoot. The previous
+    # 450e6/3800 implies 118,421 claims, 21.15% of the ABI's 560,000,
+    # when the six legs whose counts are pinned by an outside source
+    # leave only 99,955 for theft AND every unmodelled category - an
+    # overrun of 18,466, which is the overshoot exactly. Theft is also
+    # the only leg with nothing pinning its count: its paid total is
+    # 2018 and its average is 2025. Severity is therefore held at the
+    # CURRENT published ABI average and the stale paid total is what
+    # moves. Priced at EL -4.09%, premium -3.96%, capital -0.03%; see
+    # HANDOFF "Claim-count overshoot: attributed 2026-08-22" and
+    # "exp/theft-level, priced 2026-08-23". NOTE this improves the count
+    # budget without closing it: away-from-home accidental damage alone
+    # still needs 36,176 of the 10,060 claims left spare.
+    theft_paid=341.6e6, sev_theft=3_800.0,
     # Escape of water. Like theft, the ABI publishes no annual per-peril
     # total any more; the standing figure is "£1.8m every day" (~£657m/yr,
     # quoted since ~2017). The triangle closes: EoW was 29.3% of 2025's
@@ -457,7 +474,23 @@ W_EOW = 0.026
 # driven; ~15% is the defensible middle. The base is FLAT: plumbing and
 # appliance failure has no open spatial predictor until Phase 2 gives
 # dwelling age (EPC) and a commercial denominator (VOA).
-EOW_FREEZE_SHARE = 0.15
+#
+# That judgement call was REPLACED by a measurement on 2026-08-25
+# (exp/eow-freeze, CI 32787462774). The ABI's weather line itemises burst
+# pipes separately: GBP 153m in 2023 and GBP 202m in 2025
+# (data/abi_annual.csv). Scaled to each year's own home book those are
+# 6.00% and 5.94% of total home paid, and against EoW at its 19.3% share
+# of that book they imply a freeze share of 0.311 and 0.307 - two
+# independent years agreeing to within 0.004, and both about double the
+# old 0.15. Run scripts/anchor_budget.py for the derivation.
+#
+# This costs the national level NOTHING: the frost relativity is
+# normalised to an exposure-weighted mean of 1 and calibrate_frequency
+# re-pins the level regardless, so the change is pure geography. It moved
+# the frostiest districts up (PH10 +11.2%, AB36 +10.7%, IV4 +10.3%) and
+# the mildest down (Isles of Scilly and west Cornwall, -4.3% to -5.5%),
+# which is the sign test passing on both tails at once.
+EOW_FREEZE_SHARE = 0.31
 # Fire's loading comes from the same derivation as theft's and EoW's,
 # and lands even lower than theft. The FIRE0201 national series
 # (1981/82-2025/26) shows a steady secular DECLINE of -2.5%/yr - a

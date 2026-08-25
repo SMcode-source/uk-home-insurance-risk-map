@@ -786,7 +786,15 @@ def load_stats():
         # charge - and only via the PORTFOLIO tail, never a district's own.
         "__EL_SHARE__": f"{100 * np.average(_el, weights=_w) / np.average(_prem, weights=_w):.0f}",
         "__CAPITAL_SHARE__": f"{100 * np.average(_cap, weights=_w) / np.average(_prem, weights=_w):.0f}",
-        "__MEAN_EL__": f"{np.mean([p['el_total'] for p in feats]):,.0f}",
+        # Exposure-weighted, like every other "nationally" figure here.
+        # This was a plain np.mean until 2026-08-25, which put two
+        # different bases in ONE published sentence: "come to GBP X per
+        # policy per year - Y% of what all home claims cost", where Y
+        # (__EL_CLAIMS_SHARE__) was already exposure-weighted. An
+        # unweighted mean over 2,736 districts is not a per-policy
+        # figure at all - it over-weights small rural districts - and it
+        # read GBP 163 against a 75% that implies GBP 164.
+        "__MEAN_EL__": f"{np.average(_el, weights=_w):,.0f}",
         "__MEAN_CAPITAL__": f"{np.mean([p.get('capital', 0) for p in feats]):,.0f}",
         # NOT __MEAN_STANDALONE__ any more: the standalone tail is quoted
         # as a measured range (see seed_bits below). Its Monte Carlo error
