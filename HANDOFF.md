@@ -471,7 +471,44 @@ level ~6% and is a straight correction; defect 1 mostly REDUCES
 subsidence and RAISES groundwater, and its real prize is that the map
 stops depending on the seed.
 
+## Branch inventory, tidied 2026-08-25
+
+Every branch that exists, why it exists, and what would retire it. All
+four are merged up to current main as of this date, and all pass their
+own suites (main 86, `exp/ct-severity` 87, `exp/buildings-contents` 88).
+
+| branch | state | why it is kept |
+|---|---|---|
+| `main` | published | the product |
+| `sector-model` | permanent, 33 ahead | the same model at postcode-SECTOR grain. **NEVER merges to main** — only `data/districts_risk.geojson` crosses, renamed `data/sectors_risk.geojson`. main merges INTO it, never the reverse. |
+| `exp/ct-severity` | held, priced | Phase 2c. Level-neutral, mechanism verified, but re-rates 70% of the map on an unanchored reading of council-tax bands. The user's call. |
+| `exp/buildings-contents` | staged, unpublished | Phase 3. Mechanism exact, 55.6% of claim cost anchored, publishable output is the per-risk-type table. Needs no evidence run. |
+
+**Deleted 2026-08-25:** `exp/eow-freeze` and `exp/theft-level`, both
+fully merged into main and published, commits reachable from main. Same
+disposal as `exp/el-and-flood-fixes` after the 2026-08-19 publish.
+
+**Keep experiment branches merged up to main.** `exp/buildings-contents`
+was allowed to drift 48 commits, and that drift silently broke the cover
+split: main's 2026-08-18 audit fix moved `el_total` onto analytic legs
+while `el_buildings` went on summing draw means, and the identity test
+only fired when the branch was finally merged. A branch that is behind
+is not dormant, it is quietly diverging.
+
 ## exp/ct-severity (Phase 2c), re-priced 2026-08-25 — AWAITING THE USER'S DECISION
+
+> **Evidence stale AGAIN as of the 2026-08-25 publish, later the same
+> day.** Everything below was measured against a £176.66 baseline. That
+> baseline is now £169.66 (theft's level correction), so the ABSOLUTE
+> premium figures and the rating-group churn below will move. The
+> RELATIVE finding will not: the band multiplier is normalised to a
+> claim-weighted mean of 1 per peril, so it stays level-neutral, and
+> theft — one of the four perils it scales — is now a smaller share of
+> the book, which if anything slightly REDUCES its bite. Re-run CI on
+> the branch before acting on any number here. The branch is merged up
+> to current main and its 87 tests pass, so a dispatch is all it needs.
+> **The open question in "Two checks run against it" is unaffected** —
+> it is about what council-tax bands mean, not about the level.
 
 Branch `exp/ct-severity`, rebased onto published main (afcf0a5; the old
 185485c evidence was measured against the pre-2a baseline and is
