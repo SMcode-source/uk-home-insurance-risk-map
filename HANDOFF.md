@@ -590,8 +590,81 @@ losing theft (EC3V −13.4%, EC4M −13.0%, WC2E −12.4%, W1C −12.3%, WC2H
 −12.3%, W1F −12.1%, LS2 −11.7%); the risers are the frost-exposed
 Highlands, where the EoW gain outweighs the theft cut.
 
+**Both grains are live and agree.** District publish is bot commit
+531da04 (rebuild run 40): premium **£169.6633**, EL £164.1213 over
+2,736 districts. Sector output from `sector-model` run 13 (bot 80d1063,
+`skip_fetch=true` — only two model parameters moved and no hazard input
+changed) crossed to `data/sectors_risk.geojson` in d4723ea: premium
+**£169.6780** over 10,398 sectors, **0.0087%** from the district grain
+and in line with the 0.0085% the two have historically agreed to. The
+sector-model branch is NOT merged and never is; only that one file
+crosses. docs/ was rebuilt in the same commit as the crossing.
+
 **Still held, deliberately:** `exp/ct-severity` (Phase 2c). Not a
 rejection — the open question is recorded in its own section above.
+
+### The publish order was wrong again, and the file already said so
+
+**I repeated the 2026-08-19 mistake.** The rule two sections down —
+written after that publish — says: when a model change touches both
+grains, cross the sector output to main BEFORE merging the model change,
+and if the sector run needs the merged `build_model.py`, merge into
+`sector-model` first, run it, and hold the main merge until its output
+crosses in the same push. I did neither. Districts were merged and
+published first (531da04), the sector rebuild started afterwards, and
+for the ~40 minutes in between the live site served **£169.66 at the
+district grain and £176.67 at the sector grain**.
+
+Nothing broke and no test can see it, exactly as predicted: each grain
+is internally consistent and only the pair is wrong. The site's own
+cross-grain check did notice — it published "exposure-weighted level
+within **4.1%**" for that window, against 0.0% now.
+
+**Why the rule is easy to break.** Both correct orderings require
+holding a finished, verified, user-approved change unpublished while a
+second ~40-minute job runs. The instinct after a green verification run
+is to ship it. The rule exists precisely because that instinct is wrong
+here.
+
+**What would actually prevent it,** rather than another note asking the
+next person to remember: nothing in CI compares the two grains. A test
+that reads both `data/districts_risk.geojson` and
+`data/sectors_risk.geojson` and fails when their exposure-weighted
+premiums differ by more than ~0.05% would have caught this the moment
+main was pushed, and would have caught the 2026-08-19 window too. The
+0.0085% the grains historically agree to gives a comfortable threshold.
+**Not built** — it is a real guard and worth having, but it would have
+failed CI on a state I had deliberately created, so it needs the
+publishing flow settled first.
+
+### Two published headline figures were wrong, found while verifying
+
+Both fixed in the same session (commit "Two published headline figures
+were wrong, in two different ways").
+
+**1. The map pages quoted a hardcoded premium, two publishes stale.**
+`map/template.html` carried the literal text "~£170/policy/yr, around
+77%". Nothing regenerated it. `docs/map.html` and `docs/sectors.html`
+come out byte-identical on every rebuild, so they produce no diff, land
+in no publish commit, and no stale-check fires — the two most-visited
+pages on the site went on quoting a figure from before the 2026-08-19
+publish while the data underneath them was current. Both numbers are now
+injected by `build_map.py`, and `build_map`'s existing
+unsubstituted-placeholder guard means they cannot silently rot again.
+Each page reports **its own grain**, so a mixed district/sector pair is
+now visible on the site instead of hidden behind one shared constant.
+
+**2. `__MEAN_EL__` was an unweighted mean, next to a weighted one.**
+`build_site.py` computed the headline as `np.mean` over districts while
+the share beside it in the SAME SENTENCE (`__EL_CLAIMS_SHARE__`) was
+exposure-weighted. "Come to £163 per policy per year — 75% of what all
+home claims cost" mixed two bases: £163/£219 is 74%, and the 75% implies
+£164. An unweighted mean over 2,736 districts is not a per-policy figure
+at all — it over-weights small rural districts. Now weighted, which is
+what `build_site.py`'s own comment eight lines above already said
+"nationally" means everywhere in this model.
+
+Published headline is now **£164/policy/yr, 75%** at both grains.
 
 ## PUBLISHED 2026-08-25: exp/eow-freeze, the EoW freeze share
 
