@@ -25,9 +25,18 @@ Because of the fetch, the pages need HTTP even locally:
 import json
 import os
 import re
+import sys
+
+import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, "..")
+
+# The ABI context behind the headline share is imported from the model
+# rather than restated, exactly as build_site.py does it: two copies of
+# total_home_paid is how the published pages drift apart.
+sys.path.insert(0, HERE)
+from build_model import ABI, POLICIES  # noqa: E402
 
 # Coordinates are already written at ~100 m precision by build_model, and
 # properties are 3x the geometry in these files, so trimming columns is
@@ -130,6 +139,18 @@ BUILDS = [
 ]
 
 
+def headline(geojson_path):
+    """Exposure-weighted eight-peril EL per policy, and its share of what
+    all home claims cost - the same two numbers, on the same basis, that
+    build_site.py injects as __MEAN_EL__ and __EL_CLAIMS_SHARE__."""
+    with open(os.path.join(ROOT, geojson_path), encoding="utf-8") as f:
+        feats = [x["properties"] for x in json.load(f)["features"]]
+    el = np.array([p["el_total"] for p in feats], dtype=float)
+    w = np.array([p.get("households", 1) for p in feats], dtype=float)
+    mean_el = np.average(el, weights=w)
+    return f"{mean_el:,.0f}", f"{100 * mean_el / (ABI['total_home_paid'] / POLICIES):.0f}"
+
+
 def main():
     template = read("map", "template.html")
     leaflet_js = read("assets", "leaflet.js").replace("</script>", "<\\/script>")
@@ -139,7 +160,17 @@ def main():
 
     for b in BUILDS:
         data, n = web_asset(b["source"], keep)
+        # The two headline figures were HARDCODED in map/template.html
+        # until 2026-08-25 ("~GBP 170/policy/yr, around 77%"). Nothing
+        # regenerated them, so both published map pages kept quoting a
+        # premium two publishes out of date while the data underneath
+        # them was current - the pages are byte-identical each rebuild,
+        # so no diff and no stale-check ever fired. They are injected
+        # now, on the same exposure-weighted basis build_site.py uses.
+        mean_el, claims_share = headline(b["source"])
         html = (template
+                .replace("__MEAN_EL__", mean_el)
+                .replace("__EL_CLAIMS_SHARE__", claims_share)
                 .replace("__LEAFLET_CSS__", leaflet_css)
                 .replace("__LEAFLET_JS__", leaflet_js)
                 .replace("__PAGE_TITLE__", b["title"])
