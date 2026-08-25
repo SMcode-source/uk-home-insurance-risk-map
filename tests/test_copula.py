@@ -1570,3 +1570,64 @@ def test_uncovered_district_with_surface_water_is_not_read_as_shallow(
     assert np.isnan(depth[1])
     # and the covered one is normalised on its own, so it is exactly 1.0 too
     assert abs(mult[0] - 1.0) < 1e-9
+
+
+def test_no_capital_formula_is_taken_against_a_draw_mean():
+    """Capital is always (tail - analytic EL), never (tail - draw mean).
+
+    `el_total` is the sum of the analytic legs (p * E[sev]); `el_year` is
+    the mean of the simulated years. They estimate the same quantity and
+    differ only by Monte Carlo error, which is exactly what makes this bug
+    survivable: it never looks wrong, it just quietly puts capital on a
+    basis the calibration loop does not target.
+
+    The 2026-08-18 audit moved the model onto the analytic basis but missed
+    call sites. Three more surfaced afterwards, one at a time - the
+    cover-split capital, its buildings leg, and sensitivity.py - each found
+    by hand, none by CI. This test is that sweep made permanent. It reads
+    the source rather than the numbers, because the two bases agree to
+    fractions of a percent: no value assertion would ever fail on this.
+    """
+    import re
+    from pathlib import Path
+
+    def first_argument(code, open_paren):
+        """Text of arg 1 of the call whose '(' is at `open_paren`.
+
+        Scanned with a paren counter rather than a regex: a non-greedy
+        `.*?` still happily runs from one np.maximum call to the next
+        file-spanning `, 0.0)` and reports the wrong line.
+        """
+        depth, i = 0, open_paren
+        while i < len(code):
+            if code[i] == "(":
+                depth += 1
+            elif code[i] == ")":
+                depth -= 1
+                if depth == 0:
+                    return code[open_paren + 1:i]
+            elif code[i] == "," and depth == 1:
+                return code[open_paren + 1:i]
+            i += 1
+        return ""
+
+    scripts = Path(__file__).resolve().parent.parent / "scripts"
+    draw_mean = re.compile(r"\bel_year\w*\b")
+
+    offenders = []
+    for src in sorted(scripts.glob("*.py")):
+        text = src.read_text(encoding="utf-8")
+        # strip comments: prose may name el_year, executable code may not
+        code = "\n".join(ln.split("#")[0] for ln in text.splitlines())
+        for m in re.finditer(r"np\.maximum\(", code):
+            expr = first_argument(code, m.end() - 1)
+            if "tvar" not in expr:          # not a capital formula
+                continue
+            if draw_mean.search(expr):
+                line = code[: m.start()].count("\n") + 1
+                offenders.append(
+                    f"{src.name}:{line}: {' '.join(expr.split())}")
+
+    assert not offenders, (
+        "capital taken against a draw mean instead of el_total:\n  "
+        + "\n  ".join(offenders))

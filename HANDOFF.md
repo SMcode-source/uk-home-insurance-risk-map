@@ -471,11 +471,84 @@ level ~6% and is a straight correction; defect 1 mostly REDUCES
 subsidence and RAISES groundwater, and its real prize is that the map
 stops depending on the seed.
 
+## Draw-mean sweep 2026-08-25: the question made permanent
+
+The user asked whether anything else compares against a draw mean. It
+was worth asking: by then the 2026-08-18 analytic/draw fix had produced
+**three** follow-on defects, each found by hand, one at a time, none by
+CI. This is the sweep run properly and then wired into the suite so it
+does not have to be run by hand a fourth time.
+
+**The pair.** `el_total` is the sum of the analytic legs (`p * E[sev]`).
+`el_year` is `year_loss.mean(axis=1)`, the mean of the simulated years.
+They estimate the same quantity. The analytic one is the right basis for
+capital because `calibrate_frequency` solves against the exposure-weighted
+mean of the analytic `p` — no draw enters that loop, so `p * E[sev]` *is*
+the calibration target. `el_year` only ever agrees with it up to Monte
+Carlo error, which is exactly what makes the bug survivable: it never
+looks wrong.
+
+**What was swept.** Every `.py` under `scripts/` on `main`,
+`exp/ct-severity`, `exp/buildings-contents` and `sector-model` — every
+`.mean(axis=1)`, every `el_year` reference, every capital formula.
+
+| site | verdict |
+|---|---|
+| `build_model.py` `tvar(...)` partition helper | correct — a tail mean over draws is *meant* to be a draw mean |
+| `build_model.py` `res["tvar99_euler"]` | correct — same |
+| `build_model.py` `capital` | correct — on `el_total` since 2026-08-18 |
+| `build_model.py` `capital_cc` (climate) | correct — subtracts `sim_cc["el_total"]` |
+| `seed_sweep.py` capital | correct — on `el_total` |
+| `seed_sweep.py` `COLS` listing `el_year` | correct — `el_year` is a diagnostic *being* seed-tested there, not a basis |
+| `backtest_coverage.py` `draws.mean(axis=1)` | correct — a 200k bootstrap of k-year windows, compared against an observed k-year window; draws are the point |
+| **`sensitivity.py` premium** | **DEFECT — subtracted `el_year`** |
+
+**The one defect.** `sensitivity.py` carried the pre-audit formula, under
+a comment that read "same basis as build_model" — which by then it was
+not. One file, but present identically on all four branches, because it
+predates the branching rather than being four separate mistakes.
+
+**Measured, not assumed.** A two-district synthetic frame made this look
+like a 4–6% error. On the real baseline (912 districts, 1-in-3 sample,
+the frame `sensitivity.py` actually builds) it is not:
+
+```
+                     stale (el_year)   fixed (el_total)    diff
+capital                       5.7734             5.7575   +0.28%
+premium                     169.5309           169.5150   +0.01%
+el_total 163.7575    el_year 163.4926  (-0.16%)
+rating-group churn between the two bases: 0 of 912
+```
+
+With 912 districts the draw mean is well estimated, and here it sits
+0.16% *below* `el_total` — the opposite sign to the tiny frame, so the
+stale basis ran capital slightly **high**, not low. No sensitivity
+conclusion this repo has published turned on it. It was fixed for basis
+consistency and because the comment asserted a basis it did not use, not
+because it changed an answer. Saying otherwise would overstate it.
+
+**The guard.**
+`test_no_capital_formula_is_taken_against_a_draw_mean` reads the source
+of every script, strips comments (prose may name `el_year`; executable
+code may not), finds each `np.maximum(` whose first argument mentions
+`tvar`, and fails if that argument names a draw mean. It scans source
+rather than numbers deliberately: the two bases agree to fractions of a
+percent, so **no value assertion would ever catch this**. Verified both
+ways — passes on the fixed tree, and reverting the one line makes it
+fail with `sensitivity.py:144` and nothing else.
+
+The argument is extracted with a paren counter, not a regex. A non-greedy
+`np\.maximum\(\s*(.*?),\s*0\.0\s*\)` looks right and is not: `marginal_params`
+has an `np.maximum(..., 0)` with no `.0`, so the match runs on past it and
+reports a defect hundreds of lines away. That was caught by the negative
+control, which is the reason to always run one.
+
 ## Branch inventory, tidied 2026-08-25
 
 Every branch that exists, why it exists, and what would retire it. All
 four are merged up to current main as of this date, and all pass their
-own suites (main 86, `exp/ct-severity` 87, `exp/buildings-contents` 88).
+own suites (main 87, `exp/ct-severity` 88, `exp/buildings-contents` 89 —
+each gained the draw-mean guard test when main was merged forward).
 
 | branch | state | why it is kept |
 |---|---|---|
@@ -497,18 +570,23 @@ is not dormant, it is quietly diverging.
 
 ## exp/ct-severity (Phase 2c), re-priced 2026-08-25 — AWAITING THE USER'S DECISION
 
-> **Evidence stale AGAIN as of the 2026-08-25 publish, later the same
-> day.** Everything below was measured against a £176.66 baseline. That
-> baseline is now £169.66 (theft's level correction), so the ABSOLUTE
-> premium figures and the rating-group churn below will move. The
-> RELATIVE finding will not: the band multiplier is normalised to a
-> claim-weighted mean of 1 per peril, so it stays level-neutral, and
-> theft — one of the four perils it scales — is now a smaller share of
-> the book, which if anything slightly REDUCES its bite. Re-run CI on
-> the branch before acting on any number here. The branch is merged up
-> to current main and its 87 tests pass, so a dispatch is all it needs.
-> **The open question in "Two checks run against it" is unaffected** —
-> it is about what council-tax bands mean, not about the level.
+> **Re-run against the published baseline, 2026-08-25 (CI
+> [32893304946](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32893304946)).**
+> The figures below are now measured against £169.66, not the superseded
+> £176.66. **The prediction made when this was flagged stale held
+> exactly**: still level-neutral (EL −0.00%, premium −0.00%, capital
+> −0.01%), and because theft is now a smaller share of the book the bite
+> is slightly SMALLER — p95 +22.78% → **+22.09%**, p5 −14.32% →
+> **−14.07%**. Everything else is unchanged in character: churn 1,928 of
+> 2,736 (**70.5%**), **968** districts moving ≥2 groups, Spearman
+> **0.8198**, dispersion 1.507 → **1.600**. Prime London still leads
+> (SW1X +70.4%, W1K +67.0%, W1J +64.7%, SW1Y +62.1%, SW7 +58.0%, AB13
+> +56.6%) and post-industrial cores still fall (L6 −20.9%, TS1 −20.8%,
+> S14 −20.4%, L7 −20.2%, CF43 −19.4%). The percentages in the sections
+> below are therefore still right to within a few tenths; the £ figures
+> they sit beside are on the old baseline. **The open question in "Two
+> checks run against it" is untouched** — it is about what council-tax
+> bands mean, not about the level, and no rerun can settle it.
 
 Branch `exp/ct-severity`, rebased onto published main (afcf0a5; the old
 185485c evidence was measured against the pre-2a baseline and is
