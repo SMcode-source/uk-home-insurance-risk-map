@@ -497,18 +497,23 @@ is not dormant, it is quietly diverging.
 
 ## exp/ct-severity (Phase 2c), re-priced 2026-08-25 — AWAITING THE USER'S DECISION
 
-> **Evidence stale AGAIN as of the 2026-08-25 publish, later the same
-> day.** Everything below was measured against a £176.66 baseline. That
-> baseline is now £169.66 (theft's level correction), so the ABSOLUTE
-> premium figures and the rating-group churn below will move. The
-> RELATIVE finding will not: the band multiplier is normalised to a
-> claim-weighted mean of 1 per peril, so it stays level-neutral, and
-> theft — one of the four perils it scales — is now a smaller share of
-> the book, which if anything slightly REDUCES its bite. Re-run CI on
-> the branch before acting on any number here. The branch is merged up
-> to current main and its 87 tests pass, so a dispatch is all it needs.
-> **The open question in "Two checks run against it" is unaffected** —
-> it is about what council-tax bands mean, not about the level.
+> **Re-run against the published baseline, 2026-08-25 (CI
+> [32893304946](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32893304946)).**
+> The figures below are now measured against £169.66, not the superseded
+> £176.66. **The prediction made when this was flagged stale held
+> exactly**: still level-neutral (EL −0.00%, premium −0.00%, capital
+> −0.01%), and because theft is now a smaller share of the book the bite
+> is slightly SMALLER — p95 +22.78% → **+22.09%**, p5 −14.32% →
+> **−14.07%**. Everything else is unchanged in character: churn 1,928 of
+> 2,736 (**70.5%**), **968** districts moving ≥2 groups, Spearman
+> **0.8198**, dispersion 1.507 → **1.600**. Prime London still leads
+> (SW1X +70.4%, W1K +67.0%, W1J +64.7%, SW1Y +62.1%, SW7 +58.0%, AB13
+> +56.6%) and post-industrial cores still fall (L6 −20.9%, TS1 −20.8%,
+> S14 −20.4%, L7 −20.2%, CF43 −19.4%). The percentages in the sections
+> below are therefore still right to within a few tenths; the £ figures
+> they sit beside are on the old baseline. **The open question in "Two
+> checks run against it" is untouched** — it is about what council-tax
+> bands mean, not about the level, and no rerun can settle it.
 
 Branch `exp/ct-severity`, rebased onto published main (afcf0a5; the old
 185485c evidence was measured against the pre-2a baseline and is
