@@ -131,10 +131,18 @@ SCENARIOS = {
 def run_scenario(df):
     sim, year = bm.simulate(df)
     d = pd.DataFrame(sim)
-    # same basis as build_model: capital is the Euler-allocated share of
-    # portfolio tail risk, not the district's standalone TVaR
+    # Capital is the Euler-allocated share of portfolio tail risk, not the
+    # district's standalone TVaR - and it is taken on the SAME analytic
+    # basis as build_model: el_total, the sum of p*E[sev], never el_year,
+    # the draw mean. This line subtracted el_year until 2026-08-25: the
+    # last survivor of the 2026-08-18 analytic/draw sweep, which the
+    # comment above it wrongly claimed it had followed. Measured on the
+    # current baseline (912 districts, 1-in-3 sample) the stale basis put
+    # capital 0.28% high and premium 0.01% high, and moved no district
+    # across a rating group - so no published sensitivity conclusion turned
+    # on it. Fixed for basis consistency, not because it changed an answer.
     d["premium"] = d["el_total"] + 0.06 * np.maximum(
-        d["tvar99_euler"] - d["el_year"], 0.0)
+        d["tvar99_euler"] - d["el_total"], 0.0)
     d["group"] = pd.qcut(d["premium"].rank(method="first"), 10,
                          labels=False) + 1
     ya = bm.year_analysis(year, len(df))
