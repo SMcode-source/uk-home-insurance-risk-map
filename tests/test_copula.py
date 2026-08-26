@@ -1327,11 +1327,32 @@ def test_the_sector_model_nests_inside_the_district_model():
     sector_level = num / den
     district_level = (sum(p.get("households", 0) * p["premium"]
                           for p in districts.values()) / hh_d)
-    assert abs(sector_level / district_level - 1) < 0.05, (
+    # 0.5%, tightened from 5% on 2026-08-25. The loose bound is why this
+    # test watched both publish-order mistakes go by without a word: the
+    # grains sat 1.39% apart across the 2026-08-19 window and 4.1% apart
+    # across the 2026-08-25 one, and BOTH fit inside 5%. HANDOFF recorded
+    # the guard as "not built"; it was built, just set 574x wider than the
+    # thing it was guarding against.
+    #
+    # 0.5% is ~57x the agreement the grains actually hold (0.0087% today,
+    # 0.0085% historically) and ~8x under the drift that got through. It
+    # is deliberately not tighter: a real model change may widen the
+    # genuine geography gap, and this must fail on mixed pairs, not on
+    # honest resolution differences.
+    #
+    # This does mean rebuild.yml's pre-flight refuses to run while the two
+    # committed files disagree. That is the intended behaviour and not the
+    # deadlock the peril-set skip above avoids: recovery from a mixed pair
+    # is crossing the sector file, a plain commit, not a rebuild. Both
+    # sanctioned publish orders land the pair in ONE push, so a correct
+    # publish never sees this.
+    assert abs(sector_level / district_level - 1) < 0.005, (
         f"exposure-weighted premium differs by "
-        f"{100 * (sector_level / district_level - 1):+.1f}% between scales "
-        f"(£{district_level:.2f} vs £{sector_level:.2f}) - the geography "
-        f"change moved the model, it did not just resolve it")
+        f"{100 * (sector_level / district_level - 1):+.3f}% between scales "
+        f"(£{district_level:.2f} vs £{sector_level:.2f}) - the two grains "
+        f"are a MIXED PAIR: one file carries a model change the other does "
+        f"not, and the live site is serving both. Cross the sector output "
+        f"to main, or hold the district publish until it is ready")
 
 
 def test_every_published_map_asset_carries_the_columns_its_page_reads():
