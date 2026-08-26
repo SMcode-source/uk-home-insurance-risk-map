@@ -667,6 +667,42 @@ districts**, used as the exposure weight throughout.
       build period for the FULL stock at LSOA under plain OGL if
       Phase 2b/2c ever need it.
 
+30. **Council-tax band mix — the attritional severity relativity**
+    (`scripts/fetch_ct_bands.py` → `data/ct_bands.csv`, Phase 2c).
+    Bands are the only full-stock, small-area, OGL property-value
+    proxy in Great Britain; the district band mix scales the four
+    flat attritional severities (theft, EoW, fire, AD).
+    - **England & Wales:** CTSOP1.1, VOA "Council Tax: stock of
+      properties 2025", snapshot 31 Mar 2025 — direct zip (732 KB)
+      `https://assets.publishing.service.gov.uk/media/6a0ad444c75cc34a8ff8f397/CTSOP1.1.zip`,
+      member `CTSOP1.1/CTSOP1_1_2025_03_31.csv`, filter
+      `geography=="LSOA"`. Counts rounded to 10; `-` = suppressed
+      (<5, treated as 0); `..` = not applicable (band_i outside
+      Wales). 35,672 LSOAs / 27.29m dwellings.
+    - **Scotland:** "Dwellings by Council Tax Band Detailed",
+      NRS via statistics.gov.scot (10.6 MB zip,
+      `https://statistics.gov.scot/downloads/file?id=c0c89950-ae25-48c1-b806-c6a759a211c5%2FDwellings+by+Council+Tax+Band+Detailed.zip`).
+      **Use the 2023 CSV only**: 2005–2023 are on 2011 data zones,
+      the 2024 file silently switches to 2022 data zones, which no
+      postcode product joins yet. 6,973 DZs / 2.73m dwellings.
+    - **Band weights are each nation's statutory charge ratios**
+      (England/Wales LGFA 1992 s.5: 6:7:8:9:11:13:15:18(:21)/9;
+      Scotland post-2017: 240:280:320:360:473:585:705:882/360) —
+      published, stable, and the only anchor that exists for all
+      three regimes. The regimes are INCOMPATIBLE (1991 England vs
+      2003 Wales vs 1991-with-own-ratios Scotland), so weights are
+      normalised within nation to a dwelling-weighted mean of 1.0
+      before any district — several straddle the English-Welsh
+      border — averages over its small areas.
+    - **Geography join trap:** the cached ONS lookup's `lsoa21cd`
+      column holds E&W 2021 LSOAs AND Scottish 2011 data zones
+      (Scotland had no 2021 census); there is no lsoa11cd member.
+      Coverage asserted ≥97% per nation (both hit 100.0%).
+    - **Effect:** 30.02m dwellings placed across 2,866 districts;
+      relativity runs 0.69 (CF43, Rhondda) to 1.94 (SW1X,
+      Belgravia). Normalisation to CLAIM weights (households × that
+      peril's rate) happens in build_model.main(), so each peril's
+      ABI severity level is pinned by construction.
 
 32. **The ABI industry-data subscription, and how to read a withdrawn
     ABI file** (found 2026-08-18; numbers 30 and 31 are taken by the
