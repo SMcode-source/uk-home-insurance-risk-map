@@ -58,6 +58,7 @@ from scores_real import (subsidence_score, weather_from_metoffice,
                          erosion_from_ncerm, sw_depth_severity, load_country,
                          theft_from_police, frost_from_metoffice,
                          fires_from_mhclg, children_from_census,
+                         ct_value_from_bands,
                          flood_future, flood_score_from_fractions,
                          EROSION_HORIZON_YEARS)
 
@@ -706,14 +707,22 @@ def marginal_params(f):
     # with little spread rather than a repair-cost distribution
     sev_er = dict(mu=np.log(_median_for_mean(ABI["sev_erosion"], s_er)),
                   sigma=s_er)
-    sev_th = dict(mu=np.log(_median_for_mean(ABI["sev_theft"], s_th)),
-                  sigma=s_th)
-    sev_eow = dict(mu=np.log(_median_for_mean(ABI["sev_eow"], s_eow)),
-                   sigma=s_eow)
-    sev_fire = dict(mu=np.log(_median_for_mean(ABI["sev_fire"], s_fire)),
-                    sigma=s_fire)
-    sev_ad = dict(mu=np.log(_median_for_mean(ABI["sev_ad"], s_ad)),
-                  sigma=s_ad)
+    # The attritional severity means carry the district's council-tax
+    # band value relativity (ct_value_from_bands): dear housing means
+    # dearer contents and reinstatement. Each ct_ column arrives from
+    # main() with a claim-weighted mean of exactly 1 for its own peril,
+    # so the ABI severity level - and with it the national EL - is
+    # unchanged by construction; only the geography of severity moves.
+    # mu becomes a per-district array, exactly as the flood mu already
+    # is via the depth multiplier.
+    sev_th = dict(mu=np.log(_median_for_mean(
+        ABI["sev_theft"] * f["ct_th"], s_th)), sigma=s_th)
+    sev_eow = dict(mu=np.log(_median_for_mean(
+        ABI["sev_eow"] * f["ct_eow"], s_eow)), sigma=s_eow)
+    sev_fire = dict(mu=np.log(_median_for_mean(
+        ABI["sev_fire"] * f["ct_fire"], s_fire)), sigma=s_fire)
+    sev_ad = dict(mu=np.log(_median_for_mean(
+        ABI["sev_ad"] * f["ct_ad"], s_ad)), sigma=s_ad)
 
     k = FREQ_SCALE
     return dict(
@@ -735,7 +744,9 @@ def _fields(src):
              ("f_low", "f_low"), ("sw_high", "sw_high"), ("sw_low", "sw_low"),
              ("gw_frac", "gw_frac"), ("sw_sev", "sw_sev"), ("er", "er_frac"),
              ("th", "th_rate"), ("eow", "eow_rate"),
-             ("fire", "fire_rate"), ("ad", "ad_rate")]}
+             ("fire", "fire_rate"), ("ad", "ad_rate"),
+             ("ct_th", "ct_th"), ("ct_eow", "ct_eow"),
+             ("ct_fire", "ct_fire"), ("ct_ad", "ct_ad")]}
 
 
 def inv_mixed_cdf(u, p, mu, sigma):
@@ -1551,6 +1562,24 @@ def main():
     gdf["ad_rate"] = ABI_TARGET_FREQ["ad"] * (
         (1.0 - AD_CHILD_SHARE)
         + AD_CHILD_SHARE * child_share / cmean)
+
+    print("scoring property value from council-tax band mix...")
+    # The four attritional severities are flat national anchors with no
+    # geography of their own; the council-tax band mix is the only
+    # full-stock small-area value proxy the licence allows, and it
+    # scales them. Normalisation lives HERE with CLAIM weights
+    # (households x that peril's rate): the national EL is
+    # sum(hh x p x sev), so a multiplier whose claim-weighted mean is
+    # exactly 1 leaves each peril's ABI severity level untouched by
+    # construction - households alone would let the level drift
+    # wherever value correlates with frequency (it does: London is
+    # dear AND burgled). The weather severities keep their own
+    # hazard-driven structure (flood depth, storm intensity) and are
+    # not scaled.
+    ct_rel = ct_value_from_bands(gdf["name"].values)
+    for peril in ("th", "eow", "fire", "ad"):
+        wgt = gdf["households"].values * gdf[f"{peril}_rate"].values
+        gdf[f"ct_{peril}"] = ct_rel / np.average(ct_rel, weights=wgt)
 
     check_scored_columns(gdf)
 
