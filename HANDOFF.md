@@ -471,6 +471,50 @@ level ~6% and is a straight correction; defect 1 mostly REDUCES
 subsidence and RAISES groundwater, and its real prize is that the map
 stops depending on the seed.
 
+## Cross-grain guard tightened 2026-08-25: 5% -> 0.5%
+
+The publish-ordering rule has been broken twice, and after the second
+time I wrote that nothing in CI compared the two grains and that the
+guard was "not built". Both claims were wrong, and wrong in a way worth
+recording, because the truth is less comfortable: the guard was there
+the whole time and was too loose to fire.
+
+`test_the_sector_model_nests_inside_the_district_model` reads both
+published files and compares their exposure-weighted premiums. Its
+bound was **5%**.
+
+| window | grain drift | inside the 5% bound? |
+|---|---|---|
+| 2026-08-19 | 1.39% | yes — passed silently |
+| 2026-08-25 | 4.1% | yes — passed silently |
+| normal operation | 0.0087% | yes |
+
+So the test watched both incidents go past and said nothing. A missing
+test is a gap; a test tuned wider than its own failure mode is worse,
+because it reads as coverage. This is the second time in two days that
+a real defect hid behind something that looked like it was checking —
+`sensitivity.py`'s comment claimed a basis it did not use, and this
+assert claimed a comparison it could not fail.
+
+**Now 0.5%**, which is ~57x the agreement the grains actually hold and
+~8x under the drift that got through. Not tighter than that on purpose:
+a genuine model change may widen the real geography gap, and the test
+must fail on mixed pairs rather than on honest resolution differences.
+
+**Verified by reconstructing the incident.** Scaling the sector file by
++4.1% and re-running produces `£169.66 vs £176.63` — against the
+`£169.66 / £176.67` the live site actually served that day. The guard
+fails on it; on the real pair it passes with 57x margin.
+
+**One consequence, accepted deliberately.** `rebuild.yml`'s pre-flight
+runs the full suite, so it now refuses to run while the two committed
+files disagree. That is intended, and it is NOT the deadlock the
+peril-set skip further up exists to avoid: recovery from a mixed pair is
+crossing the sector file, which is a plain commit, not a rebuild. Both
+sanctioned publish orders land the pair in one push, so a correct
+publish never trips it. On `sector-model` the test skips outright — that
+branch has no district build to compare against.
+
 ## Draw-mean sweep 2026-08-25: the question made permanent
 
 The user asked whether anything else compares against a draw mean. It
@@ -768,6 +812,16 @@ main was pushed, and would have caught the 2026-08-19 window too. The
 **Not built** — it is a real guard and worth having, but it would have
 failed CI on a state I had deliberately created, so it needs the
 publishing flow settled first.
+
+> **The paragraph above is WRONG, and was corrected 2026-08-25.** The
+> guard WAS built — `test_the_sector_model_nests_inside_the_district_model`
+> compares exactly those two files and runs on every push to main. It
+> said nothing because its threshold was **5%**, and the two windows it
+> was meant to catch measured 1.39% and 4.1%. Both fit inside it. The
+> problem was never a missing test; it was a test set 574x wider than the
+> thing it guarded. **Now tightened to 0.5%** — see "Cross-grain guard
+> tightened 2026-08-25" below. I wrote "nothing in CI compares the two
+> grains" without checking whether something did.
 
 ### Two published headline figures were wrong, found while verifying
 
