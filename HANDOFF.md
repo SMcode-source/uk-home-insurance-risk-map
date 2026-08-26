@@ -515,6 +515,40 @@ sanctioned publish orders land the pair in one push, so a correct
 publish never trips it. On `sector-model` the test skips outright — that
 branch has no district build to compare against.
 
+### Was the loose bound systemic? Measured: no
+
+Having found one assert too wide to fail, the obvious worry is how many
+others are. So every numeric tolerance in the suite was measured against
+what it actually sees. The useful statistic is **margin** — bound divided
+by realised value. A bound a test clears by 2x is doing work; one it
+clears by 574x is decoration.
+
+| assert | realised | bound | margin |
+|---|---|---|---|
+| `premium = el_total + capital` | 0.0985 | 0.15 | 1.5x |
+| seed stability, median move | 6.4% | 12% | 1.9x |
+| `inv_mixed_cdf` mean level | 2.64% | 5% | 1.9x |
+| `inv_mixed_cdf` frequency | 0.00088 | 0.002 | 2.3x |
+| `el_total5 = el_total + el_er` | 0.1000 | 0.25 | 2.5x |
+| `premium_cc = el_total_cc + capital_cc` | 0.0500 | 0.15 | 3.0x |
+| exposure conserved across grains | 0.0585% | 0.5% | 8.6x |
+| **cross-grain premium level (before)** | **0.0087%** | **5%** | **574x** |
+
+Everything else is calibrated. The Monte Carlo bounds sit ~2x out, which
+is right for a seeded estimator; the reconciliation bounds are set by
+1-dp publishing and sit 1.5–3x out; the seed-stability bound at 12% was
+chosen to sit between the behaviour it rejects (20.6%, the pre-2026-08-19
+realised allocation) and the behaviour it accepts (6.4%, conditional) —
+that one is a good example of a bound picked from evidence.
+
+One test came back with no `assert` at all —
+`test_premises_join_failure_is_fatal_not_silent`. False alarm: it asserts
+through `pytest.raises` and then re-runs the legitimate case to prove it
+does *not* raise. It is one of the stronger tests in the file.
+
+So the 5% bound was an outlier, not a symptom. Worth knowing rather than
+assuming, in either direction.
+
 ## Draw-mean sweep 2026-08-25: the question made permanent
 
 The user asked whether anything else compares against a draw mean. It
