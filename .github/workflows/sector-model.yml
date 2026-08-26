@@ -48,35 +48,19 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: { name: sector-erosion, path: data/erosion.csv, retention-days: 14 }
 
-  ct-bands:
-    # Council-tax band mix, the value proxy behind the attritional
-    # severities (DATA_SOURCES.md #30). Cheap next to the hazard
-    # fetches - two zips and a postcode apportionment, no WMS - but it
-    # MUST run here rather than reuse main's file: main's ct_bands.csv
-    # is keyed on districts ("AB10") and every sector row ("AB10 1")
-    # would miss. ct_value_from_bands turns a >20% miss rate into a
-    # SystemExit, so the build fails loudly rather than silently
-    # neutralising the relativity - but it does fail, hence this job.
-    #
-    # Runs regardless of skip_fetch, unlike the hazard fetches. It is
-    # not a hazard fetch: two zips and a postcode apportionment, ~10
-    # minutes and no WMS to 403 us. Gating it on skip_fetch would mean
-    # a model-only rebuild had to refetch flood as well (240-minute
-    # timeout) purely to get this file, which is the opposite of what
-    # skip_fetch is for.
-    if: ${{ !inputs.climate }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.13", cache: pip }
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - run: python -u scripts/fetch_ct_bands.py
-      - uses: actions/upload-artifact@v4
-        with: { name: sector-ct-bands, path: data/ct_bands.csv, retention-days: 14 }
+  # NO ct-bands job, deliberately. The council-tax band mix
+  # (DATA_SOURCES.md #30) has to be rebuilt at sector grain - main's
+  # ct_bands.csv is keyed on districts ("AB10") and every sector row
+  # ("AB10 1") would miss, which ct_value_from_bands turns into a
+  # SystemExit rather than a silent neutral relativity. But the VOA
+  # host closes the connection on runner IPs: run 33023456613 died on
+  # the first request with RemoteDisconnected, ~3 seconds in, while the
+  # identical fetch from a laptop placed 100% of dwellings. Same
+  # treatment as the EA climate flood edition further down - fetched
+  # off-runner and committed. Rerun with:
+  #     .venv/Scripts/python.exe scripts/fetch_ct_bands.py
+  # on this branch (the key change is in postcode_rows) and commit
+  # data/ct_bands.csv.
 
   flood:
     # present-day only. The EA 403s runner IPs for the rivers/sea WMS
@@ -161,7 +145,7 @@ jobs:
   model:
     # needs: every fetch job, but tolerate the paths where some are
     # skipped (skip_fetch, or the climate-only pass)
-    needs: [erosion, ct-bands, flood, surface-water, depth,
+    needs: [erosion, flood, surface-water, depth,
             surface-water-climate, depth-climate]
     if: ${{ always() && !failure() && !cancelled() }}
     runs-on: ubuntu-latest
@@ -183,16 +167,9 @@ jobs:
           path: data
           merge-multiple: true
 
-      # Separate from the overlay above because the ct-bands job runs
-      # even under skip_fetch, and that overlay does not. Named rather
-      # than merge-multiple so a skip_fetch run pulls this one file and
-      # leaves the committed hazard CSVs alone.
-      - name: Overlay the council-tax band mix
-        if: ${{ !inputs.climate }}
-        uses: actions/download-artifact@v4
-        with:
-          name: sector-ct-bands
-          path: data
+      # data/ct_bands.csv is NOT fetched here - it is committed to this
+      # branch, sector-keyed, because the VOA host refuses runner IPs.
+      # See the note where the ct-bands job would otherwise be.
 
       # Geology from the repo's own mirror - BGS blocks runner IPs
       # (same block and hashes as rebuild.yml; see DATA_SOURCES.md #2).
