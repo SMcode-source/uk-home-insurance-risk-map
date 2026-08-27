@@ -268,6 +268,178 @@ end-to-end: the fire lessons (identity budget scales with legs,
 tolerance widened with the wiring, raw artifact uploaded before the
 gate) all held without being needed.
 
+## Phase 3 REVISED (2026-08-18, later): 57% of the book CAN ship
+
+The "anchors don't exist" verdict below stands for the full per-peril
+split, and everything in it is still true. But it asked the wrong
+question. Having exhausted every free route (DATA_SOURCES #31 third
+pass, #32 the whole ABI web archive) and priced nothing, the user's
+call was: **use easily accessible data, or do a high-level breakdown by
+risk type.** Done — with no new data at all, and no invented parameter.
+
+The calibrated (analytic) EL per policy, split where a published anchor
+exists and left explicitly unsplit where none does. Flood and
+groundwater shown on the MCM convention, the middle of the three:
+
+| risk type | £/policy | % of cost | buildings | £ bldg | £ contents |
+|---|---|---|---|---|---|
+| escape of water | 42.39 | 25.8% | — | *unsplit* | *unsplit* |
+| fire | 28.00 | 17.1% | 78.0% | 21.84 | 6.16 |
+| theft | 22.04 | 13.4% | 24.2% | 5.33 | 16.70 |
+| flood | 20.13 | 12.3% | 48.0% | 9.66 | 10.47 |
+| subsidence | 19.81 | 12.1% | 100.0% | 19.81 | 0.00 |
+| weather | 15.74 | 9.6% | — | *unsplit* | *unsplit* |
+| accidental damage | 14.65 | 8.9% | — | *unsplit* | *unsplit* |
+| groundwater | 1.34 | 0.8% | 48.0% | 0.64 | 0.70 |
+| **anchored subtotal** | **91.31** | **55.6%** | **63%** | **57.28** | **34.03** |
+| **unsplit subtotal** | **72.81** | **44.4%** | | | |
+| **TOTAL** | **164.12** | **100.0%** | | | |
+
+**Recomputed 2026-08-25** against the published basis after theft's
+level correction and the EoW freeze share went live. Three things moved
+and all three point the same way. Theft fell from 17.1% of claim cost to
+**13.4%**, so an ANCHORED peril shrank and the anchored subtotal fell
+from 57.2% to **55.6%** — the split now covers less of the book, not
+more. Fire is the second-largest cause. And the buildings fractions
+themselves were corrected: `SPLIT_BUILDINGS` had carried the
+placeholders written with the mechanism (theft 0.20, fire 0.70, flood
+0.65, groundwater 0.80) rather than the anchors the later search
+established (0.242 / 0.78 / 0.48 / 0.48), so the previous table's
+"anchored" column was partly not.
+
+**The finding that matters, and it inverts the entry below.** This file
+spends a paragraph on flood's three contradictory conventions (66 / 48
+/ 25). Swinging flood across all three moves the portfolio buildings
+share by **4.9 percentage points**. The three unanchored perils move it
+by **44.4**. The flood argument is a rounding error on the real
+problem; it was agonised over because it was the tractable part, not
+the important one. **Escape of water alone is 25.8% of claim cost —
+more than five times the entire flood-convention uncertainty.** Any
+future effort should go at EoW and nothing else.
+
+The 2026-08-25 recompute sharpens this rather than softening it: the
+unanchored block grew from 42.8% to **44.4%** of claim cost, because the
+peril that shrank (theft) was one of the anchored ones. The gap between
+what can be split and what cannot is widening, not closing.
+
+**What this means for the portfolio number.** It is a bound, not an
+estimate: on the recomputed basis **31.9%–81.6% buildings** across both
+free choices together — the flood convention (EA 25/75 at one end,
+Flood Re 66/34 at the other) and where the unanchored 44.4% falls.
+Holding flood at the middle MCM convention narrows it only to
+34.9%–79.3%, which is still a 44-point band — and a 44-point band is not
+a headline figure and must never be published as one. What IS
+publishable is the table above — per-risk-type claim cost that sums to
+100%, a cover split on the 55.6% that has anchors, and the other 44.4%
+named and left blank. That is honest, needs nothing bought, and is strictly more than
+the site says today (which is nothing).
+
+### BUILT 2026-08-25: the disclosure ships, the mechanism does not
+
+The table above is now a section on the methodology page
+(`site/methodology.template.html` id="cover", rows injected by
+`build_site.cover_split`). **Not published — it lives on
+`exp/buildings-contents` and merging it is the user's call.**
+
+**The structural finding that made it shippable:** the table needs no
+model change at all. It is the per-peril ELs the model already publishes
+multiplied by five constants that have sources, so `build_site.py`
+computes it from the committed GeoJSON and never reads `el_buildings`,
+`capital_buildings` or anything else this branch adds. That cleanly
+separates the disclosure, which is defensible today, from the mechanism,
+which cannot ship while three of eight fractions do not exist. The
+mechanism stays here, exact and unpublished.
+
+`SPLIT_ANCHORED` and `PERIL_LABELS` were added to `build_model.py` so
+"which perils have an anchor" is data rather than a comment — that one
+line is what the whole phase turns on.
+
+**Three guards, one of which caught a real bug on the way in:**
+`test_every_split_peril_has_a_published_anchor` pins each anchored peril
+to its documented value so the placeholder-as-anchor mistake cannot
+recur; `test_the_published_cover_table_adds_up` reconciles the table to
+`el_total` (tolerance set by the published file's one-decimal rounding,
+still forty times tighter than the smallest peril); and the layout suite
+rejected the table for overflowing on phone until it used the existing
+`.tablewrap`/`.data` convention.
+
+**A second draw-mean defect was found and fixed while doing this.**
+`capital_buildings` was computed against `el_year_b`, a draw mean, while
+the `capital` it splits uses the analytic `el_total` — the same
+substitution the 2026-08-18 audit made for `capital`, with this sibling
+missed. In the all-buildings corner `capital_buildings` must equal
+`capital` and came back 0.30% and 0.23% low. **The additivity assertion
+sitting three lines below it could never have caught this**, because
+`capital_contents` is defined as the remainder and so adds up whatever
+basis the buildings leg used. The block is extracted to
+`apply_cover_split()` so the corners are testable at all, and the new
+test was checked against the old formula first: it fails there.
+
+**Still true, and still the reason not to go further:** a fixed
+per-peril fraction cannot vary by geography, so even a complete split
+would move no district's *ranking* — it would re-label the premium, not
+re-rate it. Publishing the table is a disclosure improvement, not a
+model change, and needs no evidence run. **Not built into the site;
+that is the user's call.**
+
+## Phase 3 verdict (2026-08-18): the mechanism WORKS, the anchors DON'T EXIST
+
+Phase 3 was to split each district's premium into buildings and contents
+cover. **The engineering succeeded and the evidence failed.** Read this
+before anyone tries it again.
+
+**What works, and is committed** (`exp/buildings-contents`, c4b12a8): a
+fixed per-peril buildings fraction `SPLIT_BUILDINGS` decomposes both EL
+and Euler capital *exactly*, because `tot_v` and `cond` are linear sums
+of the eight per-peril arrays. Both covers condition on the SAME `bad`
+years — that is the correct Euler basis, since an insurer holds capital
+against the whole portfolio, not against one section of it. Proven
+empirically: on a 60-district synthetic frame all 30 pre-existing
+`simulate()` columns are **bit-identical** to main, three new columns
+appear, and both covers' bad-year margins are strictly positive so the
+`max(...,0)` capital floor cannot break additivity. Two tests guard it
+(`test_cover_split_is_a_pure_reweighting_of_the_same_losses`,
+`test_cover_split_fractions_are_shares`). **Rejected on the way:**
+splitting capital pro-rata by EL — buildings losses are cat-driven and
+contents idiosyncratic, so they earn very different diversification
+credits, which is the entire reason this model uses Euler.
+
+**Why it cannot ship.** No published UK source gives a peril x cover-type
+matrix (DATA_SOURCES #31). Anchors exist for four perils — theft ~25%
+buildings (ONS CSEW nature-of-crime damage share 24.2%), fire ~78% (Home
+Office cost-of-fire), subsidence ~100%, flood 48–66% (three contradictory
+conventions). **Storm, groundwater, escape of water and accidental damage
+have no anchor at all, and they are 43.2% of this model's claim cost** —
+escape of water alone is 25.1%, the largest single peril in the book.
+
+Sensitivity, computed against the model's own exposure-weighted claim mix:
+
+| assumption on the unanchored four | portfolio | buildings | contents |
+|---|---|---|---|
+| all contents (floor) | 36.9% bldg | £64.27 | £109.97 |
+| central guess | 67.2% bldg | £117.11 | £57.13 |
+| all buildings (ceiling) | 80.1% bldg | £139.61 | £34.63 |
+
+On a £174.24 premium the buildings figure ranges **£64 to £140**. That is
+not a model output, it is an opinion with a currency symbol in front of
+it — and it fails the house rule that killed Phase 2b: *a parameter
+without a published anchor does not ship*.
+
+**The one genuinely robust finding**, worth keeping: the *geography* of
+the split survives the uncertainty even though the *level* does not.
+Across 16 corner cases of the four unanchored perils, district rank
+correlation against the central case stays **0.94–0.99**. Which districts
+are contents-weighted is driven by peril mix, which the model knows well:
+city cores (LS2, EC4M, B2, EC3V ~0.44) are contents-weighted, rural and
+subsidence-exposed districts (PE16, BH31, PE35 ~0.77) buildings-weighted.
+A *relative* cover-mix presentation is therefore defensible where an
+absolute pounds split is not. **Not built — that is a user decision.**
+
+Recommended if resumed: present as a dose-response/sensitivity layer (the
+SUP_WEIGHT precedent), not a single shipped split. Or unblock it properly
+with the IFoA's withdrawn GI papers (`webarchive@actuaries.org.uk`) or a
+claims triangle.
+
 ## PUBLISHED 2026-08-18: Phase 2a, theft's residential denominator
 
 User decision: "2a only". LIVE at both resolutions (merge 6d24373,

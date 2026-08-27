@@ -516,6 +516,79 @@
     the flood or climate modelling changed.</p>
   </section>
 
+
+  <section class="doc" id="cover">
+    <h2>Buildings or contents? Only where something says so</h2>
+    <p>A real policy has two sections — <b>buildings</b> (the structure:
+    walls, roof, fitted kitchen, foundations) and <b>contents</b> (what
+    you would take with you). Every figure elsewhere on this site is the
+    two combined. Splitting them is worth doing, and this model splits
+    only the part that a published source can settle.</p>
+
+    <p>The split is <b>per peril</b>, and that is the honest unit: a
+    subsidence claim is nearly all structure, a burglary is nearly all
+    stolen goods. Five of the eight perils have an anchor for that ratio.
+    <b>Three do not, and they are 44.4% of claim
+    cost.</b> Those three are left named and blank rather than filled in
+    with a guess.</p>
+
+    <div class="tablewrap">
+      <table class="data">
+        <thead><tr>
+          <th>risk type</th><th class="num">£/policy/yr</th>
+          <th class="num">% of cost</th><th class="num">buildings</th>
+          <th class="num">£ buildings</th><th class="num">£ contents</th>
+        </tr></thead>
+        <tbody>
+        <tr><td><strong>escape of water</strong></td><td class="num">£42.39</td><td class="num">25.8%</td><td class="num">—</td><td class="num" colspan="2"><em>no anchor</em></td></tr>
+        <tr><td><strong>fire</strong></td><td class="num">£28.00</td><td class="num">17.1%</td><td class="num">78%</td><td class="num">£21.84</td><td class="num">£6.16</td></tr>
+        <tr><td><strong>theft</strong></td><td class="num">£22.04</td><td class="num">13.4%</td><td class="num">24%</td><td class="num">£5.33</td><td class="num">£16.70</td></tr>
+        <tr><td><strong>flood</strong></td><td class="num">£20.13</td><td class="num">12.3%</td><td class="num">48%</td><td class="num">£9.66</td><td class="num">£10.47</td></tr>
+        <tr><td><strong>subsidence</strong></td><td class="num">£19.81</td><td class="num">12.1%</td><td class="num">100%</td><td class="num">£19.81</td><td class="num">£0.00</td></tr>
+        <tr><td><strong>weather</strong></td><td class="num">£15.74</td><td class="num">9.6%</td><td class="num">—</td><td class="num" colspan="2"><em>no anchor</em></td></tr>
+        <tr><td><strong>accidental damage</strong></td><td class="num">£14.65</td><td class="num">8.9%</td><td class="num">—</td><td class="num" colspan="2"><em>no anchor</em></td></tr>
+        <tr><td><strong>groundwater</strong></td><td class="num">£1.34</td><td class="num">0.8%</td><td class="num">48%</td><td class="num">£0.64</td><td class="num">£0.70</td></tr>
+        <tr class="sub"><td><strong>anchored subtotal</strong></td><td class="num"><strong>£91.31</strong></td><td class="num"><strong>55.6%</strong></td><td class="num"><strong>63%</strong></td><td class="num"><strong>£57.28</strong></td><td class="num"><strong>£34.03</strong></td></tr>
+        <tr class="sub"><td><strong>not split</strong></td><td class="num"><strong>£72.81</strong></td><td class="num"><strong>44.4%</strong></td><td class="num" colspan="3"><em>named and left blank</em></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note">Anchors, all in
+    <a href="https://github.com/SMcode-source/uk-home-insurance-risk-map/blob/main/DATA_SOURCES.md">DATA_SOURCES</a> #31:
+    theft from the ONS Crime Survey's nature-of-crime tables (damage to
+    doors, windows and frames is 24.2% of burglary cost, the rest being
+    the goods); fire from the Home Office's <i>Economic and social cost
+    of fire</i>; subsidence at ~100% because it damages foundations and
+    walls and contents are excluded in every policy wording checked;
+    flood at 48% from the Multi-Coloured Manual's depth-damage curves;
+    groundwater on the same curves, being the same water in the same
+    dwelling.</p>
+
+    <h3>Why there is no total row</h3>
+    <p>Because it would be an opinion. Send the unanchored
+    44.4% all one way and the portfolio is
+    <b>34.9% buildings</b>; send it the other and it is
+    <b>79.3%</b>. That is a band tens of points wide, and a
+    band that wide is not a number — publishing its midpoint would be
+    inventing the answer rather than measuring it. The anchored
+    55.6% of claim cost comes out
+    <b>63% buildings</b>, and that figure is real because
+    every input to it is published.</p>
+
+    <p>The gap is not evenly spread, either. <b>Escape of water alone is
+    25.8% of claim cost with no anchor at all</b> — more
+    than the entire spread between the three contradictory flood
+    conventions the literature offers. Anyone extending this should go
+    at escape of water and ignore everything else.</p>
+
+    <p class="note">The model can also split each district's capital
+    charge between the two covers, and does so exactly — buildings and
+    contents earn different diversification credits, so it is a real
+    calculation rather than a pro-rata carve-up. It is deliberately not
+    published: a per-district pounds split would need all eight
+    fractions, and three of them do not exist.</p>
+  </section>
   <section class="doc" id="erosion">
     <h2>Coastal erosion: modelled, not priced</h2>
     <p>The model carries one further peril, <b style="color:var(--er)">coastal erosion</b>, from

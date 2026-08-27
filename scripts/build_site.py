@@ -693,7 +693,20 @@ def load_stats():
     # damage have NO published split - they render as "unsplit" in the
     # template rather than being given an invented number, which is why
     # only 57% of claim cost carries a split at all.
-    COVER_BLD = {"SUB": 100, "FL": 48, "GW": 48, "TH": 25, "FIRE": 78}
+    # Derived from build_model.SPLIT_BUILDINGS, never restated. These
+    # were duplicated literals until 2026-08-27, and they had already
+    # drifted: theft sat at 25 here against 0.242 there, both citing the
+    # same ONS nature-of-crime table. Shipping the cover section would
+    # have put 25% in this peril table and 24% in that one, on the same
+    # page, from the same source. SPLIT_BUILDINGS is the anchored value,
+    # so it wins; the published theft figure moves 25% -> 24%.
+    #
+    # SPLIT_ANCHORED decides membership too, so a peril gaining or
+    # losing an anchor cannot leave this table disagreeing with the
+    # cover table about which perils are splittable.
+    from build_model import SPLIT_BUILDINGS, SPLIT_ANCHORED
+    COVER_BLD = {k.upper(): round(100 * SPLIT_BUILDINGS[k])
+                 for k in SPLIT_ANCHORED}
     # Spelled out as LITERAL keys, not built with f-strings in a
     # comprehension. test_site_placeholders_all_resolve greps this file for
     # double-quoted placeholder literals to prove every token in the templates has
@@ -818,6 +831,72 @@ def load_stats():
         "__WX_MULT__": mult(bad["mean_wx"], typ["mean_wx"]),
         "__TOP_ROWS__": "\n        ".join(rows),
         "__REPO_URL__": REPO_URL,
+        **cover_split(feats),
+    }
+
+
+def cover_split(feats):
+    """Per-risk-type claim cost, split into buildings and contents cover
+    ONLY where a published anchor exists.
+
+    Deliberately built from the per-peril ELs and the anchored fractions
+    alone - NOT from the el_buildings/capital_buildings columns on
+    exp/buildings-contents. The distinction is the whole point of Phase
+    3: this table is a DISCLOSURE of numbers the model already publishes
+    times five constants with sources behind them, so it needs no model
+    change, no evidence run and no unanchored parameter. The mechanism
+    that splits capital as well is a separate thing and is not shipped,
+    because the four unanchored perils would put an opinion in the
+    portfolio total. See DATA_SOURCES #31.
+    """
+    from build_model import SPLIT_BUILDINGS, SPLIT_ANCHORED, PERIL_LABELS
+    w = np.array([p.get("households", 1) for p in feats], dtype=float)
+    tot = np.average([p["el_total"] for p in feats], weights=w)
+
+    rows, anchored_el, anchored_bld = [], 0.0, 0.0
+    per = sorted(PERIL_LABELS, key=lambda k: -np.average(
+        [p["el_" + k] for p in feats], weights=w))
+    for k in per:
+        el = float(np.average([p["el_" + k] for p in feats], weights=w))
+        share = 100 * el / tot
+        if k in SPLIT_ANCHORED:
+            b = SPLIT_BUILDINGS[k]
+            anchored_el += el
+            anchored_bld += el * b
+            cells = (f'<td class="num">{100 * b:.0f}%</td>'
+                     f'<td class="num">£{el * b:,.2f}</td>'
+                     f'<td class="num">£{el - el * b:,.2f}</td>')
+        else:
+            cells = ('<td class="num">—</td>'
+                     '<td class="num" colspan="2"><em>no anchor</em></td>')
+        rows.append("<tr>"
+                    f'<td><strong>{PERIL_LABELS[k]}</strong></td>'
+                    f'<td class="num">£{el:,.2f}</td>'
+                    f'<td class="num">{share:.1f}%</td>'
+                    f"{cells}</tr>")
+    rows.append('<tr class="sub"><td><strong>anchored subtotal</strong></td>'
+                f'<td class="num"><strong>£{anchored_el:,.2f}</strong></td>'
+                f'<td class="num"><strong>{100 * anchored_el / tot:.1f}%</strong></td>'
+                f'<td class="num"><strong>{100 * anchored_bld / anchored_el:.0f}%</strong></td>'
+                f'<td class="num"><strong>£{anchored_bld:,.2f}</strong></td>'
+                f'<td class="num"><strong>£{anchored_el - anchored_bld:,.2f}</strong></td></tr>')
+    rows.append('<tr class="sub"><td><strong>not split</strong></td>'
+                f'<td class="num"><strong>£{tot - anchored_el:,.2f}</strong></td>'
+                f'<td class="num"><strong>{100 * (tot - anchored_el) / tot:.1f}%</strong></td>'
+                '<td class="num" colspan="3"><em>named and left blank</em></td></tr>')
+
+    unsplit = tot - anchored_el
+    return {
+        "__SPLIT_ROWS__": "\n        ".join(rows),
+        "__SPLIT_ANCHORED_PCT__": f"{100 * anchored_el / tot:.1f}",
+        "__SPLIT_UNANCHORED_PCT__": f"{100 * unsplit / tot:.1f}",
+        "__SPLIT_BLD_PCT__": f"{100 * anchored_bld / anchored_el:.0f}",
+        # The portfolio bound: the unanchored block is all contents at one
+        # end and all buildings at the other. A 40-point band is not a
+        # figure, which is exactly why the total row is absent above.
+        "__SPLIT_FLOOR__": f"{100 * anchored_bld / tot:.1f}",
+        "__SPLIT_CEIL__": f"{100 * (anchored_bld + unsplit) / tot:.1f}",
+        "__SPLIT_EOW_PCT__": f"{100 * np.average([p['el_eow'] for p in feats], weights=w) / tot:.1f}",
     }
 
 
