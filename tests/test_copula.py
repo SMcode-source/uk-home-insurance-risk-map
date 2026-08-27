@@ -1354,6 +1354,45 @@ def test_the_sector_model_nests_inside_the_district_model():
         f"not, and the live site is serving both. Cross the sector output "
         f"to main, or hold the district publish until it is ready")
 
+    # The level check above is necessary and NOT sufficient. It compares
+    # one national number, so it is blind to a re-rating: Phase 2c moved
+    # 70.5% of districts across rating groups while leaving the level at
+    # -0.00%, and a mixed pair across that publish sat 0.009% apart on
+    # level - inside ANY level bound, including this one. Two grains can
+    # agree perfectly on the national premium while disagreeing about
+    # every district in the country.
+    #
+    # So also check the shape: each district against the household-
+    # weighted mean of its own sectors. Measured on the Phase 2c publish,
+    # where both pairs existed on disk at once:
+    #
+    #   consistent pair   median 1.09%   p95  6.43%   47 districts >10%
+    #   mixed pair        median 7.21%   p95 20.36%  964 districts >10%
+    #
+    # The median separates them by 6.6x. 3% sits ~2.7x above the honest
+    # grain difference and ~2.4x below a stale pair - the same balance as
+    # the level bound. Median rather than max: a handful of districts
+    # genuinely disagree at either grain (47 exceed 10% even when the
+    # pair is correct), so a max-based bound would be noise.
+    devs = []
+    for name, group in by_district.items():
+        if name not in districts:
+            continue
+        w = [s.get("households", 0) for s in group]
+        if sum(w) <= 0:
+            continue
+        sm = sum(x * s["premium"] for x, s in zip(w, group)) / sum(w)
+        devs.append(abs(sm / districts[name]["premium"] - 1))
+    devs.sort()
+    median_dev = devs[len(devs) // 2]
+    over = sum(1 for d in devs if d > 0.10)
+    assert median_dev < 0.03, (
+        f"district-by-district the two grains disagree by a median "
+        f"{100 * median_dev:.2f}% ({over} of {len(devs)} districts over "
+        f"10%) while the national levels still match - this is a MIXED "
+        f"PAIR from a re-rating publish, which the level check above "
+        f"cannot see. Cross the sector output to main")
+
 
 def test_every_published_map_asset_carries_the_columns_its_page_reads():
     """The third direction of the column contract, added with sectors.
