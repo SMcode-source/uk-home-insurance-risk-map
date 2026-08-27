@@ -8,6 +8,20 @@ just a pointer here)
 
 ## Status: complete, deployed, EIGHT insured perils at TWO resolutions
 
+**A new workstream opened 2026-08-27: temperature-driven subsidence and
+freeze.** Five gates, agreed with the user after a full stress-test of
+the plan: **(0)** acquire the ABI quarterly subsidence series and the
+CEDA HadUK-Grid daily record, and measure what `theta_ws` costs, with
+no model change; **(1)** the subsidence level alone, so the premium
+move has exactly one cause; **(2)** geography — an SMD curve for
+subsidence and a cold-spell/thaw index replacing air-frost days;
+**(3)** structure — burst-pipe breakout, three non-water freeze
+variants priced side by side, snowmelt; **(4)** a year-view conditional
+claim count and value. The dependence re-specification is deliberately
+its own later phase. **Gate 0 is in progress on `exp/subsidence-series`
+— the ABI half is done (DATA_SOURCES #33); CEDA daily is not started.**
+The premium is untouched.
+
 **The whole roadmap is now published, at both grains.** Phase 1
 (attritional perils: theft → escape of water → fire → accidental
 damage) completed 2026-08-17. Phase 2 is EPC/VOA exposure realism —
@@ -1617,7 +1631,7 @@ leg. One is not.**
 |---|---|---|---|---|
 | storm | 99,592 | 17.78% | count | ABI 2025 paid AND ABI 2025 average, one release |
 | flood | 10,400 | 1.86% | count | ABI 2025 paid AND ABI 2025 average, one release |
-| subsidence | 17,228 | 3.08% | count | ABI 2025 paid AND ABI 2025 average, one release |
+| subsidence | 17,228 | 3.08% | count | **WRONG as recorded — corrected 2026-08-27**: FY2025 paid, but a **Q1 2026** average, two releases apart (see DATA_SOURCES #33) |
 | escape of water | 164,250 | 29.33% | severity | GoCompare 29.38% — VERIFIED, and closes the triangle |
 | fire | 31,000 | 5.54% | paid | Home Office FIRE0201 attended dwelling fires 2024/25 |
 | accidental damage | 137,576 | 24.57% | paid | GoCompare 24.53% — VERIFIED (at home + outside) |
