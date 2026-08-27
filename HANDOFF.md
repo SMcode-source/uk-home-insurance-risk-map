@@ -8,14 +8,21 @@ just a pointer here)
 
 ## Status: complete, deployed, EIGHT insured perils at TWO resolutions
 
-**Phase 1 of the roadmap (attritional perils: theft → escape of water
-→ fire → accidental damage) is COMPLETE.** Phase 2 is EPC/VOA exposure
-realism — **2a (theft's residential denominator) is live since
-2026-08-18**, 2c sits built-but-unpublished on its branch (re-priced
-2026-08-25; the open question is in its section below). Phase 3 is the
-buildings/contents split, built on `exp/buildings-contents` and not
-published. **Two anchor corrections went live 2026-08-25**: theft's
-paid total and the escape-of-water freeze share.
+**The whole roadmap is now published, at both grains.** Phase 1
+(attritional perils: theft → escape of water → fire → accidental
+damage) completed 2026-08-17. Phase 2 is EPC/VOA exposure realism —
+**2a (theft's residential denominator) live 2026-08-18**, **2c
+(council-tax band severity relativities) live 2026-08-27**. **Phase 3
+(the buildings/contents cover split) went live the same day.** Two
+anchor corrections went live 2026-08-25: theft's paid total and the
+escape-of-water freeze share.
+
+**Shipping is not the same as settling.** Two objections were stated,
+overruled by the user, and remain open: council tax tracks MARKET value
+while insurance pays REINSTATEMENT (Phase 2c), and three perils worth
+42.5% of claim cost carry an unanchored split guess (Phase 3). Neither
+is a defect to fix quietly — both are recorded decisions, in their own
+sections below. Anyone revisiting the model should start there.
 
 The site publishes the model at **two grains side by side**:
 `/map.html` over 2,736 postcode districts and `/sectors.html` over
@@ -945,13 +952,11 @@ has an `np.maximum(..., 0)` with no `.0`, so the match runs on past it and
 reports a defect hundreds of lines away. That was caught by the negative
 control, which is the reason to always run one.
 
-## Branch inventory, tidied 2026-08-25
+## Branch inventory, tidied 2026-08-27
 
-Every branch that exists, why it exists, and what would retire it. All
-four are merged up to current main as of this date, and all pass their
-own suites (main 87, `exp/ct-severity` 88, `exp/buildings-contents` 92,
-`sector-model` 86 + 1 skip — each gained the draw-mean guard test when
-main was merged forward on 2026-08-25).
+Every branch that exists, why it exists, and what would retire it. Two
+branches remain. Both are synced to current main, and both pass their
+own suites (main 93, `sector-model` 92 + 1 skip).
 
 **`sector-model`'s one skip is deliberate.**
 `test_the_sector_model_nests_inside_the_district_model` had been red on
@@ -973,8 +978,20 @@ The gap I described is real; I described its location wrongly.
 |---|---|---|
 | `main` | published | the product |
 | `sector-model` | permanent, 33 ahead | the same model at postcode-SECTOR grain. **NEVER merges to main** — only `data/districts_risk.geojson` crosses, renamed `data/sectors_risk.geojson`. main merges INTO it, never the reverse. |
-| `exp/ct-severity` | held, priced | Phase 2c. Level-neutral, mechanism verified, but re-rates 70% of the map on an unanchored reading of council-tax bands. The user's call. |
-| `exp/buildings-contents` | staged, unpublished | Phase 3. Mechanism exact, 55.6% of claim cost anchored, publishable output is the per-risk-type table. Needs no evidence run. |
+
+**Deleted 2026-08-27:** `exp/ct-severity` and `exp/buildings-contents`,
+both published that day and both sitting at exactly main's commit, so
+every commit is reachable from main. Same disposal as `exp/eow-freeze`
+and `exp/theft-level` after the 2026-08-25 publish.
+
+**The roadmap is now complete.** Phase 1 (eight attritional perils),
+Phase 2a (theft's residential denominator), Phase 2c (council-tax band
+severity relativities) and Phase 3 (the buildings/contents cover split)
+are all published at both grains. Two open questions ride along with
+that and are NOT closed by having shipped: council tax tracks market
+value while insurance pays reinstatement, and three perils worth 42.5%
+of claim cost carry an unanchored split. Both are the user's accepted
+decisions, recorded in their own sections above.
 
 **Deleted 2026-08-25:** `exp/eow-freeze` and `exp/theft-level`, both
 fully merged into main and published, commits reachable from main. Same
