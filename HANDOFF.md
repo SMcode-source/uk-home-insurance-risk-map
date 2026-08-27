@@ -643,6 +643,103 @@ level ~6% and is a straight correction; defect 1 mostly REDUCES
 subsidence and RAISES groundwater, and its real prize is that the map
 stops depending on the seed.
 
+## PUBLISHED 2026-08-27: Phase 2c, council-tax band severity relativities
+
+The user approved this with the market-vs-reinstatement question still
+open and stated. It is recorded here as their decision, not as a
+resolved modelling argument: council tax tracks MARKET value, insurance
+pays REINSTATEMENT, and land is not insured. That objection is the
+reason the branch sat held, and publishing does not answer it.
+
+**What shipped.** The four attritional severities (theft, escape of
+water, fire, accidental damage) stop being flat national anchors and
+carry the district's council-tax band value relativity. Normalisation
+is per peril with CLAIM weights, so each ABI severity level is pinned
+by construction and only the geography of severity moves.
+
+**Priced** (district run 33023989958, `commit=false`):
+
+| | before | after |
+|---|---|---|
+| exposure-weighted premium | £169.6633 | £169.6619 (**-0.00%**) |
+| rating-group churn | — | 1,928 of 2,736 (70.5%), 968 moving >=2 groups |
+
+Level-neutral to four decimal places, exactly as the mechanism claims.
+The movers are the whole point: SW1X +70.4%, W1K +67.0%, W1J +64.7%,
+SW1Y +62.1%, SW7 +58.0% — Belgravia, Mayfair, St James's, South
+Kensington — and AB13 (Milltimber) +56.6%. Downward: the Rhondda and
+Ayrshire sectors at -18 to -20%. That is a property-value relativity
+doing what it says.
+
+**Sector grain** (run 33023951845, `skip_fetch=true`): £169.6772 over
+10,398 sectors, **+0.0090%** from the district grain, in line with the
+0.0085% the two have historically held.
+
+### The sector grain nearly blocked this, and should have been checked first
+
+`ct_bands.csv` is keyed on districts (`AB10`). Every sector row
+(`AB10 1`) would have missed, and `ct_value_from_bands` turns a >20%
+miss into a `SystemExit` — so the sector build would not have produced
+a wrong number, it would have refused to run. Good design, but it means
+Phase 2c was never crossable to both grains as it stood, and nothing in
+the branch's own evidence said so. **A model change that adds a
+name-keyed data file needs a sector-grain edition of that file before
+it is callable "priced".**
+
+Rebuilt at sector grain: 10,849 keys, 30,021,848 dwellings placed
+(100.0%), covering 10,375 of 10,398 published sectors; the 23 that miss
+(0.22%) take the neutral 1.0. Value geography sanity: dearest SW1X 8
+2.00, cheapest CF43 4 / NP23 7 / KA25 6 at 0.69.
+
+**The CI job for it lasted one run.** 33023456613 died on its first
+request with `RemoteDisconnected`, three seconds in, before any data
+moved; the identical fetch from a laptop placed 100%. The VOA host
+refuses runner IPs, same as BGS and the EA. So it follows the precedent
+already in `sector-model.yml` for the EA climate flood edition —
+fetched off-runner, committed, documented — rather than leaving a job
+that can only be red.
+
+### The publish order was right this time, and the guard was still not enough
+
+Both grains landed in ONE push. First time.
+
+But this publish exposed the limit of the guard tightened two days ago.
+**ct-severity is level-neutral, so a mixed pair across it sits 0.009%
+apart on level** — inside 0.5%, inside 5%, inside any level bound that
+would still permit an honest grain difference. The two files can agree
+perfectly on the national premium while disagreeing about 70% of the
+districts in the country. A single national number cannot see a
+re-rating; it was only ever going to catch a re-levelling.
+
+So the cross-grain test now also checks SHAPE: every district against
+the household-weighted mean of its own sectors. Calibrated on this
+publish, with both pairs on disk at the same time:
+
+| pair | median deviation | p95 | districts >10% |
+|---|---|---|---|
+| consistent | 1.09% | 6.43% | 47 |
+| mixed | 7.21% | 20.36% | 964 |
+
+Bound at a **3% median** — 2.7x above the honest grain difference, 2.4x
+under a stale pair, the same balance as the level bound. Median, not
+max: 47 districts exceed 10% even when the pair is correct, so a
+max-based bound would be noise. Verified as a LIVE negative control
+rather than a synthetic one — it failed on the real mixed pair sitting
+in the tree mid-assembly, and passed once the sector output crossed.
+
+### Assembling a one-push publish locally: do not run make_images
+
+Measured on unchanged data: `build_map`, `build_analysis` and
+`build_site` reproduce CI's `docs/` byte for byte from Windows.
+`make_images` does not — it rewrites four PNGs (`apple-touch-icon`,
+`favicon-32`, `social`, `social-github`) through a different PNG
+encoder. Committing those from here fails CI as "docs/ is stale", the
+same symptom as the set-iteration and `cos(lat)` bugs. So: take `docs/`
+from the CI rebuild artifact, run only the HTML chain locally, never
+run `make_images` on this machine. Safe because `make_images` reads
+only the district file, so the artifact's images survive the sector
+crossing untouched.
+
 ## Cross-grain guard tightened 2026-08-25: 5% -> 0.5%
 
 The publish-ordering rule has been broken twice, and after the second
