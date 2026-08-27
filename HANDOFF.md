@@ -19,8 +19,26 @@ subsidence and a cold-spell/thaw index replacing air-frost days;
 variants priced side by side, snowmelt; **(4)** a year-view conditional
 claim count and value. The dependence re-specification is deliberately
 its own later phase. **Gate 0 is in progress on `exp/subsidence-series`
-— the ABI half is done (DATA_SOURCES #33); CEDA daily is not started.**
-The premium is untouched.
+— the ABI half is done (DATA_SOURCES #33).** The premium is untouched.
+
+**Gate 0's CEDA half is BLOCKED ON THE USER, 2026-08-27.**
+`scripts/fetch_haduk.py` is written, enumerates correctly and refuses to
+run: **the CEDA token expired 2026-08-12** (issued 08-09, ~72 h life — it
+is the one from the MIDAS gust fetch). Regenerate at
+<https://services.ceda.ac.uk/account/token/> and overwrite
+`~/.ceda_token`; nobody but the account holder can do this. Then:
+
+    .venv/Scripts/python.exe scripts/fetch_haduk.py
+
+**2,376 files**, HadUK-Grid v1.3.2.ceda, 12 km daily `tasmin`/`tasmax`/
+`rainfall`, 1960–2025 (792 months each). `--dry-run` enumerates with no
+token at all, so the job can be re-costed any time. Daily data ends
+**2025-12**, so the ABI's 2026 quarters have no matching weather year.
+The script decodes the token's public `exp` claim and dies with "EXPIRED
+N days ago" before writing anything — the failure this guards against is
+2,376 8 KB login pages saved under `.nc` names, which only surfaces when
+xarray refuses to open them. `snowLying` exists at 12 km and is Gate 3's
+snow driver.
 
 **The whole roadmap is now published, at both grains.** Phase 1
 (attritional perils: theft → escape of water → fire → accidental
