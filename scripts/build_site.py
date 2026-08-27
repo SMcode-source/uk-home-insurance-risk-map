@@ -693,7 +693,20 @@ def load_stats():
     # damage have NO published split - they render as "unsplit" in the
     # template rather than being given an invented number, which is why
     # only 57% of claim cost carries a split at all.
-    COVER_BLD = {"SUB": 100, "FL": 48, "GW": 48, "TH": 25, "FIRE": 78}
+    # Derived from build_model.SPLIT_BUILDINGS, never restated. These
+    # were duplicated literals until 2026-08-27, and they had already
+    # drifted: theft sat at 25 here against 0.242 there, both citing the
+    # same ONS nature-of-crime table. Shipping the cover section would
+    # have put 25% in this peril table and 24% in that one, on the same
+    # page, from the same source. SPLIT_BUILDINGS is the anchored value,
+    # so it wins; the published theft figure moves 25% -> 24%.
+    #
+    # SPLIT_ANCHORED decides membership too, so a peril gaining or
+    # losing an anchor cannot leave this table disagreeing with the
+    # cover table about which perils are splittable.
+    from build_model import SPLIT_BUILDINGS, SPLIT_ANCHORED
+    COVER_BLD = {k.upper(): round(100 * SPLIT_BUILDINGS[k])
+                 for k in SPLIT_ANCHORED}
     # Spelled out as LITERAL keys, not built with f-strings in a
     # comprehension. test_site_placeholders_all_resolve greps this file for
     # double-quoted placeholder literals to prove every token in the templates has

@@ -485,6 +485,12 @@ def _cover_split_frame():
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.010, 0.005], "eow_rate": [0.011, 0.009],
         "fire_rate": [0.002, 0.001], "ad_rate": [0.009, 0.008],
+        # Neutral council-tax relativities (Phase 2c). marginal_params
+        # reads these for the four attritional severities, so the frame
+        # cannot be built without them. 1.0 keeps this frame testing the
+        # cover split alone, which is what these two tests are about.
+        "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
+        "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
     })
 
 
@@ -1367,8 +1373,17 @@ def test_the_sector_model_nests_inside_the_district_model():
     # Compare the whole el_* column sets rather than naming one peril:
     # the theft transition taught us this guard is needed, and the EoW
     # transition taught us not to hard-code which peril is in flight.
-    d_perils = {k for k in d_any if k.startswith("el_")}
-    s_perils = {k for k in sectors[0] if k.startswith("el_")}
+    # PERIL legs only. "el_" also prefixes aggregates and derived
+    # columns, and treating those as perils makes this skip far too
+    # eager: Phase 3 adds el_buildings/el_contents/el_year_b to the
+    # district file, so a district-only publish would have looked like a
+    # peril transition and SILENTLY DISARMED both checks below - the
+    # exact failure this whole test exists to catch. The skip is for a
+    # new peril reaching one grain first, nothing else.
+    _derived = {"el_total", "el_total5", "el_total_cc", "el_year",
+                "el_year_b", "el_buildings", "el_contents"}
+    d_perils = {k for k in d_any if k.startswith("el_")} - _derived
+    s_perils = {k for k in sectors[0] if k.startswith("el_")} - _derived
     if d_perils != s_perils:
         pytest.skip("district and sector outputs are mid-transition: "
                     f"peril sets differ by {sorted(d_perils ^ s_perils)} - "
