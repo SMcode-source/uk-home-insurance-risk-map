@@ -643,6 +643,61 @@ level ~6% and is a straight correction; defect 1 mostly REDUCES
 subsidence and RAISES groundwater, and its real prize is that the map
 stops depending on the seed.
 
+## PUBLISHED 2026-08-27: Phase 3, the buildings/contents cover split
+
+Published on the user's explicit decision, with the objection stated
+and not resolved. **Three of the eight perils have no published split
+and are 42.5% of claim cost**; `SPLIT_BUILDINGS` gives them a central
+guess (wx 0.85, eow 0.75, ad 0.45) so the mechanism runs. The branch's
+own comment says the portfolio buildings share is a **31.8%-79.5%
+BOUND, not an estimate**, and must never be a headline. It is not one:
+the published figure is 66.5%, it appears only as columns in the data
+file, and the methodology table still renders those three perils as
+named-and-blank rather than filled in. That is the disclosure that
+ships; the guess ships underneath it.
+
+**Priced** (district run 33090028212): premium **£169.6619 -> £169.6619
+(+0.00%), zero districts changing rating group**. Correct and expected
+— the split is a pure reweighting of losses the model already had, so
+`el_total`, `capital` and `premium` are untouched and only columns are
+added. Reconciliation on the published file: `el_buildings +
+el_contents - el_total` max 0.1, `premium_buildings + premium_contents
+- premium` max 0.05, both 1-dp publishing rounding. Sector grain (run
+33090025105) £169.6772, **+0.0090%** apart.
+
+### Three things the merge surfaced, all of them the same shape
+
+**The published theft figure was inconsistent with itself.**
+`build_site.COVER_BLD` restated the split fractions as literals instead
+of deriving them, and the copies had drifted: theft **25** there
+against **0.242** in `SPLIT_BUILDINGS`, both citing the same ONS
+nature-of-crime table. Shipping the cover section would have put 25% in
+the peril table and 24% in the cover table, on the same page, from the
+same source. Now derived from `SPLIT_BUILDINGS`/`SPLIT_ANCHORED`,
+membership included, so a peril gaining or losing an anchor cannot
+leave the two tables disagreeing about what is splittable. **The
+published theft split moves 25% -> 24%.**
+
+**The cross-grain guard would have disarmed itself.** The peril-set
+skip treated every `el_`-prefixed column as a peril. Phase 3 adds
+`el_buildings`, `el_contents` and `el_year_b` to the district file, so
+a district-only Phase 3 publish would have looked like a peril
+transition and **silently skipped both the level and shape checks** —
+the precise failure that test exists to catch, defeated by the test's
+own escape hatch. Restricted to actual peril legs. That skip was
+written for a new peril reaching one grain first, and nothing else
+should be able to trigger it.
+
+**`_cover_split_frame` could no longer be built.** Phase 2c made
+`marginal_params` read `ct_th/ct_eow/ct_fire/ct_ad`, and the two cover
+tests' shared fixture predated it, so they died on a `KeyError` rather
+than a failed assertion. Neutral 1.0s, so those tests keep testing the
+cover split alone.
+
+All three are the pattern this week has kept producing: not a missing
+check, but a check that had quietly stopped being able to fail, or two
+statements of the same fact that had drifted apart.
+
 ## PUBLISHED 2026-08-27: Phase 2c, council-tax band severity relativities
 
 The user approved this with the market-vs-reinstatement question still
