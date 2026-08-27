@@ -703,10 +703,117 @@ districts**, used as the exposure weight throughout.
       Belgravia). Normalisation to CLAIM weights (households × that
       peril's rate) happens in build_model.main(), so each peril's
       ABI severity level is pinned by construction.
+31. **Buildings/contents split anchors — searched 2026-08-17/18, and the
+    search FAILED for half the book.** (Numbers 29 and 30 are published, with
+    Phase 2a and Phase 2c respectively; this one follows 30 in order.) Phase 3 needs, for each peril, the share of claims *cost*
+    falling on the buildings section rather than contents. **No published
+    UK source gives a peril × cover-type matrix.** Not the ABI, not the
+    FCA, not any regulator. What does exist, per peril:
+    - **Theft — anchored.** ONS Crime Survey for England and Wales,
+      *Nature of crime: burglary* tables. Damage (a buildings-section
+      cost: forced doors, windows, frames) is **24.2%** of burglary
+      cost pooled over nine survey years; the rest is stolen goods,
+      which is contents. → **~25% buildings**. The one peril where the
+      split falls straight out of an official statistic.
+    - **Fire — anchored.** Home Office, *Economic and social cost of
+      fire*. Property damage in dwelling fires is dominated by
+      structure; the published dwelling uprate puts contents at
+      **~22%** → **~78% buildings**.
+    - **Subsidence — anchored at ~100% buildings, on loss-cost grounds
+      only.** Subsidence damages foundations and walls; contents are
+      almost never the loss. **Correction worth keeping:** do NOT cite
+      policy wording as the proof — contents sections *do* insure
+      subsidence in all four wordings checked. The anchor is where the
+      money goes, not what the policy covers.
+    - **Flood — three published conventions that CONTRADICT each other.**
+      Flood Re's statutory buildings/contents premium caps imply
+      **66/34**; the Multi-Coloured Manual depth-damage curves imply
+      **48/52**; the EA's own appraisal convention implies **25/75**.
+      These are not refinements of one number, they are three different
+      answers. Fortunately it barely matters here — flood is 9.8% of
+      this model's claim cost, so all three land within 4pp at portfolio
+      level (63.2%–67.2% buildings).
+    - **Storm, groundwater, escape of water, accidental damage — NO
+      ANCHOR EXISTS.** Nothing published, at any grain, from any body.
+      Together these are **43.2% of the model's claim cost**, and escape
+      of water alone is **25.1%** — the single largest peril in the
+      book. This is what stops Phase 3 (see the verdict below).
+    - **Rejected — the all-perils shortcuts.** FCA General Insurance
+      Value Measures give an all-perils **~77/23**, but it compares
+      *standalone* buildings and contents products and so carries the
+      same renter-selection bias that already disqualified the premium
+      ratio: contents-only buyers are disproportionately renters with
+      lower sums insured. A bottom-up recombination of the four real
+      anchors suggests **~70/30**, which is a coherence check, not a
+      source. Also dead: every `abi.org.uk/globalassets/...` PDF URL
+      found via search (all 404 — the media-hub move again, see #27),
+      and the marketing "typical split" statistics that insurer and
+      aggregator blogs quote without a book behind them.
+    - **Second search pass, 2026-08-18 — three more routes closed.**
+      Each was checked directly rather than assumed:
+      - **IFoA research working parties: no such party exists.** The
+        current register runs Actuarial applications of vine copulas,
+        AI/ML for pricing, UK asbestos, Black swan, Capital research,
+        Claims inflation, Climate change, Cyber, Electric vehicles,
+        Fairness and inclusion, **Flood**, Liability exposure
+        management, ML in reserving, Managing the cycle, UK motor,
+        Pricing research, Reserving research, Risk drivers, Delegated
+        underwriting, Solvency UK, Third party, Optimal reserving.
+        Nothing on household, water damage, or claims-by-peril. The
+        Flood party is the only property-peril one, and flood is the
+        peril already anchored three times over.
+      - **FCA General Insurance Value Measures is product-level, not
+        peril-level.** It reports claims frequency, acceptance rate and
+        average payout per *product* (buildings, contents, combined) —
+        there is no peril dimension in the return, so it cannot yield a
+        peril x cover matrix at any level of effort. Confirms the
+        earlier rejection for a second reason beyond renter selection.
+      - **ABI property-claims releases give combined figures only.**
+        The quarterly and annual releases split weather vs non-weather
+        and quote per-peril totals and averages, but never buildings vs
+        contents within a peril. (The 2026 annual release URL also
+        404s to WebFetch — the media-hub move again, see #27.)
+    - **Third pass 2026-08-18 — the last two live routes, both closed.**
+      - **FCA GIVM re-checked against the 2025 release** (calendar 2025,
+        the fourth full year) in case the return had gained a peril
+        dimension. It has not: the five metrics are claims frequency,
+        acceptance rate, average payout, complaints rate, and claims
+        cost as a proportion of premium, for buildings / contents /
+        combined. Worth stating why the product split is not even an
+        *aggregate* cross-constraint on contents propensity: the three
+        lines are bought by different populations — contents-only is
+        overwhelmingly renters, buildings-only is landlords and
+        mortgage-driven owner cover — so their frequency ratio measures
+        who buys which product, not how a peril's cost divides between
+        covers. That is selection, not a split. (For scale: home claims
+        cost 48% of premium in 2025; acceptance 62% buildings, 71%
+        combined, contents down to 74%. Context, not an anchor.)
+      - **Restoration-industry escape-of-water cost composition.** The
+        trade and loss-assessing literature states the split
+        *qualitatively* — structure, floors, ceilings and fixed fittings
+        under buildings; furniture, carpets and belongings under
+        contents — and quotes whole-claim restoration ranges (~£1,500 to
+        £6,000 including drying and alternative accommodation). None
+        publishes the **proportion**. "Both are affected" cannot become
+        a number.
+      **The search is now exhausted**: four anchors, four perils with
+      none, three contradictory flood conventions. Do not re-run it
+      without new data.
+    - **One incidental find worth keeping, unrelated to Phase 3.** Flood
+      Re reports spending more repairing Council Tax Band G/H homes than
+      Band A/B homes in three of the past four years — independent
+      support for the Phase 2c severity relativity (`exp/ct-severity`,
+      #30), from a source that had no part in building it.
+    - **The one route left, and it needs the user:** the IFoA's
+      withdrawn general-insurance research papers, requestable from
+      `webarchive@actuaries.org.uk`. **Not contacted** — sending mail on
+      the user's behalf needs their say-so, and this is theirs to send.
+      Otherwise a claims triangle (top item on the blocked list below)
+      remains the only thing that would settle it.
 
 32. **The ABI industry-data subscription, and how to read a withdrawn
-    ABI file** (found 2026-08-18; numbers 30 and 31 are taken by the
-    two unmerged branches, so this skips to 32 to merge cleanly).
+    ABI file** (found 2026-08-18; number 30 is still held by
+    `exp/ct-severity`, so this skips past it to merge cleanly).
     Two separate things, both worth keeping.
 
     **(a) The web-archive technique, which WORKS.** Entries #27 and #31

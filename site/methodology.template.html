@@ -500,6 +500,70 @@ __NAV__
     the flood or climate modelling changed.</p>
   </section>
 
+
+  <section class="doc" id="cover">
+    <h2>Buildings or contents? Only where something says so</h2>
+    <p>A real policy has two sections — <b>buildings</b> (the structure:
+    walls, roof, fitted kitchen, foundations) and <b>contents</b> (what
+    you would take with you). Every figure elsewhere on this site is the
+    two combined. Splitting them is worth doing, and this model splits
+    only the part that a published source can settle.</p>
+
+    <p>The split is <b>per peril</b>, and that is the honest unit: a
+    subsidence claim is nearly all structure, a burglary is nearly all
+    stolen goods. Five of the eight perils have an anchor for that ratio.
+    <b>Three do not, and they are __SPLIT_UNANCHORED_PCT__% of claim
+    cost.</b> Those three are left named and blank rather than filled in
+    with a guess.</p>
+
+    <div class="tablewrap">
+      <table class="data">
+        <thead><tr>
+          <th>risk type</th><th class="num">£/policy/yr</th>
+          <th class="num">% of cost</th><th class="num">buildings</th>
+          <th class="num">£ buildings</th><th class="num">£ contents</th>
+        </tr></thead>
+        <tbody>
+        __SPLIT_ROWS__
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note">Anchors, all in
+    <a href="__REPO_URL__/blob/main/DATA_SOURCES.md">DATA_SOURCES</a> #31:
+    theft from the ONS Crime Survey's nature-of-crime tables (damage to
+    doors, windows and frames is 24.2% of burglary cost, the rest being
+    the goods); fire from the Home Office's <i>Economic and social cost
+    of fire</i>; subsidence at ~100% because it damages foundations and
+    walls and contents are excluded in every policy wording checked;
+    flood at 48% from the Multi-Coloured Manual's depth-damage curves;
+    groundwater on the same curves, being the same water in the same
+    dwelling.</p>
+
+    <h3>Why there is no total row</h3>
+    <p>Because it would be an opinion. Send the unanchored
+    __SPLIT_UNANCHORED_PCT__% all one way and the portfolio is
+    <b>__SPLIT_FLOOR__% buildings</b>; send it the other and it is
+    <b>__SPLIT_CEIL__%</b>. That is a band tens of points wide, and a
+    band that wide is not a number — publishing its midpoint would be
+    inventing the answer rather than measuring it. The anchored
+    __SPLIT_ANCHORED_PCT__% of claim cost comes out
+    <b>__SPLIT_BLD_PCT__% buildings</b>, and that figure is real because
+    every input to it is published.</p>
+
+    <p>The gap is not evenly spread, either. <b>Escape of water alone is
+    __SPLIT_EOW_PCT__% of claim cost with no anchor at all</b> — more
+    than the entire spread between the three contradictory flood
+    conventions the literature offers. Anyone extending this should go
+    at escape of water and ignore everything else.</p>
+
+    <p class="note">The model can also split each district's capital
+    charge between the two covers, and does so exactly — buildings and
+    contents earn different diversification credits, so it is a real
+    calculation rather than a pro-rata carve-up. It is deliberately not
+    published: a per-district pounds split would need all eight
+    fractions, and three of them do not exist.</p>
+  </section>
   <section class="doc" id="erosion">
     <h2>Coastal erosion: modelled, not priced</h2>
     <p>The model carries one further peril, <b style="color:var(--er)">coastal erosion</b>, from

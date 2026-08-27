@@ -61,7 +61,7 @@
     <div class="tiles">
       <div class="tile"><div class="k">Districts &middot; households</div><div class="v">2,736</div><div class="d">27.3m households (census-weighted)</div></div>
       <div class="tile"><div class="k">Simulated years</div><div class="v">20,000</div><div class="d">per district, seeded &amp; reproducible</div></div>
-      <div class="tile"><div class="k">Eight-peril premium</div><div class="v">£194–146</div><div class="d">lowest to highest district</div></div>
+      <div class="tile"><div class="k">Eight-peril premium</div><div class="v">£189–139</div><div class="d">lowest to highest district</div></div>
       <div class="tile"><div class="k">Diversification credit</div><div class="v">98%</div><div class="d">portfolio vs standalone tail</div></div>
     </div>
     <p class="note" style="margin-top:14px">Separately, 352 districts sit on a
@@ -74,7 +74,7 @@
     Environment Agency's <b>climate-change flood extents</b> — calibration held fixed, so
     only the hazard map moves — shifts the technical premium by
     <b>+4%</b> across the 2,087 districts it covers, worst
-    TA9 at +58%. A scenario, not a forecast, and England only:
+    TA9 at +59%. A scenario, not a forecast, and England only:
     <a href="methodology.html#climate">what it does and does not mean</a>.</p>
   </section>
 
@@ -141,9 +141,9 @@
         <p>Re-running the whole model at <b>postcode-sector</b> resolution —
         <b>10,398</b> units instead of 2,736 — reproduces the district
         answer when aggregated back, but shows what the district average was hiding:
-        in <b>50 districts</b> (2%) the cheapest and
-        dearest sectors differ by more than <b>2×</b>, and in HU1 by
-        <b>3.0×</b> (£114–£343). The
+        in <b>46 districts</b> (2%) the cheapest and
+        dearest sectors differ by more than <b>2×</b>, and in SW8 by
+        <b>3.1×</b> (£135–£416). The
         splits are physical: a river through half a district, a clay boundary under the
         other. <a href="sectors.html">See the sector map →</a></p>
       </div>
@@ -245,12 +245,12 @@
           <th class="num">Subs.</th><th class="num">Weather</th><th class="num">Flood</th><th class="num">Gr.water</th>
           <th>What drives it</th>
         </tr>
-        <tr><td><strong>HU2</strong></td><td>Hull</td><td class="num"><strong>£339</strong></td><td class="num">0.29</td><td class="num">0.17</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood-dominated (84% of E[loss])</td></tr>
-        <tr><td><strong>BD1</strong></td><td>postcode area BD</td><td class="num"><strong>£336</strong></td><td class="num">0.28</td><td class="num">0.42</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + weather (66% / 20%)</td></tr>
-        <tr><td><strong>BS1</strong></td><td>postcode area BS</td><td class="num"><strong>£314</strong></td><td class="num">0.15</td><td class="num">0.36</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood + weather (72% / 19%)</td></tr>
-        <tr><td><strong>WC1E</strong></td><td>postcode area WC</td><td class="num"><strong>£297</strong></td><td class="num">1.00</td><td class="num">0.16</td><td class="num">0.60</td><td class="num">0.00</td><td>Subsidence-dominated (72% of E[loss])</td></tr>
-        <tr><td><strong>HU3</strong></td><td>Hull</td><td class="num"><strong>£283</strong></td><td class="num">0.23</td><td class="num">0.14</td><td class="num">1.00</td><td class="num">0.00</td><td>Flood-dominated (79% of E[loss])</td></tr>
-        <tr><td><strong>FY1</strong></td><td>postcode area FY</td><td class="num"><strong>£281</strong></td><td class="num">0.40</td><td class="num">0.63</td><td class="num">0.73</td><td class="num">0.00</td><td>Weather + flood + subsidence (41% / 32%)</td></tr>
+        <tr><td><strong>WC2N</strong></td><td>postcode area WC</td><td class="num"><strong>£396</strong></td><td class="num">0.53</td><td class="num">0.15</td><td class="num">0.78</td><td class="num">0.00</td><td>Subsidence + flood (42% / 42%)</td></tr>
+        <tr><td><strong>W1J</strong></td><td>postcode area W</td><td class="num"><strong>£378</strong></td><td class="num">0.53</td><td class="num">0.15</td><td class="num">0.40</td><td class="num">0.00</td><td>Subsidence + weather (59% / 21%)</td></tr>
+        <tr><td><strong>W1C</strong></td><td>postcode area W</td><td class="num"><strong>£377</strong></td><td class="num">0.53</td><td class="num">0.15</td><td class="num">0.22</td><td class="num">0.00</td><td>Subsidence + weather (63% / 22%)</td></tr>
+        <tr><td><strong>W1K</strong></td><td>postcode area W</td><td class="num"><strong>£376</strong></td><td class="num">0.53</td><td class="num">0.14</td><td class="num">0.43</td><td class="num">0.00</td><td>Subsidence + flood + weather (58% / 20%)</td></tr>
+        <tr><td><strong>SW1Y</strong></td><td>postcode area SW</td><td class="num"><strong>£363</strong></td><td class="num">0.53</td><td class="num">0.15</td><td class="num">0.56</td><td class="num">0.00</td><td>Subsidence + flood + weather (52% / 27%)</td></tr>
+        <tr><td><strong>W1W</strong></td><td>postcode area W</td><td class="num"><strong>£361</strong></td><td class="num">0.81</td><td class="num">0.15</td><td class="num">0.52</td><td class="num">0.00</td><td>Subsidence-dominated (68% of E[loss])</td></tr>
       </table>
     </div>
     <p class="note" style="margin-top:10px">Technical premium per policy per year =

@@ -473,6 +473,68 @@ def test_erosion_expected_loss_is_analytic_not_simulated(monkeypatch):
                - sim["el_er"][0]) < 1e-6
 
 
+def _cover_split_frame():
+    import pandas as pd
+    return pd.DataFrame({
+        "sub_score": [0.5, 0.2], "wx_score": [0.5, 0.4],
+        "fl_score": [0.3, 0.6], "gw_score": [0.2, 0.1],
+        "er_score": [0.0, 0.0],
+        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05],
+        "sw_high": [0.05, 0.01], "sw_low": [0.1, 0.03],
+        "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
+        "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
+        "th_rate": [0.010, 0.005], "eow_rate": [0.011, 0.009],
+        "fire_rate": [0.002, 0.001], "ad_rate": [0.009, 0.008],
+        # Neutral council-tax relativities (Phase 2c). marginal_params
+        # reads these for the four attritional severities, so the frame
+        # cannot be built without them. 1.0 keeps this frame testing the
+        # cover split alone, which is what these two tests are about.
+        "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
+        "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
+    })
+
+
+def test_cover_split_is_a_pure_reweighting_of_the_same_losses(monkeypatch):
+    """The buildings/contents split must re-weight the losses the model
+    already simulated, never re-estimate them. Two degenerate settings
+    prove it without depending on the published split fractions: send
+    every peril to buildings and the buildings leg must equal the whole,
+    send every peril to contents and it must vanish - exactly, not
+    approximately, at both the expected-loss and the capital-allocation
+    level."""
+    monkeypatch.setattr(bm, "N_SIM", 400)
+    monkeypatch.setattr(bm, "BATCH", 8)
+    df = _cover_split_frame()
+
+    monkeypatch.setattr(bm, "SPLIT_BUILDINGS",
+                        {k: 1.0 for k in bm.SPLIT_BUILDINGS})
+    allb, _ = bm.simulate(df)
+    assert allb["el_buildings"] == pytest.approx(allb["el_total"], abs=1e-9)
+    assert allb["tvar99_euler_b"] == pytest.approx(allb["tvar99_euler"],
+                                                   abs=1e-9)
+    assert allb["el_year_b"] == pytest.approx(allb["el_year"], abs=1e-9)
+
+    monkeypatch.setattr(bm, "SPLIT_BUILDINGS",
+                        {k: 0.0 for k in bm.SPLIT_BUILDINGS})
+    allc, _ = bm.simulate(df)
+    assert allc["el_buildings"] == pytest.approx(0.0, abs=1e-9)
+    assert allc["tvar99_euler_b"] == pytest.approx(0.0, abs=1e-9)
+    # the totals themselves are untouched by where the split sends the loss
+    assert allc["el_total"] == pytest.approx(allb["el_total"], abs=1e-12)
+    assert allc["tvar99_euler"] == pytest.approx(allb["tvar99_euler"],
+                                                 abs=1e-12)
+
+
+def test_cover_split_fractions_are_shares(monkeypatch):
+    """Every peril's buildings share is a fraction, and every modelled
+    peril has one - a peril added to the model without a split entry
+    would silently vanish from both covers."""
+    priced = {"sub", "wx", "fl", "gw", "th", "eow", "fire", "ad"}
+    assert set(bm.SPLIT_BUILDINGS) == priced
+    for peril, share in bm.SPLIT_BUILDINGS.items():
+        assert 0.0 <= share <= 1.0, f"{peril} share {share} is not a fraction"
+
+
 def test_theft_expected_loss_is_analytic_not_simulated(monkeypatch):
     """Theft shares ONE U_th stream across all districts, so a simulated
     mean carries a common sampling error - the first evidence run came out
@@ -1335,8 +1397,17 @@ def test_the_sector_model_nests_inside_the_district_model():
     # Compare the whole el_* column sets rather than naming one peril:
     # the theft transition taught us this guard is needed, and the EoW
     # transition taught us not to hard-code which peril is in flight.
-    d_perils = {k for k in d_any if k.startswith("el_")}
-    s_perils = {k for k in sectors[0] if k.startswith("el_")}
+    # PERIL legs only. "el_" also prefixes aggregates and derived
+    # columns, and treating those as perils makes this skip far too
+    # eager: Phase 3 adds el_buildings/el_contents/el_year_b to the
+    # district file, so a district-only publish would have looked like a
+    # peril transition and SILENTLY DISARMED both checks below - the
+    # exact failure this whole test exists to catch. The skip is for a
+    # new peril reaching one grain first, nothing else.
+    _derived = {"el_total", "el_total5", "el_total_cc", "el_year",
+                "el_year_b", "el_buildings", "el_contents"}
+    d_perils = {k for k in d_any if k.startswith("el_")} - _derived
+    s_perils = {k for k in sectors[0] if k.startswith("el_")} - _derived
     if d_perils != s_perils:
         pytest.skip("district and sector outputs are mid-transition: "
                     f"peril sets differ by {sorted(d_perils ^ s_perils)} - "
@@ -1377,6 +1448,45 @@ def test_the_sector_model_nests_inside_the_district_model():
         f"are a MIXED PAIR: one file carries a model change the other does "
         f"not, and the live site is serving both. Cross the sector output "
         f"to main, or hold the district publish until it is ready")
+
+    # The level check above is necessary and NOT sufficient. It compares
+    # one national number, so it is blind to a re-rating: Phase 2c moved
+    # 70.5% of districts across rating groups while leaving the level at
+    # -0.00%, and a mixed pair across that publish sat 0.009% apart on
+    # level - inside ANY level bound, including this one. Two grains can
+    # agree perfectly on the national premium while disagreeing about
+    # every district in the country.
+    #
+    # So also check the shape: each district against the household-
+    # weighted mean of its own sectors. Measured on the Phase 2c publish,
+    # where both pairs existed on disk at once:
+    #
+    #   consistent pair   median 1.09%   p95  6.43%   47 districts >10%
+    #   mixed pair        median 7.21%   p95 20.36%  964 districts >10%
+    #
+    # The median separates them by 6.6x. 3% sits ~2.7x above the honest
+    # grain difference and ~2.4x below a stale pair - the same balance as
+    # the level bound. Median rather than max: a handful of districts
+    # genuinely disagree at either grain (47 exceed 10% even when the
+    # pair is correct), so a max-based bound would be noise.
+    devs = []
+    for name, group in by_district.items():
+        if name not in districts:
+            continue
+        w = [s.get("households", 0) for s in group]
+        if sum(w) <= 0:
+            continue
+        sm = sum(x * s["premium"] for x, s in zip(w, group)) / sum(w)
+        devs.append(abs(sm / districts[name]["premium"] - 1))
+    devs.sort()
+    median_dev = devs[len(devs) // 2]
+    over = sum(1 for d in devs if d > 0.10)
+    assert median_dev < 0.03, (
+        f"district-by-district the two grains disagree by a median "
+        f"{100 * median_dev:.2f}% ({over} of {len(devs)} districts over "
+        f"10%) while the national levels still match - this is a MIXED "
+        f"PAIR from a re-rating publish, which the level check above "
+        f"cannot see. Cross the sector output to main")
 
 
 def test_every_published_map_asset_carries_the_columns_its_page_reads():
@@ -1644,6 +1754,104 @@ def test_uncovered_district_with_surface_water_is_not_read_as_shallow(
     assert abs(mult[0] - 1.0) < 1e-9
 
 
+def test_cover_split_capital_uses_the_same_basis_as_combined_capital(monkeypatch):
+    """capital_buildings must be built on the ANALYTIC EL, like capital.
+
+    This is the corner the older split test could not reach: it exercised
+    simulate() only, and the capital columns are assembled afterwards in
+    main(). Send every peril to buildings and capital_buildings must equal
+    capital exactly; send every peril to contents and it must vanish.
+    Against a draw-mean EL (`el_year_b`, which is what shipped until
+    2026-08-25) the first corner came back 0.2-0.3% low, and the
+    additivity assertion in apply_cover_split could not see it because
+    capital_contents is defined as the remainder.
+    """
+    import pandas as pd
+    monkeypatch.setattr(bm, "N_SIM", 400)
+    monkeypatch.setattr(bm, "BATCH", 8)
+    df = _cover_split_frame()
+
+    def split_at(fraction):
+        monkeypatch.setattr(bm, "SPLIT_BUILDINGS",
+                            {k: fraction for k in bm.SPLIT_BUILDINGS})
+        sim, _ = bm.simulate(df)
+        g = pd.DataFrame({k: sim[k] for k in
+                          ("el_total", "el_buildings", "tvar99_euler",
+                           "tvar99_euler_b", "el_year_b")})
+        g["capital"] = 0.06 * np.maximum(g["tvar99_euler"] - g["el_total"], 0.0)
+        g["premium"] = g["el_total"] + g["capital"]
+        return bm.apply_cover_split(g)
+
+    allb = split_at(1.0)
+    assert allb["capital_buildings"].values == pytest.approx(
+        allb["capital"].values, abs=1e-9)
+    assert allb["capital_contents"].values == pytest.approx(0.0, abs=1e-9)
+    assert allb["premium_buildings"].values == pytest.approx(
+        allb["premium"].values, abs=1e-9)
+
+    allc = split_at(0.0)
+    assert allc["capital_buildings"].values == pytest.approx(0.0, abs=1e-9)
+    assert allc["capital_contents"].values == pytest.approx(
+        allc["capital"].values, abs=1e-9)
+    assert allc["premium_contents"].values == pytest.approx(
+        allc["premium"].values, abs=1e-9)
+
+
+def test_every_split_peril_has_a_published_anchor():
+    """SPLIT_ANCHORED may only name perils DATA_SOURCES #31 anchors.
+
+    The site splits exactly this set and leaves the rest blank, so adding
+    a peril here silently promotes a guess to a published figure. That
+    already happened once: SPLIT_BUILDINGS shipped theft 0.20, fire 0.70,
+    flood 0.65 and groundwater 0.80 as though they were anchors, when the
+    anchor search had settled on 0.242, 0.78, 0.48 and 0.48. This pins
+    the anchored values to the sources so the two cannot drift apart
+    again without a test failing.
+    """
+    anchors = {"sub": 1.00,    # contents excluded in every wording checked
+               "th": 0.242,    # ONS CSEW nature-of-crime damage share
+               "fire": 0.78,   # Home Office economic and social cost of fire
+               "fl": 0.48,     # Multi-Coloured Manual depth-damage curves
+               "gw": 0.48}     # same curves, same water
+    assert set(bm.SPLIT_ANCHORED) == set(anchors), (
+        "SPLIT_ANCHORED changed - every member needs a source in "
+        "DATA_SOURCES #31 before the site is allowed to split it")
+    for peril, expected in anchors.items():
+        assert bm.SPLIT_BUILDINGS[peril] == pytest.approx(expected), (
+            f"{peril} is declared anchored but carries "
+            f"{bm.SPLIT_BUILDINGS[peril]}, not the published {expected}")
+    assert set(bm.SPLIT_ANCHORED) < set(bm.SPLIT_BUILDINGS)
+    assert set(bm.PERIL_LABELS) == set(bm.SPLIT_BUILDINGS)
+
+
+def test_the_published_cover_table_adds_up():
+    """The risk-type table must reconcile to el_total and split only the
+    anchored perils - it is a disclosure, so its arithmetic is the claim."""
+    import json
+    import numpy as np
+    path = os.path.join(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))), "data", "districts_risk.geojson")
+    if not os.path.exists(path):
+        pytest.skip("no built model output")
+    with open(path, encoding="utf-8") as fh:
+        feats = [f["properties"] for f in json.load(fh)["features"]]
+    w = np.array([p.get("households", 1) for p in feats], dtype=float)
+    tot = np.average([p["el_total"] for p in feats], weights=w)
+    legs = {k: float(np.average([p["el_" + k] for p in feats], weights=w))
+            for k in bm.PERIL_LABELS}
+    # The eight labelled perils ARE el_total; erosion is deliberately out.
+    # Tolerance is set by the PUBLISHED file, which carries one decimal
+    # place: eight rounded legs against one rounded total leaves ~0.03 on
+    # 164, so 2e-3 absorbs the rounding. It still catches a dropped peril
+    # - the smallest, groundwater, is 0.8% of cost, forty times the
+    # tolerance.
+    assert sum(legs.values()) == pytest.approx(tot, rel=2e-3), (
+        "the risk-type table does not reconcile to el_total - a peril is "
+        "missing from PERIL_LABELS, or erosion has leaked into el_total")
+    anchored = sum(v for k, v in legs.items() if k in bm.SPLIT_ANCHORED)
+    assert 0.4 * tot < anchored < 0.8 * tot, (
+        f"anchored share is {100 * anchored / tot:.1f}% - if this moved a "
+        "long way the table's headline claim needs rewriting, not the bound")
 def test_no_capital_formula_is_taken_against_a_draw_mean():
     """Capital is always (tail - analytic EL), never (tail - draw mean).
 
