@@ -89,6 +89,81 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## Gate 3 prep 2026-08-28: the burst-pipe breakout has NO shippable anchor
+
+Gate 3 proposes splitting burst pipes out of the escape-of-water leg as
+its own peril. Desk research on the ABI's public releases, all figures
+now in `data/abi_annual.csv` with their bases kept apart. **Verdict: do
+not build the leg.** The reasons are worth keeping, because two of them
+are findings in their own right.
+
+**There are THREE ABI series here and they are not the same thing.**
+
+1. *The annual weather line* (the release the model's storm/flood/
+   subsidence anchors come from). Its home-weather total less storm less
+   flood gives **153 (2023), 174 (2024), 202 (2025)**. The residual
+   method is validated: for 2023 it reproduces the published GBP153m to
+   within 1 (573-133-286 = 154).
+2. *The winter-advice releases*, a **settled-claims** basis: 2023
+   **12,000 claims averaging over GBP17,000**; 2024 **~8,000 claims,
+   ~GBP33,000, GBP250m total**.
+3. The model's own EoW anchor, GBP657m from the ABI's "GBP1.8m a day".
+
+Series 1 and 2 do not reconcile: 12,000 x 17,000 = **GBP204m vs the
+weather line's GBP153m (+33%)**, and 8,000 x 33,000 = GBP264m (the ABI
+says GBP250m) **vs GBP174m (+44%)**. Same peril, same year, two ABI
+publications, a third apart. This is the paid-vs-notified problem Gate 1
+hit, in a new place.
+
+**Finding 1: the 2025 "burst pipes" figure is not burst pipes.** The
+2026-02 release's footnote says the weather figures "cover damage caused
+by burst or frozen pipes, **escape of water**, as well as damage as a
+result from storms and flooding". So the GBP202m residual is burst pipes
+*and* weather-attributed escape of water. The likeliest reading is that
+the **basis is the same in both years** and the 2023 release's "burst
+pipes" label for its own residual was simply loose — and the evidence
+for that is `EOW_FREEZE_SHARE`'s own derivation, which got **0.311 from
+2023 and 0.307 from 2025**. Two different bases would not agree to
+0.004. So this does not undermine `EOW_FREEZE_SHARE = 0.31`; if anything
+it explains why it held up.
+
+**Finding 2, and this is the useful one: the burst-pipe tail is already
+representable inside the existing EoW lognormal, and the model's sigma
+now has a published cross-check for the first time.** Split at the 2024
+figures, burst pipes would be **4.9% of EoW claims but 40% of EoW paid**
+— a 13x severity ratio. That sounds like it needs its own leg. It does
+not. Asking what lognormal sigma puts that much value in that few claims:
+
+| ABI reading | claims | avg | % of EoW count | % of EoW paid | implied sigma |
+|---|---|---|---|---|---|
+| 2023 (12k x >GBP17,000) | 12,000 | 17,000 | 7.3% | 31.1% | **0.96** |
+| 2024 (8k x ~GBP33,000) | 8,000 | 33,000 | 4.9% | 40.2% | **1.41** |
+| the model today | — | — | — | — | **1.00** |
+
+`SEV_SIGMA["eow"] = 1.00` was a judgement call and has never had an
+anchor. It now has one, and the anchor is a **lower bound**: the ABI
+says the 2023 average *exceeded* GBP17,000, so the sigma that reading
+implies is **at least 0.96**, not equal to it. The model's 1.00 is
+therefore consistent with 2023 rather than confirmed by it — but
+"consistent with a published figure" is strictly more than this
+parameter had yesterday, and the bound rules out the low end.
+
+**Why the leg still cannot ship.** Two observations, and they disagree by
+47% on sigma. The average claim nearly **doubled** (17,000 -> 33,000)
+while the count fell **a third** (12,000 -> 8,000) — the signature of a
+small catastrophe-driven book, not a severity anchor. And the 2024 pair
+could not be verified against the ABI primary: the cold-weather page
+404s on fetch and only secondary reports carry it. Under the house rule
+that a parameter without a published anchor does not ship, this is not
+close.
+
+**What would change the answer.** A third year on the winter-advice
+basis, which arrives each winter; or an ABI release that states burst
+pipes and escape of water separately on the same basis. Until then the
+honest Gate 3 experiment is **not** a new leg but a one-parameter
+question — is `SEV_SIGMA["eow"]` right at 1.00, given 2023 says 0.96 and
+2024 says 1.41 — and that is priceable today with the existing harness.
+
 ## Gate 2 shape check 2026-08-28 (PROVISIONAL, 22 of 57 points)
 
 Run `scripts/freeze_index_shape.py`. It works off whatever
