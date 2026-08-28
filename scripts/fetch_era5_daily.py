@@ -60,6 +60,10 @@ START, END = "1960-01-01", "2025-12-31"
 DAILY = "temperature_2m_min,temperature_2m_max,precipitation_sum"
 BATCH = 2            # points per call; 66 years of daily is a large response
 PAUSE = 45.0         # Open-Meteo is free and rate-limited - be a good guest
+# Retries now measure DAYS, not minutes: ~5 calls of this weight exhaust
+# the free daily quota, so 57 points is roughly a week of grinding. That
+# is acceptable only because the job is resume-safe AND interleaved -
+# whatever is on disk at any moment is a usable national sample.
 RETRIES = 12
 
 
@@ -67,6 +71,37 @@ def seconds_to_next_hour():
     """Seconds until the wall clock rolls over to :00."""
     now = time.time()
     return 3600.0 - (now % 3600.0)
+
+
+def seconds_to_next_utc_day():
+    """Seconds until 00:00 UTC. Open-Meteo's daily counter resets there."""
+    now = time.time()
+    return 86400.0 - (now % 86400.0)
+
+
+def cap_wait(body):
+    """How long to sleep for a 429, read from WHICH limit was hit.
+
+    Open-Meteo has two caps and says which one in the response body:
+
+        {"error":true,"reason":"Hourly API request limit exceeded.
+                                Please try again in the next hour."}
+        {"error":true,"reason":"Daily API request limit exceeded.
+                                Please try again tomorrow."}
+
+    Getting this wrong is expensive and silent. This job spent three
+    hours sleeping to hourly boundaries and fetching NOTHING, because
+    the cap it had actually hit was the daily one - the hourly handler
+    woke up, was refused, and went back to sleep for another hour. A
+    one-location one-month one-variable probe returned the same daily
+    error, which is how it was finally identified: at that size nothing
+    but an exhausted quota can refuse you.
+    """
+    if "daily" in body.lower():
+        # +5 min of margin: the reset is not to the microsecond and a
+        # request that arrives early is simply refused again.
+        return seconds_to_next_utc_day() + 300.0, "DAILY quota"
+    return seconds_to_next_hour() + 90.0, "hourly cap"
 
 
 def exterior_rings(geom):
@@ -199,19 +234,24 @@ def fetch(chunk):
             return data if isinstance(data, list) else [data]
         except Exception as e:            # noqa: BLE001 - retried, then raised
             msg = str(e)
+            body = ""
+            if hasattr(e, "read"):
+                try:
+                    body = e.read().decode("utf-8", "replace")
+                except Exception:         # noqa: BLE001 - advisory only
+                    body = ""
             if "429" in msg:
-                # Open-Meteo's free cap is HOURLY and weighted by
-                # locations x days x variables, so one 66-year 2-point
-                # 3-variable call is worth ~100 ordinary ones and about
-                # six of them exhaust the hour. The reply says so
-                # verbatim: "Hourly API request limit exceeded. Please
-                # try again in the next hour." Retrying on a 150 s timer
-                # therefore just burns all the attempts inside the same
-                # dead hour and exits having fetched nothing - which is
-                # exactly what the first run did. Sleep to the boundary.
-                wait = seconds_to_next_hour() + 90
-                print(f"    hourly cap hit - sleeping "
-                      f"{wait / 60:.1f} min to the next hour "
+                # Two caps, hourly and daily, and the body says which.
+                # cap_wait() has the story; the short version is that
+                # calls here are weighted by locations x days x
+                # variables, so one 66-year 2-point 3-variable request
+                # is worth ~100 ordinary ones. About six exhaust the
+                # hour and about five exhaust the DAY, which is why
+                # RETRIES has to be able to span days rather than
+                # minutes: the first version slept 150 s twelve times
+                # and gave up inside a single dead hour.
+                wait, which = cap_wait(body)
+                print(f"    {which} hit - sleeping {wait / 3600:.1f} h "
                       f"(attempt {attempt + 1}/{RETRIES})", flush=True)
             else:
                 wait = 20
