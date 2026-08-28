@@ -146,6 +146,44 @@ consistent severity pairing pushes the same way — and it is now
 recorded in `anchor_budget.py`, whose subsidence row also stopped
 claiming the two figures came from "one release" when they never did.
 
+## Fixed 2026-08-28: the published calibration figures had drifted twice
+
+Right after the Gate 1 publish I grepped the **live** page for
+GBP17,820 — a number that should no longer have existed anywhere — and
+found it. The eight-row ABI calibration table on the methodology page
+was hand-written, and it had drifted **twice**:
+
+- **subsidence**, that same day, by my own severity change; and
+- **theft**, stale since **2026-08-25**. It read GBP450m / ~118,000 /
+  0.76% when the model had been moved to GBP341.6m / 89,895 / 0.58%
+  three days earlier. Its footnote was worse than stale: it argued that
+  "the resulting frequency (0.76%) sits inside the envelope" when the
+  model had deliberately been put at the envelope's **floor**, so the
+  page was defending a choice the model no longer made.
+
+The landing page carried the same theft error in prose — "theft to the
+last published theft total (~GBP450m)".
+
+**Every numeric cell in both is now injected from `build_model.ABI`**
+(`build_site.py`, the `__CAL_*__` keys), so there is one place to change
+an anchor and it is the model. Three-significant-figure rounding is done
+with a negative `ndigits` — that is what turns 99,592 into ~99,600 — and
+the keys are spelled out as **literals**, because
+`test_site_placeholders_all_resolve` greps `build_site.py` for quoted
+tokens and an f-string-built key is invisible to it.
+
+README's copy of the table cannot be derived — markdown has no build
+step — so it is **pinned by a test** instead:
+`test_readme_calibration_table_matches_the_model` parses the rows and
+checks paid, average claim and implied count against `ABI`. Verified it
+bites, by reverting one cell and watching it fail by name.
+
+**A red commit, and why.** b5db786 went to main with
+`test_site_placeholders_all_resolve` failing. The cause was mine and
+worth naming: `pytest ... | tail -3 && git commit && git push` — `tail`
+exits 0, so the `&&` chain never saw pytest's failure. 50244f8 fixed the
+test; every push since reads pytest's own exit code. 94 green.
+
 ## Gate 1 priced 2026-08-27: the subsidence level, four ways
 
 **CI run 33135605979**, 18.6 minutes, five full 20,000-year simulations
