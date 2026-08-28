@@ -157,12 +157,38 @@ could not be verified against the ABI primary: the cold-weather page
 that a parameter without a published anchor does not ship, this is not
 close.
 
+**Sigma is not a clean substitute for the leg, and saying so needs a
+correction to the paragraph above.** In the model, frost enters escape
+of water through **frequency only** — `eow_rate` is the anchor level
+times the frost relativity — while EoW severity is
+`ABI["sev_eow"] * ct_eow`, a council-tax factor, with **one sigma
+everywhere**. So a cold district gets more EoW claims at the same
+average cost. Raising sigma would add cost concentration **uniformly**;
+a real burst-pipe leg would tie it to frost geography. Those are
+different models, and the ABI publishes **no geography at all** for
+burst pipes — so the leg is unanchored in a second, independent way, not
+just on severity. That strengthens the verdict rather than weakening it,
+but the sigma option is a different question, not a cheaper version of
+the same one.
+
+**And it is a pure CAPITAL question.** `_median_for_mean` picks the
+lognormal median so the MEAN stays at the anchor, so changing
+`SEV_SIGMA["eow"]` leaves `E[sev]` untouched, leaves `p_eow` untouched,
+and therefore leaves **EL exactly unchanged** — only the tail, and hence
+capital, moves. This is the same invariance Gate 1 leaned on for the
+subsidence severity, and it bounds the whole question: capital is
+GBP5.53 of the GBP169.66 premium, so no sigma choice can move the
+headline by more than a fraction of that.
+
 **What would change the answer.** A third year on the winter-advice
 basis, which arrives each winter; or an ABI release that states burst
-pipes and escape of water separately on the same basis. Until then the
-honest Gate 3 experiment is **not** a new leg but a one-parameter
-question — is `SEV_SIGMA["eow"]` right at 1.00, given 2023 says 0.96 and
-2024 says 1.41 — and that is priceable today with the existing harness.
+pipes and escape of water separately on the same basis; or any public
+source for burst-pipe **geography**, which is the gap nothing here
+fills. Until then the honest Gate 3 experiment is **not** a new leg but
+the one-parameter question — is `SEV_SIGMA["eow"]` right at 1.00, given
+2023 implies at least 0.96 and 2024 implies 1.41 — and that is
+priceable today with the existing harness, on CI rather than this
+laptop.
 
 ## Gate 2 shape check 2026-08-28 (PROVISIONAL, 22 of 57 points)
 
