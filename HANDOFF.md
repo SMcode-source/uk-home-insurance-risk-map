@@ -89,6 +89,77 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## Gate 2 shape check 2026-08-28 (PROVISIONAL, 22 of 57 points)
+
+Run `scripts/freeze_index_shape.py`. It works off whatever
+`fetch_era5_daily.py` has cached, which is what that fetcher's
+farthest-point traversal is for — every prefix is a national sample. At
+**22 points** it already answers two of Gate 2's three questions, and
+the answers point somewhere other than where the gate was aimed.
+
+**Q1: a cold-spell/thaw index does not reorder the map.** Spearman
+against the `frost_days` the model uses today:
+
+| index | rho vs frost_days |
+|---|---|
+| spells (>=3 consecutive frost days) | **+0.994** |
+| days inside those spells | **+0.992** |
+| freeze-degree-days inside them | **+0.990** |
+| thaw events | **+0.994** |
+| mean thaw jump (degC) | +0.772 |
+
+Foreseeable in hindsight — every one of these is a monotone function of
+"how cold is it here" — but it is now measured rather than assumed. The
+physical argument for the swap (pipes burst when a SUSTAINED freeze
+THAWS, not on days the air dipped below zero) is sound and still buys
+**no spatial differentiation**. A relativity that reorders nothing
+cannot move a premium. Only `thaw_jump` is a genuinely different
+ranking, and it is the weakest-motivated of the six.
+
+**Q2: the level is moving; the map is not.** 1960-1992 vs 1993-2025,
+frost days **36.3 -> 29.2 (-19.6%)** and sustained spells **4.06 -> 3.44
+(-15.2%)** — but rank correlation between the two eras is **+0.98**.
+Britain is getting uniformly less frosty, not differently frosty.
+
+**So Gate 2's freeze half looks like a LEVEL question, not a geography
+question** — whether `EOW_FREEZE_SHARE` (the freeze-sensitive slice of
+escape of water) should be time-varying at all, rather than which
+districts carry it. That is a different experiment from the one the gate
+describes, and it is the user's call whether to re-aim it.
+
+**Q3, and this one changes what the ERA5 fetch is worth. ERA5 is not a
+usable freeze instrument in Scotland.** Against the model's HadUK-Grid
+1 km layer, both restricted to 1991-2020:
+
+| | n | ERA5 | HadUK | bias | Pearson | mean abs diff |
+|---|---|---|---|---|---|---|
+| England & Wales | 8 | 25.7 | 33.1 | -22% | **+0.902** | 7.8 d |
+| Scotland | 14 | 30.8 | 53.5 | -42% | **+0.547** | **32.9 d** |
+
+The two largest errors have **opposite signs** — IV4 -68 days, PH33
+(Lochaber) **+68** — which is the signature of a ~31 km cell landing on
+the wrong terrain rather than a bias anything could correct. The
+islands and far-north coastal districts (KW1/KW14/KW17, ZE1/ZE3, PA42,
+IV51) are all strongly negative, as a cell that is mostly sea should be.
+
+Consequences:
+
+- **CEDA HadUK-Grid is not a nice-to-have for Gate 2, it is the only
+  viable source.** ERA5 cannot cross-check freeze where freeze exposure
+  is highest.
+- The ~35 remaining ERA5 points (about a week of grinding) buy a decent
+  cross-check for England & Wales and little for the Highlands and
+  islands. Worth finishing, not worth waiting on.
+- This is **not** evidence the model's frost layer is wrong. It is
+  evidence ERA5 point-sampling is the wrong instrument for it — which is
+  the reason `fetch_haduk.py` exists.
+
+**Read the sample honestly.** 14 of the 22 points are Scottish, because
+farthest-point traversal maximises geographic spread and the north is
+sparse. The all-points "-37%" therefore overstates the
+population-weighted error. Re-run at 57 before quoting any of this as
+settled; Q1's +0.99 is the one number unlikely to move.
+
 ## PUBLISHED 2026-08-28: Gate 1's severity fix, both grains in one push
 
 **User decision: "take the severity fix and hold the level at 307."**
