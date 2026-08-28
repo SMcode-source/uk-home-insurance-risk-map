@@ -278,4 +278,16 @@ def main():
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(line_buffering=True)
-    main()
+    # A four-hour job on a laptop that sleeps WILL die at some point, and
+    # the first time it did so it left exit code 1 and not one word of
+    # explanation - stderr went nowhere useful. Anything that reaches
+    # here now says so on stdout, which is the stream being tailed.
+    try:
+        main()
+    except BaseException as e:                 # noqa: BLE001 - re-raised
+        import traceback
+        print("", flush=True)
+        print(f"DIED: {type(e).__name__}: {e}", flush=True)
+        traceback.print_exc(file=sys.stdout)
+        sys.stdout.flush()
+        raise
