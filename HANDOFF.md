@@ -115,18 +115,39 @@ to the file it replaced — a copula-free way of saying the same thing
 the Gate 1 derivation said: `sev` cancels out of
 `p_sub(i)*paid/(POLICIES*raw)`, so the whole 0.6 pence is capital.
 
-**One honest caveat on the pricing harness, worth recording because it
-would otherwise look like agreement to more digits than it earned.**
-`price_sub_level.py` predicted capital 5.533736 and the real rebuild
-delivered **5.533736** — exact to six decimals. But its *baseline*
-`el_total` was 164.1213406 against the true 164.120266, **+0.0011, or
-7e-6 relative**. So the harness reproduces PAIRED differences exactly
-and carries a tiny absolute offset, cause not yet identified (both
-calibration functions are documented idempotent, and `el_total` is
-analytic, so neither is an obvious suspect). It does not touch any Gate
-1 conclusion — every row shared the offset and the decision was made on
-differences — but do NOT quote the harness for an absolute level. Quote
-a rebuild.
+**One caveat on the pricing harness — DIAGNOSED 2026-08-28, it is
+output rounding, not an error.** `price_sub_level.py` predicted capital
+5.533736 and the real rebuild delivered **5.533736**, exact to six
+decimals; but its *baseline* `el_total` was 164.1213406 against the
+published 164.120266, **+0.0011**. Both calibration functions are
+idempotent and `el_total` is analytic, so neither was the suspect.
+
+The cause is `build_model.main()`'s write block: `el*` and `premium` are
+rounded to **1 dp** per district before the GeoJSON is written, while
+`capital` falls through to **4 dp**. The published means are therefore
+means of *rounded* columns — verified: the stored file has
+`max |x - round(x,1)| = 0` for `el_total` and `premium`, and
+`max |x - round(x,4)| = 0` for `capital`, and its exposure-weighted
+means are exactly the three figures quoted above.
+
+Quantised that way, 1-dp rounding puts **SD 0.00067** on the
+exposure-weighted mean of 2,736 districts, so the observed gap is
+**1.65 SD** — ordinary. 4-dp rounding puts SD 6.7e-7 on capital's mean,
+which is precisely why the harness matched capital to the digit and
+missed `el_total` by 1e-3. **The gap scales with each column's
+granularity, which is the signature of rounding and of nothing else.**
+
+Two consequences that outlive Gate 1:
+
+- The harness is not offset. It reports UNROUNDED means; the file
+  reports rounded ones. Paired differences were always trustworthy, and
+  now absolute levels are too — to **±0.0013** (95%) on `el_total` and
+  `premium`, and to ~1e-6 on `capital`.
+- **`el_total` and `premium` read out of `districts_risk.geojson` are
+  only good to about ±0.0013.** Quoting either to six decimals from that
+  file is spurious precision. The £169.66 headline is safe by a factor
+  of four; a future gate arguing over a tenth of a penny is not, and
+  should re-derive from an unrounded run.
 
 **Assembly followed the documented one-push procedure.** `rebuild.yml`
 ran with `commit=false` precisely so it could not land the district

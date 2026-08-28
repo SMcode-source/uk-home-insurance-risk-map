@@ -1903,6 +1903,15 @@ def main():
     # zero readable as "not modelled" rather than "no change".
     for col in ("el_total_cc", "capital_cc", "premium_cc", "cc_uplift_pct"):
         out[col] = out[col].fillna(0.0)
+    # Output precision. This is the ONLY place the published columns are
+    # quantised, and it is worth knowing what it costs before reading a
+    # figure back out of the file: `el*` and `premium` land on 1 dp
+    # (below), `capital` on 4 dp. Across 2,736 districts, 1-dp rounding
+    # puts SD 0.00067 on an exposure-weighted mean and 4-dp rounding puts
+    # SD 6.7e-7 on one. That is why price_sub_level.py reproduced capital
+    # to six decimals and missed el_total by 0.0011 - two quantisations,
+    # not a disagreement. Anything argued to better than +-0.0013 on EL
+    # or premium must come from an unrounded run, not from this file.
     round1 = {"wind_ms": 1, "wdr_idx": 1, "rain10_days": 1, "precip_mm": 0,
               "gust_rp50": 0, "households": 0, "sw_depth_m": 2,
               "frost_days": 1}
