@@ -63,6 +63,12 @@ PAUSE = 45.0         # Open-Meteo is free and rate-limited - be a good guest
 RETRIES = 12
 
 
+def seconds_to_next_hour():
+    """Seconds until the wall clock rolls over to :00."""
+    now = time.time()
+    return 3600.0 - (now % 3600.0)
+
+
 def exterior_rings(geom):
     """Every exterior ring in a geometry, whatever its type.
 
@@ -92,6 +98,38 @@ def centroid(geom):
         return None
     a = np.asarray(max(rings, key=len), dtype=float)
     return float(a[:, 0].mean()), float(a[:, 1].mean())
+
+
+def interleave(points):
+    """Order points so that EVERY PREFIX is a national spread.
+
+    Learned the hard way. The first run ordered north-to-south, hit
+    Open-Meteo's hourly cap after six calls, and left 12 cached points
+    that were all Highlands and Islands - PH33, IV x4, AB42, HS2, KW x3,
+    ZE x2, and not one in England or Wales. A partial fetch like that
+    cannot produce a national index at all, so an interrupted run was
+    worth nothing rather than proportionally less.
+
+    Farthest-point traversal fixes it: start at the largest district,
+    then repeatedly take whichever point is furthest from everything
+    taken so far. Stop the run at any moment and what is on disk is a
+    coarse but genuinely national sample. Since this job is rate-limited
+    into multiple hours on a laptop that sleeps, partial IS the normal
+    case.
+    """
+    remaining = sorted(points, key=lambda t: -t[3])
+    out = [remaining.pop(0)]
+    while remaining:
+        best_i, best_d = 0, -1.0
+        for i, (_, la, lo, _) in enumerate(remaining):
+            # equirectangular is ample for ordering; no need for haversine
+            d = min((la - b[1]) ** 2
+                    + ((lo - b[2]) * np.cos(np.radians(la))) ** 2
+                    for b in out)
+            if d > best_d:
+                best_i, best_d = i, d
+        out.append(remaining.pop(best_i))
+    return out
 
 
 def pick_points(target):
@@ -139,7 +177,7 @@ def pick_points(target):
             hi = step
         if abs(n - target) <= max(2, target // 20):
             break
-    out = sorted(best.values(), key=lambda t: (-t[1], t[2]))
+    out = interleave(list(best.values()))
     print(f"  {len(out)} points from {len(pts)} districts "
           f"(lat {min(lats):.1f}..{max(lats):.1f}, "
           f"lon {min(lons):.1f}..{max(lons):.1f}), span {span_lat:.1f} deg",
@@ -160,9 +198,25 @@ def fetch(chunk):
                 data = json.load(r)
             return data if isinstance(data, list) else [data]
         except Exception as e:            # noqa: BLE001 - retried, then raised
-            wait = 150 if "429" in str(e) else 20
-            print(f"    retry {attempt + 1} (wait {wait}s): "
-                  f"{str(e)[:120]}", flush=True)
+            msg = str(e)
+            if "429" in msg:
+                # Open-Meteo's free cap is HOURLY and weighted by
+                # locations x days x variables, so one 66-year 2-point
+                # 3-variable call is worth ~100 ordinary ones and about
+                # six of them exhaust the hour. The reply says so
+                # verbatim: "Hourly API request limit exceeded. Please
+                # try again in the next hour." Retrying on a 150 s timer
+                # therefore just burns all the attempts inside the same
+                # dead hour and exits having fetched nothing - which is
+                # exactly what the first run did. Sleep to the boundary.
+                wait = seconds_to_next_hour() + 90
+                print(f"    hourly cap hit - sleeping "
+                      f"{wait / 60:.1f} min to the next hour "
+                      f"(attempt {attempt + 1}/{RETRIES})", flush=True)
+            else:
+                wait = 20
+                print(f"    retry {attempt + 1} (wait {wait}s): "
+                      f"{msg[:120]}", flush=True)
             time.sleep(wait)
     raise SystemExit("open-meteo failed after retries")
 

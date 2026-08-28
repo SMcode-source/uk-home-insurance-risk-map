@@ -19,7 +19,9 @@ subsidence and a cold-spell/thaw index replacing air-frost days;
 variants priced side by side, snowmelt; **(4)** a year-view conditional
 claim count and value. The dependence re-specification is deliberately
 its own later phase. **Gate 0 is in progress on `exp/subsidence-series`
-— the ABI half is done (DATA_SOURCES #33).** The premium is untouched.
+— the ABI half is done (DATA_SOURCES #33) and the `theta_ws`
+measurement is done (it costs GBP0.65; its own section follows).**
+The premium is untouched.
 
 **Gate 0's CEDA half is BLOCKED ON THE USER, 2026-08-27.**
 `scripts/fetch_haduk.py` is written, enumerates correctly and refuses to
@@ -81,6 +83,79 @@ freeze share moved geography only and cost the level nothing. Climate
 uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
+
+## Gate 0 measurement 2026-08-27: what `theta_ws` costs — GBP0.65
+
+**The answer: `theta_ws` is worth GBP0.65 per policy — 0.39% of the
+premium, but 11.8% of the entire capital charge.** Measured, not
+argued, on throwaway branch `exp/theta-ws-measure` (commit 1f0854e,
+CI run 33129830672). **DO NOT MERGE that branch** — it exists only to
+produce this number and is retired below.
+
+**What was changed.** One function. `theta_ws()` in `build_model.py`
+was replaced by `np.full(..., 1.0)`, i.e. the weather-subsidence
+pair-copula degenerates to independence (Gumbel at theta = 1 IS the
+independence copula, exactly, not approximately). Nothing else moved.
+
+**The intervention is clean and the measurement is well-identified.**
+
+| column | published | theta_ws = 1 | change |
+| --- | --- | --- | --- |
+| `el_total` | — | — | **bit-identical, district by district** |
+| `tail_dep_ws` | 0.4628 | 0.0000 | -100% |
+| `theta_ws` | 1.6221 | 1.0000 | -38.4% |
+| `tvar99_euler` | 256.46 | 245.56 | **-4.25%** |
+| `capital` | 5.5406 | 4.8863 | **-11.81%** |
+| `premium` | **169.66** | **169.01** | **-0.39%** |
+
+`el_total` being bit-identical everywhere is the proof that only
+dependence moved: a copula cannot touch marginals, and here it
+demonstrably did not. So the whole GBP0.65 is a tail-dependence price,
+with no expected-loss contamination.
+
+**Read `tvar99_euler`, ignore `tvar99_vine`.** The standalone vine
+columns move the *other* way (`tvar99_vine` +1.60%, `tvar99_vine5`
++1.54%, `var995_vine` +3.03%, `tvar99_gauss` +2.76%). That is NOT a
+diversification finding — it is noise. The seed sweep (section below,
+2026-08-22) put `tvar99_vine`'s relative SD across seeds at **12.4%**,
+so a 1.6% move is a fifth of one standard deviation. `tvar99_euler`'s
+relative SD is **0.33%**, so its -4.25% move is about 13 sigma. One of
+these two numbers can carry a 0.39% conclusion and the other cannot.
+
+**Where it lands.** 2,423 districts fall, **194 RISE**, 119 are flat.
+The risers are Euler reallocation, not a modelling error: removing a
+coupling shrinks the portfolio tail, and the Euler allocation then
+redistributes a smaller pot on different shares. Rating-group churn is
+90 of 2,736 (3.3%), **zero districts move two groups or more**. The
+biggest movers are all high-`sub` coastal Essex/Kent/Hampshire — ME11,
+CO14, ME12, CT5, CO12 at -1.2% — exactly the districts where a
+subsidence-weather coupling would bite hardest. The cover split feels
+it asymmetrically: buildings capital -13.9%, contents capital -4.9%,
+which is right, since subsidence is a buildings peril.
+
+**What this does NOT say.** The earlier claim in this session that
+`theta_ws` is "physically backwards" was WRONG and is withdrawn. The
+measurement contradicted it: the correlation between the subsidence
+and windstorm drivers is **r = -0.09**, indistinguishable from zero,
+and 2018 — the surge year — ranks **8th of 35** for storminess, not
+quiet. The real finding is subtler and still open:
+
+- the model **imposes** Kendall tau of 0.311-0.452 (mean **0.380**)
+  across published districts, where the data supports **approximately
+  zero**; and
+- there is a genuine **negative** dependence it cannot represent at
+  all — `jja_deficit` vs `rain5d`, **r = -0.604** — because a Gumbel
+  copula admits only theta >= 1, i.e. only positive dependence.
+
+That is a re-specification question, and by the user's own sequencing
+decision it belongs to its own later phase, not to Gates 1-4. GBP0.65
+is what it is worth fixing; the 194 risers are what makes it worth
+doing deliberately rather than in passing.
+
+**Branch retired 2026-08-27**, per the throwaway-measurement pattern:
+worktree `.worktrees/theta-measure` removed, `exp/theta-ws-measure`
+deleted locally and on origin. The number survives here; the code does
+not need to.
 
 ## Published 2026-08-16: theft, the fifth insured peril (Phase 1)
 
@@ -987,8 +1062,9 @@ control, which is the reason to always run one.
 ## Branch inventory, tidied 2026-08-27
 
 Every branch that exists, why it exists, and what would retire it. Two
-branches remain. Both are synced to current main, and both pass their
-own suites (main 93, `sector-model` 92 + 1 skip).
+permanent branches remain, plus one live experiment. Both permanent
+branches are synced to current main and pass their own suites (main 93,
+`sector-model` 92 + 1 skip).
 
 **`sector-model`'s one skip is deliberate.**
 `test_the_sector_model_nests_inside_the_district_model` had been red on
@@ -1010,6 +1086,16 @@ The gap I described is real; I described its location wrongly.
 |---|---|---|
 | `main` | published | the product |
 | `sector-model` | permanent, 33 ahead | the same model at postcode-SECTOR grain. **NEVER merges to main** — only `data/districts_risk.geojson` crosses, renamed `data/sectors_risk.geojson`. main merges INTO it, never the reverse. |
+| `exp/subsidence-series` | LIVE, Gate 0 | the temperature-driven subsidence/freeze workstream. Data acquisition and evidence only so far — no model change, premium untouched. |
+
+**Deleted 2026-08-27 (second tidy):** `exp/theta-ws-measure`, a
+throwaway that existed to price one function and did so — GBP0.65, its
+own section above, commit 1f0854e, CI 33129830672. It was never
+mergeable by design: it set `theta_ws` to a constant to measure the
+difference, not to propose it. Deleted locally and on origin the moment
+the number was written down. If a measurement branch's output is a
+NUMBER, the number belongs in this file and the branch belongs in the
+bin — leaving it around invites someone to merge it.
 
 **Deleted 2026-08-27:** `exp/ct-severity` and `exp/buildings-contents`,
 both published that day and both sitting at exactly main's commit, so
