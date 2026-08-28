@@ -31,9 +31,19 @@ and the leg's expected loss is p_sub(i) * FREQ_SCALE["sub"] * E[sev]:
 `sev` cancels. Per district, exactly. So the severity choice moves the
 FREQUENCY/SEVERITY SPLIT at a fixed expected loss - which changes the
 simulated tail (more, cheaper claims are thinner-tailed at the same mean)
-and changes the implied claim count, and nothing else. The baseline-vs-fix
-row of this table is therefore a test of that algebra as much as a
-measurement: if `el_total` is not bit-identical, the derivation is wrong.
+and changes the implied claim count, and nothing else.
+
+MEASURED, first run: the severity fix moved the exposure-weighted EL by
+-2.8e-14 on 164.12 - one unit in the last place of a float64 - and the
+premium by -0.7 pence, all of it capital. The identity holds.
+
+So the table checks the STRONGER form of the same claim, at every level
+rather than only at an unchanged one: national EL must equal
+`paid / POLICIES`, so a level change of D must move it by exactly
+D / POLICIES. It does, to under 6e-14 across a 30% range of the level.
+Do NOT restore a bit-equality test here - it fails on rounding, because
+the code divides by `sev` and then multiplies by exp(mu + sigma^2/2)
+with mu = log(sev / exp(sigma^2/2)), which is not a bit-exact round trip.
 
 The only lever on the LEVEL is `subsidence_paid`, and the series in
 data/abi_subsidence.csv offers four candidates, all on the paid basis so
@@ -205,14 +215,30 @@ def main():
             base = g
             row["churn"] = 0
             row["churn2"] = 0
+            row["el_pred_err"] = 0.0
             row["el_identical"] = True
         else:
             row["churn"] = int((g["group"].values
                                 != base["group"].values).sum())
             row["churn2"] = int((np.abs(g["group"].values
                                         - base["group"].values) >= 2).sum())
-            row["el_identical"] = bool(np.array_equal(
-                g["el_total"].values, base["el_total"].values))
+            # NOT array_equal. The first run tripped this check on a
+            # difference of 2.8e-14 on a mean of 164.12 - ONE unit in the
+            # last place of a float64. `sev` cancels in exact arithmetic,
+            # but the code divides by it and then multiplies by
+            # exp(mu + sigma^2/2) with mu = log(sev / exp(sigma^2/2)), and
+            # that round trip is not bit-exact. Demanding bit-equality of
+            # an algebraic identity computed in floating point is a test
+            # bug, not a finding.
+            #
+            # The stronger claim is checked instead, and it is the one
+            # actually worth checking: EL must equal the BASE EL less the
+            # change in paid per policy, for every level, not just for an
+            # unchanged one.
+            pred = (float(np.average(base["el_total"].values, weights=w))
+                    - (VARIANTS[0][2] - paid) / bm.POLICIES)
+            row["el_pred_err"] = row["el_total"] - pred
+            row["el_identical"] = abs(row["el_pred_err"]) < 1e-9
         rows.append(row)
         print(f"  premium GBP{row['premium']:.2f}  "
               f"el GBP{row['el_total']:.2f}  "
@@ -234,9 +260,9 @@ def main():
               f"{r['churn']:>7}", flush=True)
     print("=" * 96, flush=True)
     for r in rows[1:]:
-        if not r["el_identical"] and r["paid"] == b["paid"]:
-            print(f"WARNING: {r['key']} changed el_total at an unchanged "
-                  "paid level - the severity-cancels derivation is WRONG",
+        if not r["el_identical"]:
+            print(f"WARNING: {r['key']} EL is {r['el_pred_err']:+.3e} off "
+                  "paid/POLICIES - the severity-cancels derivation is WRONG",
                   flush=True)
     with open(OUT, "w") as fh:
         json.dump(rows, fh, indent=1)

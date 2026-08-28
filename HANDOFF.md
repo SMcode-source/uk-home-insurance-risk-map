@@ -20,8 +20,10 @@ variants priced side by side, snowmelt; **(4)** a year-view conditional
 claim count and value. The dependence re-specification is deliberately
 its own later phase. **Gate 0 is in progress on `exp/subsidence-series`
 — the ABI half is done (DATA_SOURCES #33) and the `theta_ws`
-measurement is done (it costs GBP0.65; its own section follows).**
-The premium is untouched.
+measurement is done (it costs GBP0.65).** **Gate 1 is PRICED and
+awaiting the user's decision: the level envelope is GBP164.94 to
+GBP169.66 and the severity period fix costs 0.7 pence.** Both
+sections follow. The premium is untouched.
 
 **Gate 0's CEDA half is BLOCKED ON THE USER, 2026-08-27.**
 `scripts/fetch_haduk.py` is written, enumerates correctly and refuses to
@@ -83,6 +85,115 @@ freeze share moved geography only and cost the level nothing. Climate
 uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
+
+## Gate 1 priced 2026-08-27: the subsidence level, four ways
+
+**CI run 33135605979**, 18.6 minutes, five full 20,000-year simulations
+off ONE scored frame (`scripts/price_sub_level.py`, workflow
+`.github/workflows/sub-level.yml`). Paired by construction: same
+geology, same rasters, same seed, so nothing between these rows is
+scoring noise. **Nothing is published — this is a table, and the
+decision is the user's.**
+
+| variant | paid GBPm | sev GBP | claims | EL | capital | premium | vs base | churn |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline (as shipped) | 307 | 17,820 | 17,228 | 164.1213 | 5.5405 | **169.6618** | — | — |
+| severity fix only | 307 | 17,264 | 17,783 | 164.1213 | 5.5337 | **169.6551** | -0.004% | 2 |
+| FY2024 derived | 280 | 17,264 | 16,219 | 162.3794 | 5.4473 | **167.8267** | -1.08% | 190 |
+| FY2024 from quarters | 237 | 17,264 | 13,747 | 159.6267 | 5.3151 | **164.9419** | -2.78% | 520 |
+| 2026 annualised | 288 | 17,264 | 16,682 | 162.8955 | 5.4727 | **168.3682** | -0.76% | 136 |
+
+**Zero districts move two rating groups or more, in any variant.**
+
+**The severity period mismatch costs 0.7 PENCE.** DATA_SOURCES #33
+records that `sev_subsidence` = GBP17,820 is a **Q1 2026** average
+paired with a **FY2025** paid total. Correcting it to the 2025 H1
+average (GBP17,264 — same year, same basis, and independently
+corroborated: H1's GBP153m over 9,000 supported households is
+GBP17,000, and paid is seasonally flat at 49.8/50.2) moves the premium
+by **-0.004%**, all of it capital (-0.12%), and shifts two districts a
+group. This was predicted before it was measured, and the algebra is
+the reason:
+
+    FREQ_SCALE["sub"] = (paid / sev / POLICIES) / raw
+    EL_sub(i)         = p_sub(i) * FREQ_SCALE["sub"] * E[sev]
+                      = p_sub(i) * paid / (POLICIES * raw)
+
+`sev` cancels, per district, exactly. What the severity actually
+controls is the FREQUENCY/SEVERITY SPLIT at a fixed expected loss —
+more, cheaper claims are thinner-tailed at the same mean, which is the
+whole of the -0.12% capital move.
+
+**The identity was verified across a 30% range of the level, not just
+asserted.** Every variant's EL lands on `baseline_EL - (delta paid) /
+POLICIES` to within **6e-14**. GBP307m -> GBP280m predicts -GBP1.742
+and delivered -GBP1.7419.
+
+**One correction to how that test was written.** The first run printed
+`WARNING: the severity-cancels derivation is WRONG`. It was not. The
+check used `np.array_equal`, and the difference was **2.8e-14 on
+164.12 — one unit in the last place of a float64**, because the code
+divides by `sev` and multiplies back by `exp(mu + sigma^2/2)` with
+`mu = log(sev / exp(sigma^2/2))`, which is not a bit-exact round trip.
+Demanding bit-equality of an algebraic identity computed in floating
+point is a test bug. The check now asserts the stronger and more useful
+form — EL == paid/POLICIES at EVERY level — and the script carries a
+comment telling the next person not to put the bit test back.
+
+**The level is the only real question, and its honest envelope is
+GBP164.94 to GBP169.66 — GBP4.72, or 2.78% of premium.** All four
+candidates are on the paid basis so they are comparable:
+
+- **307** FY2025, published (ABI 2026-02). What ships.
+- **280** FY2024, but DERIVED as 307-27 from a comparative line. Its
+  own three published quarters sum to 178, implying a Q4 of 102 —
+  **1.55x the largest quarter ever published**. Recorded unreconciled.
+- **237** the same FY2024 annualised from those three quarters instead.
+  The disagreement between 280 and 237 IS the size of that open gap.
+- **288** 2026 annualised from Q2. Legitimate only because paid has no
+  seasonality (2025: 49.8% H1 / 50.2% H2); the NOTIFIED series is 78%
+  H2 and must never be annualised this way.
+
+**Every candidate lands on buildings, which is the correctness check
+that matters.** Buildings premium 113.30 -> 108.56 across the range
+while contents holds at 56.37 -> 56.39. Subsidence is a 100% buildings
+peril (`build_model.py:554`), so anything else would have been a defect
+in the cover split.
+
+**Two things this does NOT settle, both recorded rather than resolved.**
+
+1. *The severity fix makes the claim-count budget worse.* Subsidence
+   goes 17,228 -> 17,783 claims, and `anchor_budget.py` has only 10,060
+   spare against a remainder needing 36,176. Every consistent severity
+   choice pushes the same way — see DATA_SOURCES #33. A lower LEVEL
+   pushes back (237 frees 3,481 claims), but picking a level to fix a
+   budget elsewhere would be reverse-engineering the evidence, and is
+   not a reason to prefer one.
+2. *Paid LAGS, so no single paid year is a steady-state year.* The 2022
+   surge (23,000 claims notified, GBP219m incurred) was settled across
+   2023-25, so FY2025 paid contains run-off from it. `anchor_budget.py`
+   already calls single-year anchoring a methodology defect; subsidence
+   is the most volatile peril in the book, which makes it the worst
+   place to have that defect. Fixing it properly needs the incurred
+   basis and a claims-inflation index, and this repo has neither.
+
+**A limitation of the table itself, stated rather than buried.** The
+corrected severity GBP17,264 is held fixed across all four levels
+because no 2024 or 2026 average on the paid basis has been published.
+Pairing a 2025 average with a 2024 total is the same class of mismatch
+this exercise is correcting. It is accepted here only because the
+algebra above proves the severity cannot move the level anyway — the
+mismatch costs capital at the third decimal place and nothing else.
+
+**The laptop could not run this and that is worth recording.** Two
+local attempts died with `_ArrayMemoryError` on **8.31 MiB** and then
+**1.53 MiB**: the machine sat at 66.9 GB of a 68.4 GB commit limit with
+`mc-fw-host` holding 25 GB on its own. BATCH and thread count were
+halved first and changed nothing — at 1.5 MB it is not a footprint
+problem. The workflow triggers on push to `exp/subsidence-series`
+rather than by dispatch, because `workflow_dispatch` only fires from
+the default branch and a measurement that may never ship does not
+belong on main.
 
 ## Gate 0 measurement 2026-08-27: what `theta_ws` costs — GBP0.65
 
