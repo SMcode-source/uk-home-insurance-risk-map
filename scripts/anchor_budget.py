@@ -50,8 +50,14 @@ LEGS = [
      "ABI 2025 paid AND ABI 2025 average, one release"),
     ("flood", A["flood_paid"], A["sev_flood"], "count",
      "ABI 2025 paid AND ABI 2025 average, one release"),
+    # Corrected 2026-08-27. This row used to claim "one release" like
+    # storm and flood, and it was not true: the average was Q1 2026
+    # against a FY2025 paid total, two releases apart. The model now
+    # pairs FY2025 paid with the 2025 H1 average - same year, same
+    # basis, two releases still, which is why this says so rather than
+    # borrowing storm's wording.
     ("subsidence", A["subsidence_paid"], A["sev_subsidence"], "count",
-     "ABI 2025 paid AND ABI 2025 average, one release"),
+     "ABI FY2025 paid AND ABI 2025-H1 average, both paid basis"),
     ("esc water", A["eow_paid"], A["sev_eow"], "sev",
      "GoCompare 29.38% of 560k - VERIFIED, and closes the triangle"),
     ("fire", A["fire_paid"], A["sev_fire"], "paid",

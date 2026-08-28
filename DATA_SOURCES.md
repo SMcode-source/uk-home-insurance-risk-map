@@ -949,6 +949,68 @@ districts**, used as the exposure weight throughout.
     water from above, no depth, no contamination) but it is a
     documented one, which is more than the other three unanchored
     perils have.
+
+33. **ABI domestic subsidence, by quarter — and the two bases it is
+    published on** (acquired 2026-08-27, `data/abi_subsidence.csv`,
+    validated by `scripts/check_abi_subsidence.py`).
+    Gate 0 of the temperature-driven subsidence work. 26 rows, 2018Q2 to
+    2026Q2, every figure carrying its verbatim quote and its source URL.
+
+    **There is no ABI dataset.** The Property Insurance Tracker exists
+    only as one press release per quarter, each quoting one or two
+    numbers plus a year-on-year delta. Several URLs 404 after the
+    media-hub move — recovered via the #32 web-archive technique, which
+    worked again exactly as documented. Archive timestamps are recorded
+    in each row's note so any figure can be re-read.
+
+    **(a) The ABI publishes subsidence on TWO bases and never says so.**
+
+    | basis | what it is | which releases |
+    |---|---|---|
+    | `incurred_notified` / `incurred_ultimate` | value of claims **made** in the period, an estimate that moves as monitoring finishes | the 2018 and 2022 surge releases |
+    | `paid_in_period` | cash paid **during** the quarter, whenever notified | the quarterly Tracker |
+
+    They are not interchangeable and dividing one by the other is
+    meaningless. Each is internally sound: 2022's £219m ÷ 23,000 claims
+    = £9,522 against a published £9,600 average incurred, closing to
+    0.8%.
+
+    **(b) The paid series cannot carry a weather signal.** Subsidence
+    runs a monitoring period — often a full seasonal cycle — before
+    repair, so paid lags notification by quarters to years. It shows up
+    directly in the data: **2025 paid splits 49.8% H1 / 50.2% H2**,
+    dead flat, while **2022 notified is 78% H2**. Paying smears the
+    summer into a straight line. Any curve against a temperature index
+    must be fitted to NOTIFIED COUNTS.
+
+    **(c) `sev_subsidence = 17_820` is on the wrong period.** It is the
+    average claim for **Q1 2026** (ABI 2026-05: "rising 9% from £16,295
+    in 2025 to £17,820 in the first quarter of 2026"), paired in
+    `build_model.py` with `subsidence_paid = 307e6`, which is **FY2025**
+    (ABI 2026-02). `HANDOFF.md` recorded this as "ABI 2025 paid AND ABI
+    2025 average, one release" — wrong on both counts, corrected there.
+    Every period-consistent alternative raises the implied count:
+    £16,295 → 18,840 (+1,612), £17,264 (H1 2025) → 17,783 (+555),
+    against the published 17,228. All of them worsen the claim-count
+    budget in `anchor_budget.py`. **Not yet changed** — that is Gate 1
+    and it prices on its own.
+
+    **(d) The surge signature, for whatever curve gets fitted.** 2018
+    Q2→Q3 notified count went **2,500 → 10,000 (×4.0 in one quarter)**,
+    which the ABI called the largest quarter-on-quarter jump "since
+    records began more than 25 years ago" — so a quarterly series
+    exists internally back to at least 1993, none of it published.
+    2022: 23,000 claims, 18,000 of them in H2.
+
+    **(e) One restatement and one open gap.** Q2 2024 was published at
+    £60m ("the highest quarterly figure on record") and restated to
+    £59m a quarter later; both rows are kept, as with the 2023 weather
+    figure in `abi_annual.csv`. **UNRECONCILED:** Q1–Q3 2024 paid sums
+    to £178m against a derived FY2024 of £280m, implying a Q4 of £102m,
+    1.55× the largest published quarter. Q1 and Q2 are both confirmed
+    from primary text, so the suspect is FY2024 = 307 − 27 — and the
+    2025-02 FY2024 release carries no subsidence line at all.
+
 ## Blocked on non-open data — what each would unblock
 
 Kept here so nobody re-derives the shopping list. None of these have an

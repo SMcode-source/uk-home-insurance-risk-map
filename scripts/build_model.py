@@ -260,7 +260,32 @@ POLICIES = 15_500_000                     # ABI premium tracker coverage
 ABI = dict(
     storm_paid=244e6, sev_weather=2_450.0,          # storm damage to homes
     flood_paid=312e6, sev_flood=30_000.0,           # domestic flood claims
-    subsidence_paid=307e6, sev_subsidence=17_820.0,  # domestic subsidence
+    # Subsidence. Both figures are FY2025 on the PAID basis - that
+    # pairing is the point. sev_subsidence was GBP17,820 until
+    # 2026-08-27, which is a **Q1 2026** average against a FY2025 paid
+    # total: two releases apart, on a peril whose average claim moved
+    # GBP16,295 -> GBP20,000 across five quarters. GBP17,264 is the
+    # 2025 H1 average, the only 2025 figure published with a stated
+    # period, and it triangulates: H1's GBP153m over 9,000 supported
+    # households is GBP17,000, and paid has no seasonality (2025 ran
+    # 49.8% H1 / 50.2% H2), so the full year lands at GBP17,056 by that
+    # route - 1.2% apart. See DATA_SOURCES.md #33 and data/abi_subsidence.csv.
+    #
+    # The correction CANNOT move the level, and that is not an
+    # observation but an identity: FREQ_SCALE["sub"] is
+    # (paid/sev/POLICIES)/raw, so EL_sub(i) = p_sub(i)*paid/(POLICIES*raw)
+    # and sev cancels per district. What it moves is the
+    # frequency/severity SPLIT at fixed expected loss - 17,228 -> 17,783
+    # implied claims, a thinner tail, capital -0.12%, premium -0.7 PENCE,
+    # two districts changing rating group. Priced with three alternative
+    # LEVELS beside it (CI 33135605979, data/sub_level_pricing.json); the
+    # user held the level at the published FY2025 GBP307m. See HANDOFF
+    # "Gate 1 priced 2026-08-27".
+    #
+    # NOTE this WORSENS the claim-count budget by 555 claims against
+    # 10,060 spare - see anchor_budget.py. Every consistent severity
+    # choice does; that is a property of the ABI series, not of this one.
+    subsidence_paid=307e6, sev_subsidence=17_264.0,  # domestic subsidence
     # Groundwater is not reported separately (it sits inside flood); modelled
     # as a small documented addition rather than calibrated.
     sev_groundwater=20_000.0,

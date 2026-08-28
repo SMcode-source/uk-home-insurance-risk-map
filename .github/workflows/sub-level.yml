@@ -1,0 +1,112 @@
+name: subsidence level pricing
+
+# Gate 1 of the temperature-driven subsidence/freeze workstream: price
+# every defensible subsidence LEVEL from data/abi_subsidence.csv, plus the
+# severity period fix, off one scored frame. See scripts/price_sub_level.py
+# for what each variant is and why.
+#
+# MEASUREMENT ONLY. Nothing here touches the published model: no output
+# file is regenerated and there is deliberately no commit step, unlike
+# seed-sweep.yml. The result is a table the user decides on.
+#
+# Why it runs here rather than on the laptop, and this is not the usual
+# "long jobs belong on CI" reason: the laptop physically cannot run it.
+# It sat at 66.9 GB of a 68.4 GB commit limit with one unrelated process
+# holding 25 GB, and build_model died allocating 1.53 MB - not a tunable
+# amount. BATCH and thread count were already halved and it made no
+# difference. A runner has its own memory and no such neighbour.
+#
+# Triggered by PUSH to the experiment branch rather than by dispatch.
+# workflow_dispatch only works from the DEFAULT branch, and putting a
+# measurement workflow on main to price something that may never ship
+# gets the ordering backwards - main should learn about this when there
+# is a decision to record, not before.
+on:
+  push:
+    branches: [exp/subsidence-series]
+    paths:
+      - "scripts/price_sub_level.py"
+      - "scripts/build_model.py"
+      - ".github/workflows/sub-level.yml"
+  workflow_dispatch:
+    inputs:
+      nsim:
+        description: "Simulated years per district (blank = the model's 20,000)"
+        default: ""
+      batch:
+        description: "Districts per simulation batch (blank = the model's 80)"
+        default: ""
+
+concurrency:
+  group: sub-level
+  cancel-in-progress: false
+
+jobs:
+  price:
+    name: price the subsidence level
+    runs-on: ubuntu-latest
+    # Five full 20,000-year simulations off one scored frame. The seed
+    # sweep allows 300 minutes for six, so this is the same order.
+    timeout-minutes: 300
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Clone postcode-district boundaries
+        run: |
+          git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git \
+            data/uk-postcode-polygons
+
+      # Same mirror, same pinned hashes as rebuild.yml - see the long note
+      # there for why BGS itself cannot be reached from GitHub runners.
+      - name: Download BGS geology from the data mirror
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download data-bgs-625k-v1 --dir data \
+            --pattern 'bgs_625k_*.geojson.gz'
+          gunzip data/bgs_625k_bedrock.geojson.gz \
+                 data/bgs_625k_superficial.geojson.gz
+          sha256sum -c <<'SUMS'
+          66524b94dfeb491a746994dfa5e334b52a9b15a42f82c15977df1d5c100c3fb7  data/bgs_625k_bedrock.geojson
+          a029e2ab61190c7103983c33d77c24743c7bb2c9fcfcd25ebd063ab9f3c38aee  data/bgs_625k_superficial.geojson
+          SUMS
+
+      - name: Reject incomplete geology
+        run: |
+          if ls data/*.partial 2>/dev/null; then
+            echo "::error::a geology layer is incomplete (.partial) - refusing to price"
+            exit 1
+          fi
+          python -u scripts/fetch_bgs.py --verify
+
+      # The series the variants come from. If this is inconsistent the
+      # whole table is built on sand, so it gates the run.
+      - name: Re-check the ABI subsidence series
+        run: python -u scripts/check_abi_subsidence.py
+
+      - name: Price the variants
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.nsim }}" ];  then ARGS="$ARGS --nsim ${{ inputs.nsim }}"; fi
+          if [ -n "${{ inputs.batch }}" ]; then ARGS="$ARGS --batch ${{ inputs.batch }}"; fi
+          python -u scripts/price_sub_level.py $ARGS
+
+      - name: Show the table again at the end of the log
+        run: cat data/sub_level_pricing.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sub-level-pricing
+          path: data/sub_level_pricing.json
+          retention-days: 30
