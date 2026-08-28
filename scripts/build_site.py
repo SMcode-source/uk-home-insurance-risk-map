@@ -693,22 +693,47 @@ def load_stats():
         d = 2 - int(floor(log10(abs(x))))
         return f"{round(x, d):,.{max(0, d)}f}"
 
-    calib_bits = {}
-    for _k, _paid, _sev in [("WX", "storm_paid", "sev_weather"),
-                            ("FL", "flood_paid", "sev_flood"),
-                            ("SUB", "subsidence_paid", "sev_subsidence"),
-                            ("TH", "theft_paid", "sev_theft"),
-                            ("EOW", "eow_paid", "sev_eow"),
-                            ("FIRE", "fire_paid", "sev_fire"),
-                            ("AD", "ad_paid", "sev_ad")]:
-        _n = ABI[_paid] / ABI[_sev]
-        calib_bits[f"__CAL_{_k}_PAID__"] = f"{ABI[_paid] / 1e6:,.0f}"
-        calib_bits[f"__CAL_{_k}_SEV__"] = f"{ABI[_sev]:,.0f}"
-        calib_bits[f"__CAL_{_k}_N__"] = _sf3(_n)
-        calib_bits[f"__CAL_{_k}_FREQ__"] = _sf3(100 * _n / POLICIES)
-    # Groundwater has no published total and is pegged to a share of
-    # flood, so only its severity is a calibration figure at all.
-    calib_bits["__CAL_GW_SEV__"] = f"{ABI['sev_groundwater']:,.0f}"
+    def _cal(paid_key, sev_key):
+        n = ABI[paid_key] / ABI[sev_key]
+        return (f"{ABI[paid_key] / 1e6:,.0f}", f"{ABI[sev_key]:,.0f}",
+                _sf3(n), _sf3(100 * n / POLICIES))
+
+    _wx = _cal("storm_paid", "sev_weather")
+    _fl = _cal("flood_paid", "sev_flood")
+    _sb = _cal("subsidence_paid", "sev_subsidence")
+    _th = _cal("theft_paid", "sev_theft")
+    _ew = _cal("eow_paid", "sev_eow")
+    _fr = _cal("fire_paid", "sev_fire")
+    _ad = _cal("ad_paid", "sev_ad")
+    # Every key spelled out as a LITERAL, not built with an f-string.
+    # test_site_placeholders_all_resolve greps this file for quoted
+    # double-underscore tokens and fails any placeholder in a template it
+    # cannot find here - and an f-string key is invisible to it. (Do not
+    # write an example token in quotes anywhere in this file either: the
+    # same grep reads it as a defined key and the test then fails the
+    # other way, for a key no template uses. It has already happened.) The first
+    # version of this block used a loop and shipped 28 placeholders the
+    # guard could not see. Verbose beats unverifiable: the guard exists
+    # because raw __TOKEN__ text has reached the live page before.
+    calib_bits = {
+        "__CAL_WX_PAID__": _wx[0], "__CAL_WX_SEV__": _wx[1],
+        "__CAL_WX_N__": _wx[2], "__CAL_WX_FREQ__": _wx[3],
+        "__CAL_FL_PAID__": _fl[0], "__CAL_FL_SEV__": _fl[1],
+        "__CAL_FL_N__": _fl[2], "__CAL_FL_FREQ__": _fl[3],
+        "__CAL_SUB_PAID__": _sb[0], "__CAL_SUB_SEV__": _sb[1],
+        "__CAL_SUB_N__": _sb[2], "__CAL_SUB_FREQ__": _sb[3],
+        "__CAL_TH_PAID__": _th[0], "__CAL_TH_SEV__": _th[1],
+        "__CAL_TH_N__": _th[2], "__CAL_TH_FREQ__": _th[3],
+        "__CAL_EOW_PAID__": _ew[0], "__CAL_EOW_SEV__": _ew[1],
+        "__CAL_EOW_N__": _ew[2], "__CAL_EOW_FREQ__": _ew[3],
+        "__CAL_FIRE_PAID__": _fr[0], "__CAL_FIRE_SEV__": _fr[1],
+        "__CAL_FIRE_N__": _fr[2], "__CAL_FIRE_FREQ__": _fr[3],
+        "__CAL_AD_PAID__": _ad[0], "__CAL_AD_SEV__": _ad[1],
+        "__CAL_AD_N__": _ad[2], "__CAL_AD_FREQ__": _ad[3],
+        # Groundwater has no published total and is pegged to a share of
+        # flood, so only its severity is a calibration figure at all.
+        "__CAL_GW_SEV__": f"{ABI['sev_groundwater']:,.0f}",
+    }
 
     # ---- methodology peril table. EVERY numeric cell in it is injected.
     # The severity column was hand-written in the first commit and six of
