@@ -20,9 +20,9 @@ variants priced side by side, snowmelt; **(4)** a year-view conditional
 claim count and value. The dependence re-specification is deliberately
 its own later phase. **Gate 0 is in progress on `exp/subsidence-series`
 — the ABI half is done (DATA_SOURCES #33) and the `theta_ws`
-measurement is done (it costs GBP0.65).** **Gate 1 is PRICED and
-awaiting the user's decision: the level envelope is GBP164.94 to
-GBP169.66 and the severity period fix costs 0.7 pence.** Both
+measurement is done (it costs GBP0.65).** **Gate 1 is DONE and PUBLISHED
+2026-08-28: the user took the severity fix and held the level at
+GBP307m; it cost 0.6 pence, both grains landed in one push.** Both
 sections follow. The premium is untouched.
 
 **Gate 0's CEDA half is BLOCKED ON THE USER, 2026-08-27.**
@@ -77,14 +77,74 @@ four vine perils now take their EL analytically and flood severity is
 no longer blended in log space. Re-measure any marginal change with
 `.venv/Scripts/python.exe scripts/analytic_el_check.py`.
 
-Current headline figures (2026-08-25 publish, CI 32789547647
-verified): exposure-weighted premium **£169.66** over 27.26m
-households; loss cost £164.12 ≈ 75% of the £219 all-home-claims cost.
-The fall from £176.66 is theft's level correction (−3.96%); the EoW
-freeze share moved geography only and cost the level nothing. Climate
+Current headline figures (**2026-08-28 publish**, CI 33138216612 +
+33138240678 verified): exposure-weighted premium **£169.66**
+(169.6558) over 27.26m households; loss cost £164.12 ≈ 75% of the £219
+all-home-claims cost. The last move was Gate 1's subsidence severity
+fix, worth **−0.6 pence** and entirely capital — `el_total` is
+bit-identical across it. Before that, the fall from £176.66 was theft's
+level correction (−3.96%); the EoW freeze share moved geography only
+and cost the level nothing. Climate
 uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
+
+## PUBLISHED 2026-08-28: Gate 1's severity fix, both grains in one push
+
+**User decision: "take the severity fix and hold the level at 307."**
+`sev_subsidence` 17,820 -> **17,264**; `subsidence_paid` stays at the
+published FY2025 GBP307m. Districts from CI **33138216612**, sectors
+from **33138240678**, assembled and landed together.
+
+| | published before | now | change |
+| --- | --- | --- | --- |
+| `el_total` | 164.120266 | 164.120266 | **bit-identical** |
+| `capital` | 5.540486 | 5.533736 | -0.122% |
+| `premium` | 169.661936 | **169.655786** | **-0.6 pence** (-0.0036%) |
+| buildings / contents | — | 113.29 / 56.36 | — |
+| sector premium | — | 169.6704 | drift **0.0086%** vs districts |
+
+**2 districts of 2,736 change rating group; none moves two.** The
+headline stays **GBP169.66** at 2dp, which is the honest way to say
+that this correction removes a documented period mismatch without
+moving the price.
+
+**The full rebuild confirmed the identity that was argued from the
+algebra.** `el_total` came back **bit-identical district by district**
+to the file it replaced — a copula-free way of saying the same thing
+the Gate 1 derivation said: `sev` cancels out of
+`p_sub(i)*paid/(POLICIES*raw)`, so the whole 0.6 pence is capital.
+
+**One honest caveat on the pricing harness, worth recording because it
+would otherwise look like agreement to more digits than it earned.**
+`price_sub_level.py` predicted capital 5.533736 and the real rebuild
+delivered **5.533736** — exact to six decimals. But its *baseline*
+`el_total` was 164.1213406 against the true 164.120266, **+0.0011, or
+7e-6 relative**. So the harness reproduces PAIRED differences exactly
+and carries a tiny absolute offset, cause not yet identified (both
+calibration functions are documented idempotent, and `el_total` is
+analytic, so neither is an obvious suspect). It does not touch any Gate
+1 conclusion — every row shared the offset and the decision was made on
+differences — but do NOT quote the harness for an absolute level. Quote
+a rebuild.
+
+**Assembly followed the documented one-push procedure.** `rebuild.yml`
+ran with `commit=false` precisely so it could not land the district
+grain on its own; `sector-model.yml` ran on `sector-model` after main
+was merged INTO it, and committed its output there; the sector file was
+then crossed into main as `data/sectors_risk.geojson`. Locally only
+`build_map` / `build_analysis` / `build_site` were run — **never
+`make_images`**, whose PNG encoder differs from CI's and would fail the
+next run as "docs/ is stale". 93 tests green, including both cross-grain
+guards, and the level guard passed with 58x margin.
+
+**What this does NOT do.** The claim-count budget got worse, exactly as
+priced: subsidence 17,228 -> 17,783 implied claims, spare down from
+10,060 to **9,505** against a remainder that needs 36,176. That is a
+property of the ABI series rather than of this choice — every
+consistent severity pairing pushes the same way — and it is now
+recorded in `anchor_budget.py`, whose subsidence row also stopped
+claiming the two figures came from "one release" when they never did.
 
 ## Gate 1 priced 2026-08-27: the subsidence level, four ways
 
