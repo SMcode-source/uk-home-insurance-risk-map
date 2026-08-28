@@ -668,6 +668,48 @@ def load_stats():
         "__SECTOR_IOU_70__": str(val["pct_above_70"]),
     })
 
+    # ---- the ABI CALIBRATION table. Hand-written from the first commit,
+    # and by 2026-08-28 it had drifted twice at once. Theft still read
+    # GBP450m / ~118,000 / 0.76% three days after the 2026-08-25 level
+    # correction moved it to GBP341.6m / 89,895 / 0.58%, and subsidence
+    # read GBP17,820 / ~17,200 the moment Gate 1's severity fix landed.
+    # Both were found by grepping the LIVE page for a number that should
+    # no longer exist, which is not a control anyone should rely on.
+    #
+    # A published table that restates the calibration will always drift
+    # from the calibration; the only fix is to stop restating it. Counts
+    # and frequencies are rendered to three significant figures - the old
+    # cells mixed 2, 3 and 4 sig figs by hand and rounded 137,576 down to
+    # "~137,000".
+    def _sf3(x):
+        from math import floor, log10
+        if x <= 0:
+            return "0"
+        # d goes NEGATIVE for counts, which is the whole point: round()
+        # with a negative ndigits is what turns 99,592 into 99,600.
+        # Clamping it at zero (the first attempt) silently rendered every
+        # count in full and produced a table claiming five significant
+        # figures on a calibration good to three.
+        d = 2 - int(floor(log10(abs(x))))
+        return f"{round(x, d):,.{max(0, d)}f}"
+
+    calib_bits = {}
+    for _k, _paid, _sev in [("WX", "storm_paid", "sev_weather"),
+                            ("FL", "flood_paid", "sev_flood"),
+                            ("SUB", "subsidence_paid", "sev_subsidence"),
+                            ("TH", "theft_paid", "sev_theft"),
+                            ("EOW", "eow_paid", "sev_eow"),
+                            ("FIRE", "fire_paid", "sev_fire"),
+                            ("AD", "ad_paid", "sev_ad")]:
+        _n = ABI[_paid] / ABI[_sev]
+        calib_bits[f"__CAL_{_k}_PAID__"] = f"{ABI[_paid] / 1e6:,.0f}"
+        calib_bits[f"__CAL_{_k}_SEV__"] = f"{ABI[_sev]:,.0f}"
+        calib_bits[f"__CAL_{_k}_N__"] = _sf3(_n)
+        calib_bits[f"__CAL_{_k}_FREQ__"] = _sf3(100 * _n / POLICIES)
+    # Groundwater has no published total and is pegged to a share of
+    # flood, so only its severity is a calibration figure at all.
+    calib_bits["__CAL_GW_SEV__"] = f"{ABI['sev_groundwater']:,.0f}"
+
     # ---- methodology peril table. EVERY numeric cell in it is injected.
     # The severity column was hand-written in the first commit and six of
     # its nine cells had drifted by up to +162% once the ABI calibration
@@ -775,6 +817,7 @@ def load_stats():
         **eow_bits,
         **fire_bits,
         **ad_bits,
+        **calib_bits,
         "__EL_CLAIMS_SHARE__": el_claims_share,
         **sector_bits,
         **climate_band_stats(),

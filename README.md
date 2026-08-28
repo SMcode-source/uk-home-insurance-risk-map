@@ -232,15 +232,22 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    |---|---|---|---|---|
    | Storm | £244m (2025) | £2,450 | ~99,600 | 0.64% |
    | Flood | £312m (2025) | £30,000 | ~10,400 | 0.067% |
-   | Subsidence | £307m (2025) | £17,820 | ~17,200 | 0.111% |
+   | Subsidence | £307m (2025) | £17,264 | ~17,800 | 0.115% |
    | Groundwater | not published | £20,000 | — | pegged at 10% of flood |
-   | Theft | £450m (2018, last published) | £3,800 | ~118,000 | 0.76% |
+   | Theft | £342m (floor of a 0.58–0.97% envelope) | £3,800 | ~89,900 | 0.580% |
    | Escape of water | ~£657m (ABI "£1.8m a day") | £4,000 | ~164,000 | 1.06% |
-   | Fire | ~£434m (triangle, no published total) | £14,000 | ~31,000 | 0.20% |
-   | Accidental damage | ~£227m (triangle, never published) | £1,650 | ~137,000 | 0.89% |
+   | Fire | ~£434m (triangle, no published total) | £14,000 | ~31,000 | 0.200% |
+   | Accidental damage | ~£227m (triangle, never published) | £1,650 | ~138,000 | 0.888% |
 
-   Together these come to **£170 per policy per year — about 77% of the
-   £219 that all home claims cost**. ⚠️ **These are eight-peril technical
+   Together these come to **£164 per policy per year — about 75% of the
+   £219 that all home claims cost**.
+
+   <!-- These figures are HAND-WRITTEN; markdown has no build step. The
+   same table on the methodology page is now DERIVED from build_model.ABI
+   (build_site.py, __CAL_*__), after this copy and that one drifted apart
+   twice in three days - theft's 2026-08-25 level correction and
+   subsidence's 2026-08-28 severity fix. Re-read them both against
+   `python scripts/anchor_budget.py` whenever an ABI anchor moves. --> ⚠️ **These are eight-peril technical
    premiums, not home insurance premiums**: a real policy also carries
    expenses, commission and profit. What is *not* fitted —
    and is where the model earns its keep — is the geography, the dependence

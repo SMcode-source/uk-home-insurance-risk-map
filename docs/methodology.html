@@ -796,31 +796,33 @@
         <tr><th>Peril</th><th class="num">Paid, 2025</th><th class="num">Average claim</th>
             <th class="num">Implied claims</th><th class="num">Frequency</th></tr>
         <tr><td><strong style="color:var(--wx)">Storm</strong></td><td class="num">£244m</td>
-            <td class="num">£2,450</td><td class="num">~99,600</td><td class="num">0.64%</td></tr>
+            <td class="num">£2,450</td><td class="num">~99,600</td><td class="num">0.643%</td></tr>
         <tr><td><strong style="color:var(--fl)">Flood</strong></td><td class="num">£312m</td>
-            <td class="num">£30,000</td><td class="num">~10,400</td><td class="num">0.067%</td></tr>
+            <td class="num">£30,000</td><td class="num">~10,400</td><td class="num">0.0671%</td></tr>
         <tr><td><strong style="color:var(--sub)">Subsidence</strong></td><td class="num">£307m</td>
-            <td class="num">£17,820</td><td class="num">~17,200</td><td class="num">0.111%</td></tr>
+            <td class="num">£17,264</td><td class="num">~17,800</td><td class="num">0.115%</td></tr>
         <tr><td><strong style="color:var(--gw)">Groundwater</strong></td><td class="num">—</td>
             <td class="num">£20,000</td><td class="num">—</td><td class="num">pegged at 10% of flood</td></tr>
-        <tr><td><strong style="color:var(--th)">Theft</strong></td><td class="num">£450m <small>(2018)</small></td>
-            <td class="num">£3,800</td><td class="num">~118,000</td><td class="num">0.76%</td></tr>
+        <tr><td><strong style="color:var(--th)">Theft</strong></td><td class="num">£342m <small>(envelope floor)</small></td>
+            <td class="num">£3,800</td><td class="num">~89,900</td><td class="num">0.580%</td></tr>
         <tr><td><strong style="color:var(--eow)">Escape of water</strong></td><td class="num">~£657m <small>(£1.8m/day)</small></td>
             <td class="num">£4,000</td><td class="num">~164,000</td><td class="num">1.06%</td></tr>
         <tr><td><strong style="color:var(--fire)">Fire</strong></td><td class="num">~£434m <small>(triangle)</small></td>
-            <td class="num">£14,000</td><td class="num">~31,000</td><td class="num">0.20%</td></tr>
+            <td class="num">£14,000</td><td class="num">~31,000</td><td class="num">0.200%</td></tr>
         <tr><td><strong style="color:var(--ad)">Accidental damage</strong></td><td class="num">~£227m <small>(triangle)</small></td>
-            <td class="num">£1,650</td><td class="num">~137,000</td><td class="num">0.89%</td></tr>
+            <td class="num">£1,650</td><td class="num">~138,000</td><td class="num">0.888%</td></tr>
       </table>
     </div>
     <p class="note">Over ~15.5m policies (ABI premium-tracker coverage), these eight perils
     come to <b>£164</b> per policy per year — <b>75%</b> of the
     £219 that all home claims cost. Groundwater is not reported separately by the ABI, so
-    it is a documented assumption rather than a calibration. Theft's paid figure is
-    <b>2018 vintage</b> — the last year the ABI published a theft-specific total — while
-    its £3,800 average claim is current; mixing vintages is the honest option available,
-    and the resulting frequency (0.76%) sits inside the envelope every cross-check allows
-    (0.58–0.97%). Escape of water has no single published total either: its £657m is the
+    it is a documented assumption rather than a calibration. Theft has no current published
+    total at all: the ABI's last theft-specific figure is 2018's £450m and its
+    £3,800 average claim is present-day, so pairing them implies 0.97–0.76%
+    of policies against ~0.58% if claims fell with recorded burglary. That 0.58–0.97%
+    spread is the documented envelope on theft's LEVEL, and the model sits at its
+    <b>floor</b> — £342m, i.e. 0.58% × 15.5m × £3,800 — because
+    theft was otherwise carrying the whole of the model's claim-count overshoot. Escape of water has no single published total either: its £657m is the
     ABI's rolling <b>"£1.8m a day"</b> figure, and the £4,000 average follows from
     escape-of-water's ~29% share of 2025's 560,000 home claims — three independent public
     numbers that close into one self-consistent triangle, which is the cross-check. Fire
