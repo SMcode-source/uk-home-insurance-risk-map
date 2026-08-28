@@ -8,6 +8,42 @@ just a pointer here)
 
 ## Status: complete, deployed, EIGHT insured perils at TWO resolutions
 
+**A new workstream opened 2026-08-27: temperature-driven subsidence and
+freeze.** Five gates, agreed with the user after a full stress-test of
+the plan: **(0)** acquire the ABI quarterly subsidence series and the
+CEDA HadUK-Grid daily record, and measure what `theta_ws` costs, with
+no model change; **(1)** the subsidence level alone, so the premium
+move has exactly one cause; **(2)** geography — an SMD curve for
+subsidence and a cold-spell/thaw index replacing air-frost days;
+**(3)** structure — burst-pipe breakout, three non-water freeze
+variants priced side by side, snowmelt; **(4)** a year-view conditional
+claim count and value. The dependence re-specification is deliberately
+its own later phase. **Gate 0 is in progress on `exp/subsidence-series`
+— the ABI half is done (DATA_SOURCES #33) and the `theta_ws`
+measurement is done (it costs GBP0.65).** **Gate 1 is PRICED and
+awaiting the user's decision: the level envelope is GBP164.94 to
+GBP169.66 and the severity period fix costs 0.7 pence.** Both
+sections follow. The premium is untouched.
+
+**Gate 0's CEDA half is BLOCKED ON THE USER, 2026-08-27.**
+`scripts/fetch_haduk.py` is written, enumerates correctly and refuses to
+run: **the CEDA token expired 2026-08-12** (issued 08-09, ~72 h life — it
+is the one from the MIDAS gust fetch). Regenerate at
+<https://services.ceda.ac.uk/account/token/> and overwrite
+`~/.ceda_token`; nobody but the account holder can do this. Then:
+
+    .venv/Scripts/python.exe scripts/fetch_haduk.py
+
+**2,376 files**, HadUK-Grid v1.3.2.ceda, 12 km daily `tasmin`/`tasmax`/
+`rainfall`, 1960–2025 (792 months each). `--dry-run` enumerates with no
+token at all, so the job can be re-costed any time. Daily data ends
+**2025-12**, so the ABI's 2026 quarters have no matching weather year.
+The script decodes the token's public `exp` claim and dies with "EXPIRED
+N days ago" before writing anything — the failure this guards against is
+2,376 8 KB login pages saved under `.nc` names, which only surfaces when
+xarray refuses to open them. `snowLying` exists at 12 km and is Gate 3's
+snow driver.
+
 **The whole roadmap is now published, at both grains.** Phase 1
 (attritional perils: theft → escape of water → fire → accidental
 damage) completed 2026-08-17. Phase 2 is EPC/VOA exposure realism —
@@ -49,6 +85,188 @@ freeze share moved geography only and cost the level nothing. Climate
 uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
+
+## Gate 1 priced 2026-08-27: the subsidence level, four ways
+
+**CI run 33135605979**, 18.6 minutes, five full 20,000-year simulations
+off ONE scored frame (`scripts/price_sub_level.py`, workflow
+`.github/workflows/sub-level.yml`). Paired by construction: same
+geology, same rasters, same seed, so nothing between these rows is
+scoring noise. **Nothing is published — this is a table, and the
+decision is the user's.**
+
+| variant | paid GBPm | sev GBP | claims | EL | capital | premium | vs base | churn |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline (as shipped) | 307 | 17,820 | 17,228 | 164.1213 | 5.5405 | **169.6618** | — | — |
+| severity fix only | 307 | 17,264 | 17,783 | 164.1213 | 5.5337 | **169.6551** | -0.004% | 2 |
+| FY2024 derived | 280 | 17,264 | 16,219 | 162.3794 | 5.4473 | **167.8267** | -1.08% | 190 |
+| FY2024 from quarters | 237 | 17,264 | 13,747 | 159.6267 | 5.3151 | **164.9419** | -2.78% | 520 |
+| 2026 annualised | 288 | 17,264 | 16,682 | 162.8955 | 5.4727 | **168.3682** | -0.76% | 136 |
+
+**Zero districts move two rating groups or more, in any variant.**
+
+**The severity period mismatch costs 0.7 PENCE.** DATA_SOURCES #33
+records that `sev_subsidence` = GBP17,820 is a **Q1 2026** average
+paired with a **FY2025** paid total. Correcting it to the 2025 H1
+average (GBP17,264 — same year, same basis, and independently
+corroborated: H1's GBP153m over 9,000 supported households is
+GBP17,000, and paid is seasonally flat at 49.8/50.2) moves the premium
+by **-0.004%**, all of it capital (-0.12%), and shifts two districts a
+group. This was predicted before it was measured, and the algebra is
+the reason:
+
+    FREQ_SCALE["sub"] = (paid / sev / POLICIES) / raw
+    EL_sub(i)         = p_sub(i) * FREQ_SCALE["sub"] * E[sev]
+                      = p_sub(i) * paid / (POLICIES * raw)
+
+`sev` cancels, per district, exactly. What the severity actually
+controls is the FREQUENCY/SEVERITY SPLIT at a fixed expected loss —
+more, cheaper claims are thinner-tailed at the same mean, which is the
+whole of the -0.12% capital move.
+
+**The identity was verified across a 30% range of the level, not just
+asserted.** Every variant's EL lands on `baseline_EL - (delta paid) /
+POLICIES` to within **6e-14**. GBP307m -> GBP280m predicts -GBP1.742
+and delivered -GBP1.7419.
+
+**One correction to how that test was written.** The first run printed
+`WARNING: the severity-cancels derivation is WRONG`. It was not. The
+check used `np.array_equal`, and the difference was **2.8e-14 on
+164.12 — one unit in the last place of a float64**, because the code
+divides by `sev` and multiplies back by `exp(mu + sigma^2/2)` with
+`mu = log(sev / exp(sigma^2/2))`, which is not a bit-exact round trip.
+Demanding bit-equality of an algebraic identity computed in floating
+point is a test bug. The check now asserts the stronger and more useful
+form — EL == paid/POLICIES at EVERY level — and the script carries a
+comment telling the next person not to put the bit test back.
+
+**The level is the only real question, and its honest envelope is
+GBP164.94 to GBP169.66 — GBP4.72, or 2.78% of premium.** All four
+candidates are on the paid basis so they are comparable:
+
+- **307** FY2025, published (ABI 2026-02). What ships.
+- **280** FY2024, but DERIVED as 307-27 from a comparative line. Its
+  own three published quarters sum to 178, implying a Q4 of 102 —
+  **1.55x the largest quarter ever published**. Recorded unreconciled.
+- **237** the same FY2024 annualised from those three quarters instead.
+  The disagreement between 280 and 237 IS the size of that open gap.
+- **288** 2026 annualised from Q2. Legitimate only because paid has no
+  seasonality (2025: 49.8% H1 / 50.2% H2); the NOTIFIED series is 78%
+  H2 and must never be annualised this way.
+
+**Every candidate lands on buildings, which is the correctness check
+that matters.** Buildings premium 113.30 -> 108.56 across the range
+while contents holds at 56.37 -> 56.39. Subsidence is a 100% buildings
+peril (`build_model.py:554`), so anything else would have been a defect
+in the cover split.
+
+**Two things this does NOT settle, both recorded rather than resolved.**
+
+1. *The severity fix makes the claim-count budget worse.* Subsidence
+   goes 17,228 -> 17,783 claims, and `anchor_budget.py` has only 10,060
+   spare against a remainder needing 36,176. Every consistent severity
+   choice pushes the same way — see DATA_SOURCES #33. A lower LEVEL
+   pushes back (237 frees 3,481 claims), but picking a level to fix a
+   budget elsewhere would be reverse-engineering the evidence, and is
+   not a reason to prefer one.
+2. *Paid LAGS, so no single paid year is a steady-state year.* The 2022
+   surge (23,000 claims notified, GBP219m incurred) was settled across
+   2023-25, so FY2025 paid contains run-off from it. `anchor_budget.py`
+   already calls single-year anchoring a methodology defect; subsidence
+   is the most volatile peril in the book, which makes it the worst
+   place to have that defect. Fixing it properly needs the incurred
+   basis and a claims-inflation index, and this repo has neither.
+
+**A limitation of the table itself, stated rather than buried.** The
+corrected severity GBP17,264 is held fixed across all four levels
+because no 2024 or 2026 average on the paid basis has been published.
+Pairing a 2025 average with a 2024 total is the same class of mismatch
+this exercise is correcting. It is accepted here only because the
+algebra above proves the severity cannot move the level anyway — the
+mismatch costs capital at the third decimal place and nothing else.
+
+**The laptop could not run this and that is worth recording.** Two
+local attempts died with `_ArrayMemoryError` on **8.31 MiB** and then
+**1.53 MiB**: the machine sat at 66.9 GB of a 68.4 GB commit limit with
+`mc-fw-host` holding 25 GB on its own. BATCH and thread count were
+halved first and changed nothing — at 1.5 MB it is not a footprint
+problem. The workflow triggers on push to `exp/subsidence-series`
+rather than by dispatch, because `workflow_dispatch` only fires from
+the default branch and a measurement that may never ship does not
+belong on main.
+
+## Gate 0 measurement 2026-08-27: what `theta_ws` costs — GBP0.65
+
+**The answer: `theta_ws` is worth GBP0.65 per policy — 0.39% of the
+premium, but 11.8% of the entire capital charge.** Measured, not
+argued, on throwaway branch `exp/theta-ws-measure` (commit 1f0854e,
+CI run 33129830672). **DO NOT MERGE that branch** — it exists only to
+produce this number and is retired below.
+
+**What was changed.** One function. `theta_ws()` in `build_model.py`
+was replaced by `np.full(..., 1.0)`, i.e. the weather-subsidence
+pair-copula degenerates to independence (Gumbel at theta = 1 IS the
+independence copula, exactly, not approximately). Nothing else moved.
+
+**The intervention is clean and the measurement is well-identified.**
+
+| column | published | theta_ws = 1 | change |
+| --- | --- | --- | --- |
+| `el_total` | — | — | **bit-identical, district by district** |
+| `tail_dep_ws` | 0.4628 | 0.0000 | -100% |
+| `theta_ws` | 1.6221 | 1.0000 | -38.4% |
+| `tvar99_euler` | 256.46 | 245.56 | **-4.25%** |
+| `capital` | 5.5406 | 4.8863 | **-11.81%** |
+| `premium` | **169.66** | **169.01** | **-0.39%** |
+
+`el_total` being bit-identical everywhere is the proof that only
+dependence moved: a copula cannot touch marginals, and here it
+demonstrably did not. So the whole GBP0.65 is a tail-dependence price,
+with no expected-loss contamination.
+
+**Read `tvar99_euler`, ignore `tvar99_vine`.** The standalone vine
+columns move the *other* way (`tvar99_vine` +1.60%, `tvar99_vine5`
++1.54%, `var995_vine` +3.03%, `tvar99_gauss` +2.76%). That is NOT a
+diversification finding — it is noise. The seed sweep (section below,
+2026-08-22) put `tvar99_vine`'s relative SD across seeds at **12.4%**,
+so a 1.6% move is a fifth of one standard deviation. `tvar99_euler`'s
+relative SD is **0.33%**, so its -4.25% move is about 13 sigma. One of
+these two numbers can carry a 0.39% conclusion and the other cannot.
+
+**Where it lands.** 2,423 districts fall, **194 RISE**, 119 are flat.
+The risers are Euler reallocation, not a modelling error: removing a
+coupling shrinks the portfolio tail, and the Euler allocation then
+redistributes a smaller pot on different shares. Rating-group churn is
+90 of 2,736 (3.3%), **zero districts move two groups or more**. The
+biggest movers are all high-`sub` coastal Essex/Kent/Hampshire — ME11,
+CO14, ME12, CT5, CO12 at -1.2% — exactly the districts where a
+subsidence-weather coupling would bite hardest. The cover split feels
+it asymmetrically: buildings capital -13.9%, contents capital -4.9%,
+which is right, since subsidence is a buildings peril.
+
+**What this does NOT say.** The earlier claim in this session that
+`theta_ws` is "physically backwards" was WRONG and is withdrawn. The
+measurement contradicted it: the correlation between the subsidence
+and windstorm drivers is **r = -0.09**, indistinguishable from zero,
+and 2018 — the surge year — ranks **8th of 35** for storminess, not
+quiet. The real finding is subtler and still open:
+
+- the model **imposes** Kendall tau of 0.311-0.452 (mean **0.380**)
+  across published districts, where the data supports **approximately
+  zero**; and
+- there is a genuine **negative** dependence it cannot represent at
+  all — `jja_deficit` vs `rain5d`, **r = -0.604** — because a Gumbel
+  copula admits only theta >= 1, i.e. only positive dependence.
+
+That is a re-specification question, and by the user's own sequencing
+decision it belongs to its own later phase, not to Gates 1-4. GBP0.65
+is what it is worth fixing; the 194 risers are what makes it worth
+doing deliberately rather than in passing.
+
+**Branch retired 2026-08-27**, per the throwaway-measurement pattern:
+worktree `.worktrees/theta-measure` removed, `exp/theta-ws-measure`
+deleted locally and on origin. The number survives here; the code does
+not need to.
 
 ## Published 2026-08-16: theft, the fifth insured peril (Phase 1)
 
@@ -955,8 +1173,9 @@ control, which is the reason to always run one.
 ## Branch inventory, tidied 2026-08-27
 
 Every branch that exists, why it exists, and what would retire it. Two
-branches remain. Both are synced to current main, and both pass their
-own suites (main 93, `sector-model` 92 + 1 skip).
+permanent branches remain, plus one live experiment. Both permanent
+branches are synced to current main and pass their own suites (main 93,
+`sector-model` 92 + 1 skip).
 
 **`sector-model`'s one skip is deliberate.**
 `test_the_sector_model_nests_inside_the_district_model` had been red on
@@ -978,6 +1197,16 @@ The gap I described is real; I described its location wrongly.
 |---|---|---|
 | `main` | published | the product |
 | `sector-model` | permanent, 33 ahead | the same model at postcode-SECTOR grain. **NEVER merges to main** — only `data/districts_risk.geojson` crosses, renamed `data/sectors_risk.geojson`. main merges INTO it, never the reverse. |
+| `exp/subsidence-series` | LIVE, Gate 0 | the temperature-driven subsidence/freeze workstream. Data acquisition and evidence only so far — no model change, premium untouched. |
+
+**Deleted 2026-08-27 (second tidy):** `exp/theta-ws-measure`, a
+throwaway that existed to price one function and did so — GBP0.65, its
+own section above, commit 1f0854e, CI 33129830672. It was never
+mergeable by design: it set `theta_ws` to a constant to measure the
+difference, not to propose it. Deleted locally and on origin the moment
+the number was written down. If a measurement branch's output is a
+NUMBER, the number belongs in this file and the branch belongs in the
+bin — leaving it around invites someone to merge it.
 
 **Deleted 2026-08-27:** `exp/ct-severity` and `exp/buildings-contents`,
 both published that day and both sitting at exactly main's commit, so
@@ -1617,7 +1846,7 @@ leg. One is not.**
 |---|---|---|---|---|
 | storm | 99,592 | 17.78% | count | ABI 2025 paid AND ABI 2025 average, one release |
 | flood | 10,400 | 1.86% | count | ABI 2025 paid AND ABI 2025 average, one release |
-| subsidence | 17,228 | 3.08% | count | ABI 2025 paid AND ABI 2025 average, one release |
+| subsidence | 17,228 | 3.08% | count | **WRONG as recorded — corrected 2026-08-27**: FY2025 paid, but a **Q1 2026** average, two releases apart (see DATA_SOURCES #33) |
 | escape of water | 164,250 | 29.33% | severity | GoCompare 29.38% — VERIFIED, and closes the triangle |
 | fire | 31,000 | 5.54% | paid | Home Office FIRE0201 attended dwelling fires 2024/25 |
 | accidental damage | 137,576 | 24.57% | paid | GoCompare 24.53% — VERIFIED (at home + outside) |
