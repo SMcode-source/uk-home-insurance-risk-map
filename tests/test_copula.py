@@ -1887,3 +1887,78 @@ def test_no_capital_formula_is_taken_against_a_draw_mean():
     assert not offenders, (
         "capital taken against a draw mean instead of el_total:\n  "
         + "\n  ".join(offenders))
+
+
+# The eight rows of README's calibration table, in README's order, each
+# naming the two ABI keys the row is a copy of. Groundwater is absent on
+# purpose: it has no published total and only its severity is a figure.
+README_CALIB_ROWS = [
+    ("Storm", "storm_paid", "sev_weather"),
+    ("Flood", "flood_paid", "sev_flood"),
+    ("Subsidence", "subsidence_paid", "sev_subsidence"),
+    ("Theft", "theft_paid", "sev_theft"),
+    ("Escape of water", "eow_paid", "sev_eow"),
+    ("Fire", "fire_paid", "sev_fire"),
+    ("Accidental damage", "ad_paid", "sev_ad"),
+]
+
+
+def test_readme_calibration_table_matches_the_model():
+    """README's calibration table is hand-written. Pin it to build_model.ABI.
+
+    Markdown has no build step, so this table is the one statement of the
+    anchors that cannot be derived. It has drifted twice in three days -
+    theft's 2026-08-25 level correction and subsidence's 2026-08-28
+    severity fix - and both times the wrong figure was published and sat
+    there. The same table on the methodology page IS derived now
+    (build_site.py, the __CAL_*__ keys); this test is the equivalent guard
+    for the copy that cannot be.
+
+    Checks the paid total, the average claim and the implied claim count.
+    The frequency column is the same division again and is left to the
+    count check, which is the tighter of the two.
+    """
+    import re
+    root = os.path.join(os.path.dirname(__file__), "..")
+    with open(os.path.join(root, "README.md"), encoding="utf-8") as fh:
+        readme = fh.read()
+
+    def cells(peril):
+        # the table is indented three spaces inside a numbered list item
+        m = re.search(r"^\s*\|\s*" + re.escape(peril) + r"\s*\|(.+)$",
+                      readme, re.M)
+        assert m, f"README has no calibration row for {peril}"
+        return [c.strip() for c in m.group(1).split("|")]
+
+    def money(cell):
+        m = re.search(r"£([\d,]+(?:\.\d+)?)\s*(m|bn)?", cell)
+        assert m, f"no money figure in {cell!r}"
+        return float(m.group(1).replace(",", "")) * {
+            None: 1.0, "m": 1e6, "bn": 1e9}[m.group(2)]
+
+    def count(cell):
+        m = re.search(r"([\d,]+)", cell)
+        assert m, f"no count in {cell!r}"
+        return float(m.group(1).replace(",", ""))
+
+    wrong = []
+    for peril, paid_key, sev_key in README_CALIB_ROWS:
+        paid_cell, sev_cell, n_cell = cells(peril)[:3]
+        paid, sev = bm.ABI[paid_key], bm.ABI[sev_key]
+        if abs(money(paid_cell) - paid) > 0.5e6:
+            wrong.append(f"{peril} paid: README {paid_cell!r} vs "
+                         f"ABI[{paid_key!r}] = {paid / 1e6:,.1f}m")
+        if abs(money(sev_cell) - sev) > 0.5:
+            wrong.append(f"{peril} severity: README {sev_cell!r} vs "
+                         f"ABI[{sev_key!r}] = {sev:,.0f}")
+        # three significant figures, which is how the table is written
+        implied = paid / sev
+        if abs(count(n_cell) - implied) > max(implied * 0.005, 50):
+            wrong.append(f"{peril} implied claims: README {n_cell!r} vs "
+                         f"{implied:,.0f}")
+
+    assert not wrong, (
+        "README's calibration table no longer matches build_model.ABI:\n  "
+        + "\n  ".join(wrong)
+        + "\n(README.md is hand-written - fix it there, then re-run "
+          "scripts/anchor_budget.py)")
