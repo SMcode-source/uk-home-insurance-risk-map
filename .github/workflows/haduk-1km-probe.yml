@@ -1,0 +1,103 @@
+# Is the 174 GB 1 km fetch worth moving off the laptop?
+#
+# Measured locally: 3.0 / 2.0 / 3.2 MB/s at 4 / 8 / 12 workers. Throughput
+# that flat under concurrency says the ceiling is CEDA's, not this link's -
+# and if the ceiling is PER ACCOUNT then no runner, no matrix and no cloud
+# makes the job shorter, because they all authenticate as the same user.
+#
+# That is the whole question, and it is one experiment:
+#
+#   solo        one runner fetches one variable-year (12 files, ~880 MB)
+#   concurrent  four runners, four different years, four different IPs,
+#               the same token, started together
+#
+# Per-IP or per-connection limit -> each concurrent runner matches solo,
+# aggregate goes up ~4x, and the full pass shards down to under two hours.
+# Per-account limit -> each concurrent runner gets roughly a quarter of
+# solo, aggregate is flat, and the honest answer is that the laptop is as
+# fast as anything else.
+#
+# Nothing here is wired into the model. It downloads, times, and deletes.
+name: haduk-1km-probe
+
+on:
+  push:
+    branches: [exp/haduk-1km-ci]
+
+# fetch_haduk.py reads CEDA_TOKEN before it looks for ~/.ceda_token, so the
+# secret needs no file and is never written to disk. The token is not
+# printed by the fetcher at any point - only its expiry is ever surfaced.
+env:
+  CEDA_TOKEN: ${{ secrets.CEDA_TOKEN }}
+
+jobs:
+  solo:
+    name: solo (1970)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # fetch_haduk.py is stdlib-only (urllib, concurrent.futures), so the
+      # probe needs no requirements install at all. Keeping it that way is
+      # deliberate: a geopandas install would add minutes of noise to a
+      # measurement whose whole point is wall-clock.
+      - name: Runner capacity
+        run: |
+          echo "cores: $(nproc)"
+          df -h / | tail -1
+
+      - name: Fetch one variable-year and time it
+        run: |
+          test -n "$CEDA_TOKEN" || {
+            echo "::error::CEDA_TOKEN secret is not set on this repo."
+            exit 1
+          }
+          t0=$(date +%s)
+          python -u scripts/fetch_haduk.py --res 1km --vars tasmin \
+            --from 1970 --to 1970
+          t1=$(date +%s)
+          bytes=$(du -sb data/haduk/1km | cut -f1)
+          python - "$bytes" "$((t1 - t0))" <<'PY'
+          import sys
+          b, s = int(sys.argv[1]), max(int(sys.argv[2]), 1)
+          print(f"PROBE solo bytes={b} seconds={s} "
+                f"MBps={b / 1e6 / s:.2f}")
+          PY
+
+  concurrent:
+    # needs: solo keeps the two halves from overlapping. If they ran at the
+    # same time the solo number would already be contending with the matrix
+    # and the comparison would measure nothing.
+    needs: solo
+    name: concurrent (${{ matrix.year }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        year: [1971, 1972, 1973, 1974]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Fetch one variable-year and time it
+        run: |
+          t0=$(date +%s)
+          python -u scripts/fetch_haduk.py --res 1km --vars tasmin \
+            --from ${{ matrix.year }} --to ${{ matrix.year }}
+          t1=$(date +%s)
+          bytes=$(du -sb data/haduk/1km | cut -f1)
+          python - "$bytes" "$((t1 - t0))" "${{ matrix.year }}" <<'PY'
+          import sys
+          b, s, y = int(sys.argv[1]), max(int(sys.argv[2]), 1), sys.argv[3]
+          print(f"PROBE concurrent-{y} bytes={b} seconds={s} "
+                f"MBps={b / 1e6 / s:.2f}")
+          PY
