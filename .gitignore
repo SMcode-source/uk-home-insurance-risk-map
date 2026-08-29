@@ -55,3 +55,9 @@ data/*.partial
 data/haduk_district_annual*.csv
 data/haduk_1km_state.npz
 data/haduk_1km_weights.npz
+
+# ONSPD mirror and the derived UK-wide postcode centroids (89 MB;
+# rebuild with scripts/fetch_onspd.py). The centroids are an input to
+# the polygon rebuild, not a model output.
+data/cache/onspd_full.zip
+data/postcode_centroids.csv
