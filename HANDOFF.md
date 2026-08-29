@@ -89,6 +89,85 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## Gate 4 MEASURED 2026-08-29: a bad year is dearer claims, not more claims
+
+`exp/year-claim-view`, CI run 33258862898, one 20,000-year simulation off
+one scored frame. `year_analysis` now emits `claims_<peril>_per_100k` and
+`cost_<peril>_per_claim` per bucket, from the UNROUNDED arrays, alongside
+the `mean_*`/`inc_*_pct` it already published. The four vine perils, as a
+multiple of the typical year:
+
+| bucket | claims/yr | count x | GBP/claim | value x | cost/policy |
+|---|---|---|---|---|---|
+| good | 102,636 | 0.70x | 4,235 | 0.58x | £28.00 |
+| typical | 147,112 | 1.00x | 7,357 | 1.00x | £69.80 |
+| bad | 186,856 | 1.27x | 11,399 | 1.55x | £137.40 |
+| catastrophic | 203,673 | 1.38x | 19,352 | 2.63x | £254.30 |
+
+**Value beats count roughly two to one.** A catastrophic year costs 3.64x
+a typical one, and 2.63 of that is the size of the average claim against
+1.38 from the number of them. Count also saturates — 1.27x to 1.38x from
+bad to catastrophic — while value keeps climbing, 1.55x to 2.63x. The
+identity holds: count x times value x reproduces the cost ratio to within
+0.12% in every bucket, which is the arithmetic check the harness prints.
+
+**The value effect is itself two effects, and the smaller one is mix.**
+Holding every peril at its typical-year cost per claim and moving only
+the claim MIX to each bucket's:
+
+| bucket | value x | of which mix | of which severity |
+|---|---|---|---|
+| good | 0.58x | 0.79x | 0.73x |
+| bad | 1.55x | 1.13x | 1.37x |
+| catastrophic | 2.63x | 1.25x | 2.11x |
+
+Storm falls from 74.7% of claims in a typical year to 66.2% in a
+catastrophic one while flood rises 9.2% -> 14.4% and subsidence
+15.3% -> 18.2%, so cheap claims give way to dear ones. That is worth
+1.25x. The remaining 2.11x is genuine severity inside the perils.
+
+**Storm is not what makes a bad year bad.** It is two thirds to four
+fifths of all claims and is nearly flat in both dimensions — 1.23x count
+and 1.06x value at catastrophic. Flood is the engine: 2.18x count AND
+2.83x value, compounding to 6.2x its typical cost per policy (£24.10 ->
+£148.70). Subsidence is second, 1.65x by 1.84x.
+
+Two caveats, both real:
+
+- **Groundwater's value multiplier is non-monotonic** — 1.34x at bad,
+  1.20x at catastrophic. It is the smallest leg by far (1.1% of claims,
+  ~2,300 a year) and so the noisiest; do not read a story into that
+  reversal without more simulated years. It is also exactly the leg the
+  rounding floor below made unreadable.
+- **This is the four vine perils only**, £56.90 of the £164.12 EL. The
+  four attritional legs (theft, EoW, fire, AD) are outside the year view
+  by design, disclosed and reasoned at `analysis/template.html:86`. So
+  this answers why a bad WEATHER-AND-GEOLOGY year is expensive, not why
+  a bad year for the book is. Sanity check against the ABI's 2025
+  actual — 560,000 home claims across all perils — holds: 147,112
+  typical and 203,673 catastrophic for a subset of perils both come in
+  under it.
+
+**Why the fields had to be added rather than derived.** `inc_<peril>_pct`
+publishes at 2 dp of a PERCENT, smallest step 0.01% — about 1,550 claims
+across a 15.5m book. Dividing `mean_*` by it to recover a cost per claim
+inherits 0.6–0.9% error on weather, 2.6–12.5% on flood, 2.1–7.1% on
+subsidence and **25–50% on groundwater**, whose incidence rounds to
+0.00/0.01/0.01/0.02 across the four buckets. That is a resolution floor,
+not sampling noise: more simulated years would not have moved it.
+
+`test_year_view_claim_count_and_value` guards the identity
+`mean_<peril> == claims_<peril>_per_100k / 1e5 * cost_<peril>_per_claim`
+and was checked to bite — it fails when the conditioning divide is
+removed. Counts are CLAIMS, not claimants: a policy claiming on two
+perils counts twice, which is the basis the ABI's own figure uses.
+
+Committed to main as 6a0db2a and **inert** — `build_model` is not in
+tests.yml's docs-freshness path (only build_map/build_analysis/build_site
+run there), so `data/` and `docs/` are untouched until someone rebuilds.
+Nothing here changes the premium. Publishing any of it is the user's
+call; the numbers above are quotable, the site does not yet show them.
+
 ## Gate 3 PRICED 2026-08-28: the answer is exactly zero, and provably
 
 `exp/eow-sigma`, CI run 33217184873, four full 20,000-year simulations
