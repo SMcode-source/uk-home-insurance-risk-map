@@ -72,17 +72,25 @@ def main():
     el = {k: g[f"el_{k}"].to_numpy(float) for k in keys}
     # national expected loss per peril = exposure-weighted mean per policy
     nat = {k: float(np.average(v, weights=hh)) for k, v in el.items()}
-    total = sum(nat.values())
+    # Coastal erosion is OUTSIDE el_total by design - "no policy pays it"
+    # (build_model.py:1438). Standard UK home cover excludes it, so it is
+    # carried as information (el_total5) and never reaches the premium.
+    # Sharing it against a nine-peril total overstates every other peril
+    # and implies erosion is priced. The denominator is the eight PRICED
+    # perils; erosion is reported with a share of "-".
+    total = sum(v for k, v in nat.items() if k != "er")
 
     print("=" * 92)
     print("WHAT FEEDS EACH PERIL".center(92))
     print("=" * 92)
     print(f"{'peril':<19}{'EL/policy':>10}{'share':>8}  driver / resolution "
           f"/ coverage")
+    print(f"(share is of the {total:.2f} PRICED total; erosion is outside "
+          f"el_total and shows '-')")
     for k in sorted(keys, key=lambda k: -nat[k]):
         name, drv, res, cov = DRIVERS[k]
-        print(f"{name:<19}{nat[k]:>9.2f}{100 * nat[k] / total:>7.1f}%  "
-              f"{drv}")
+        share = "     - " if k == "er" else f"{100 * nat[k] / total:>6.2f}%"
+        print(f"{name:<19}{nat[k]:>9.2f}{share:>8}  {drv}")
         print(f"{'':<37}{res}  |  {cov}")
 
     print("\n" + "=" * 92)
