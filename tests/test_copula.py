@@ -2005,3 +2005,70 @@ def test_severity_sigma_cannot_move_capital():
             # every sigma must give the SAME mean, not merely the right one
             assert abs(mean - base) < 1e-9 * M, (
                 f"sigma {s} changed the mean by {mean - base:.3e} on {M}")
+
+
+def test_year_view_claim_count_and_value():
+    """The year view's claim COUNT and VALUE must reconstruct its own means.
+
+    Gate 4. `inc_*_pct` is published to 2 dp of a percent, so deriving a
+    cost per claim by dividing `mean_*` by it carries 2.4-12.5% error on
+    flood and subsidence and 25-50% on groundwater, whose incidence rounds
+    to 0.00/0.01/0.01/0.02 across the four buckets. year_analysis now
+    emits both quantities from the unrounded arrays instead.
+
+    This drives year_analysis with a SYNTHETIC year dict whose answers are
+    known by construction, so it needs no simulation: every district-year
+    loss is a fixed amount on a fixed fraction of exposure. Then
+
+        mean_<peril> == claims_<peril>_per_100k / 1e5 * cost_<peril>_per_claim
+
+    must hold, and cost_<peril>_per_claim must equal the amount actually
+    paid per claiming policy.
+    """
+    n_sim = 1000
+    expo_total = 1_000_000.0
+    rng = np.random.default_rng(3)
+    year = {}
+    # peril -> (incidence fraction, cost per claim). Deliberately includes
+    # a peril rarer than the 0.01% the old published field could resolve.
+    spec = {"s": (0.0015, 17_264.0), "w": (0.0071, 2_450.0),
+            "f": (0.0009, 30_000.0), "g": (0.00004, 20_000.0)}
+    for k, (frac, cost) in spec.items():
+        # vary incidence year to year so the bucket ordering is non-trivial
+        jitter = 1.0 + 0.3 * rng.standard_normal(n_sim)
+        inc = np.clip(frac * jitter, 0.0, 1.0) * expo_total
+        year[f"inc_{k}"] = inc
+        year[f"{k}_v"] = inc * cost           # exposure-weighted loss
+    for k in ("s", "f", "g"):                 # independence view, unused here
+        year[f"{k}_i"] = year[f"{k}_v"]
+    year["expo_total"] = expo_total
+
+    out = bm.year_analysis(year, 2736)
+
+    for b in out["buckets"]:
+        for key, ik in (("sub", "s"), ("wx", "w"), ("fl", "f"), ("gw", "g")):
+            cnt = b[f"claims_{key}_per_100k"]
+            cost = b[f"cost_{key}_per_claim"]
+            assert cnt > 0, f"{b['label']}/{key}: synthetic data always claims"
+            # the cost per claim is known exactly by construction
+            assert abs(cost - spec[ik][1]) <= 1, (
+                f"{b['label']}/{key}: cost per claim {cost} != "
+                f"{spec[ik][1]}")
+            # and it must rebuild the published mean
+            rebuilt = cnt / 1e5 * cost
+            assert abs(rebuilt - b[f"mean_{key}"]) < 0.05 + 0.001 * rebuilt, (
+                f"{b['label']}/{key}: {cnt}/1e5 x {cost} = {rebuilt} != "
+                f"published mean {b[f'mean_{key}']}")
+        # groundwater here is 4 claims per 100k - a rate the OLD 2-dp
+        # inc_gw_pct field rounds to 0.00%, i.e. loses completely. This
+        # asserts the new field does not.
+        assert b["claims_gw_per_100k"] > 0 and b["inc_gw_pct"] == 0.0, (
+            "the synthetic groundwater rate should be invisible to "
+            "inc_gw_pct and visible to claims_gw_per_100k - if this fails "
+            "the rates were changed and the point of the test is lost")
+
+    # totals are claims, not claimants: a policy can claim on two perils
+    for b in out["buckets"]:
+        parts = sum(b[f"claims_{k}_per_100k"]
+                    for k in ("sub", "wx", "fl", "gw"))
+        assert abs(b["claims_total_per_100k"] - parts) < 0.02

@@ -1596,6 +1596,27 @@ def year_analysis(year, n_districts):
         return [[round(n_sim / r, 2), round(float(srt[r - 1]), 1)]
                 for r in ranks]
 
+    # Conditional claim COUNT and VALUE, emitted directly rather than left
+    # to be derived. `inc_*_pct` is published to 2 dp of a PERCENT, so its
+    # smallest step is 0.01% - about 1,550 claims across a 15.5m book - and
+    # dividing `mean_*` by it to get a cost per claim inherits that as
+    # 2.4-12.5% error on flood and subsidence and 25-50% on groundwater,
+    # whose incidence rounds to 0.00/0.01/0.01/0.02. Measured 2026-08-29;
+    # that is a resolution floor, not noise, and it is why these two
+    # quantities are computed here from the UNROUNDED arrays instead.
+    #
+    # claims_*_per_100k is per 100,000 policies (2 dp = ~3 claims
+    # nationally), cost_*_per_claim is E[loss | claimed] in whole pounds.
+    # The identity that ties them back to the published figures is
+    #     mean_<peril> == claims_<peril>_per_100k / 1e5 * cost_<peril>_per_claim
+    # and test_year_view_claim_count_and_value guards it.
+    def _count_value(inc_key, val, idx):
+        """(claims per 100k policies, E[cost | claimed]) for one peril."""
+        frac = float(year[inc_key][idx].mean()) / n
+        if frac <= 0.0:
+            return 0.0, None      # no claims in this bucket: no cost either
+        return 1e5 * frac, float(val[idx].mean()) / frac
+
     buckets = []
     typical_mean = None
     for label, lo, hi in BUCKETS:
@@ -1614,6 +1635,20 @@ def year_analysis(year, n_districts):
             inc_gw_pct=round(100 * float(year["inc_g"][idx].mean()) / n, 2),
             indep_mean_total=round(float(ti[idx_i].mean()), 1),
         )
+        tot_claims = 0.0
+        for key, inc_key, val in (("sub", "inc_s", s), ("wx", "inc_w", w),
+                                  ("fl", "inc_f", f), ("gw", "inc_g", g)):
+            cnt, cost = _count_value(inc_key, val, idx)
+            b[f"claims_{key}_per_100k"] = round(cnt, 2)
+            b[f"cost_{key}_per_claim"] = None if cost is None else round(cost)
+            tot_claims += cnt
+        # A policy claiming on two perils in one year counts twice here:
+        # these are CLAIMS, not claimants, which is the basis the ABI's
+        # own 560,000 home-claims figure is on.
+        b["claims_total_per_100k"] = round(tot_claims, 2)
+        b["cost_total_per_claim"] = (
+            round(float(tv[idx].mean()) / (tot_claims / 1e5))
+            if tot_claims else None)
         if label == "typical":
             typical_mean = b["mean_total"]
         buckets.append(b)
