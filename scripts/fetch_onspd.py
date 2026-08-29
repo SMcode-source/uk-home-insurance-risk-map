@@ -41,6 +41,32 @@ every GB postcode present in both sources and reports the distance
 distribution. ONSPD's GB grid references derive from Code-Point Open in
 the first place, so they should agree to well under a metre.
 
+LARGE USERS ARE NOT HOMES, AND THEY ARE NOT PLACES. ONSPD's usrtypind
+separates small users (ordinary delivery points - houses and flats) from
+LARGE users: single addresses that take enough mail to earn their own
+postcode. Banks, universities, hospitals, PO Box ranges. There are
+76,033 of them live, and this is a HOME insurance model, so on that
+ground alone they do not belong in the geometry.
+
+They are also actively destructive to it, because ONSPD parks them at
+nominal coordinates rather than real ones. Measured on the full set:
+
+  767 postcodes spanning 39 DISTRICTS sit on one point near EC1A
+  1,162 sit on one point in NW1; WV99 1AA and its 511 neighbours are a
+  non-geographic range with no ground at all
+
+Voronoi cannot partition coincident points, and more importantly it
+should not try: those postcodes have no territory to divide. Dropping
+them takes the worst coincident cluster from 1,162 postcodes to 90, and
+the sectors that lose all their geometry from 892 to 9.
+
+The cost is visible and is the right kind of cost: 125 districts and
+1,243 sectors consist ENTIRELY of large users and therefore disappear.
+They were never residential. Against the currently published GB layer
+this moves sectors 10,398 -> 9,596, so roughly 800 published sector
+polygons are non-residential ground drawn from placeholder coordinates.
+Pass --include-large-users to get the old behaviour and see it.
+
 Source: ONS Open Geography Portal, ONS Postcode Directory (May 2026),
 item 6fff67d204fd4f339591ed667a6e3642. ONS geography licences apply
 (OGL, with Royal Mail and OS terms for the postcode data).
@@ -143,7 +169,7 @@ def require_ostn15():
             f"  missing: {missing[0]}\nNothing was written.")
 
 
-def build(check_cpo):
+def build(check_cpo, include_large_users=False):
     import pyproj
 
     require_ostn15()
@@ -156,13 +182,13 @@ def build(check_cpo):
     x0, y0, x1, y1 = UK_BOX
 
     rows = []
-    seen = terminated = no_fix = 0
+    seen = terminated = no_fix = large_user = 0
     by_country = {}
     with zf.open(member) as fh:
         rdr = csv.reader(io.TextIOWrapper(fh, "latin-1"))
         hdr = next(rdr)
         ix = {c: i for i, c in enumerate(hdr)}
-        for col in ("pcds", "doterm", "lat", "long", "ctry25cd"):
+        for col in ("pcds", "doterm", "lat", "long", "ctry25cd", "usrtypind"):
             if col not in ix:
                 raise SystemExit(
                     f"ONSPD column '{col}' missing - the release changed "
@@ -172,6 +198,10 @@ def build(check_cpo):
             if row[ix["doterm"]].strip():
                 terminated += 1
                 continue
+            if row[ix["usrtypind"]].strip() == "1":
+                large_user += 1
+                if not include_large_users:
+                    continue
             parts = split_postcode(row[ix["pcds"]])
             if parts is None:
                 continue
@@ -195,6 +225,8 @@ def build(check_cpo):
 
     print(f"  {seen:,} postcodes, {terminated:,} terminated, "
           f"{no_fix:,} with no grid reference")
+    print(f"  {large_user:,} large users "
+          f"({'KEPT (--include-large-users)' if include_large_users else 'excluded - not homes, and parked on nominal coordinates'})")
     print(f"  {len(rows):,} live postcodes kept")
     for c in sorted(by_country, key=lambda k: -by_country[k]):
         print(f"     {c:<18}{by_country[c]:>9,}")
@@ -270,9 +302,13 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--check-cpo", action="store_true",
                     help="cross-check GB centroids against Code-Point Open")
+    ap.add_argument("--include-large-users", action="store_true",
+                    help="keep large-user postcodes (businesses, PO Box "
+                         "ranges) - they are not homes and sit on nominal "
+                         "coordinates; see the module docstring")
     args = ap.parse_args()
     download()
-    build(args.check_cpo)
+    build(args.check_cpo, args.include_large_users)
 
 
 if __name__ == "__main__":

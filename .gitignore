@@ -61,3 +61,13 @@ data/haduk_1km_weights.npz
 # the polygon rebuild, not a model output.
 data/cache/onspd_full.zip
 data/postcode_centroids.csv
+
+# Full-resolution rebuilt geometry and the coastline it is clipped to.
+# All regenerable: scripts/fetch_onspd.py then
+# scripts/build_postcode_polygons.py. These are ANALYSIS geometry - the
+# published layers are simplified copies, see build_postcode_polygons.py.
+data/cache/uk_coastline_bfc.geojson
+data/cache/uk_land.wkb
+data/districts_uk.gpkg
+data/districts_uk.geojson
+data/sectors_uk.gpkg
