@@ -28,10 +28,27 @@ which is the difference between FITTING the freeze event rate and
 guessing it. Pre-1990 winters inform the HAZARD rate only; no claims
 record reaches back that far.
 
-Resolution: 12 km is the default and is enough for a national index (and
-small - the whole 1960-2025 tasmin/tasmax/rainfall set is a few hundred
-MB). 5 km exists for the per-district relativity and is ~14x the volume
-per file, so ask for it explicitly and over a shorter period.
+Resolution: MEASURED 2026-08-29 against the 2,736 published districts,
+because the choice is not a matter of taste - it decides whether a
+per-district index exists at all.
+
+    res    full 1960-2025 set   districts resolved   households sharing
+                (3 variables)    (of 2,736)          a cell with another
+    12 km        1.5 GB              1,175                 84%
+     5 km        8.0 GB              2,131                 40%
+     1 km        174 GB              2,694                  0%
+
+12 km is a NATIONAL index and nothing finer: 84% of households sit in a
+cell shared with another district, and one cell holds 89 of them. 5 km
+is the working choice - it resolves 2,131 districts and fits. 1 km is
+the only resolution that separates every district, and at 174 GB it did
+not fit the disk it was measured on (113 GB free); it is also the least
+worth having, since HadUK-Grid is interpolated from a station network
+whose density, not the grid, sets the real resolution.
+
+Per-file: 0.64 MB at 12 km, 3.36 MB at 5 km, 73.4 MB at 1 km - so 5 km
+is 5.3x the volume of 12 km, not the ~14x this note claimed before
+anyone measured it.
 
   1. log in at https://services.ceda.ac.uk/account/token/
   2. create an access token (they expire after ~72 h - fine, this is a

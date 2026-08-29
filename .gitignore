@@ -49,3 +49,9 @@ analysis/uk_risk_year_analysis.html
 data/*.progress.jsonl
 data/*.progress.json
 data/*.partial
+
+# derived climate tables and their resume state (rebuild with
+# scripts/haduk_1km_stream.py / haduk_district_daily.py)
+data/haduk_district_annual*.csv
+data/haduk_1km_state.npz
+data/haduk_1km_weights.npz
