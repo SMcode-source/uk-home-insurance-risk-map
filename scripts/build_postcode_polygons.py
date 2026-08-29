@@ -385,10 +385,24 @@ def write_display(sec, tol):
     print(f"     {shapely.get_num_coordinates(out.geometry.values).sum():,} "
           f"coords, {a_dis:,.0f} km2, {time.time() - t:.0f}s", flush=True)
 
-    out.to_crs(4326).to_file(OUT_SEC_DISP, driver="GeoJSON")
-    dd.to_crs(4326).to_file(OUT_DIS_DISP, driver="GeoJSON")
-    for p in (OUT_SEC_DISP, OUT_DIS_DISP):
-        print(f"  wrote {p} ({os.path.getsize(p) / 1e6:.1f} MB)")
+    # COORDINATE PRECISION. GDAL writes full float64 by default, which
+    # on a postcode boundary means digits down to the nanometre:
+    # -2.152822484539436. They are not just wasted bytes, they are
+    # incompressible noise - the unrounded file gzips at 3.0x where the
+    # rounded one manages 5.7x, so the cost is paid twice. Measured on
+    # the districts layer:
+    #
+    #     as written   29.6 MB raw   9.9 MB gzip
+    #     0.1 m        14.9 MB       4.3 MB
+    #     1 m          13.5 MB       3.6 MB
+    #
+    # 5 decimal places is about 1.1 m of latitude and 0.6 m of longitude
+    # at UK latitudes - finer than the 25 m simplification already
+    # applied, so it discards nothing that survived that step.
+    for gdf, path in ((out, OUT_SEC_DISP), (dd, OUT_DIS_DISP)):
+        gdf.to_crs(4326).to_file(path, driver="GeoJSON",
+                                 COORDINATE_PRECISION=5)
+        print(f"  wrote {path} ({os.path.getsize(path) / 1e6:.1f} MB)")
 
 
 def validate(sec, dis, clipped=True):
