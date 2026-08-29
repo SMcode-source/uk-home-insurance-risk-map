@@ -144,6 +144,12 @@ def main():
     ap.add_argument("--to", dest="y1", type=int, default=2025)
     ap.add_argument("--keep", action="store_true",
                     help="do not delete each year's grids after extraction")
+    ap.add_argument("--hours", type=float, default=None,
+                    help="stop cleanly after roughly this many hours; the "
+                         "checkpoint means the next run resumes exactly")
+    ap.add_argument("--recent-first", action="store_true",
+                    help="process newest years first, so an interrupted run "
+                         "leaves the most useful years done")
     args = ap.parse_args()
 
     import xarray as xr
@@ -170,19 +176,33 @@ def main():
 
     smd = np.zeros(n_d); cwd = np.zeros(n_d)
     run_len = np.zeros(n_d, dtype=int); run_sev = np.zeros(n_d)
-    done, out_rows = set(), []
+    # Rows are APPENDED to the CSV as each year finishes and are NOT held
+    # in memory or in the checkpoint. Carrying them meant 2,736 dicts per
+    # year accumulating to ~180,000, re-pickled into the checkpoint on
+    # EVERY year - memory and checkpoint-write cost both growing linearly
+    # in a run already measured in hours. State is 4 arrays of 2,736
+    # floats; that is all a resume actually needs.
+    done = set()
     if os.path.exists(CKPT):
         z = np.load(CKPT, allow_pickle=True)
         smd, cwd = z["smd"], z["cwd"]
         run_len, run_sev = z["run_len"], z["run_sev"]
         done = set(z["done"].tolist())
-        out_rows = z["rows"].tolist()
-        print(f"resuming: {len(done)} years already done", flush=True)
+        print(f"resuming: {len(done)} years already done, "
+              f"appending to the existing CSV", flush=True)
 
     t0 = time.time()
-    for yr in range(args.y0, args.y1 + 1):
+    years = list(range(args.y0, args.y1 + 1))
+    if args.recent_first:
+        years.reverse()
+    for yr in years:
         if yr in done:
             continue
+        if args.hours and (time.time() - t0) / 3600 >= args.hours:
+            print(f"\n--hours {args.hours} reached: stopping cleanly after "
+                  f"{len(done)} years. Rerun the same command to resume.",
+                  flush=True)
+            break
         if not year_files(yr, "rainfall"):
             fetch_year(yr)
         # WITHIN-YEAR deficit, reset every 1 January. The running cwd
@@ -256,8 +276,9 @@ def main():
                                           np.where(deep, run_sev, 0.0))
             if mo in (6, 7, 8):
                 jja_days += nd
+        year_rows = []
         for i, code in enumerate(names):
-            out_rows.append({
+            year_rows.append({
                 "district": str(code), "year": yr,
                 "rain_mm": round(float(acc["rain"][i]), 1),
                 "tmax_mean_c": round(float(acc["tmax"][i]) / days, 2),
@@ -273,12 +294,12 @@ def main():
                 "freeze_spell_days": int(acc["spell_days"][i]),
                 "worst_spell_degc_days": round(float(acc["worst"][i]), 1),
             })
+        append_csv(year_rows)
         if not args.keep:
             drop_year(yr)
         done.add(yr)
         np.savez_compressed(CKPT, smd=smd, cwd=cwd, run_len=run_len,
-                            run_sev=run_sev, done=np.array(sorted(done)),
-                            rows=np.array(out_rows, dtype=object))
+                            run_sev=run_sev, done=np.array(sorted(done)))
         el = (time.time() - t0) / 60
         left = len(range(args.y0, args.y1 + 1)) - len(done)
         print(f"  {yr} done ({len(done)} of "
@@ -286,19 +307,23 @@ def main():
               f"~{el / max(len(done), 1) * left:.0f} min left, "
               f"disk free {shutil.disk_usage('C:/')[2] / 1e9:.0f} GB",
               flush=True)
-        write_csv(out_rows)
-    write_csv(out_rows)
-    print(f"\nwrote {OUT}: {len(out_rows):,} rows, "
-          f"{(time.time() - t0) / 60:.0f} min", flush=True)
+    print(f"{OUT}: {len(done)} years done, "
+          f"{(time.time() - t0) / 60:.0f} min this session", flush=True)
 
 
-def write_csv(rows):
+def append_csv(rows):
+    """Append one year. The header is written only when the file is new,
+    so a resumed session continues the same CSV instead of truncating it.
+    """
     import csv
     if not rows:
         return
-    with open(OUT, "w", newline="") as fh:
+    new = not os.path.exists(OUT)
+    with open(OUT, "a", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
-        w.writeheader()
+        if new:
+            w.writeheader()
+        w.writerows(rows)
         w.writerows(rows)
 
 
