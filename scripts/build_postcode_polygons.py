@@ -12,8 +12,8 @@ district layer it was cut out of.
 Building bottom-up inverts that dependency and fixes both grains at
 once:
 
-    1.8 M unit postcodes  ->  Voronoi  ->  dissolve by sector digit
-                                       ->  dissolve by district
+    1.72 M residential postcodes -> Voronoi -> dissolve by sector digit
+                                            -> dissolve by district
 
 A district is then, by construction, exactly the union of its sectors,
 and both are derived from the same authoritative centroids rather than
@@ -32,26 +32,42 @@ also where households are fewest and the model cares least.
 
 COASTLINE. Raw Voronoi cells run to infinity, and coastal ones run out
 to sea, so a coastal sector would claim tens of km2 of water and its
-per-hectare quantities would be wrong. Cells are therefore clipped to
-the ONS full-resolution UK coastline (BFC, December 2025). Only sectors
-whose envelope actually meets the coast are intersected - inland sectors
-pass through untouched, which is what makes a full-resolution clip
-affordable over 10,645 sectors rather than the "tens of minutes"
-fetch_countries.py records for the same boundary against 2,736.
+per-hectare quantities would be wrong. Cells are clipped to the ONS
+full-resolution UK coastline (BFC, December 2025). 1,830 of the 9,834
+sectors actually meet the coast; the clip block below explains why
+finding those cheaply is harder than it looks.
+
+That clip is also what fixes the worst of the old geometry. Measured
+against the published districts the median IoU is 0.908 - a refinement,
+not a redraw - but the low tail is all coastline: TR22 (St Mary's,
+Scilly) was 49.7 km2 and is 1.8; PA76 (Iona) was 56.6 and is 8.9
+against a true 8.77; CH47 (Hoylake) was 46.6 and is 7.6. The old
+polygons were claiming open sea.
 
 NORTHERN IRELAND. This is what lets NI exist at all: it adds 80
-districts and 247 sectors that no GB-only source could supply. See
+districts and 245 sectors that no GB-only source could supply, and they
+come out at 14,330 km2 against a true NI land area of 14,130. See
 fetch_onspd.py for the Irish Grid trap that has to be avoided to get
-their coordinates right.
+their coordinates right, and for why large-user postcodes are excluded.
+
+TWO LAYERS, AND THEY ARE NOT INTERCHANGEABLE. The full-resolution
+output is ANALYSIS geometry - it is what hazard fractions, areas and
+spatial joins should be computed against, and at 214 MB it is far too
+large to serve. The display copies are coverage-simplified for the
+browser. Never compute a number from the display layer.
 
 Output: data/sectors_uk.gpkg    (sector, district, area, country, n_units)
         data/districts_uk.gpkg  (name, area, country, n_units, n_sectors)
         data/districts_uk.geojson  (EPSG:4326, drop-in for load_districts)
+        data/sectors_uk_display.geojson    (simplified, for the map)
+        data/districts_uk_display.geojson  (simplified, for the map)
 
 Usage:
   build_postcode_polygons.py
-  build_postcode_polygons.py --no-clip     # skip the coastline (faster, for
-                                           # checking the Voronoi alone)
+  build_postcode_polygons.py --no-clip      # skip the coastline (faster,
+                                            # for checking Voronoi alone)
+  build_postcode_polygons.py --display-m 50 # coarser display layer
+  build_postcode_polygons.py --display-m 0  # analysis geometry only
 """
 
 import argparse
@@ -73,6 +89,8 @@ LAND_WKB = os.path.join(CACHE, "uk_land.wkb")
 OUT_SEC = os.path.join(DATA, "sectors_uk.gpkg")
 OUT_DIS = os.path.join(DATA, "districts_uk.gpkg")
 OUT_DIS_JSON = os.path.join(DATA, "districts_uk.geojson")
+OUT_SEC_DISP = os.path.join(DATA, "sectors_uk_display.geojson")
+OUT_DIS_DISP = os.path.join(DATA, "districts_uk_display.geojson")
 
 SERVICE = ("https://services1.arcgis.com/ESMARspQHYMw9BZ9/arcgis/rest/"
            "services/Countries_December_2025_Boundaries_UK_BFC"
@@ -174,6 +192,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--no-clip", action="store_true",
                     help="skip the coastline clip")
+    ap.add_argument("--display-m", type=float, default=25.0,
+                    help="tolerance for the simplified display copies, in "
+                         "metres; 0 to skip. Set at the SECTOR scale.")
     args = ap.parse_args()
 
     import geopandas as gpd
@@ -292,6 +313,9 @@ def main():
 
     validate(sec, dis, clipped=not args.no_clip)
 
+    if args.display_m > 0:
+        write_display(sec, args.display_m)
+
     sec.to_file(OUT_SEC, driver="GPKG")
     dis.to_file(OUT_DIS, driver="GPKG")
     dis.to_crs(4326).to_file(OUT_DIS_JSON, driver="GeoJSON")
@@ -299,6 +323,72 @@ def main():
     print(f"  wrote {OUT_DIS}")
     print(f"  wrote {OUT_DIS_JSON}")
     print(f"  total {time.time() - t0:.0f}s")
+
+
+def write_display(sec, tol):
+    """Simplified copies for the browser, with the nesting preserved.
+
+    Full-resolution geometry is 214 MB against the 6.5 MB currently
+    published - unusable in a browser. But build_map.py:43 rejects
+    simplifying for a real reason: simplifying each polygon on its own
+    moves a shared boundary differently in each neighbour and leaves
+    slivers and gaps between them.
+
+    shapely.coverage_simplify() is the answer, and it applies here only
+    because these polygons were built as a true coverage in the first
+    place - a shared edge is literally the same edge, so it moves once.
+    Measured over the 2,818 districts, the union of the simplified set
+    still equals the sum of their areas at every tolerance tried, which
+    is exactly the sliver check:
+
+        tol     coords      area        union
+        full  4,904,259   244,378
+        25 m    660,846   244,380     244,380
+        50 m    434,103   244,380     244,380
+        100 m   291,790   244,377     244,377
+
+    SECTORS ARE SIMPLIFIED, DISTRICTS ARE DISSOLVED FROM THEM. Doing the
+    two grains independently would move their shared coastline by
+    different amounts and break the one invariant this rebuild exists to
+    establish - that a district IS the union of its sectors. Simplifying
+    once at the finer grain keeps it true in the display layer too.
+
+    Tolerance is set at the SECTOR scale, not the district scale: an
+    urban sector can be a few hundred metres across, so a tolerance
+    chosen to flatter districts would visibly deform them.
+    """
+    import geopandas as gpd
+    import shapely
+
+    print(f"  building display geometry at {tol:.0f} m...", flush=True)
+    t = time.time()
+    out = sec.copy()
+    out["geometry"] = shapely.coverage_simplify(
+        sec.geometry.values, tolerance=tol, simplify_boundary=True)
+    out["geometry"] = shapely.make_valid(out.geometry.values)
+
+    dkeys, dgeoms = dissolve_by(out.geometry.values,
+                                out["district"].to_numpy())
+    dd = gpd.GeoDataFrame({"name": dkeys}, geometry=list(dgeoms), crs=27700)
+    dmeta = (out.groupby("district")
+                .agg(area=("area", "first"), country=("country", "first"),
+                     n_units=("n_units", "sum"), n_sectors=("sector", "size"))
+                .reset_index().rename(columns={"district": "name"}))
+    dd = dd.merge(dmeta, on="name", how="left")
+
+    a_sec = shapely.area(out.geometry.values).sum() / 1e6
+    a_dis = shapely.area(dd.geometry.values).sum() / 1e6
+    if abs(a_sec - a_dis) / max(a_sec, 1) > 0.001:
+        raise SystemExit(
+            f"display grains diverged: sectors {a_sec:,.0f} km2 vs districts "
+            f"{a_dis:,.0f} km2. The dissolve should make these identical.")
+    print(f"     {shapely.get_num_coordinates(out.geometry.values).sum():,} "
+          f"coords, {a_dis:,.0f} km2, {time.time() - t:.0f}s", flush=True)
+
+    out.to_crs(4326).to_file(OUT_SEC_DISP, driver="GeoJSON")
+    dd.to_crs(4326).to_file(OUT_DIS_DISP, driver="GeoJSON")
+    for p in (OUT_SEC_DISP, OUT_DIS_DISP):
+        print(f"  wrote {p} ({os.path.getsize(p) / 1e6:.1f} MB)")
 
 
 def validate(sec, dis, clipped=True):

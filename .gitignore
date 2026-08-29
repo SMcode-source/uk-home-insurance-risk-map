@@ -71,3 +71,5 @@ data/cache/uk_land.wkb
 data/districts_uk.gpkg
 data/districts_uk.geojson
 data/sectors_uk.gpkg
+data/sectors_uk_display.geojson
+data/districts_uk_display.geojson
