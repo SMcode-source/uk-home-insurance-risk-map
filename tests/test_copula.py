@@ -1962,3 +1962,46 @@ def test_readme_calibration_table_matches_the_model():
         + "\n  ".join(wrong)
         + "\n(README.md is hand-written - fix it there, then re-run "
           "scripts/anchor_budget.py)")
+
+
+def test_severity_sigma_cannot_move_capital():
+    """SEV_SIGMA affects DIAGNOSTICS only - never the published premium.
+
+    Both places the premium comes from take the severity's MEAN and
+    nothing else:
+
+      simulate()  el_<peril> = p * exp(mu + sigma^2/2)          (analytic EL)
+      simulate()  cond_expected(...) = q * exp(mu + sigma^2/2)  (year_loss,
+                  from which tvar99_euler and therefore capital are built)
+
+    and marginal_params sets mu = log(_median_for_mean(M, s)), with
+    _median_for_mean(M, s) = M / exp(s^2/2). So exp(mu + s^2/2) == M and
+    sigma cancels out of both, exactly.
+
+    That is deliberate, not an oversight: averaging REALISED losses over
+    the worst 200 of 20,000 years made the allocation correlate 0.49 with
+    itself across seeds, and conditioning on the systemic draw took it to
+    0.9985 (see the methodology page, "Averaging expectations, not
+    accidents"). The price is that capital responds to frequency
+    CLUSTERING and never to severity DISPERSION.
+
+    Gate 3 priced SEV_SIGMA["eow"] at 0.96 / 1.00 / 1.20 / 1.41 on CI
+    (run 33217184873) and got tvar99_euler identical to the last bit in
+    all four. This test is that result turned into a guard, so nobody
+    spends another CI run discovering it. If the model ever SHOULD charge
+    capital for severity dispersion, this test is the one to change, and
+    changing it means revisiting the seed-stability result above.
+    """
+    for M in (4_000.0, 17_264.0, 30_000.0):
+        base = None
+        for s in (0.35, 0.80, 0.96, 1.00, 1.20, 1.41, 1.60):
+            mu = np.log(bm._median_for_mean(M, s))
+            mean = np.exp(mu + s * s / 2)
+            assert abs(mean / M - 1) < 1e-12, (
+                f"severity mean moved with sigma: M={M}, sigma={s}, "
+                f"got {mean}")
+            if base is None:
+                base = mean
+            # every sigma must give the SAME mean, not merely the right one
+            assert abs(mean - base) < 1e-9 * M, (
+                f"sigma {s} changed the mean by {mean - base:.3e} on {M}")

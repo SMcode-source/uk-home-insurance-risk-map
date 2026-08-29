@@ -89,6 +89,66 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## Gate 3 PRICED 2026-08-28: the answer is exactly zero, and provably
+
+`exp/eow-sigma`, CI run 33217184873, four full 20,000-year simulations
+off one scored frame: `SEV_SIGMA["eow"]` at **0.96 / 1.00 / 1.20 /
+1.41**, spanning both ABI readings.
+
+| sigma | EL | tvar99_euler | capital | premium | churn |
+|---|---|---|---|---|---|
+| 1.00 | 164.121341 | 256.3502754466515 | 5.533736 | 169.655077 | — |
+| 0.96 | 164.121341 | **256.3502754466515** | 5.533736 | 169.655077 | 0 |
+| 1.20 | 164.121341 | **256.3502754466515** | 5.533736 | 169.655077 | 0 |
+| 1.41 | 164.121341 | **256.3502754466515** | 5.533736 | 169.655077 | 0 |
+
+`tvar99_euler` is identical **to the last bit** in all four. That is not
+a broken harness — sigma demonstrably reached the model, because
+`el_eow` wobbles by 2.8e-14, exactly the ULP signature of the
+`M / exp(s^2/2) * exp(s^2/2)` round trip. It is the right answer.
+
+**Why.** Both places the premium comes from take the severity's MEAN and
+nothing else:
+
+    simulate()        el_eow = p_eow * exp(mu + s^2/2)
+    cond_expected()   q * exp(mu + s^2/2)   -> year_loss -> tvar99_euler
+                                            -> capital -> premium
+
+and `mu = log(_median_for_mean(M, s)) = log(M) - s^2/2`, so
+`exp(mu + s^2/2) == M` and **sigma cancels in both**, exactly, per
+district. I had checked the first identity and assumed the second did
+not hold. It does.
+
+**This is deliberate and it is already on the published page** — the
+methodology's "Averaging expectations, not accidents" gives the formula
+as `Phi(...) x E[severity_i]`. Averaging REALISED losses over the worst
+200 of 20,000 years made the Euler allocation correlate **0.49** with
+itself across seeds; conditioning on the systemic draw took it to
+**0.9985**. The price of that fix, never stated until now, is that
+**capital responds to frequency CLUSTERING and never to severity
+DISPERSION**.
+
+**So the whole `SEV_SIGMA` table is invisible to the premium** — not
+just EoW's. It reaches only `tvar99_vine`, `tvar99_indep` and
+`var995_*`, which are diagnostics. That is now written at the
+definition site in `build_model.py` and guarded by
+`test_severity_sigma_cannot_move_capital`, so the next person does not
+spend a CI run rediscovering it.
+
+**What this does and does not settle.** Gate 3 is closed: neither the
+burst-pipe leg (no anchor, and no geography for one) nor the sigma
+variant (no effect, provably) can ship. It does NOT say severity
+dispersion is irrelevant to a home insurer — it says THIS model does not
+charge for it, by a choice made for seed stability. If that should
+change, the test named above is the one to change, and changing it means
+re-opening the 0.49-vs-0.9985 result.
+
+**Process note, since it cost a CI run.** The answer was derivable by
+reading `cond_expected` before launching anything. I verified the EL
+identity analytically and took the capital path on trust. The run was
+not wasted — it is the evidence behind the guard — but it should have
+been a confirmation, not a discovery.
+
 ## Gate 3 prep 2026-08-28: the burst-pipe breakout has NO shippable anchor
 
 Gate 3 proposes splitting burst pipes out of the escape-of-water leg as
@@ -171,14 +231,10 @@ just on severity. That strengthens the verdict rather than weakening it,
 but the sigma option is a different question, not a cheaper version of
 the same one.
 
-**And it is a pure CAPITAL question.** `_median_for_mean` picks the
-lognormal median so the MEAN stays at the anchor, so changing
-`SEV_SIGMA["eow"]` leaves `E[sev]` untouched, leaves `p_eow` untouched,
-and therefore leaves **EL exactly unchanged** — only the tail, and hence
-capital, moves. This is the same invariance Gate 1 leaned on for the
-subsidence severity, and it bounds the whole question: capital is
-GBP5.53 of the GBP169.66 premium, so no sigma choice can move the
-headline by more than a fraction of that.
+**And it is a pure capital question — WRONG, and the CI run says so.**
+I wrote here that sigma leaves EL unchanged and "only the tail, and
+hence capital, moves", bounded by the GBP5.53 capital charge. The bound
+is not a fraction of GBP5.53. **It is zero.** See the section below.
 
 **What would change the answer.** A third year on the winter-advice
 basis, which arrives each winter; or an ABI release that states burst

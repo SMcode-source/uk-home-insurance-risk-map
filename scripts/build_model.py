@@ -389,6 +389,26 @@ _median_for_mean = lambda mean, sigma: mean / np.exp(sigma ** 2 / 2)
 # first commit and drifted six cells wide once the ABI calibration landed
 # (HANDOFF, defect 3). The per-peril REASONING for each value stays at the
 # point of use in marginal_params, which is the only place they are read.
+# Lognormal severity SPREAD per peril. Read this before pricing one:
+# NONE of these can move the published premium, and that is by design.
+# Both places the premium comes from take the severity's MEAN only -
+# simulate()'s analytic el_<peril> = p * exp(mu + sigma^2/2), and
+# cond_expected()'s q * exp(mu + sigma^2/2), which builds year_loss and
+# hence tvar99_euler and hence capital. marginal_params sets
+# mu = log(_median_for_mean(M, s)) = log(M) - s^2/2, so exp(mu + s^2/2)
+# is M and sigma cancels exactly, per district, in both.
+#
+# That is the price of the variance reduction that made the Euler
+# allocation reproducible (seed correlation 0.49 -> 0.9985; see the
+# methodology page, "Averaging expectations, not accidents"): capital
+# responds to frequency CLUSTERING, never to severity DISPERSION. These
+# sigmas therefore reach only the diagnostic columns - tvar99_vine,
+# tvar99_indep, var995_*.
+#
+# Measured, so nobody has to again: Gate 3 priced eow at 0.96 / 1.00 /
+# 1.20 / 1.41 on CI (run 33217184873) and tvar99_euler came back
+# identical to the LAST BIT in all four. Guarded by
+# test_severity_sigma_cannot_move_capital.
 SEV_SIGMA = dict(sub=0.90, wx=1.10, fl=0.90, gw=0.80, er=0.35,
                  th=1.00, eow=1.00, fire=1.30, ad=0.90)
 
