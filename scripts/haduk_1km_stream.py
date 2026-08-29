@@ -194,7 +194,19 @@ def main():
     t0 = time.time()
     years = list(range(args.y0, args.y1 + 1))
     if args.recent_first:
+        # Running newest-first means the SMD bucket, the uncapped deficit
+        # and any freeze spell would carry BACKWARDS across a year
+        # boundary, which is meaningless. So in this mode every year
+        # starts clean and years become independent. The cost is exact
+        # and small: cwd_run_max (multi-year drought memory) cannot be
+        # formed at all and is emitted blank, and a freeze spell running
+        # across 31 December is split in two. cwd_yr_max, the index this
+        # is actually for, is reset each 1 January anyway and is
+        # IDENTICAL either way.
         years.reverse()
+        print("  --recent-first: years processed independently; "
+              "cwd_run_max_mm left blank, New Year freeze spells split",
+              flush=True)
     for yr in years:
         if yr in done:
             continue
@@ -205,6 +217,9 @@ def main():
             break
         if not year_files(yr, "rainfall"):
             fetch_year(yr)
+        if args.recent_first:
+            smd[:] = 0.0; cwd[:] = 0.0
+            run_len[:] = 0; run_sev[:] = 0.0
         # WITHIN-YEAR deficit, reset every 1 January. The running cwd
         # below is floored at zero but not capped, so in a district that
         # never fully rewets it carries over - which makes its value
@@ -286,7 +301,8 @@ def main():
                 "pet_mm": round(float(acc["pet"][i]), 1),
                 "smd_max_mm": round(float(acc["smd_max"][i]), 1),
                 "cwd_yr_max_mm": round(float(acc["cwd_yr_max"][i]), 1),
-                "cwd_run_max_mm": round(float(acc["cwd_max"][i]), 1),
+                "cwd_run_max_mm": ("" if args.recent_first
+                                   else round(float(acc["cwd_max"][i]), 1)),
                 "smd_jja_mean_mm": round(
                     float(acc["smd_jja"][i]) / max(jja_days, 1), 1),
                 "frost_days": int(acc["frost"][i]),
