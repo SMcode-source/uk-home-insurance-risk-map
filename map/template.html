@@ -369,24 +369,23 @@ const notMapped = p => p.country && p.country !== 'England';
 const fmtGBP = v => '£' + Math.round(v).toLocaleString('en-GB');
 const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
 
-function quantileBreaks(values, n) {
-  const s = [...values].sort((a, b) => a - b);
-  const br = [];
-  for (let i = 1; i < n; i++) br.push(s[Math.floor(i * s.length / n)]);
-  return br;
-}
-
-/* Everything below needs DATA (quantile breaks, the layer, the deep
-   link), so it all lives in one init function called when the fetch
-   lands. */
-function initMap(DATA) {
-
-const feats = DATA.features;
-const vals = k => feats.map(f => f.properties[k]);
+/* Quantile breaks for premium, 1-in-200, capital and erosion, cut by
+   scripts/build_map.py over the whole country at build time. They used
+   to be cut here, in the browser, from the loaded features - which only
+   works while "the loaded features" means all of them. Under vector
+   tiles it means the viewport's, so the scale (and the legend printed
+   from it) would shift as you panned. Fixed nationally, once. */
+const BREAKS = __QUANTILE_BREAKS__;
 
 /* Erosion bins are cut over the COASTAL districts only — quantiles across
    all 2,700 would put every break at zero. */
-const EROSION_BREAKS = quantileBreaks(vals('er_smp105').filter(v => v > 0), 7);
+const EROSION_BREAKS = BREAKS.er_smp105;
+
+/* Everything below needs DATA (the layer, the deep link), so it all
+   lives in one init function called when the fetch lands. */
+function initMap(DATA) {
+
+const feats = DATA.features;
 
 /* Climate repricing uses the DIVERGING ramp, whose neutral swatch is the
    middle of seven. The breaks must therefore straddle zero at that middle
@@ -419,7 +418,7 @@ const METRICS = {
   premium: {
     label: 'Technical premium (£)',
     legend: 'Technical premium, £/policy/yr (quantile bins)',
-    ramp: RAMP_BLUE, breaks: quantileBreaks(vals('premium'), 7),
+    ramp: RAMP_BLUE, breaks: BREAKS.premium,
     value: p => p.premium, fmt: fmtGBP,
     tip: p => fmtGBP(p.premium) + '/yr',
   },
@@ -454,14 +453,14 @@ const METRICS = {
   var995: {
     label: '1-in-200 combined loss (£)',
     legend: '99.5% VaR of combined annual loss (C-vine)',
-    ramp: RAMP_BLUE, breaks: quantileBreaks(vals('var995_vine'), 7),
+    ramp: RAMP_BLUE, breaks: BREAKS.var995_vine,
     value: p => p.var995_vine, fmt: fmtGBP,
     tip: p => fmtGBP(p.var995_vine),
   },
   capital: {
     label: 'Capital charge (£)',
     legend: 'Capital charge — Euler share of portfolio tail risk',
-    ramp: RAMP_DIVERGING, breaks: quantileBreaks(vals('capital'), 7),
+    ramp: RAMP_DIVERGING, breaks: BREAKS.capital,
     value: p => p.capital, fmt: fmtGBP,
     tip: p => fmtGBP(p.capital) + ' of ' + fmtGBP(p.premium) + ' premium',
   },

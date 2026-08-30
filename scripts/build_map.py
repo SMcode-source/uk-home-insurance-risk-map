@@ -64,6 +64,35 @@ def columns_read_by_template(template=None):
     return cols
 
 
+def quantile_breaks(values, n):
+    """The `quantileBreaks` in map/template.html, moved to build time.
+
+    The JS cut these from whatever features were loaded. That was fine
+    while the browser fetched the whole country as one file, and wrong
+    the moment it stops doing so: under vector tiles only the viewport's
+    tiles are present, so a district would change colour - and the
+    legend change under it - as you panned. Cutting them here fixes the
+    scale to the full national distribution, once.
+
+    Must stay identical to the JS it replaces (sort ascending, take
+    s[floor(i * len / n)]) or every published map silently recolours.
+    """
+    s = sorted(values)
+    return [s[(i * len(s)) // n] for i in range(1, n)]
+
+
+# Metric -> which units it cuts over. Erosion is cut over the COASTAL
+# units alone: quantiles across every district would put all six breaks
+# at zero, since most of the country is nowhere near the sea.
+QUANTILE_METRICS = {
+    "premium":     lambda p: True,
+    "var995_vine": lambda p: True,
+    "capital":     lambda p: True,
+    "er_smp105":   lambda p: p["er_smp105"] > 0,
+}
+QUANTILE_N = 7
+
+
 def web_asset(geojson_path, keep):
     """Minified GeoJSON carrying only `keep`, rounded for the wire.
 
@@ -96,8 +125,13 @@ def web_asset(geojson_path, keep):
             props[k] = v
         out.append({"type": "Feature", "properties": props,
                     "geometry": feat["geometry"]})
-    return json.dumps({"type": "FeatureCollection", "features": out},
-                      separators=(",", ":")), len(out)
+    # The rounded properties come back too: the quantile breaks must be
+    # cut over the values the BROWSER sees, not the full-precision ones,
+    # or a build-time break can land a hair off a rounded value and move
+    # a unit into the neighbouring colour.
+    return (json.dumps({"type": "FeatureCollection", "features": out},
+                       separators=(",", ":")),
+            len(out), [f["properties"] for f in out])
 
 
 # (model output, page, data asset, substitutions)
@@ -159,7 +193,10 @@ def main():
     print(f"template reads {len(keep)} columns")
 
     for b in BUILDS:
-        data, n = web_asset(b["source"], keep)
+        data, n, props = web_asset(b["source"], keep)
+        breaks = {k: quantile_breaks([p[k] for p in props if pick(p)],
+                                     QUANTILE_N)
+                  for k, pick in QUANTILE_METRICS.items()}
         # The two headline figures were HARDCODED in map/template.html
         # until 2026-08-25 ("~GBP 170/policy/yr, around 77%"). Nothing
         # regenerated them, so both published map pages kept quoting a
@@ -179,6 +216,8 @@ def main():
                 .replace("__SIBLING_LINK__", b["sibling"])
                 .replace("__GEOGRAPHY_NOTE__", b["note"])
                 .replace("__OMIT_METRICS__", json.dumps(b["omit"]))
+                .replace("__QUANTILE_BREAKS__",
+                         json.dumps(breaks, separators=(",", ":")))
                 .replace("__N_UNITS__", f"{n:,}")
                 .replace("__UNIT_PLURAL__", b["unit_plural"])
                 .replace("__UNIT__", b["unit"])
