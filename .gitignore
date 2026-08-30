@@ -42,6 +42,7 @@ data/midas/
 # Build outputs — the published copies live in docs/ (built by build_site.py)
 map/uk_home_insurance_risk_map.html
 map/uk_sector_risk_map.html
+map/uk_relative_risk_map.html
 map/map_data.geojson
 map/sector_data.geojson
 map/tiles/

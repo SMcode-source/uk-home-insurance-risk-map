@@ -5,23 +5,23 @@
 <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
-<meta name="description" content="Eleven layers across 2,736 postcode districts: rating group, premium, each peril score, surface-water depth, coastal erosion and the climate repricing. Click any district for its breakdown.">
+<meta name="description" content="Every postcode district's modelled premium as a multiple of the UK median: 2.00x means homes there carry twice the median risk. The same model, re-expressed for comparison.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="UK Home Insurance Risk Map">
-<meta property="og:title" content="The model — UK Home Insurance Risk Map">
-<meta property="og:description" content="Eleven layers across 2,736 postcode districts: rating group, premium, each peril score, surface-water depth, coastal erosion and the climate repricing. Click any district for its breakdown.">
-<meta property="og:url" content="https://smcode-source.github.io/uk-home-insurance-risk-map/map.html">
+<meta property="og:title" content="Relative risk — UK Home Insurance Risk Map">
+<meta property="og:description" content="Every postcode district's modelled premium as a multiple of the UK median: 2.00x means homes there carry twice the median risk. The same model, re-expressed for comparison.">
+<meta property="og:url" content="https://smcode-source.github.io/uk-home-insurance-risk-map/relative.html">
 <meta property="og:image" content="https://smcode-source.github.io/uk-home-insurance-risk-map/assets/social.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Choropleth of Great Britain shaded by home-insurance rating group, with the title UK Home Insurance Risk Map">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="The model — UK Home Insurance Risk Map">
-<meta name="twitter:description" content="Eleven layers across 2,736 postcode districts: rating group, premium, each peril score, surface-water depth, coastal erosion and the climate repricing. Click any district for its breakdown.">
+<meta name="twitter:title" content="Relative risk — UK Home Insurance Risk Map">
+<meta name="twitter:description" content="Every postcode district's modelled premium as a multiple of the UK median: 2.00x means homes there carry twice the median risk. The same model, re-expressed for comparison.">
 <meta name="twitter:image" content="https://smcode-source.github.io/uk-home-insurance-risk-map/assets/social.png">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The model — UK Home Insurance Risk Map</title>
+<title>Relative risk — UK Home Insurance Risk Map</title>
 <!-- MapLibre and the PMTiles protocol are LINKED, not inlined as Leaflet
      was. Inlining made sense at 47 KB gzipped for one page; at 267 KB
      across two map pages it would be paid twice and re-paid on every
@@ -250,7 +250,7 @@ body { overflow: hidden; }
 </style>
 </head>
 <body>
-<nav class="site-nav"><a class="brand" href="index.html"><span class="dots"><i style="background:var(--sub)"></i><i style="background:var(--wx)"></i><i style="background:var(--fl)"></i><i style="background:var(--gw)"></i></span><span class="txt">UK Home Insurance Risk Map</span></a><a class="navlink" href="index.html">Overview</a><a class="navlink" href="years.html"><span class="nav-full">What happened</span><span class="nav-short">History</span></a><a class="navlink" href="map.html" aria-current="page"><span class="nav-full">The model</span><span class="nav-short">Model</span></a><a class="navlink" href="relative.html"><span class="nav-full">Relative risk</span><span class="nav-short">Relative</span></a><a class="navlink" href="methodology.html"><span class="nav-full">Methodology</span><span class="nav-short">Method</span></a><span class="spacer"></span><a class="ghlink" href="https://github.com/SMcode-source/uk-home-insurance-risk-map">GitHub ↗</a></nav>
+<nav class="site-nav"><a class="brand" href="index.html"><span class="dots"><i style="background:var(--sub)"></i><i style="background:var(--wx)"></i><i style="background:var(--fl)"></i><i style="background:var(--gw)"></i></span><span class="txt">UK Home Insurance Risk Map</span></a><a class="navlink" href="index.html">Overview</a><a class="navlink" href="years.html"><span class="nav-full">What happened</span><span class="nav-short">History</span></a><a class="navlink" href="map.html"><span class="nav-full">The model</span><span class="nav-short">Model</span></a><a class="navlink" href="relative.html" aria-current="page"><span class="nav-full">Relative risk</span><span class="nav-short">Relative</span></a><a class="navlink" href="methodology.html"><span class="nav-full">Methodology</span><span class="nav-short">Method</span></a><span class="spacer"></span><a class="ghlink" href="https://github.com/SMcode-source/uk-home-insurance-risk-map">GitHub ↗</a></nav>
 <main aria-label="Interactive risk map">
 <!-- The districts render to a single canvas, so there is nothing under
      the pointer for a screen reader or keyboard — no per-district DOM at
@@ -272,7 +272,7 @@ page</a>.</p>
   <!-- Two resolutions of the same model, published side by side. Each
        map links to the other, because "there is a finer view of this"
        is invisible from inside a map. -->
-  <div class="sub scale-switch">Districts &middot; <a href="sectors.html">switch to the finer postcode-sector map &rarr;</a></div>
+  <div class="sub scale-switch">Relative &middot; <a href="map.html">see every model layer on the full map &rarr;</a></div>
   <!-- The keyboard route to any district: the polygons render to one
        canvas, so this box is the only non-pointer way in. A native
        datalist, because it gets combobox keyboard/reader behaviour right
@@ -386,7 +386,7 @@ page</a>.</p>
   while TVaR stays monotone in dependence. <b>Rating groups are deciles of THIS map's
   own units</b>, so a group 7 sector and a group 7 district are not the same
   population &mdash; compare the premiums, not the group numbers.</p>
-  
+  <p><b>Reading this map.</b> This is the <b>same technical premium</b> as the model map, re-expressed: each district is shown as a multiple of the UK median premium (&pound;164/yr, household-weighted), so 2.00&times; means homes there carry twice the median modelled risk. Nothing new is modelled on this page &mdash; it exists because &ldquo;2.4&times; the UK median&rdquo; answers &ldquo;how exposed is my area?&rdquo; more directly than a &pound; figure does.</p>
   <p class="note">Hazard data: BGS Geology 625k, Met Office HadUK-Grid / Climate
   Data Portal (incl. air-frost days), EA / NRW / SEPA flood maps, EA flood-risk
   postcode data, police.uk street-level burglary (all OGL).
@@ -473,7 +473,7 @@ const BREAKS = {"premium":[138.2,150.3,161.5,172.5,185.8,206.7],"var995_vine":[5
    vote; and a median, not a mean, so the skewed top of the premium
    distribution cannot drag everyone else's ratio. */
 const REL_MEDIAN = 164;
-const DEFAULT_METRIC = 'group';
+const DEFAULT_METRIC = 'rel';
 
 /* Erosion bins are cut over the COASTAL districts only — quantiles across
    all 2,700 would put every break at zero. */
@@ -937,7 +937,7 @@ const btnBox = document.getElementById('metricBtns');
    sector with the "not modelled - England only" grey and caption it as
    a coverage limit, which is a false statement about WHY it is blank.
    Substituted by build_map.py; empty for the district build. */
-const OMIT_METRICS = new Set(["rel"]);
+const OMIT_METRICS = new Set(["group", "premium", "sub_score", "wx_score", "fl_score", "gw_score", "var995", "capital", "sw_depth", "cc_uplift", "erosion"]);
 for (const key of Object.keys(METRICS)) {
   if (OMIT_METRICS.has(key)) continue;
   const b = document.createElement('button');

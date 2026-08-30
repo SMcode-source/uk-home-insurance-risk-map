@@ -382,6 +382,13 @@ const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
    tiles it means the viewport's, so the scale (and the legend printed
    from it) would shift as you panned. Fixed nationally, once. */
 const BREAKS = __QUANTILE_BREAKS__;
+/* Household-weighted median premium across the whole country - the
+   anchor the relative-risk page divides by. Weighted by households, not
+   by unit, so a sparse rural district counts as its people, not as one
+   vote; and a median, not a mean, so the skewed top of the premium
+   distribution cannot drag everyone else's ratio. */
+const REL_MEDIAN = __REL_MEDIAN__;
+const DEFAULT_METRIC = '__DEFAULT_METRIC__';
 
 /* Erosion bins are cut over the COASTAL districts only — quantiles across
    all 2,700 would put every break at zero. */
@@ -436,6 +443,24 @@ const METRICS = {
     ramp: RAMP_BLUE, breaks: BREAKS.premium,
     col: 'premium', fmt: fmtGBP,
     tip: p => fmtGBP(p.premium) + '/yr',
+  },
+  rel: {
+    /* The same premium surface as the metric above, re-expressed as a
+       multiple of the national median - no new model output; it reads
+       the premium column. The bins are NOT the quantile breaks: those
+       split the country into equal sevenths, which on a ratio scale
+       yields bands like "0.98x-1.05x" - technically correct and
+       useless. A relative page is about magnitude, so the bands are
+       fixed multiples of the median, with the middle band straddling
+       1x. Omitted everywhere except the relative-risk page, which
+       exists to answer exactly this one question. */
+    label: 'Relative premium (× UK median)',
+    legend: 'Technical premium as a multiple of the UK median',
+    ramp: RAMP_BLUE,
+    breaks: [0.5, 0.75, 0.9, 1.1, 1.5, 2.5].map(r => r * REL_MEDIAN),
+    col: 'premium', fmt: v => (v / REL_MEDIAN).toFixed(2).replace(/0$/, '') + '×',
+    tip: p => (p.premium / REL_MEDIAN).toFixed(2) + '× the UK median · '
+              + fmtGBP(p.premium) + '/yr',
   },
   sub_score: {
     label: 'Subsidence risk score',
@@ -580,7 +605,7 @@ function fillExpr(m) {
    branch - but a missing country must not read as "not England". */
 const NOT_MAPPED = ['all', ['has', 'country'], ['!=', ['get', 'country'], 'England']];
 
-let current = 'group';
+let current = DEFAULT_METRIC;
 
 /* ---- map ----
 
@@ -872,7 +897,7 @@ function setMetric(key) {
     box.appendChild(row);
   }
 }
-setMetric('group');
+setMetric(DEFAULT_METRIC);
 /* The buttons and legend are built above, before the style exists. The
    fill expression needs a layer to sit on, so re-apply once there is
    one - and after any later style reload, which drops paint overrides. */

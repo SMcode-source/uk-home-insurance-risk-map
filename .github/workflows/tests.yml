@@ -62,7 +62,8 @@ jobs:
           python scripts/build_tiles.py
           python scripts/build_analysis.py
           python scripts/build_site.py
-          for f in docs/index.html docs/map.html docs/years.html \
+          for f in docs/index.html docs/map.html docs/relative.html \
+                   docs/years.html \
                    docs/methodology.html docs/assets/districts.json \
                    docs/assets/tiles/districts.pmtiles \
                    docs/assets/districts_index.json \
