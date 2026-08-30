@@ -64,6 +64,43 @@ def columns_read_by_template(template=None):
     return cols
 
 
+# Read by the popup and nothing else. The popup renders ONE unit at a
+# time, so these need not travel with every unit in the viewport.
+POPUP_ONLY_FUNCS = ("popupHtml", "erosionBlock")
+
+
+def _function_body(tpl, name):
+    """Source of `function <name>(...) {...}`, by brace matching."""
+    m = re.search(r"\bfunction\s+" + name + r"\s*\([^)]*\)\s*\{", tpl)
+    if not m:
+        raise SystemExit(f"map/template.html has no function {name}() - "
+                         f"the tile/popup column split reads it by name")
+    i, depth = m.end(), 1
+    while depth:
+        if tpl[i] == "{":
+            depth += 1
+        elif tpl[i] == "}":
+            depth -= 1
+        i += 1
+    return tpl[m.start():i]
+
+
+def tile_columns(template=None):
+    """Columns a vector tile must carry: everything the template reads
+    OUTSIDE the popup.
+
+    Derived, not listed. A column that colours the map but is missing
+    from the tile paints every unit the same and nothing raises - so the
+    split has to follow the template automatically. Add a metric and its
+    column joins the tile; move a field into the popup and it leaves.
+    """
+    tpl = template if template is not None else read("map", "template.html")
+    outside = tpl
+    for fn in POPUP_ONLY_FUNCS:
+        outside = outside.replace(_function_body(tpl, fn), "")
+    return columns_read_by_template(outside)
+
+
 def quantile_breaks(values, n):
     """The `quantileBreaks` in map/template.html, moved to build time.
 

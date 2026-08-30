@@ -44,6 +44,10 @@ map/uk_home_insurance_risk_map.html
 map/uk_sector_risk_map.html
 map/map_data.geojson
 map/sector_data.geojson
+map/tiles/
+map/units/
+map/districts_index.json
+map/sectors_index.json
 analysis/uk_risk_year_analysis.html
 # fetch_bgs.py resume checkpoints (deleted on a complete fetch)
 data/*.progress.jsonl
