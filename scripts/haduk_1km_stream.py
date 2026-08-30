@@ -321,7 +321,7 @@ def main():
         print(f"  {yr} done ({len(done)} of "
               f"{args.y1 - args.y0 + 1}), {el:.0f} min elapsed, "
               f"~{el / max(len(done), 1) * left:.0f} min left, "
-              f"disk free {shutil.disk_usage('C:/')[2] / 1e9:.0f} GB",
+              f"disk free {shutil.disk_usage(ROOT)[2] / 1e9:.0f} GB",
               flush=True)
     print(f"{OUT}: {len(done)} years done, "
           f"{(time.time() - t0) / 60:.0f} min this session", flush=True)
@@ -339,7 +339,6 @@ def append_csv(rows):
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         if new:
             w.writeheader()
-        w.writerows(rows)
         w.writerows(rows)
 
 
