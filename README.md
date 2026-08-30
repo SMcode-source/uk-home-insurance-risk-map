@@ -9,9 +9,10 @@
 ![Districts: 2,736](https://img.shields.io/badge/districts-2%2C736-6f5cc4?style=flat-square)
 ![Perils: 8 insured + 1](https://img.shields.io/badge/perils-8_insured_%2B_1-52514e?style=flat-square)
 
-**[Interactive map](https://smcode-source.github.io/uk-home-insurance-risk-map/map.html)** ·
+**[What happened](https://smcode-source.github.io/uk-home-insurance-risk-map/years.html)** ·
+**[The model](https://smcode-source.github.io/uk-home-insurance-risk-map/map.html)** ·
 **[Sector map](https://smcode-source.github.io/uk-home-insurance-risk-map/sectors.html)** ·
-**[Good vs bad years](https://smcode-source.github.io/uk-home-insurance-risk-map/years.html)** ·
+**[Relative risk](https://smcode-source.github.io/uk-home-insurance-risk-map/relative.html)** ·
 **[Methodology](https://smcode-source.github.io/uk-home-insurance-risk-map/methodology.html)**
 
 ---
@@ -54,7 +55,8 @@ docs/                         the published website (GitHub Pages source)
   index.html                  landing page: findings + top-risk districts
   map.html                    interactive map (districts), site nav injected
   sectors.html                the same map at postcode-sector resolution
-  years.html                  good-vs-bad-years analysis
+  relative.html               the premium as a multiple of the UK median
+  years.html                  what happened: ABI record + good-vs-bad-years
   methodology.html            full methodology write-up
 site/                         page templates + shared stylesheet for docs/
 tests/test_copula.py          property tests for the copula machinery

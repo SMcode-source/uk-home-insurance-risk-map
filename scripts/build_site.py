@@ -42,7 +42,7 @@ META = {
         "2,736 UK postcode districts — a 5-dim vine copula calibrated to ABI "
         "payouts, plus a climate-change repricing. All open data."),
     "map.html": (
-        "Interactive map — UK Home Insurance Risk Map",
+        "The model — UK Home Insurance Risk Map",
         "Eleven layers across 2,736 postcode districts: rating group, "
         "premium, each peril score, surface-water depth, coastal erosion "
         "and the climate repricing. Click any district for its breakdown."),
@@ -51,11 +51,16 @@ META = {
         "The same model at postcode-sector resolution: 10,398 units "
         "instead of 2,736. Nineteen per cent of districts turn out to "
         "hold sectors that differ by more than 2x in premium."),
+    "relative.html": (
+        "Relative risk — UK Home Insurance Risk Map",
+        "Every postcode district's modelled premium as a multiple of the "
+        "UK median: 2.00x means homes there carry twice the median risk. "
+        "The same model, re-expressed for comparison."),
     "years.html": (
-        "Good years vs bad years — UK Home Insurance Risk Map",
-        "What separates a quiet year from an expensive one: cost by peril, how "
-        "widely claims spread, an exceedance curve, and a backtest against 35 "
-        "years of real UK weather."),
+        "What happened — UK Home Insurance Risk Map",
+        "What UK home insurance actually paid out, year by year, from ABI "
+        "releases — including their own revisions — beside what the model "
+        "says a good, bad or catastrophic year looks like."),
     "methodology.html": (
         "Methodology — UK Home Insurance Risk Map",
         "How the peril scores are built from open data, how the 5-dim C-vine "
@@ -88,10 +93,18 @@ def head_tags(page):
 <meta name="twitter:image" content="{img}">"""
 
 # (href, full label, short label for narrow screens)
+#
+# The four content tabs, in reading order: what actually happened, what
+# the model makes of it, the same model relative to the median, and the
+# methodology that backs both. sectors.html is deliberately NOT here -
+# it is the model tab at a finer grain, reached by the switch link in
+# the map panel, and a sixth nav item bought nothing but width. A
+# temperature tab joins this list when that workstream's remaining
+# gates have reported (see HANDOFF.md).
 PAGES = [("index.html", "Overview", "Overview"),
-         ("map.html", "Map", "Map"),
-         ("sectors.html", "Sector map", "Sectors"),
-         ("years.html", "Good vs bad years", "Years"),
+         ("years.html", "What happened", "History"),
+         ("map.html", "The model", "Model"),
+         ("relative.html", "Relative risk", "Relative"),
          ("methodology.html", "Methodology", "Method")]
 
 # Recognisable names for districts that top the premium ranking.
@@ -1086,6 +1099,8 @@ def main():
                    "map.html", MAP_CSS)
     wrap_generated(os.path.join(ROOT, "map", "uk_sector_risk_map.html"),
                    "sectors.html", MAP_CSS)
+    wrap_generated(os.path.join(ROOT, "map", "uk_relative_risk_map.html"),
+                   "relative.html", MAP_CSS)
     wrap_generated(os.path.join(ROOT, "analysis", "uk_risk_year_analysis.html"),
                    "years.html", YEARS_CSS)
 

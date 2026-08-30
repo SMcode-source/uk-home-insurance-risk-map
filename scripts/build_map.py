@@ -174,6 +174,42 @@ def rounded_props(geojson_path, keep):
     return out
 
 
+def metric_keys(template=None):
+    """Every metric key the template's METRICS object declares.
+
+    Parsed rather than listed so the relative-risk build's "omit all but
+    one" set cannot drift when a metric is added: a hand-kept list would
+    silently let the new metric onto a page built to show exactly one.
+    """
+    tpl = template if template is not None else read("map", "template.html")
+    block = tpl[tpl.index("const METRICS = {"):]
+    block = block[:block.index("\n};")]
+    keys = re.findall(r"^  (\w+): \{", block, re.M)
+    if len(keys) < 10:
+        raise SystemExit(f"metric_keys found only {keys} - the METRICS "
+                         f"declaration moved and the parser went stale")
+    return keys
+
+
+def weighted_median_premium(props):
+    """Household-weighted median premium - the relative page's anchor.
+
+    Weighted so a district counts as its people, not as one vote, and a
+    median so the skewed top of the distribution cannot drag everyone
+    else's ratio. Rounded to whole pounds: the figure is injected into a
+    published page, and sub-pound precision would imply the model
+    resolves the median finer than its inputs do.
+    """
+    rows = sorted((p["premium"], p.get("households", 1)) for p in props)
+    total = sum(w for _, w in rows)
+    acc = 0
+    for v, w in rows:
+        acc += w
+        if acc >= total / 2:
+            return round(v)
+    return round(rows[-1][0])
+
+
 # (model output, page, data asset, substitutions)
 BUILDS = [
     dict(
@@ -182,8 +218,9 @@ BUILDS = [
         grain="districts",
         unit="district", unit_plural="districts", example="YO25",
         csv="assets/uk_district_risk.csv",
-        omit=[],
-        title="Interactive map — UK Home Insurance Risk Map",
+        omit=["rel"],
+        default="group",
+        title="The model — UK Home Insurance Risk Map",
         sibling='Districts &middot; <a href="sectors.html">switch to the '
                 'finer postcode-sector map &rarr;</a>',
         note="",
@@ -194,10 +231,12 @@ BUILDS = [
         grain="sectors",
         unit="sector", unit_plural="sectors", example="YO25 6",
         csv="assets/uk_sector_risk.csv",
-        # nothing omitted: the EA climate editions were re-fetched over
+        # only the relative view is omitted (it has its own page at
+        # district grain): the EA climate editions were re-fetched over
         # the sectors on 2026-08-12, so this map carries every layer the
         # district map does
-        omit=[],
+        omit=["rel"],
+        default="group",
         title="Sector map — UK Home Insurance Risk Map",
         sibling='Sectors &middot; <a href="map.html">back to the '
                 'postcode-district map &rarr;</a>',
@@ -209,6 +248,34 @@ BUILDS = [
              '&mdash; NRS&rsquo;s official Scottish sectors &mdash; the '
              'derivation adds no measurable error beyond the district '
              'outlines it inherits (median IoU 0.706 vs 0.689).</p>',
+    ),
+    dict(
+        # The relative-risk page: the district premium surface with one
+        # metric only, expressed as a multiple of the household-weighted
+        # national median. Same source, same tiles, same shards - the
+        # build differs from the district map ONLY in which metrics show
+        # and which one is the default. omit is computed in main() as
+        # "every metric except rel", so a metric added to the template
+        # cannot quietly appear on a page built to show exactly one.
+        source="data/districts_risk.geojson",
+        page="uk_relative_risk_map.html",
+        grain="districts",
+        unit="district", unit_plural="districts", example="YO25",
+        csv="assets/uk_district_risk.csv",
+        omit="ALL_BUT_REL",
+        default="rel",
+        title="Relative risk — UK Home Insurance Risk Map",
+        sibling='Relative &middot; <a href="map.html">see every model '
+                'layer on the full map &rarr;</a>',
+        note='<p><b>Reading this map.</b> This is the <b>same technical '
+             'premium</b> as the model map, re-expressed: each district '
+             'is shown as a multiple of the UK median premium '
+             '(&pound;__REL_MEDIAN_GBP__/yr, household-weighted), so '
+             '2.00&times; means homes there carry twice the median '
+             'modelled risk. Nothing new is modelled on this page &mdash; '
+             'it exists because &ldquo;2.4&times; the UK median&rdquo; '
+             'answers &ldquo;how exposed is my area?&rdquo; more directly '
+             'than a &pound; figure does.</p>',
     ),
 ]
 
@@ -230,9 +297,13 @@ def main():
     keep = columns_read_by_template(template)
     print(f"template reads {len(keep)} columns")
 
+    all_metrics = metric_keys(template)
     for b in BUILDS:
         props = rounded_props(b["source"], keep)
         n = len(props)
+        omit = ([k for k in all_metrics if k != "rel"]
+                if b["omit"] == "ALL_BUT_REL" else b["omit"])
+        rel_median = weighted_median_premium(props)
         breaks = {k: quantile_breaks([p[k] for p in props if pick(p)],
                                      QUANTILE_N)
                   for k, pick in QUANTILE_METRICS.items()}
@@ -256,8 +327,12 @@ def main():
                          f"assets/{b['grain']}_index.json")
                 .replace("__CSV_ASSET__", b["csv"])
                 .replace("__SIBLING_LINK__", b["sibling"])
-                .replace("__GEOGRAPHY_NOTE__", b["note"])
-                .replace("__OMIT_METRICS__", json.dumps(b["omit"]))
+                .replace("__GEOGRAPHY_NOTE__",
+                         b["note"].replace("__REL_MEDIAN_GBP__",
+                                           f"{rel_median:,}"))
+                .replace("__REL_MEDIAN__", str(rel_median))
+                .replace("__DEFAULT_METRIC__", b["default"])
+                .replace("__OMIT_METRICS__", json.dumps(omit))
                 .replace("__QUANTILE_BREAKS__",
                          json.dumps(breaks, separators=(",", ":")))
                 .replace("__N_UNITS__", f"{n:,}")

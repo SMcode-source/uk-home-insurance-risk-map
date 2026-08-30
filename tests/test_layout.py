@@ -40,17 +40,19 @@ sync_api = pytest.importorskip(
 
 DOCS = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "docs"))
 
-PAGES = ["index.html", "map.html", "sectors.html", "years.html",
-         "methodology.html"]
+PAGES = ["index.html", "map.html", "sectors.html", "relative.html",
+         "years.html", "methodology.html"]
 
-# Both maps are the same template with different data, so every map
-# invariant is checked on both - a page that only one of them fails is
-# exactly the drift publishing two resolutions invites.
-MAP_PAGES = ["map.html", "sectors.html"]
+# All three map pages are the same template with different data (and, on
+# relative.html, a different metric set), so every map invariant is
+# checked on all of them - a page that only one of them fails is exactly
+# the drift publishing multiple views invites.
+MAP_PAGES = ["map.html", "sectors.html", "relative.html"]
 
 # a real unit on each map to deep-link to (sector names carry a digit;
 # CB8 6 does not exist, CB8 9 does - the data decides, not the pattern)
-DEEP_LINK = {"map.html": "?d=YO25", "sectors.html": "?d=YO25%206"}
+DEEP_LINK = {"map.html": "?d=YO25", "sectors.html": "?d=YO25%206",
+             "relative.html": "?d=YO25"}
 
 # The two shapes that caught real bugs: a phone (375x812, the audit
 # viewport) and a small laptop. Nothing between them has ever broken alone.
@@ -425,6 +427,19 @@ def test_switching_metric_updates_legend(browser, site_url, viewport_name,
     page = open_page(browser, site_url, page_name, VIEWPORTS[viewport_name])
     try:
         page.wait_for_selector(".metric-btns button.active")
+        # relative.html is BUILT to show exactly one metric, so there is
+        # nothing to switch to; the invariant that applies there is that
+        # the lone button is the active one and the legend actually
+        # rendered for it. Guarded by count, not by page name, so a page
+        # that unexpectedly loses its other buttons still fails loudly
+        # below rather than sliding into the single-metric branch: a
+        # multi-metric page keeps its inactive buttons, and this branch
+        # only accepts a page with ONE button total.
+        if page.locator(".metric-btns button").count() == 1:
+            assert page.locator(".metric-btns button.active").count() == 1
+            assert (page.text_content("#legendTitle") or "").strip(), (
+                f"{page_name}: single-metric page rendered no legend")
+            return
         before = page.text_content("#legendTitle")
         page.click(".metric-btns button:not(.active)")
         page.wait_for_function(
