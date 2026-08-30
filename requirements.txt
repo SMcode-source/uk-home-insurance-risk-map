@@ -14,3 +14,4 @@ pillow==12.3.0
 matplotlib==3.11.1
 folium==0.20.0
 branca==0.8.2
+pmtiles==3.7.0

@@ -2,7 +2,7 @@
 
   docs/index.html        landing page  (site/index.template.html + live numbers)
   docs/methodology.html  methodology   (site/methodology.template.html)
-  docs/map.html          the Leaflet map, with site nav injected
+  docs/map.html          the MapLibre map, with site nav injected
   docs/years.html        the year analysis, with site nav injected
   docs/assets/site.css   shared styles
   docs/.nojekyll         stop Pages running Jekyll over the output
@@ -10,7 +10,7 @@
 The map/years pages are the artefacts produced by build_map.py /
 build_analysis.py; this script only wraps them in the site chrome so the
 whole thing navigates as one website. (years is self-contained; the map
-fetches assets/map_data.geojson at runtime, copied in below.)
+reads vector tiles and popup shards at runtime, copied in below.)
 """
 
 import csv
@@ -1011,21 +1011,19 @@ MAP_CSS = """
 #legend, #about { bottom: 22px; }
 body { overflow: hidden; }
 
-/* NOTE - do not try to fix popup/panel overlap with z-index. Leaflet's
-   .leaflet-map-pane carries a transform, which makes it a stacking
-   context, so every pane inside it (popups included) is trapped below
-   whatever that pane resolves to. Raising .leaflet-popup-pane changes
-   nothing - measured - and raising .leaflet-map-pane lifts the whole map
-   over the panels and hides them. The popup is kept clear of the panels
-   by panning instead; see keepPopupClear() in the map template. */
+/* NOTE - do not try to fix popup/panel overlap with z-index. The map
+   container carries a transform, which makes it a stacking context, so
+   the popup inside it is trapped below whatever that container resolves
+   to; this was measured under Leaflet and MapLibre positions its popups
+   the same way. The popup is kept clear of the panels by panning
+   instead; see keepPopupClear() in the map template. */
 
 /* The popup opens compact (headline, scores, disclosures), but a reader
    who unfolds everything is back to ~1,000px of content - taller than an
-   800px laptop viewport - and Leaflet adds overflow handling only when
-   given a maxHeight, which it never was. Cap it and let it scroll
-   everywhere; the phone rule below tightens this to the gap between the
-   floating panels. */
-.leaflet-popup-content { max-height: 60vh; overflow-y: auto; }
+   800px laptop viewport - and no map library caps a popup on its own.
+   Cap it and let it scroll everywhere; the phone rule below tightens
+   this to the gap between the floating panels. */
+.maplibregl-popup-content { max-height: 60vh; overflow-y: auto; }
 
 /* Phones: the three floating panels have to share one small screen.
    Full-width stacked panels, each capped and internally scrollable, so
@@ -1046,8 +1044,8 @@ body { overflow: hidden; }
   #legend .legend-row span { font-size: 11px; }
   #about { left: 8px; right: 8px; bottom: 8px; max-width: none; max-height: 40vh; overflow-y: auto; }
 
-  /* Leaflet puts the zoom buttons at the map's top-left, which on a phone
-     is exactly where #controls sits. They were not merely hidden - they
+  /* The zoom buttons sit at the map's top-left, which on a phone is
+     exactly where #controls sits. They were not merely hidden - they
      were unreachable, and a tap on "zoom out" landed on the metric button
      underneath, silently switching the map's layer instead of zooming.
 
@@ -1055,21 +1053,20 @@ body { overflow: hidden; }
      below that is free until #legend begins. Put the zoom there, and lift
      it above the panels (which sit at z-index 1000) so a panel growing
      can never bury it again. */
-  .leaflet-top.leaflet-left { top: calc(34vh + 18px); z-index: 1100; }
+  .maplibregl-ctrl-top-left { top: calc(34vh + 18px); z-index: 1100; }
 
   /* The popup must FIT the free band between #controls (top: 60px,
      max-height 34vh) and #legend (bottom: 62px, max-height 24vh), or
      keepPopupClear() has no clear position to move it to and leaves it
      under a panel - which is how the close button ended up untappable
      under the metric buttons (caught by the layout tests; the old cap of
-     42vh - 165px plus Leaflet's ~35px of wrapper margins and tip was
-     taller than the band by construction).
+     42vh - 165px plus ~35px of popup chrome and tip was taller than the
+     band by construction).
      Band = 100vh - (60 + 34vh) - (62 + 24vh) = 42vh - 122px. Less 2x8px
      keep-clear padding and ~35px chrome: content cap = 42vh - 173px.
      -180 leaves slack for font rounding. Width in vw so rotation is
      handled without JS. */
-  .leaflet-popup-content { max-height: calc(42vh - 180px); overflow-y: auto; max-width: calc(100vw - 64px); }
-  .leaflet-popup-content-wrapper { max-width: calc(100vw - 40px); }
+  .maplibregl-popup-content { max-height: calc(42vh - 180px); overflow-y: auto; max-width: calc(100vw - 64px); }
 }
 """
 
@@ -1097,15 +1094,36 @@ def main():
                 os.path.join(DOCS, "assets", "site.css"))
     print("  assets/site.css")
 
-    # Each map's geometry+properties, fetched at runtime rather than
-    # inlined (which made the district page 5.08 MB; the sector data is
-    # three times that again). build_map.py trims these to the columns
-    # the template reads - do not copy the raw model output here.
-    for asset in ("map_data.geojson", "sector_data.geojson"):
-        shutil.copy(os.path.join(ROOT, "map", asset),
-                    os.path.join(DOCS, "assets", asset))
-        print(f"  assets/{asset}  ("
-              f"{os.path.getsize(os.path.join(DOCS, 'assets', asset)) / 1e6:.1f} MB)")
+    # MapLibre and the PMTiles protocol, linked by the map pages rather
+    # than inlined the way Leaflet was: 267 KB gzipped is worth fetching
+    # once and caching across both map pages, where 47 KB was not.
+    for lib in ("maplibre-gl.js", "maplibre-gl.css", "pmtiles.js"):
+        shutil.copy(os.path.join(ROOT, "assets", lib),
+                    os.path.join(DOCS, "assets", lib))
+        print(f"  assets/{lib}")
+
+    # The maps themselves: vector tiles, one popup shard per postcode
+    # area, and the national name index. All from build_tiles.py, which
+    # must therefore have run - a missing tile set is a blank map, so
+    # copy it loudly rather than skipping what is not there.
+    for grain in ("districts", "sectors"):
+        for rel in (os.path.join("tiles", f"{grain}.pmtiles"),
+                    f"{grain}_index.json"):
+            src = os.path.join(ROOT, "map", rel)
+            if not os.path.exists(src):
+                raise SystemExit(
+                    f"map/{rel} is missing - run scripts/build_tiles.py "
+                    f"before build_site.py, or the published map is blank")
+            dst = os.path.join(DOCS, "assets", rel)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy(src, dst)
+            print(f"  assets/{rel}  ({os.path.getsize(dst) / 1e6:.1f} MB)")
+        units_src = os.path.join(ROOT, "map", "units", grain)
+        units_dst = os.path.join(DOCS, "assets", "units", grain)
+        shutil.rmtree(units_dst, ignore_errors=True)
+        shutil.copytree(units_src, units_dst)
+        print(f"  assets/units/{grain}/  "
+              f"({len(os.listdir(units_dst))} area files)")
 
     # compact per-district lookup for the landing-page search (no geometry)
     with open(os.path.join(ROOT, "data", "districts_risk.geojson"),

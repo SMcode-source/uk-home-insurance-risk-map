@@ -39,6 +39,7 @@ so the tiles and the page they feed cannot drift apart.
 """
 
 import json
+import math
 import os
 import sys
 import time
@@ -86,7 +87,13 @@ def shard_key(name):
 def write_json(path, obj):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(obj, f, separators=(",", ":"))
+        # allow_nan=False on purpose. Python writes NaN/Infinity happily
+        # and JSON.parse rejects them, so a single non-finite value takes
+        # out the WHOLE file - which is how 13 sectors with empty
+        # geometry silently blanked the sector map: the index failed to
+        # parse, initMap never ran, and the only symptom was a page that
+        # said "Map data failed to load".
+        json.dump(obj, f, separators=(",", ":"), allow_nan=False)
     return os.path.getsize(path)
 
 
@@ -107,8 +114,8 @@ def build(grain, source, tile_cols, all_cols):
             gdf[c] = gdf[c].round(ROUND_DP)
 
     print(f"{grain}: {len(gdf):,} units, {len(all_cols)} columns "
-          f"({len(tile_cols)} tiled, {len(all_cols) - len(tile_cols)} in "
-          f"popup shards), read in {time.time() - t0:.0f}s", flush=True)
+          f"({len(tile_cols)} painted from the tile, all {len(all_cols)} in "
+          f"the popup shards), read in {time.time() - t0:.0f}s", flush=True)
 
     # --- tiles -----------------------------------------------------
     pm = os.path.join(OUT, "tiles", f"{grain}.pmtiles")
@@ -126,11 +133,16 @@ def build(grain, source, tile_cols, all_cols):
     props = gdf.drop(columns="geometry").to_dict("records")
 
     # --- popup shards, one file per postcode area ------------------
-    popup_cols = sorted(all_cols - tile_cols)
+    # Every column, not just the 42 the tile omits. A popup can be
+    # opened from the search box or a ?d= deep link, where the unit's
+    # tile may not be rendered yet - so a popup assembled from tile
+    # properties PLUS shard properties would depend on map state and
+    # fail exactly where it is hardest to notice. One fetch returns the
+    # whole row. The 20 duplicated columns cost ~30% of a 4 KB file.
     shards = {}
     for p in props:
         shards.setdefault(shard_key(p["name"]), {})[p["name"]] = \
-            {k: p[k] for k in popup_cols}
+            {k: p[k] for k in sorted(all_cols)}
     sizes = [write_json(os.path.join(OUT, "units", grain, f"{k}.json"), v)
              for k, v in sorted(shards.items())]
     sizes.sort()
@@ -140,12 +152,24 @@ def build(grain, source, tile_cols, all_cols):
 
     # --- name + bbox index -----------------------------------------
     # 4 dp is ~11 m of longitude, far finer than a fitBounds needs.
-    idx = []
+    #
+    # Units with EMPTY geometry are left out. There are 13 of them in the
+    # published sectors, and they have no location to search for, deep
+    # link to or walk to - an entry would be a name the map cannot go
+    # to. Their bounds come back NaN, which is also invalid JSON, so
+    # this is the difference between a working index and no map at all.
+    idx, no_geom = [], []
     for name, geom in zip(gdf["name"], gdf.geometry):
-        x0, y0, x1, y1 = shapely.bounds(geom).tolist()
-        idx.append([name, round(x0, 4), round(y0, 4),
-                    round(x1, 4), round(y1, 4)])
+        b = shapely.bounds(geom).tolist()
+        if not all(math.isfinite(v) for v in b):
+            no_geom.append(name)
+            continue
+        idx.append([name] + [round(v, 4) for v in b])
     idx.sort()
+    if no_geom:
+        print(f"  {len(no_geom)} units have no geometry and are not in the "
+              f"index: {', '.join(sorted(no_geom)[:6])}"
+              f"{' ...' if len(no_geom) > 6 else ''}", flush=True)
     n = write_json(os.path.join(OUT, f"{grain}_index.json"), idx)
     print(f"  {grain}_index.json {n / 1e3:.0f} KB, {len(idx):,} names",
           flush=True)

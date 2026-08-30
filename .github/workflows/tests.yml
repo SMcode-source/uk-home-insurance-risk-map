@@ -59,10 +59,13 @@ jobs:
           EOF
           if [ -f skip_site_rebuild ]; then exit 0; fi
           python scripts/build_map.py
+          python scripts/build_tiles.py
           python scripts/build_analysis.py
           python scripts/build_site.py
           for f in docs/index.html docs/map.html docs/years.html \
                    docs/methodology.html docs/assets/districts.json \
+                   docs/assets/tiles/districts.pmtiles \
+                   docs/assets/districts_index.json \
                    docs/assets/uk_district_risk.csv; do
             test -s "$f" || { echo "missing or empty: $f"; exit 1; }
           done
@@ -83,8 +86,14 @@ jobs:
     # The published pages in a real browser. Exists because one mobile
     # audit found three user-facing defects (3.6px chart labels, zoom
     # buttons buried under a panel, a popup clipped off screen) that all
-    # 38 data-side tests were structurally blind to. Runs against the
-    # COMMITTED docs/ - the job above already proves docs/ is fresh.
+    # 38 data-side tests were structurally blind to.
+    #
+    # It used to run against the COMMITTED docs/. It cannot any more:
+    # the maps read vector tiles, which are built here rather than
+    # committed (PMTiles do not delta-compress, so committing both
+    # grains would put ~33 MB into the packfile per publish). So this
+    # job builds the site itself. The job above still proves the
+    # committed HTML is not stale.
     name: layout regression (Playwright)
     runs-on: ubuntu-latest
     steps:
@@ -98,8 +107,18 @@ jobs:
       - name: Install Playwright
         run: |
           python -m pip install --upgrade pip
-          pip install pytest playwright
+          pip install -r requirements.txt pytest playwright
           python -m playwright install --with-deps chromium
+
+      # The tiles are the map. Without this the pages load, find no
+      # geometry, and every map assertion fails for a reason that has
+      # nothing to do with layout.
+      - name: Build the site, including its tiles
+        run: |
+          python scripts/build_map.py
+          python scripts/build_tiles.py
+          python scripts/build_analysis.py
+          python scripts/build_site.py
 
       - name: Run layout tests
         run: python -m pytest tests/test_layout.py -q

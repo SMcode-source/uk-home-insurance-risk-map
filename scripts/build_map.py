@@ -10,16 +10,20 @@ The model writes the same OUTPUT_COLUMNS at both resolutions, so the
 popup, metrics, legend and keyboard routes are literally the same code;
 only the nouns, counts, sibling link and data URL are substituted.
 
-The data is fetched, NOT inlined: inlined it made the district page
-5.08 MB, and the sector data is three times that again. Each page gets
-a web asset trimmed to the columns the template actually reads and
-rounded to 4dp - the model output keeps full precision, but shipping
-`4.6226001` to a popup that renders `£5` is 30% of the payload for
-nothing. Sectors: 15.8 MB -> 13.4 MB raw, ~2.2 MB over the wire once
-GitHub Pages gzips it.
+The pages carry no data of their own. They read vector tiles, popup
+shards and a name index, all built by build_tiles.py; this script writes
+only the HTML, plus the one thing that cannot be left to the browser -
+the national quantile breaks (see quantile_breaks).
 
-Because of the fetch, the pages need HTTP even locally:
-`python -m http.server` inside docs/ - file:// will not serve them.
+That replaced a whole-country GeoJSON per page, fetched at every zoom
+whether you were looking at the country or one street: 0.9 MB gzipped
+for districts, 2.6 MB for sectors. Tiles cost 394 KB and 1.05 MB for
+the opening view and FALL as you zoom in, and - the reason it was worth
+doing - they can carry full-resolution boundaries, which as a single
+file would have been 3.7 MB and 5.7 MB.
+
+The pages need HTTP even locally: `python -m http.server` inside docs/ -
+file:// will not serve tiles or shards.
 """
 
 import json
@@ -130,14 +134,20 @@ QUANTILE_METRICS = {
 QUANTILE_N = 7
 
 
-def web_asset(geojson_path, keep):
-    """Minified GeoJSON carrying only `keep`, rounded for the wire.
+def rounded_props(geojson_path, keep):
+    """The property values the browser will actually see.
 
-    `keep` must be SORTED, not a set: Python randomises string hashing
-    per process, so iterating a set of column names writes the JSON keys
-    in a different order on every run. The bytes then differ between a
-    laptop build and a CI build of identical inputs, and CI's
-    docs/-is-stale check fails with a diff nobody can see (it did).
+    This was web_asset(), which also wrote a whole-country GeoJSON for
+    the page to fetch. The map reads vector tiles now (build_tiles.py),
+    so that file is gone and only the values survive - the colour breaks
+    still have to be cut over exactly what ships, and build_tiles.py
+    rounds identically.
+
+    `keep` is still sorted before use. It no longer decides the bytes of
+    a written file, but it does decide the order of anything derived
+    from it, and a set iterates differently every process because Python
+    randomises string hashing - which once put a laptop build and a CI
+    build of identical inputs at odds over a diff nobody could see.
     """
     keep = sorted(keep)
     with open(os.path.join(ROOT, geojson_path), encoding="utf-8") as f:
@@ -160,15 +170,8 @@ def web_asset(geojson_path, keep):
                 if v == int(v):
                     v = int(v)
             props[k] = v
-        out.append({"type": "Feature", "properties": props,
-                    "geometry": feat["geometry"]})
-    # The rounded properties come back too: the quantile breaks must be
-    # cut over the values the BROWSER sees, not the full-precision ones,
-    # or a build-time break can land a hair off a rounded value and move
-    # a unit into the neighbouring colour.
-    return (json.dumps({"type": "FeatureCollection", "features": out},
-                       separators=(",", ":")),
-            len(out), [f["properties"] for f in out])
+        out.append(props)
+    return out
 
 
 # (model output, page, data asset, substitutions)
@@ -176,7 +179,7 @@ BUILDS = [
     dict(
         source="data/districts_risk.geojson",
         page="uk_home_insurance_risk_map.html",
-        asset="map_data.geojson",
+        grain="districts",
         unit="district", unit_plural="districts", example="YO25",
         csv="assets/uk_district_risk.csv",
         omit=[],
@@ -188,7 +191,7 @@ BUILDS = [
     dict(
         source="data/sectors_risk.geojson",
         page="uk_sector_risk_map.html",
-        asset="sector_data.geojson",
+        grain="sectors",
         unit="sector", unit_plural="sectors", example="YO25 6",
         csv="assets/uk_sector_risk.csv",
         # nothing omitted: the EA climate editions were re-fetched over
@@ -224,13 +227,12 @@ def headline(geojson_path):
 
 def main():
     template = read("map", "template.html")
-    leaflet_js = read("assets", "leaflet.js").replace("</script>", "<\\/script>")
-    leaflet_css = read("assets", "leaflet.css")
     keep = columns_read_by_template(template)
     print(f"template reads {len(keep)} columns")
 
     for b in BUILDS:
-        data, n, props = web_asset(b["source"], keep)
+        props = rounded_props(b["source"], keep)
+        n = len(props)
         breaks = {k: quantile_breaks([p[k] for p in props if pick(p)],
                                      QUANTILE_N)
                   for k, pick in QUANTILE_METRICS.items()}
@@ -245,10 +247,13 @@ def main():
         html = (template
                 .replace("__MEAN_EL__", mean_el)
                 .replace("__EL_CLAIMS_SHARE__", claims_share)
-                .replace("__LEAFLET_CSS__", leaflet_css)
-                .replace("__LEAFLET_JS__", leaflet_js)
                 .replace("__PAGE_TITLE__", b["title"])
-                .replace("__DATA_ASSET__", "assets/" + b["asset"])
+                .replace("__TILE_ASSET__",
+                         f"assets/tiles/{b['grain']}.pmtiles")
+                .replace("__TILE_LAYER__", b["grain"])
+                .replace("__UNITS_DIR__", f"assets/units/{b['grain']}/")
+                .replace("__INDEX_ASSET__",
+                         f"assets/{b['grain']}_index.json")
                 .replace("__CSV_ASSET__", b["csv"])
                 .replace("__SIBLING_LINK__", b["sibling"])
                 .replace("__GEOGRAPHY_NOTE__", b["note"])
@@ -269,11 +274,7 @@ def main():
             f.write(html)
         print(f"wrote {b['page']} ({os.path.getsize(out) / 1e3:.0f} KB)")
 
-        data_out = os.path.join(ROOT, "map", b["asset"])
-        with open(data_out, "w", encoding="utf-8") as f:
-            f.write(data)
-        print(f"wrote {b['asset']} ({n:,} units, "
-              f"{os.path.getsize(data_out) / 1e6:.1f} MB)")
+        print(f"  {n:,} units, breaks cut over the whole country")
 
 
 if __name__ == "__main__":

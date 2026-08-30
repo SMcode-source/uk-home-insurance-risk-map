@@ -77,3 +77,14 @@ data/districts_uk.geojson
 data/sectors_uk.gpkg
 data/sectors_uk_display.geojson
 data/districts_uk_display.geojson
+data/districts_uk.pmtiles
+
+# Built by build_tiles.py and copied into docs/ by build_site.py. NOT
+# committed: PMTiles are already compressed, so git cannot delta them,
+# and committing both grains would put ~33 MB into the packfile on
+# every publish against ~3.5 MB for the GeoJSON they replace. Pages is
+# served from the build artifact instead (.github/workflows/pages.yml).
+docs/assets/tiles/
+docs/assets/units/
+docs/assets/districts_index.json
+docs/assets/sectors_index.json

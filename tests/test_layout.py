@@ -26,6 +26,7 @@ which makes every layout measurement meaningless (see the project notes).
 """
 
 import functools
+import io
 import http.server
 import os
 import threading
@@ -64,11 +65,63 @@ VIEWPORTS = {"phone": PHONE, "desktop": DESKTOP}
 MIN_EFFECTIVE_FONT_PX = 9.0
 
 
+class RangeHandler(http.server.SimpleHTTPRequestHandler):
+    """SimpleHTTPRequestHandler plus HTTP Range, which the maps need.
+
+    The map's geometry is a PMTiles archive read by byte range - the
+    whole point is that a viewport costs a few tiles rather than the
+    12 MB file. SimpleHTTPRequestHandler ignores the Range header and
+    answers 200 with the entire body, and the PMTiles client rejects
+    that outright:
+
+      Server returned no content-length header or content-length
+      exceeding request. Check that your storage backend supports HTTP
+      Byte Serving.
+
+    So without this the tiles never load, every map test fails for one
+    reason that has nothing to do with the map, and - worse - a green
+    run would prove nothing about the thing being tested. GitHub Pages
+    serves ranges; the test server now does too.
+
+    Only the single `bytes=start-end` form is implemented, which is all
+    the PMTiles client sends.
+    """
+
+    def send_head(self):
+        rng = self.headers.get("Range")
+        if not rng or not rng.startswith("bytes="):
+            return super().send_head()
+        path = self.translate_path(self.path)
+        if os.path.isdir(path) or not os.path.exists(path):
+            return super().send_head()
+        size = os.path.getsize(path)
+        first, _, last = rng[len("bytes="):].partition("-")
+        try:
+            start = int(first)
+            end = int(last) if last else size - 1
+        except ValueError:
+            return super().send_head()
+        end = min(end, size - 1)
+        if start > end:
+            self.send_error(416, "Requested Range Not Satisfiable")
+            return None
+        f = open(path, "rb")
+        f.seek(start)
+        self.send_response(206, "Partial Content")
+        self.send_header("Content-Type", self.guess_type(path))
+        self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        self.send_header("Content-Length", str(end - start + 1))
+        self.send_header("Accept-Ranges", "bytes")
+        self.end_headers()
+        # copyfile() would stream to EOF; hand back only the slice asked
+        # for, or the client sees more bytes than the header promised.
+        return io.BytesIO(f.read(end - start + 1))
+
+
 @pytest.fixture(scope="module")
 def site_url():
     """Serve docs/ over HTTP on an OS-chosen port for the whole module."""
-    handler = functools.partial(
-        http.server.SimpleHTTPRequestHandler, directory=DOCS)
+    handler = functools.partial(RangeHandler, directory=DOCS)
     handler.log_message = lambda *a, **k: None  # keep pytest output clean
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -208,10 +261,10 @@ def test_map_controls_receive_taps(browser, site_url, viewport_name, page_name):
     centre — existing is not enough, the tap has to land on them."""
     page = open_page(browser, site_url, page_name, VIEWPORTS[viewport_name])
     try:
-        page.wait_for_selector(".leaflet-control-zoom-in")
+        page.wait_for_selector(".maplibregl-ctrl-zoom-in")
         page.wait_for_selector(".metric-btns button.active")
-        for selector in (".leaflet-control-zoom-in",
-                         ".leaflet-control-zoom-out",
+        for selector in (".maplibregl-ctrl-zoom-in",
+                         ".maplibregl-ctrl-zoom-out",
                          ".metric-btns button.active"):
             probe = element_at_center_of(page, selector)
             assert probe.get("exists"), f"{selector} missing from map.html"
@@ -240,14 +293,14 @@ def test_district_popup_fits_and_scrolls(browser, site_url, viewport_name,
     page = open_page(browser, site_url, page_name, VIEWPORTS[viewport_name],
                      query=DEEP_LINK[page_name])
     try:
-        page.wait_for_selector(".leaflet-popup-content")
+        page.wait_for_selector(".maplibregl-popup-content")
         # the keep-clear pass waits for the fitBounds animation to settle
         # (moveend, or its 350ms fallback), so give the whole chain a beat
         page.wait_for_timeout(1000)
 
         box = page.evaluate("""() => {
-          const pop = document.querySelector('.leaflet-popup-content');
-          const wrap = document.querySelector('.leaflet-popup');
+          const pop = document.querySelector('.maplibregl-popup-content');
+          const wrap = document.querySelector('.maplibregl-popup');
           const mapBox = document.getElementById('map').getBoundingClientRect();
           const r = wrap.getBoundingClientRect();
           const style = getComputedStyle(pop);
@@ -275,7 +328,7 @@ def test_district_popup_fits_and_scrolls(browser, site_url, viewport_name,
                 f"map.html at {viewport_name}: popup content overflows "
                 f"({box['clientHeight']}px window) but cannot scroll")
 
-        probe = element_at_center_of(page, ".leaflet-popup-close-button")
+        probe = element_at_center_of(page, ".maplibregl-popup-close-button")
         assert probe.get("hit"), (
             f"map.html at {viewport_name}: popup close button is covered "
             f"by {probe.get('receiver')}")
@@ -320,17 +373,17 @@ def test_keyboard_route_search_esc_and_arrows(browser, site_url):
         page.wait_for_selector("#districtSearch:not([disabled])")
         page.fill("#districtSearch", "YO25")
         page.press("#districtSearch", "Enter")
-        page.wait_for_selector(".leaflet-popup-content")
+        page.wait_for_selector(".maplibregl-popup-content")
         page.wait_for_timeout(1000)  # settle pass
 
         state = page.evaluate("""() => ({
           name: document.querySelector('.pop .hd').textContent,
-          role: document.querySelector('.leaflet-popup').getAttribute('role'),
-          focusInside: document.querySelector('.leaflet-popup')
+          role: document.querySelector('.maplibregl-popup').getAttribute('role'),
+          focusInside: document.querySelector('.maplibregl-popup')
                         .contains(document.activeElement),
-          contentFocusable: document.querySelector('.leaflet-popup-content')
+          contentFocusable: document.querySelector('.maplibregl-popup-content')
                         .tabIndex >= 0,
-          closeLabel: document.querySelector('.leaflet-popup-close-button')
+          closeLabel: document.querySelector('.maplibregl-popup-close-button')
                         .getAttribute('aria-label'),
         })""")
         assert state["name"] == "YO25"
@@ -352,7 +405,7 @@ def test_keyboard_route_search_esc_and_arrows(browser, site_url):
 
         # Escape closes; focus must not be dropped on <body>
         page.keyboard.press("Escape")
-        page.wait_for_selector(".leaflet-popup", state="detached")
+        page.wait_for_selector(".maplibregl-popup", state="detached")
         page.wait_for_timeout(100)
         active = page.evaluate(
             "() => document.activeElement === document.body ? 'body' "
