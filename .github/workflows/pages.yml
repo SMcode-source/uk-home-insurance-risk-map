@@ -55,7 +55,9 @@ jobs:
           python-version: "3.13"
           cache: pip
 
-      - run: pip install -r requirements.txt
+      # pytest is deliberately NOT in requirements.txt (it is an extra
+      # for the test suite), and the reference check below needs it.
+      - run: pip install -r requirements.txt pytest
 
       # Order matters: build_site.py wraps pages that build_map.py and
       # build_analysis.py produce, and it hard-fails if build_tiles.py

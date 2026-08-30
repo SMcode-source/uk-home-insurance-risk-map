@@ -1239,6 +1239,19 @@ def test_every_asset_the_published_site_references_exists():
                 "javascript:")
     site_root = "https://smcode-source.github.io/uk-home-insurance-risk-map/"
 
+    # Tiles, popup shards and the name index are BUILD outputs, kept out
+    # of git because PMTiles do not delta-compress (~33 MB per publish).
+    # On an unbuilt checkout they are absent BY CONSTRUCTION, so their
+    # existence is not a thing this test can assert there. It still
+    # asserts every committed reference, and still asserts that the
+    # pages REFERENCE the tiles (the required[] list below). The
+    # existence check is run post-build by pages.yml before deploying
+    # and by tests.yml's rebuild job on every push.
+    built = os.path.isdir(os.path.join(docs, "assets", "tiles"))
+    BUILD_ONLY = ("assets/tiles/", "assets/units/",
+                  "assets/districts_index.json",
+                  "assets/sectors_index.json")
+
     missing, checked = [], set()
     for page in pages:
         with open(os.path.join(docs, page), encoding="utf-8") as fh:
@@ -1259,6 +1272,8 @@ def test_every_asset_the_published_site_references_exists():
                 if not re.fullmatch(r"[\w./-]+", target):
                     continue
                 checked.add(target)
+                if not built and target.lstrip("/").startswith(BUILD_ONLY):
+                    continue
                 if not os.path.exists(os.path.join(docs, target.lstrip("/"))):
                     missing.append((page, ref))
 
@@ -1510,6 +1525,14 @@ def test_every_published_map_asset_carries_the_columns_its_page_reads():
         pytest.skip(f"template reads {ahead}, which the committed model "
                     "output does not carry yet - awaiting the publish "
                     "rebuild's bot commit")
+
+    # Same reason as above: the shards are a build output. Skipping on an
+    # unbuilt checkout is safe because build_site.py hard-fails when the
+    # shards are missing, so an unbuilt docs/ cannot reach Pages.
+    if not os.path.isdir(os.path.join(root, "docs", "assets", "units")):
+        pytest.skip("docs/assets/units/ is a build output and this "
+                    "checkout has not been built - pages.yml and the "
+                    "rebuild job run this check after building")
 
     seen = {}
     for grain, min_units in (("districts", 2700), ("sectors", 10000)):

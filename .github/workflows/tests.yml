@@ -73,6 +73,14 @@ jobs:
             echo "unfilled template placeholder above"; exit 1
           fi
 
+      - name: Check the BUILT site references only files that exist
+        # The two asset tests skip on an unbuilt checkout, so the pytest
+        # run above cannot see a broken tile reference. This is where
+        # they are really checked - on every push, not just a publish.
+        run: |
+          if [ -f skip_site_rebuild ]; then exit 0; fi
+          python -m pytest tests -q -k "published_site or map_asset"
+
       - name: Check the published site is up to date with committed data
         # A drifted docs/ means someone edited a template without rebuilding.
         run: |
