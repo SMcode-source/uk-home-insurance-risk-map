@@ -18,31 +18,28 @@ subsidence and a cold-spell/thaw index replacing air-frost days;
 **(3)** structure — burst-pipe breakout, three non-water freeze
 variants priced side by side, snowmelt; **(4)** a year-view conditional
 claim count and value. The dependence re-specification is deliberately
-its own later phase. **Gate 0 is in progress on `exp/subsidence-series`
-— the ABI half is done (DATA_SOURCES #33) and the `theta_ws`
-measurement is done (it costs GBP0.65).** **Gate 1 is DONE and PUBLISHED
-2026-08-28: the user took the severity fix and held the level at
-GBP307m; it cost 0.6 pence, both grains landed in one push.** Both
-sections follow. The premium is untouched.
+its own later phase. **Every gate has now reported.** Gate 0 closed
+(ABI series in, `theta_ws` costs GBP0.65, HadUK on disk). Gate 1
+published 2026-08-28 (severity fix taken, level held at GBP307m, 0.6
+pence). **Gate 2 measured 2026-08-30 — the freeze half closes as a
+no-reorder, the SMD half is a real different map; section below.**
+Gate 3 closed as a no-ship (no anchor, and sigma provably moves
+nothing). Gate 4 measured (a bad year is dearer claims, not more
+claims). The premium is untouched by all of it. What remains is the
+user's decisions: whether to price the SMD curve, whether to re-aim
+the freeze question at the level, and what Tab 4 publishes.
 
-**Gate 0's CEDA half is BLOCKED ON THE USER, 2026-08-27.**
-`scripts/fetch_haduk.py` is written, enumerates correctly and refuses to
-run: **the CEDA token expired 2026-08-12** (issued 08-09, ~72 h life — it
-is the one from the MIDAS gust fetch). Regenerate at
-<https://services.ceda.ac.uk/account/token/> and overwrite
-`~/.ceda_token`; nobody but the account holder can do this. Then:
-
-    .venv/Scripts/python.exe scripts/fetch_haduk.py
-
-**2,376 files**, HadUK-Grid v1.3.2.ceda, 12 km daily `tasmin`/`tasmax`/
-`rainfall`, 1960–2025 (792 months each). `--dry-run` enumerates with no
-token at all, so the job can be re-costed any time. Daily data ends
-**2025-12**, so the ABI's 2026 quarters have no matching weather year.
-The script decodes the token's public `exp` claim and dies with "EXPIRED
-N days ago" before writing anything — the failure this guards against is
-2,376 8 KB login pages saved under `.nc` names, which only surfaces when
-xarray refuses to open them. `snowLying` exists at 12 km and is Gate 3's
-snow driver.
+**The HadUK archive state, 2026-08-30:** 12 km AND 5 km daily
+tasmin/tasmax/rainfall 1960-2025 are complete on this laptop under
+`data/haduk/` (gitignored); the 1 km set was streamed on CI and reduced
+to `data/haduk_district_annual_1km.csv` without ever fitting anywhere
+(174 GB, run 33319459184). Both per-district year tables — 5 km local,
+1 km from CI — are complete, schema-identical and gitignored; the
+scripts regenerate them. The CEDA token (secret `CEDA_TOKEN`, also
+`~/.ceda_token`) **expires 2026-09-01 16:27 UTC**; nothing planned
+still needs it. Daily data ends **2025-12**, so the ABI's 2026 quarters
+have no matching weather year. `snowLying` exists at 12 km and was Gate
+3's snow driver before Gate 3 closed.
 
 **The whole roadmap is now published, at both grains.** Phase 1
 (attritional perils: theft → escape of water → fire → accidental
@@ -88,6 +85,93 @@ and cost the level nothing. Climate
 uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
+
+## Gate 2 MEASURED 2026-08-30: freeze reorders nothing; the SMD curve is a real, different map
+
+Run `scripts/gate2_geography_shape.py` (against either resolution's
+table) and `scripts/compare_haduk_resolutions.py`. Data: the full 5 km
+extraction locally (`haduk_district_daily.py`, 84 min, 66 years x 2,736
+districts) and the full 1 km extraction on CI — four probe-sized slices
+streaming 174 GB none of which ever touched a disk whole
+(`.github/workflows/haduk-1km.yml`, run 33319459184, 4.5 h wall, every
+slice green first try). Everything below was computed at BOTH
+resolutions and agreed to the second decimal, which is the cleanest
+possible answer to "was 1 km worth it": **1 km confirms 5 km rather
+than changing it** — per-year cross-district rank agreement +0.97 to
++0.997 on every comparable column, and the districts 5 km genuinely
+cannot separate number **14** (7 groups, mostly co-cell small urban
+pairs), inside which 1 km spreads the drought indices by only 1-3%.
+The old "84% of households share a 12 km cell / 40% a 5 km cell"
+statistic measured CELL sharing, not value degeneracy — area-weighted
+overlap already separates nearly every district.
+
+**FREEZE HALF, CLOSED — a cold-spell/thaw index does not reorder the
+map.** At all 2,736 districts, like-for-like on the same instrument and
+window (5 km, 1991-2020): spells +0.993, days-in-spells +0.984,
+worst-spell severity +0.971 Spearman against plain air-frost days; the
+1 km table repeats them (+0.994/+0.985/+0.972). The ERA5 22-point
+provisional answer holds at full coverage, now INCLUDING the Scottish
+districts ERA5 could not see. A relativity that reorders nothing cannot
+move a premium, so the swap buys no geography and the physical argument
+(pipes burst on the thaw after a sustained freeze) is true but
+priced-in by rank. Instrument agreement corroborates: the 5 km
+1991-2020 frost climatology matches the model's 1 km HadUK layer at
++0.98, means 40.5 vs 40.0 days. What survives is the LEVEL question the
+provisional section already posed — frost days fell ~20% between eras
+while the map stayed +0.98 rank-stable — i.e. should `EOW_FREEZE_SHARE`
+be time-varying at all. That is a re-aim for the user, not a geography
+experiment.
+
+**SUB HALF — the drought climatology is genuinely different geography,
+unlike the freeze swap.** The model's subsidence surface is geology
+alone (`p_sub = 0.002 + 0.028*sub_score^1.5`); no weather enters it.
+Against that geology the drought climatologies correlate at rho ~ 0.69
+— clay country and dry country overlap (both are the southeast) but are
+far from one map. An `EOW_FREEZE_SHARE`-style blend
+`p_sub * (1-share + share*rel)` at share 0.31 keeps rank rho ~ 0.987
+yet moves **523** districts (JJA-mean SMD) to **1,284** (per-year peak
+deficit) by more than 10% in subsidence frequency. Extremes are
+physically right without being told: wettest-lowest all west Highlands
+(PH50, PH43/44/49, HS3/5, IV54), driest-highest Thames estuary and
+Bedfordshire/Cambridgeshire clay (DA8/9/17/18, RM17-20, SS0/4/8, MK42,
+SE28). Nationally, the household-weighted per-year deficit
+(`cwd_yr_max_mm`) recovers **5 of the 6 canonical subsidence years** in
+its top ten — 1976, 1995, 2003, 2018, 2022, missing only 2006 — and
+the JJA-mean SMD 4 of 6. The index family works.
+
+**Which index: `cwd_yr_max_mm`.** The capped bucket (`smd_max_mm`)
+saturates (94-96% of districts peg, spread 0.60-1.06); the uncapped
+RUN integral (`cwd_run_max_mm`) carries multi-year memory that turns
+its national top ten into 2016-2025 — a trend, not a year index (and
+across CI slice restarts it is not even comparable; the workflow
+header documents that). The per-year reset keeps the discrimination
+(relativity p5/p95 = 0.33/1.41) without the ratchet.
+
+**What blocks pricing, and neither is mine to wave through:**
+
+- **The PET level is inflated ~a third** — Hargreaves-Samani gives UK
+  annual PET 668-697 mm against a true 450-550 (known weakness in humid
+  maritime climates, recorded at `haduk_district_daily.py`'s commit).
+  Rankings are sound; the LEVEL is not shippable without MORECS/MOSES
+  PET or a citable UK Hargreaves coefficient. A uniform bias does NOT
+  cancel out of a deficit, because the deficit subtracts rainfall.
+- **The share has no published anchor.** `EOW_FREEZE_SHARE = 0.31`
+  cleared this hurdle with the ABI's own weather-attribution arithmetic
+  agreeing across two releases (0.311/0.307). The subsidence equivalent
+  — what fraction of subsidence frequency rides the drought curve
+  rather than the geology base — has no such number yet. BGS/ABI both
+  attribute the large majority of UK subsidence claims to clay
+  shrink-swell, but "large majority" is not a parameter. Candidate
+  routes: the ABI quarterly series' H2 concentration (78% of 2022
+  notified claims in H2 is itself an attribution measurement), or a
+  dose-response presentation like SUP_WEIGHT's.
+
+Two streamer defects fixed before the CI run (commit on
+`exp/haduk-1km-ci`): `append_csv` wrote every year's rows TWICE (came
+in with the memory-fix rewrite; the local 1960-62 CSV predates it and
+was checked clean), and the progress line called
+`shutil.disk_usage('C:/')`, which would have thrown FileNotFoundError
+on the first completed year of any Linux run.
 
 ## Gate 0 CEDA strand CLOSED 2026-08-29: HadUK-Grid daily is on disk
 
@@ -380,7 +464,7 @@ the one-parameter question — is `SEV_SIGMA["eow"]` right at 1.00, given
 priceable today with the existing harness, on CI rather than this
 laptop.
 
-## Gate 2 shape check 2026-08-28 (PROVISIONAL, 22 of 57 points)
+## Gate 2 shape check 2026-08-28 (PROVISIONAL, 22 of 57 points — superseded by "Gate 2 MEASURED 2026-08-30" above)
 
 Run `scripts/freeze_index_shape.py`. It works off whatever
 `fetch_era5_daily.py` has cached, which is what that fetcher's

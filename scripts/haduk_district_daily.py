@@ -182,6 +182,10 @@ def main():
     # freeze spell does not stop at a month boundary
     smd = np.zeros(n_d)
     cwd = np.zeros(n_d)          # the same integral with NO cap - see below
+    cwd_yr = np.zeros(n_d)       # reset each 1 January - the per-year index,
+    #                              same definition as the 1 km streamer's
+    #                              cwd_yr_max_mm so the two resolutions
+    #                              compare column for column
     run_len = np.zeros(n_d, dtype=int)
     run_sev = np.zeros(n_d)
 
@@ -212,11 +216,13 @@ def main():
         pet = 0.0023 * ra * (tmean + 17.8) * np.sqrt(
             np.clip(tx - tn, 0, None))
 
+        if mo == 1:
+            cwd_yr[:] = 0.0
         a = acc.setdefault((yr), {
             "rain": np.zeros(n_d), "tmax": np.zeros(n_d),
             "tmin": np.zeros(n_d), "pet": np.zeros(n_d), "days": 0,
             "smd_max": np.zeros(n_d), "smd_jja": np.zeros(n_d),
-            "cwd_max": np.zeros(n_d),
+            "cwd_max": np.zeros(n_d), "cwd_yr_max": np.zeros(n_d),
             "jja_days": 0, "frost_days": np.zeros(n_d),
             "spells": np.zeros(n_d), "worst_spell": np.zeros(n_d),
             "spell_days": np.zeros(n_d)})
@@ -237,6 +243,8 @@ def main():
             # measure, and it is the one that discriminates.
             cwd = np.maximum(cwd + pet[d] - rn[d], 0.0)
             a["cwd_max"] = np.maximum(a["cwd_max"], cwd)
+            cwd_yr = np.maximum(cwd_yr + pet[d] - rn[d], 0.0)
+            a["cwd_yr_max"] = np.maximum(a["cwd_yr_max"], cwd_yr)
             if mo in (6, 7, 8):
                 a["smd_jja"] += smd
             frost = tn[d] < 0.0
@@ -269,7 +277,8 @@ def main():
                 "tmin_mean_c": round(float(a["tmin"][i]) / a["days"], 2),
                 "pet_mm": round(float(a["pet"][i]), 1),
                 "smd_max_mm": round(float(a["smd_max"][i]), 1),
-                "cwd_max_mm": round(float(a["cwd_max"][i]), 1),
+                "cwd_yr_max_mm": round(float(a["cwd_yr_max"][i]), 1),
+                "cwd_run_max_mm": round(float(a["cwd_max"][i]), 1),
                 "smd_jja_mean_mm": round(
                     float(a["smd_jja"][i]) / max(a["jja_days"], 1), 1),
                 "frost_days": int(a["frost_days"][i]),
