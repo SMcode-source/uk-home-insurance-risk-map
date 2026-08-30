@@ -1230,6 +1230,10 @@ def test_every_asset_the_published_site_references_exists():
         re.compile(r'(?:href|src)\s*=\s*["\']([^"\']+)["\']', re.I),
         re.compile(r'content\s*=\s*["\']([^"\']+)["\']', re.I),
         re.compile(r'fetch\(\s*["\']([^"\']+)["\']'),
+        # the vector tile set, which is handed to the PMTiles protocol
+        # through new URL(...) rather than fetched directly - a fourth
+        # reference style, and the one whose 404 would blank the map
+        re.compile(r'new URL\(\s*["\']([^"\']+)["\']'),
     ]
     external = ("http://", "https://", "//", "#", "data:", "mailto:",
                 "javascript:")
@@ -1264,7 +1268,9 @@ def test_every_asset_the_published_site_references_exists():
         f"only {len(checked)} local references found across {len(pages)} "
         f"pages - the extraction has stopped matching")
     for required in ("assets/site.css", "assets/districts.json",
-                     "assets/social.png", "assets/map_data.geojson"):
+                     "assets/social.png", "assets/maplibre-gl.js",
+                     "assets/districts_index.json",
+                     "assets/tiles/districts.pmtiles"):
         assert required in checked, (
             f"{required} is no longer referenced by any page - if that is "
             f"deliberate, stop building it too")
@@ -1468,15 +1474,18 @@ def test_the_sector_model_nests_inside_the_district_model():
 def test_every_published_map_asset_carries_the_columns_its_page_reads():
     """The third direction of the column contract, added with sectors.
 
-    The pages no longer fetch the model output whole: build_map.py trims
-    each web asset to the columns the template reads (15.8 MB -> 13.4 MB
-    for sectors) and rounds them. That trim is a new way to ship a
-    silently broken popup - drop a column the template reads and it
-    renders `undefined`, with nothing raising anywhere. So: every column
-    the template reads must be present in EVERY published asset, and the
-    assets must agree with each other (the same template drives both, so
-    a column present in one and missing from the other is a bug by
-    construction).
+    The pages carry no data of their own. The popup's row comes from a
+    per-postcode-area shard written by build_tiles.py, which is a way to
+    ship a silently broken popup - drop a column the template reads and
+    it renders `undefined`, with nothing raising anywhere. So: every
+    column the template reads must be present on EVERY unit of EVERY
+    shard, and the two grains must agree with each other (the same
+    template drives both, so a column in one and not the other is a bug
+    by construction).
+
+    Checked against the shards rather than the tiles because the shard
+    is what the popup reads, and it is the one that carries all 62
+    columns - the tile deliberately carries only the 20 that paint.
     """
     import json
     import build_map
@@ -1489,7 +1498,7 @@ def test_every_published_map_asset_carries_the_columns_its_page_reads():
     # rebuild's bot commit not landed yet - the docs/ assets cannot
     # carry the column by construction, and failing here deadlocks
     # rebuild.yml's pre-flight against the very run that would fix it.
-    # Skipping is safe because build_map.web_asset hard-fails the BUILD
+    # Skipping is safe because build_map.rounded_props hard-fails the BUILD
     # if the model output lacks a template-read column, so `undefined`
     # can never actually publish. Once the model output carries every
     # column the template reads, this re-arms and guards drift again.
@@ -1503,27 +1512,27 @@ def test_every_published_map_asset_carries_the_columns_its_page_reads():
                     "rebuild's bot commit")
 
     seen = {}
-    for asset, min_units in (("map_data.geojson", 2700),
-                             ("sector_data.geojson", 10000)):
-        path = os.path.join(root, "docs", "assets", asset)
-        assert os.path.exists(path), f"docs/assets/{asset} was not built"
-        with open(path, encoding="utf-8") as fh:
-            feats = json.load(fh)["features"]
-        assert len(feats) >= min_units, (
-            f"{asset} has only {len(feats)} units")
-        cols = set(feats[0]["properties"])
+    for grain, min_units in (("districts", 2700), ("sectors", 10000)):
+        d = os.path.join(root, "docs", "assets", "units", grain)
+        assert os.path.isdir(d), f"docs/assets/units/{grain}/ was not built"
+        rows = {}
+        for f in sorted(os.listdir(d)):
+            with open(os.path.join(d, f), encoding="utf-8") as fh:
+                rows.update(json.load(fh))
+        assert len(rows) >= min_units, (
+            f"{grain} shards hold only {len(rows)} units")
+        cols = set(next(iter(rows.values())))
         missing = sorted(needed - cols)
         assert not missing, (
-            f"docs/assets/{asset} lacks {missing}, which the map template "
+            f"the {grain} shards lack {missing}, which the map template "
             f"reads - the popup renders `undefined` for them")
-        # every feature, not just the first: a column present on one unit
-        # and absent on another is the same bug, one district deep
-        ragged = [f["properties"]["name"] for f in feats
-                  if set(f["properties"]) != cols]
+        # every unit, not just the first: a column present on one and
+        # absent on another is the same bug, one district deep
+        ragged = [k for k, v in rows.items() if set(v) != cols]
         assert not ragged, (
-            f"{asset}: {len(ragged)} units have a different column set, "
+            f"{grain}: {len(ragged)} units have a different column set, "
             f"first {ragged[:3]}")
-        seen[asset] = cols
+        seen[grain] = cols
 
     a, b = seen.values()
     assert a == b, (

@@ -1,0 +1,92 @@
+name: publish site
+
+# GitHub Pages is deployed from a build ARTIFACT, not from docs/ on main.
+#
+# The map reads vector tiles now, and PMTiles files are already
+# compressed, so git cannot delta them: committing both grains would put
+# ~33 MB into the packfile on every publish, against ~3.5 MB for the
+# GeoJSON they replace, and none of it reclaimable without rewriting
+# history. Building here instead costs nothing and keeps the repo the
+# size of its source.
+#
+# Requires the repository's Pages source to be set to "GitHub Actions"
+# (Settings -> Pages -> Build and deployment -> Source). Until that is
+# changed, Pages keeps serving docs/ from main and this workflow's
+# deploy step is what fails - not the site.
+
+on:
+  push:
+    branches: [main]
+    # The site is a function of the model output, the templates and the
+    # build scripts. A README edit should not spend six minutes tiling
+    # 13,000 units.
+    paths:
+      - "data/districts_risk.geojson"
+      - "data/sectors_risk.geojson"
+      - "data/year_analysis.json"
+      - "map/template.html"
+      - "site/**"
+      - "assets/**"
+      - "scripts/build_*.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race; a half-published site is worse than a late
+# one. Superseded builds are cancelled rather than queued.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build the site
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # Order matters: build_site.py wraps pages that build_map.py and
+      # build_analysis.py produce, and it hard-fails if build_tiles.py
+      # has not run, because a missing tile set is a blank map.
+      # make_images.py is NOT run here - the favicon and social card are
+      # committed, and rendering them is the rebuild's job, not the
+      # publisher's.
+      - name: Build map, tiles, analysis and site
+        run: |
+          python -u scripts/build_map.py
+          python -u scripts/build_tiles.py
+          python -u scripts/build_analysis.py
+          python -u scripts/build_site.py
+
+      # Catches a broken reference before it is served, not after: every
+      # href/src/fetch/new URL in docs/ must resolve to a file that
+      # exists. A 404 on Pages is invisible until someone clicks.
+      - name: Check the built site references only files that exist
+        run: python -m pytest tests -q -k "published_site or map_asset"
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    name: deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

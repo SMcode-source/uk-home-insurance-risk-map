@@ -96,16 +96,18 @@ scripts/
   derive_sectors.py           Code-Point centroids -> postcode-SECTOR polygons
   validate_sectors_scotland.py scores them against NRS's official Scottish set
   compare_sector_model.py     sector model vs the published district one
-  build_map.py                -> both map pages (district + sector) + assets
+  build_map.py                -> both map pages (district + sector)
+  build_tiles.py              -> map/tiles/*.pmtiles, map/units/, map/*_index.json
   build_analysis.py           -> analysis/uk_risk_year_analysis.html
   build_site.py               wraps both + templates -> docs/
   make_images.py              favicon + social card, rendered from the geojson
   dependence_check.py         does the copula actually matter? -> dependence.json
   check_*.py                  small sanity-check helpers (calibration, geojson,
                               surface water, year buckets)
-map/template.html             map page (Leaflet inlined at build time)
+map/template.html             map page (MapLibre GL, linked at build time)
 analysis/template.html        good/bad-years page (hand-rolled SVG charts)
-assets/leaflet.{js,css}       Leaflet 1.9.4, inlined into the map HTML
+assets/maplibre-gl.{js,css}   MapLibre GL JS 5.6.1, linked from the map pages
+assets/pmtiles.js             PMTiles 4.3.0 protocol handler
 ```
 
 ## Map layers
@@ -731,9 +733,10 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
                                                      # h-inverse bisection for erosion is the dominant cost)
 .venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs -> data/sensitivity.json (~25 min, optional)
 .venv/Scripts/python scripts/make_images.py          # favicon + 1200x630 social card, rendered from the data
-.venv/Scripts/python scripts/build_map.py            # -> both map pages + both data assets (district and sector).
-                                                     # The GeoJSON is fetched by the pages, not inlined, so they
-                                                     # need HTTP: `python -m http.server` inside docs/
+.venv/Scripts/python scripts/build_map.py            # -> both map pages (district and sector)
+.venv/Scripts/python scripts/build_tiles.py          # -> vector tiles, popup shards, name index (~3 min).
+                                                     # The pages read these over HTTP, by byte range, so they
+                                                     # need a server: `python -m http.server` inside docs/
 .venv/Scripts/python scripts/build_analysis.py       # -> analysis/uk_risk_year_analysis.html
 ```
 

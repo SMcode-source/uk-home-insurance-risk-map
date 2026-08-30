@@ -44,6 +44,10 @@ map/uk_home_insurance_risk_map.html
 map/uk_sector_risk_map.html
 map/map_data.geojson
 map/sector_data.geojson
+map/tiles/
+map/units/
+map/districts_index.json
+map/sectors_index.json
 analysis/uk_risk_year_analysis.html
 # fetch_bgs.py resume checkpoints (deleted on a complete fetch)
 data/*.progress.jsonl
@@ -55,3 +59,32 @@ data/*.partial
 data/haduk_district_annual*.csv
 data/haduk_1km_state.npz
 data/haduk_1km_weights.npz
+
+# ONSPD mirror and the derived UK-wide postcode centroids (89 MB;
+# rebuild with scripts/fetch_onspd.py). The centroids are an input to
+# the polygon rebuild, not a model output.
+data/cache/onspd_full.zip
+data/postcode_centroids.csv
+
+# Full-resolution rebuilt geometry and the coastline it is clipped to.
+# All regenerable: scripts/fetch_onspd.py then
+# scripts/build_postcode_polygons.py. These are ANALYSIS geometry - the
+# published layers are simplified copies, see build_postcode_polygons.py.
+data/cache/uk_coastline_bfc.geojson
+data/cache/uk_land.wkb
+data/districts_uk.gpkg
+data/districts_uk.geojson
+data/sectors_uk.gpkg
+data/sectors_uk_display.geojson
+data/districts_uk_display.geojson
+data/districts_uk.pmtiles
+
+# Built by build_tiles.py and copied into docs/ by build_site.py. NOT
+# committed: PMTiles are already compressed, so git cannot delta them,
+# and committing both grains would put ~33 MB into the packfile on
+# every publish against ~3.5 MB for the GeoJSON they replace. Pages is
+# served from the build artifact instead (.github/workflows/pages.yml).
+docs/assets/tiles/
+docs/assets/units/
+docs/assets/districts_index.json
+docs/assets/sectors_index.json
