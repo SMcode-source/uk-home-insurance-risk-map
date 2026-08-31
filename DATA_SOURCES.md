@@ -1026,6 +1026,15 @@ districts**, used as the exposure weight throughout.
     loads it with EXACT coverage required — a missing name means the
     file is at the wrong grain (the ct_bands lesson, #30).
 
+    At the sector grain, the 13 sectors whose polygon is empty (no
+    geometry, so no centroid, no Hargreaves Ra, no PET) take their
+    parent district's climatology
+    (`make_smd_climatology.py --fill-empty-from`), printed sector by
+    sector at build time — the children.csv posture, not a silent
+    patch. Coherence between the grains: Spearman +0.9964 between
+    per-district sector means and the district table, median relative
+    difference 0.000.
+
     **Why this index:** aggregated nationally it recovers 5 of the 6
     canonical UK subsidence years (1976, 1995, 2003, 2018, 2022;
     misses 2006); the capped 150 mm bucket saturates (94–96% of
