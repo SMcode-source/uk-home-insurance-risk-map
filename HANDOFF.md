@@ -37,6 +37,15 @@ and the map sits inside its own noise floor. Tab 4 SHIPPED as
 workstream, which is the honest headline: five gates of temperature
 work found one real map (subsidence geography) and no level.
 
+**The current premium is £169.6477 — £169.65 at 2dp, districts;
+£169.6636 at sector grain.** Stated here because everything below this
+line is a dated entry quoting whatever was live at the time, and
+£169.66 appears in many of them correctly as history. That ambiguity
+already cost something real: the temperature tab shipped with £169.66
+typed into it and quoted a penny the model no longer charges. **Never
+type this figure into a page** — `__PREM_MEAN__` injects it,
+household-weighted, and the placeholder cannot go stale.
+
 **What the workstream leaves open**, in its own sections below: the
 frost SHARE is distributional and unanchored (0.17 pence across a 2x
 range, but 353 districts re-rate — there is no UK per-era attribution
@@ -52,8 +61,14 @@ to `data/haduk_district_annual_1km.csv` without ever fitting anywhere
 (174 GB, run 33319459184). Both per-district year tables — 5 km local,
 1 km from CI — are complete, schema-identical and gitignored; the
 scripts regenerate them. The CEDA token (secret `CEDA_TOKEN`, also
-`~/.ceda_token`) **expires 2026-09-01 16:27 UTC**; nothing planned
-still needs it. Daily data ends **2025-12**, so the ABI's 2026 quarters
+`~/.ceda_token`) **expires 2026-09-01 16:27 UTC and is being allowed to
+lapse** — nothing planned needs it, and the four HadUK workflows say so
+in their own headers. **This is an expiry, not a budget decision**: CEDA
+is free and a renewal is one registration away, exactly like MIDAS Open
+was, so if a future question needs the daily grids the answer is "get a
+new token", not "we cannot afford it". The dead secret is harmless where
+it is; delete it only if you want the settings page tidy. Daily data
+ends **2025-12**, so the ABI's 2026 quarters
 have no matching weather year. `snowLying` exists at 12 km and was Gate
 3's snow driver before Gate 3 closed.
 
@@ -65,6 +80,27 @@ damage) completed 2026-08-17. Phase 2 is EPC/VOA exposure realism —
 (the buildings/contents cover split) went live the same day.** Two
 anchor corrections went live 2026-08-25: theft's paid total and the
 escape-of-water freeze share.
+
+**The budget is zero, decided 2026-08-31, and it is a standing rule
+rather than a mood.** Nothing licensed, nothing paid-tier, nothing
+needing a commercial agreement. DATA_SOURCES opens its blocked-data
+section with what this closes permanently — PAF/AddressBase, BGS
+superficial thickness — and, more usefully, what it does NOT close:
+free-but-gated sources are still fair game, which is how MIDAS Open
+went from "blocked" to carrying the gust component. Test any future
+source on "does it cost money", never on "is it inconvenient". The
+consequence for the model is that the assumed θ(s) copula forms, the
+compound Bernoulli×LogNormal, `SUP_WEIGHT`'s 0.5 prior and
+census-households exposure are permanent limits, not a backlog.
+
+**Branches, trimmed 2026-08-31.** Only `main` and `sector-model` exist
+now. The six merged experiment branches were deleted after checking
+that nothing unique lived on them (what looked unique was pre-vector
+-tiles leftovers — Leaflet assets and the GeoJSON that PMTiles
+replaced — deliberately gone from main), and after lifting
+`year_claim_view.py` and `price_eow_sigma.py` onto main, which were the
+only real content stranded. `sector-model` is synced to main and stays;
+it is never merged INTO main.
 
 **Shipping is not the same as settling.** Two objections were stated,
 overruled by the user, and remain open: council tax tracks MARKET value
@@ -311,10 +347,32 @@ claim. It now reads "moved by less than a penny, to GBP169.65". **A
 placeholder does not make a sentence honest; the prose around it has to
 survive the substitution.**
 
-Everything else the scan flagged in `methodology.template.html` is a
-SOURCE constant - ABI shares, VOA counts, published anchors - which is
-prose about the world rather than output of the model, and is correctly
-typed.
+**"Everything else the scan flagged is a source constant" - wrong
+again, and caught by building the guard.** The methodology page typed
+`56.5%` for `SUB_DROUGHT_SHARE` too, one page over from the temperature
+tab that had just been fixed, and it was waved through as an ABI figure
+because the ABI attribution is where the 0.565 comes from. Provenance is
+not the test. The test is whether changing `build_model` changes the
+page: this one would not have. It is `__SUB_DROUGHT_PCT__` now, and the
+three share placeholders moved out of `temperature_bits()` into
+`load_stats()` so any page can state them. `docs/methodology.html` did
+not change by one byte, which is the point - the fix is invisible today
+and load-bearing the next time the share moves.
+
+The rest of what the scan flagged there really is source constants -
+ABI shares, VOA counts, published anchors - prose about the world rather
+than model output, correctly typed.
+
+**A guard now exists, because finding this by eye twice in one day is
+not a method.** `test_templates_do_not_retype_live_model_figures`
+formats what the model says NOW exactly as the placeholder does, and
+fails if that string appears literally in any template - verified by
+re-typing `169.65` into the temperature page, which fails with the file
+and line. It deliberately does NOT check `EOW_FREEZE_SHARE` as "31%":
+the methodology claims-mix table legitimately sums to 31%, so that
+string cannot tell the constant from an unrelated total, and a guard
+that cries wolf gets weakened. An honest gap beats a disabled test; the
+share is injected anyway.
 
 **The last asymmetry closed too, and closing it caught a fourteenth
 wrong number.** sub-level, eow-sigma and freeze-share had each

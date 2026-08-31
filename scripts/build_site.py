@@ -364,6 +364,8 @@ def climate_band_stats():
 
 
 def load_stats():
+    from build_model import (SUB_DROUGHT_SHARE as _SUB_DROUGHT_SHARE,
+                             EOW_FREEZE_SHARE as _EOW_FREEZE_SHARE)
     with open(os.path.join(ROOT, "data", "year_analysis.json")) as fh:
         ya = json.load(fh)
     with open(os.path.join(ROOT, "data", "districts_risk.geojson"),
@@ -887,6 +889,13 @@ def load_stats():
         # is a real result this project keeps quoting, so rounding to the
         # pound would hide exactly the differences the gates measure.
         "__PREM_MEAN__": f"{np.average([p['premium'] for p in feats], weights=[p.get('households', 0) for p in feats]):,.2f}",
+        # Peril-blend shares, site-wide rather than page-local: the
+        # methodology page and the temperature page each state the
+        # subsidence split in their own words, and a constant restated on
+        # two pages drifts on one of them first.
+        "__SUB_DROUGHT_PCT__": f"{100 * _SUB_DROUGHT_SHARE:.1f}",
+        "__SUB_FLAT_PCT__": f"{100 * (1 - _SUB_DROUGHT_SHARE):.1f}",
+        "__EOW_FREEZE_PCT__": f"{100 * _EOW_FREEZE_SHARE:.0f}",
         "__CAT_UPLIFT__": f"{100 * (cat['mean_total'] - cat['indep_mean_total']) / cat['indep_mean_total']:.0f}",
         "__DIST_UPLIFT__": f"{np.mean([p['uplift_pct'] for p in feats]):.0f}",
         # The premium split, exposure-weighted because that is what
@@ -1128,12 +1137,10 @@ def temperature_bits():
     # term; the rest of the total ratio is severity rising within perils.
     # The two multiply back to the total exactly, which is what makes
     # quoting both honest rather than two separate framings of one number.
-    # Both shares are live model constants, not prose. The page states
-    # each one twice (the split reads "43.5% flat and 56.5% drought"),
-    # and a constant restated in text is a constant that can be changed
-    # in build_model without the page noticing - which is how the
-    # bad-year figures above went stale.
-    from build_model import SUB_DROUGHT_SHARE, EOW_FREEZE_SHARE
+    # The shares this page states are injected site-wide from
+    # load_stats(); SUB_DROUGHT_SHARE is imported here only to look the
+    # SHIPPED pricing row up by value.
+    from build_model import SUB_DROUGHT_SHARE
 
     # The churn the published curve actually caused, looked up by the
     # SHIPPED index and share rather than by the variant's key. If
@@ -1212,9 +1219,6 @@ def temperature_bits():
         "__BY_WX_VALUE__": f"{_cat['cost_wx_per_claim'] / _ty['cost_wx_per_claim']:.2f}",
         "__BY_FL_COUNT__": f"{_cat['claims_fl_per_100k'] / _ty['claims_fl_per_100k']:.2f}",
         "__BY_FL_VALUE__": f"{_cat['cost_fl_per_claim'] / _ty['cost_fl_per_claim']:.2f}",
-        "__SUB_DROUGHT_PCT__": f"{100 * SUB_DROUGHT_SHARE:.1f}",
-        "__SUB_FLAT_PCT__": f"{100 * (1 - SUB_DROUGHT_SHARE):.1f}",
-        "__EOW_FREEZE_PCT__": f"{100 * EOW_FREEZE_SHARE:.0f}",
         "__SMD_CHURN__": f"{_shipped['churn']:,}",
         "__SMD_CHURN2__": f"{_shipped['churn2']:,}",
     }

@@ -1264,6 +1264,69 @@ def test_site_placeholders_all_resolve():
         assert not left, f"docs/{page} still contains {left}"
 
 
+def test_templates_do_not_retype_live_model_figures():
+    """A model figure typed into a template goes stale silently.
+
+    This is the defect this repository keeps rediscovering. The peril
+    table hand-wrote the theft cap and contradicted the prose two
+    sections down. The temperature tab then shipped with THIRTEEN typed
+    figures - the bad-year decomposition, the premium, and the peril
+    shares - every one measured before Gate 2 and every one wrong by
+    publication, including `GBP169.66` when the model had moved to
+    169.6477. Nothing caught any of it, because a typed number is
+    perfectly valid HTML and the page it contradicts is a different file.
+
+    So the check is the other way round: take what the model says NOW,
+    format it exactly as the placeholder does, and fail if that string
+    appears literally in a template. Whatever collides is either the
+    figure (inject it) or a genuine coincidence (see below).
+
+    Deliberately NOT checked: EOW_FREEZE_SHARE as "31%". The methodology
+    page's claims-mix table legitimately sums to 31%, so that string
+    cannot distinguish the constant from an unrelated total - a guard
+    that cries wolf gets weakened, and a weakened guard is worse than an
+    honest gap. It is injected as __EOW_FREEZE_PCT__ regardless.
+    """
+    import json
+    import re
+    root = os.path.join(os.path.dirname(__file__), "..")
+
+    with open(os.path.join(root, "data", "districts_risk.geojson"),
+              encoding="utf-8") as fh:
+        feats = [f["properties"] for f in json.load(fh)["features"]]
+    hh = sum(p.get("households", 0) for p in feats)
+    prem = sum(p["premium"] * p.get("households", 0) for p in feats) / hh
+
+    forbidden = {
+        f"{prem:,.2f}": "the household-weighted premium - use __PREM_MEAN__",
+        f"{100 * bm.SUB_DROUGHT_SHARE:.1f}%":
+            "SUB_DROUGHT_SHARE - use __SUB_DROUGHT_PCT__",
+        f"{100 * (1 - bm.SUB_DROUGHT_SHARE):.1f}%":
+            "the flat remainder - use __SUB_FLAT_PCT__",
+    }
+
+    templates = sorted(f for f in os.listdir(os.path.join(root, "site"))
+                       if f.endswith(".template.html"))
+    assert len(templates) >= 3, f"only {templates} found - glob is stale"
+
+    typed = []
+    for tpl in templates:
+        with open(os.path.join(root, "site", tpl), encoding="utf-8") as fh:
+            body = fh.read()
+        # Strip <style> - CSS carries percentages and lengths that can
+        # collide with a share by pure arithmetic accident.
+        body = re.sub(r"<style.*?</style>", "", body, flags=re.S)
+        for lit, why in forbidden.items():
+            if lit in body:
+                line = body[:body.index(lit)].count("\n") + 1
+                typed.append(f"{tpl}:{line} types {lit!r} - {why}")
+
+    assert not typed, (
+        "a live model figure is typed into a template; it will be wrong "
+        "the next time the model moves and nothing else will notice:\n  "
+        + "\n  ".join(typed))
+
+
 def test_every_asset_the_published_site_references_exists():
     """No broken links or missing assets in docs/, checked offline.
 
