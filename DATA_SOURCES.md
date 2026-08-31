@@ -1062,6 +1062,33 @@ districts**, used as the exposure weight throughout.
     daily 1969–2021, CC-BY,
     doi:10.5285/9275ab7e-6e93-42bc-8e72-59c98d409deb).
 
+35. **The temperature page's two national series (published
+    2026-08-31).** `data/temperature_series.json` — the household-weighted
+    national annual series of the peak within-year soil water deficit and
+    of air-frost days, 1960–2025, plus their least-squares trends, era
+    means and the drought backtest. Same source and same extraction as
+    #34 (HadUK-Grid 1 km daily, Met Office via CEDA, OGL), reduced by
+    `scripts/make_temperature_series.py`; the 12 MB per-district annual
+    table stays gitignored and the ~4 KB reduction is committed, the
+    make_smd_climatology.py rule.
+
+    Both series are the model's OWN instruments rather than a tidier
+    public index, so the page cannot illustrate a different model from
+    the one it links to. Weighted by census households, so the national
+    figure is what an average policy experienced rather than an average
+    square kilometre. Measured: drought **+3.6%/decade** (p = 0.036),
+    frost **−7.5%/decade** (p = 0.000204, −20.5% between the 1961–1990
+    and 1991–2020 normals). Every figure on the page is injected from
+    this file at build time — none is typed into the template.
+
+    The same page publishes the freeze dose-response from
+    `data/freeze_share_pricing.json` (CI run 33431160741, six full
+    simulations), committed for the reason `seed_sensitivity.json` is: a
+    measured range quoted from memory is a measured range that drifts.
+    Companion measurement, not a data source:
+    `scripts/measure_frost_era.py`, which tested re-aiming the frost
+    climatology and rejected it against within-era controls.
+
 ## Blocked on non-open data — what each would unblock
 
 Kept here so nobody re-derives the shopping list. None of these have an

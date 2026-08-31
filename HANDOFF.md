@@ -170,6 +170,92 @@ the next section:**
   *Cleared: the ABI's own arithmetic yields 0.565 by two agreeing
   routes; priced at 0.40/0.565/0.70 so the table shows sensitivity.*
 
+## PUBLISHED 2026-08-31 (second): the temperature tab, and the freeze re-aim answered
+
+Two things the user asked for together ("do all of these"): the freeze
+LEVEL question Gate 2 left open, and what the fourth content tab
+publishes now that the workstream has reported.
+
+**The freeze re-aim: do not re-aim.** `measure_frost_era.py` on the
+66-year daily extraction. The decline is real and strongly significant
+- **-0.326 days/yr, p=0.0002, -7.5% of the mean per decade**, 49.0 days
+in 1961-1990 against 38.9 in 1991-2020 - and the model cannot feel any
+of it, because `eow_rate` divides frost by its own exposure-weighted
+mean and a proportional decline cancels exactly. So only the SHAPE and
+the SHARE can price.
+
+The shape was read against **within-era controls** - same climate,
+different sample - because a shorter recent window is a noisier
+estimate as well as a more current one, and without a control any
+re-aimed window shows movement that looks like signal:
+
+  candidate            |drel| p95     control (same n)
+  1996-2025 [n=30]        0.045       0.158  (two 15y halves)
+  2006-2025 [n=20]        0.091       0.158
+  2016-2025 [n=10]        0.187       0.178  (two disjoint decades)
+  1961-1990 [n=30]        0.185       0.158
+
+Both windows worth considering are far inside the noise; the recent
+decade only matches its own sample-size control; and the 1961-1990 map
+- a genuinely different climate 30 years back - differs from today's by
+no more than two arbitrary decades inside the published window differ
+from each other. 1 km and 5 km agree to the third decimal.
+
+**Then it was priced anyway, because a prediction is worth testing**
+(CI run 33431160741, six variants, 23 min):
+
+  variant           share   premium    d prem  capital   el_eow  churn
+  baseline          0.310  169.6483    +0.00p   5.5270  42.3871      0
+  share_200         0.200  169.6499    +0.16p   5.5285  42.3871    353
+  share_266         0.266  169.6490    +0.07p   5.5277  42.3871    158
+  share_400         0.400  169.6466    -0.17p   5.5253  42.3871    288
+  daily_1991_2020   0.310  169.6484    +0.01p   5.5271  42.3871    168
+  era_2006_2025     0.310  169.6482    -0.01p   5.5269  42.3871    220
+
+el_eow identical to ONE ULP everywhere - the construction proving
+itself. The era isolated against its own instrument control is **0.02
+pence**. Nearly doubling the share moves the premium 0.17 pence but
+moves 353 districts a rating group, +/-GBP15 at the extremes
+(Inverness-shire and the frostiest districts down as the dial drops,
+the Isles of Scilly up). **A distributional question wearing a pricing
+question's clothes**, with no UK per-era attribution to settle it.
+EOW_FREEZE_SHARE stays 0.31; LIMITATIONS section 4 records the gap.
+
+**The trap, and it cost a whole run.** The first attempt (33427929182)
+reported ~2 pence of movement and flagged el_eow drifting 5.4e-4. That
+was the harness, not the model: build_model normalises the four
+attritional council-tax severity multipliers with CLAIM weights
+(households x that peril's OWN rate), so `ct_eow` is a function of
+`eow_rate`. Overwrite eow_rate on an already-scored frame and the
+severity normalisation left behind belongs to the old rate - the level
+then drifts with the SHAPE of the relativity and reads exactly like a
+priced effect. main() is correct and always was (it computes ct_eow
+after eow_rate); only a harness can get this wrong. **Any future
+harness that overwrites a `*_rate` column must renormalise that peril's
+`ct_*` before calibrating.** The fix needs no fresh read of
+ct_bands.csv - renormalising the frame's own column on the new weights
+is exact, because the old constant cancels.
+
+**The temperature tab is live** at `/temperature.html`, fifth content
+tab, never titled "prediction" and saying so in its opening line. Two
+server-rendered charts (household-weighted national series, 1960-2025)
+from `data/temperature_series.json`; every figure injected, none typed.
+Drought +3.6%/decade (p=0.036) with 5 of 6 canonical surges in the
+index's own top ten; frost -7.5%/decade with the blindness explained
+rather than hidden; Gate 4's "a bad year is dearer claims, not more
+claims"; and a limits section saying the climate scenario is flood-only,
+so it cannot show subsidence worsening or escape of water easing.
+
+Two guards were widened rather than worked around.
+`test_site_placeholders_all_resolve` scanned a **hard-coded pair** of
+templates, so all 23 of the new page's placeholders read as "defined but
+unused" - the guard could not see the page it guards. It now enumerates
+`site/*.template.html` with a count assertion. `test_layout` gained the
+page in both its page list and its SVG readable-size list; that second
+one is what proves the wide/narrow chart swap actually defeats the
+3.4px bug. 42 layout tests green including phone viewports, 67 model
+tests green, and docs/ reproduces byte-for-byte after the change.
+
 ## PUBLISHED 2026-08-31: the Gate 2 SMD curve, both grains in one push
 
 The user chose option 1 of the priced menu: ship `cwd_yr` at
