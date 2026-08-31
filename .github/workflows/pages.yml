@@ -17,13 +17,24 @@ name: publish site
 on:
   push:
     branches: [main]
-    # The site is a function of the model output, the templates and the
-    # build scripts. A README edit should not spend six minutes tiling
-    # 13,000 units.
+    # The site is a function of the DATA, the templates and the build
+    # scripts. A README edit should not spend six minutes tiling 13,000
+    # units - but a data edit must never be skipped.
+    #
+    # This listed three data files by name until 2026-08-31, and the
+    # build reads TWENTY-ONE. Repairing dead ABI citation URLs changed
+    # data/abi_*.csv, regenerated docs/years.html, and did not deploy:
+    # the fix sat in the repository while the live site kept serving the
+    # 404 links it was meant to remove. Nothing failed, which is what
+    # made it bad. Under-triggering publishes a stale site silently;
+    # over-triggering wastes six minutes and says so in the run log.
+    #
+    # So: the whole directory, for the same reason the placeholder test
+    # globs site/*.template.html instead of naming the files. A glob
+    # cannot fall behind the directory, and this list had already fallen
+    # eighteen files behind.
     paths:
-      - "data/districts_risk.geojson"
-      - "data/sectors_risk.geojson"
-      - "data/year_analysis.json"
+      - "data/**"
       - "map/template.html"
       - "site/**"
       - "assets/**"

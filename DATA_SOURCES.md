@@ -963,6 +963,37 @@ districts**, used as the exposure weight throughout.
     worked again exactly as documented. Archive timestamps are recorded
     in each row's note so any figure can be re-read.
 
+    **Re-checked 2026-08-31, because the site was publishing five dead
+    citation links.** The years page renders `ABI.sources` as clickable
+    links, so a 404 in the CSV is a 404 a reader clicks. Three of the
+    five turned out to be live again under renamed media-hub slugs, and
+    each was verified by reading the article and matching the figures
+    this repository quotes from it — not by trusting a status code:
+
+    | was | now | verified against |
+    |---|---|---|
+    | `2023/3/sinking-uk--last-summers-…` | `media-hub/news-post/surge-in-subsidence-payouts` | £219m, 23,000, 18,000, £9,600 — all four verbatim, and it still carries the old "Sinking UK" headline as its first line |
+    | `2026/1/abi-shares-cold-weather-advice-…` | `media-hub/news-post/the-abi-issues-advice-for-homeowners-and-drivers-ahead-of-upcoming-cold-weather` | "roughly 8,000 claims … £250 million … average claim cost almost £33,000" |
+    | `2026/2/adverse-weatherpushesproperty-…` | `media-hub/news-post/adverse-weather-pushes-property-insurance-payouts-to-61-billion-in-2025` | already present as a second row; the old URL was a dead duplicate of a live one, so the page showed "ABI 2026-02 · ABI 2026-02" with one broken |
+
+    **Two are withdrawn from abi.org.uk and are archive-only**, confirmed
+    absent from ABI's own `sitemap.xml` (352 live news posts): the 2018
+    "subsidence claims quadruple" release and the 2025-08 "insurance
+    support tops £150 million" release. The second is not a small loss —
+    it is where `sev_subsidence = £17,264` comes from, the Gate 1
+    severity anchor that is live in the model. Both rows already carry
+    their archive timestamps, which remain the citation of record.
+
+    **Do not "fix" those two by guessing a media-hub slug.** ABI's site
+    is a single-page app that returns HTTP 200 for *any* slug under
+    `/media-hub/news-post/`, including deliberate nonsense, and echoes
+    the slug into the HTML — so both a status check and a keyword grep
+    will tell you a page exists when it does not. The only reliable
+    tests are ABI's `sitemap.xml`, and rendering the URL in a real
+    browser: a missing article renders the literal text **"No news
+    articles found."** Verified against a control on both sides before
+    any of the three remappings above was accepted.
+
     **(a) The ABI publishes subsidence on TWO bases and never says so.**
 
     | basis | what it is | which releases |
