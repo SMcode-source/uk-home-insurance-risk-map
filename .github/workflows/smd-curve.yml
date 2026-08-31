@@ -1,0 +1,108 @@
+name: SMD curve pricing
+
+# Gate 2's decision half: price the drought-climatology relativity on
+# the subsidence frequency surface - two candidate indices (cwd_yr,
+# smd_jja) x three shares (0.40 / 0.565 / 0.70), seven full simulations
+# off one scored frame. See scripts/price_smd_curve.py for what each
+# variant is, where every share number comes from, and the PET caveat
+# the table inherits.
+#
+# MEASUREMENT ONLY. Nothing here touches the published model: no output
+# file is regenerated and there is deliberately no commit step. The
+# result is a table the user decides on.
+#
+# Runs on CI for the same reason sub-level.yml does (the note there):
+# the laptop's commit limit cannot hold seven simulate() passes next to
+# its usual neighbours, and a runner has its own memory.
+#
+# Triggered by PUSH to the experiment branch rather than by dispatch.
+# workflow_dispatch only works from the DEFAULT branch, and putting a
+# measurement workflow on main to price something that may never ship
+# gets the ordering backwards - main should learn about this when there
+# is a decision to record, not before.
+on:
+  push:
+    branches: [exp/smd-curve]
+    paths:
+      - "scripts/price_smd_curve.py"
+      - "scripts/build_model.py"
+      - "data/smd_climatology.csv"
+      - ".github/workflows/smd-curve.yml"
+  workflow_dispatch:
+    inputs:
+      nsim:
+        description: "Simulated years per district (blank = the model's 20,000)"
+        default: ""
+      batch:
+        description: "Districts per simulation batch (blank = the model's 80)"
+        default: ""
+
+concurrency:
+  group: smd-curve
+  cancel-in-progress: false
+
+jobs:
+  price:
+    name: price the SMD curve
+    runs-on: ubuntu-latest
+    # Seven full 20,000-year simulations off one scored frame. Gate 1's
+    # five fit in 300 minutes with reuse of the scored frame; two more
+    # re-simulations is ~40 min extra on that measured rate.
+    timeout-minutes: 340
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Clone postcode-district boundaries
+        run: |
+          git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git \
+            data/uk-postcode-polygons
+
+      # Same mirror, same pinned hashes as rebuild.yml - see the long note
+      # there for why BGS itself cannot be reached from GitHub runners.
+      - name: Download BGS geology from the data mirror
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download data-bgs-625k-v1 --dir data \
+            --pattern 'bgs_625k_*.geojson.gz'
+          gunzip data/bgs_625k_bedrock.geojson.gz \
+                 data/bgs_625k_superficial.geojson.gz
+          sha256sum -c <<'SUMS'
+          66524b94dfeb491a746994dfa5e334b52a9b15a42f82c15977df1d5c100c3fb7  data/bgs_625k_bedrock.geojson
+          a029e2ab61190c7103983c33d77c24743c7bb2c9fcfcd25ebd063ab9f3c38aee  data/bgs_625k_superficial.geojson
+          SUMS
+
+      - name: Reject incomplete geology
+        run: |
+          if ls data/*.partial 2>/dev/null; then
+            echo "::error::a geology layer is incomplete (.partial) - refusing to price"
+            exit 1
+          fi
+          python -u scripts/fetch_bgs.py --verify
+
+      - name: Price the variants
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.nsim }}" ];  then ARGS="$ARGS --nsim ${{ inputs.nsim }}"; fi
+          if [ -n "${{ inputs.batch }}" ]; then ARGS="$ARGS --batch ${{ inputs.batch }}"; fi
+          python -u scripts/price_smd_curve.py $ARGS
+
+      - name: Show the table again at the end of the log
+        run: cat data/smd_curve_pricing.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: smd-curve-pricing
+          path: data/smd_curve_pricing.json
+          retention-days: 30

@@ -702,7 +702,19 @@ def marginal_params(f):
     each lognormal's MEAN matches the published ABI average claim.
     """
     sub, wx = f["sub"], f["wx"]
-    p_sub = 0.002 + 0.028 * sub ** 1.5
+    # sub_rel is the Gate 2 SMD-curve lever: a per-district drought
+    # relativity multiplying subsidence FREQUENCY only - geology keeps
+    # the base shape, dependence structure untouched (theta_ws still
+    # reads sub_score). Exposure-weighted mean 1 by construction, so
+    # calibrate_frequency re-pins the ABI level exactly, the same
+    # division of labour as eow_rate's freeze slice. The real pipeline
+    # carries NO sub_rel column (_fields defaults it to 1.0, provably
+    # inert); only the pricing harness (price_smd_curve.py) puts a real
+    # curve on the frame, and only a publish decision would wire one
+    # into main(). The .get default is for hand-built test dicts that
+    # bypass _fields; _fields itself always supplies the key on real
+    # frames, so the harness's curve cannot be silently dropped here.
+    p_sub = (0.002 + 0.028 * sub ** 1.5) * f.get("sub_rel", 1.0)
     p_wx = 0.010 + 0.090 * wx ** 1.2
     # river/sea flood frequency from actual zone fractions: ~1.5%/yr for a
     # property in the defended 1in100/200 zone, ~0.3%/yr in the rest of
@@ -855,14 +867,22 @@ def marginal_params(f):
 
 def _fields(src):
     """Pull the marginal_params inputs out of a GeoDataFrame/chunk."""
-    return {k: src[v].values for k, v in
-            [("sub", "sub_score"), ("wx", "wx_score"), ("f_high", "f_high"),
-             ("f_low", "f_low"), ("sw_high", "sw_high"), ("sw_low", "sw_low"),
-             ("gw_frac", "gw_frac"), ("sw_sev", "sw_sev"), ("er", "er_frac"),
-             ("th", "th_rate"), ("eow", "eow_rate"),
-             ("fire", "fire_rate"), ("ad", "ad_rate"),
-             ("ct_th", "ct_th"), ("ct_eow", "ct_eow"),
-             ("ct_fire", "ct_fire"), ("ct_ad", "ct_ad")]}
+    out = {k: src[v].values for k, v in
+           [("sub", "sub_score"), ("wx", "wx_score"), ("f_high", "f_high"),
+            ("f_low", "f_low"), ("sw_high", "sw_high"), ("sw_low", "sw_low"),
+            ("gw_frac", "gw_frac"), ("sw_sev", "sw_sev"), ("er", "er_frac"),
+            ("th", "th_rate"), ("eow", "eow_rate"),
+            ("fire", "fire_rate"), ("ad", "ad_rate"),
+            ("ct_th", "ct_th"), ("ct_eow", "ct_eow"),
+            ("ct_fire", "ct_fire"), ("ct_ad", "ct_ad")]}
+    # Neutral when the column is absent, so hand-built test frames and
+    # pre-experiment callers (sensitivity.py, dependence_check.py) keep
+    # working while the SMD curve is unpriced. A publish decision makes
+    # this a REQUIRED column like eow_rate - remove the default in the
+    # same commit that wires the curve into main() for real.
+    out["sub_rel"] = (src["sub_rel"].values if "sub_rel" in src
+                      else np.ones(len(out["sub"])))
+    return out
 
 
 def inv_mixed_cdf(u, p, mu, sigma):
