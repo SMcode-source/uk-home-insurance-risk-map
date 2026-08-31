@@ -254,7 +254,33 @@ unused" - the guard could not see the page it guards. It now enumerates
 page in both its page list and its SVG readable-size list; that second
 one is what proves the wide/narrow chart swap actually defeats the
 3.4px bug. 42 layout tests green including phone viewports, 67 model
-tests green, and docs/ reproduces byte-for-byte after the change.
+tests green.
+
+**Then the publish push went red, and the stale-intermediate trap at
+"docs/ was stale and the local check said fresh" below had bitten a
+second time - worse than the first.** I ran `build_site.py` alone to
+add the nav link. It re-wrapped `analysis/uk_risk_year_analysis.html`
+and `map/*.html`, gitignored intermediates my checkout had left at
+their PRE-Gate-2 state, so commit 5b56296 silently REVERTED four
+published pages - map, relative, sectors, years - to the subsidence
+numbers the SMD curve had just replaced (`claims_sub_per_100k` 72.6
+back to 72.83, and the exceedance curves with it). Re-wrapping a stale
+intermediate does not merely fail to update a page; **it overwrites a
+correct page with old output, and the diff it produces looks like an
+ordinary one-line nav change.** Nothing local objected: 67 tests and 42
+layout tests passed on the reverted docs, because no test compares
+docs/ against the committed data - only CI's freshness step does, and
+that is what caught it. Fixed by running the full chain and committing
+the result, which is reproducible across two passes; the four pages now
+differ from 6f323aa by exactly the one nav line they were supposed to.
+
+So the rule below is not a tidiness preference, it is the only thing
+standing between a template edit and an unannounced model rollback on
+the live site: **never commit docs/ built by `build_site.py` alone.
+Run `build_map.py`, `build_tiles.py`, `build_analysis.py`,
+`build_site.py`, in that order, every time.** The intermediates are
+gitignored, so a fresh clone cannot reproduce this - only a long-lived
+checkout like this one can, which is exactly why it recurs here.
 
 ## PUBLISHED 2026-08-31: the Gate 2 SMD curve, both grains in one push
 
