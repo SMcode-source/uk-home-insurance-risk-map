@@ -8,30 +8,41 @@ name: scotland theft basis pricing
 # premises count. Scotland was touched in that commit only to note that
 # VOA is E&W-only; the comparator was never revisited.
 #
-# This prices what that asymmetry is worth: four full simulations off
+# This prices what that asymmetry is worth: five full simulations off
 # one scored frame - the published 7,381 against Scotland's Domestic
-# 5,192 and Dwelling 3,661, plus a `matched` variant that also scales
-# E&W to the same residential share so neither country carries
-# commercial burglary the other has had removed. See
+# 5,192 and Dwelling 3,661 one-sided, plus two `matched` variants that
+# also scale E&W to its own measured residential share so neither
+# country carries commercial burglary the other has had removed. See
 # scripts/price_scotland_theft.py for where each comparator comes from.
 #
 # The naive reading - Scotland is inflated 7381/5192 = 1.42x - is one of
-# the things being tested rather than assumed. The E&W correction is a
-# geographic attribution, not a category filter, and the harness
-# measures how much of E&W's commercial burglary it actually removes
-# (91.2% retained) instead of taking the description on trust.
+# the things being tested rather than assumed, and it does not survive.
+# The E&W correction is a geographic attribution, not a category filter:
+# it nationally retains 91.2% of E&W burglaries (measured from the
+# model's own burglary.csv and premises.csv), while ONS police recorded
+# crime puts E&W's true residential share at 68.5%. So E&W already
+# carries 1.33x too much burglary against Scotland's 1.42x, and the
+# like-for-like over-statement is about 1.07x - small enough that only a
+# simulation can say whether it is worth a model change.
+#
+# The two taxonomies line up closely enough to make the comparison fair:
+# E&W residential 68.5% against Scottish domestic 70.3%, E&W home-only
+# 51.1% against Scottish dwelling 49.6%. The two matched variants should
+# therefore land near each other, and the gap between them is this
+# measurement's own uncertainty.
 #
 # The LEVEL cannot price: calibrate_frequency pins the exposure-weighted
 # national theft frequency to the ABI anchor, so a uniform change
-# cancels exactly and el_th must come back identical in all four. What
-# is at stake is the Scotland-to-E&W RATIO, currently 0.359.
+# cancels exactly and el_th must come back identical in all five. What
+# is at stake is the Scotland-to-E&W RATIO: 0.359 published, 0.336 and
+# 0.318 matched.
 #
 # MEASUREMENT ONLY. Nothing here touches the published model: no output
 # file is regenerated and there is deliberately no commit step. The
 # result is a table the user decides on.
 #
 # Runs on CI for the same reason the other pricing workflows do: the
-# laptop's commit limit cannot hold four simulate() passes next to its
+# laptop's commit limit cannot hold five simulate() passes next to its
 # usual neighbours, and a runner has its own memory.
 #
 # Triggered by PUSH to the experiment branch rather than by dispatch.
@@ -64,9 +75,9 @@ jobs:
   price:
     name: price the Scottish theft basis
     runs-on: ubuntu-latest
-    # Four full 20,000-year simulations off one scored frame, on the
+    # Five full 20,000-year simulations off one scored frame, on the
     # rate the freeze-share run measured (seven in well under 340 min).
-    timeout-minutes: 240
+    timeout-minutes: 300
 
     steps:
       - uses: actions/checkout@v4

@@ -1,6 +1,6 @@
 """The Scottish theft basis, priced: is 7,381 the right comparator?
 
-Four full-fidelity runs off ONE scored frame, the price_freeze_share.py
+Five full-fidelity runs off ONE scored frame, the price_freeze_share.py
 pattern - scoring is the expensive half and is identical across
 variants, so every variant re-calibrates and re-simulates the same frame
 with the same seed and all differences are PAIRED.
@@ -29,39 +29,76 @@ revisited. So the two countries stopped being like-for-like, and the
 question this harness asks is how much that is worth.
 
 The naive answer - Scotland is inflated by 7381/5192 = 1.42x - is WRONG,
-and measuring it is the point. The E&W correction is a geographic
+and showing why is half the point of this harness. TWO things have to be
+measured before that ratio means anything.
+
+First, what the E&W correction actually removes. It is a geographic
 attribution, not a category filter: it moves burglaries away from
-commercial cores but nationally retains 91.2% of them (measured below,
-and printed by this script rather than typed into it). So E&W is
-residential-ish, not residential, and the like-for-like gap is nearer
-0.703/0.912 = 1.30x than 1.42x. Both numbers are measured here.
+commercial cores, but nationally it RETAINS 91.2% of them (computed here
+from burglary.csv and premises.csv, printed by the script rather than
+typed into it). So E&W is residential-ish, not residential.
+
+Second, what residential actually is in E&W. ONS police recorded crime
+(Appendix Table A5a) splits burglary the same way Scotland does, and the
+two taxonomies line up almost exactly:
+
+    E&W, Apr 2023 - Mar 2026        Scotland, 2024-25
+    Residential          68.5%      Domestic          70.3%
+      of which home      51.1%        of which dwelling 49.6%
+    Non-residential      31.5%      Other             29.7%
+
+That is the finding that changes the answer. E&W's true residential
+share is 68.5% and Phase 2a leaves 91.2% standing, so E&W carries an
+inflation of 0.912/0.685 = 1.33x - almost the same 1.42x Scotland
+carries. The two errors nearly cancel: on a like-for-like basis Scotland
+is over-stated relative to E&W by about 1.42/1.33 = 1.07x, not 1.42x.
+Every one of those numbers is measured in this script or cited to a
+table, and the point of running it is that a 7% relativity error is
+small enough that only a simulation can say whether it is worth a model
+change.
+
+The two windows also line up, which is why period is not a variant here.
+The police.uk archive is 36 months, 2023-07 to 2026-06, centred on
+December 2024; the Scottish constant is 2024-25, which straddles that
+centre. Scottish housebreaking is falling steeply (9,033 in 2023-24 to
+7,381 in 2024-25), so a backward multi-year mean WOULD sit above 7,381 -
+but the window is not backward-looking, and 15 of its 36 months are
+after the latest published Scottish year. There is nothing to correct
+towards.
 
 The LEVEL does not price. calibrate_frequency pins the exposure-weighted
 national theft frequency to the ABI anchor, so a uniform change to every
 district cancels exactly. What survives is the RATIO between Scotland
-and E&W, and that is what each variant moves:
+and E&W, currently 0.359, and that is what each variant moves:
 
-  baseline   7,381 all-premises over Scottish households. Published.
-  domestic   5,192. Scotland corrected to domestic property - the
-             closest category match to what a household policy covers,
-             outbuildings included. E&W left as it is: this is the
-             one-sided correction, and it is here to be read against
-             `matched` rather than adopted on its own.
-  dwelling   3,661. Dwellings only, the strict lower bracket. Excludes
-             the garage and the shed, which home insurance does not.
-  matched    5,192 for Scotland AND E&W scaled to the same residential
-             share, so neither country carries commercial burglary the
-             other has had removed. The scale is Scotland's measured
-             domestic share over E&W's measured implied share; it
-             assumes the two countries split burglary between homes and
-             businesses alike, which is an assumption and is why this is
-             a bracket and not a proposal.
+  baseline          7,381 all-premises over Scottish households.
+                    Published.
+  domestic          5,192. Scotland corrected to domestic property, the
+                    closest match to what a household policy covers
+                    (outbuildings included), E&W left alone. This is the
+                    one-sided fix the naive reading implies; it is here
+                    to be read against matched_domestic, not adopted.
+  dwelling          3,661. Dwellings only, one-sided, the strict bracket.
+  matched_domestic  5,192 AND E&W scaled by 0.685/0.912, so both
+                    countries sit at their own measured residential
+                    share. The like-for-like correction.
+  matched_dwelling  3,661 AND E&W scaled by 0.511/0.912, both at
+                    home-only. The two matched variants should land
+                    close together - Scotland's dwelling share (49.6%)
+                    and E&W's home share (51.1%) are within 1.5 points -
+                    and the gap between them is this measurement's own
+                    uncertainty, read off rather than asserted.
+
+The E&W scale is deliberately a LEVEL, uniform across districts. The
+truer fix for E&W would be a stronger per-district attribution, which
+would move the E&W map as well; that is a separate question and mixing
+it in here would make the Scottish answer unreadable.
 
 MEASUREMENT ONLY. Nothing here touches the published model and there is
 no commit step. The output is a table the user decides on.
 
 Usage:
-  price_scotland_theft.py               # all four, full N_SIM
+  price_scotland_theft.py               # all five, full N_SIM
   price_scotland_theft.py --nsim 2000   # shape check, NOT quotable
 """
 
@@ -87,8 +124,22 @@ OUT = os.path.join(ROOT, "data", "scotland_theft_pricing.json")
 # Recorded Crime in Scotland 2024-25, Table A6 (gov.scot, OGL v3.0),
 # cached at data/cache/scotland_recorded_crime_2024_25.xlsx.
 HB_TOTAL = 7_381
-HB_DOMESTIC = 5_192
-HB_DWELLING = 3_661
+HB_DOMESTIC = 5_192      # dwelling + non-dwelling, 70.3% of total
+HB_DWELLING = 3_661      # dwellings only, 49.6% of total
+
+# ONS, Crime in England and Wales: Appendix tables, year ending March
+# 2026 edition, Table A5a (police recorded crime by offence; Home Office
+# via ONS, OGL v3.0). Summed over Apr 2023 - Mar 2026, which brackets
+# the police.uk archive window the model reads (2023-07 to 2026-06).
+# The share is stable year to year - 68.7% / 67.9% / 68.9% - so the
+# window choice is not doing any work here.
+#
+#   Residential burglary (incl. home and non-connected buildings)
+#   of which: Residential home burglary
+#   Burglary (total)
+EW_BURG_RESIDENTIAL = 182_924 + 166_281 + 153_966     # 503,171
+EW_BURG_HOME = 136_245 + 124_128 + 115_304            # 375,677
+EW_BURG_TOTAL = 266_111 + 244_962 + 223_456           # 734,529
 
 
 class _Scored(Exception):
@@ -234,7 +285,7 @@ def main():
     # not reproduce the frame's OWN column at the published 7,381 then
     # the harness is pricing something other than the model - and it
     # would still finish, with a table that looks like an answer. Assert
-    # here, after the expensive half and before four simulations.
+    # here, after the expensive half and before five simulations.
     rebuilt = theft_rate(names, hh, HB_TOTAL, 1.0)
     drift = float(np.abs(rebuilt - gdf["th_rate"].values).max())
     if drift > 1e-12:
@@ -244,24 +295,39 @@ def main():
             "build_model called it, and every variant below would be "
             "measured against the wrong baseline")
 
-    scot, ew_total, ew_resid, ew_share = ew_residential_share(names, hh)
+    scot, ew_burg, ew_attrib, ew_implied = ew_residential_share(names, hh)
     scot_hh = float(hh[scot].sum())
-    dom_share = HB_DOMESTIC / HB_TOTAL
-    matched_scale = dom_share / ew_share
+
+    # What each country's own crime statistics say the residential share
+    # of burglary is, against what the model's E&W denominator actually
+    # leaves standing. The matched scales are the ratio of the two.
+    scot_dom = HB_DOMESTIC / HB_TOTAL
+    scot_dwl = HB_DWELLING / HB_TOTAL
+    ew_res = EW_BURG_RESIDENTIAL / EW_BURG_TOTAL
+    ew_home = EW_BURG_HOME / EW_BURG_TOTAL
+    scale_dom = ew_res / ew_implied
+    scale_dwl = ew_home / ew_implied
 
     print(f"\n{int(scot.sum())} Scottish districts, {scot_hh:,.0f} households")
-    print(f"  E&W burglary {ew_total:,.0f}/yr all premises; "
-          f"{ew_resid:,.0f}/yr attributed residential "
-          f"= {ew_share:.1%} implied residential share")
-    print(f"  Scotland domestic share {dom_share:.1%} "
-          f"({HB_DOMESTIC:,} of {HB_TOTAL:,})")
-    print(f"  matched E&W scale {matched_scale:.4f} "
-          f"(= {dom_share:.3f} / {ew_share:.3f})")
+    print(f"  police.uk E&W burglary {ew_burg:,.0f}/yr all premises; "
+          f"{ew_attrib:,.0f}/yr attributed residential by the Phase 2a "
+          f"denominator = {ew_implied:.1%} retained")
+    print(f"  ONS says E&W is {ew_res:.1%} residential "
+          f"({ew_home:.1%} home only) - so the model's E&W theft level "
+          f"carries {ew_implied / ew_res:.3f}x too much burglary")
+    print(f"  Scotland is {scot_dom:.1%} domestic ({scot_dwl:.1%} dwelling) "
+          f"- so its level carries {1 / scot_dom:.3f}x too much")
+    print(f"  net like-for-like Scottish over-statement "
+          f"{(1 / scot_dom) / (ew_implied / ew_res):.3f}x, NOT "
+          f"{1 / scot_dom:.3f}x")
+    print(f"  matched E&W scales: domestic {scale_dom:.4f}, "
+          f"dwelling {scale_dwl:.4f}")
 
     variants = [("baseline", HB_TOTAL, 1.0),
                 ("domestic", HB_DOMESTIC, 1.0),
                 ("dwelling", HB_DWELLING, 1.0),
-                ("matched", HB_DOMESTIC, matched_scale)]
+                ("matched_domestic", HB_DOMESTIC, scale_dom),
+                ("matched_dwelling", HB_DWELLING, scale_dwl)]
 
     rows, base = [], None
     for name, count, scale in variants:
@@ -317,21 +383,25 @@ def main():
               f"  el_th {row['el_th']:.4f}  churn {row.get('churn', 0)}"
               f"  [{(time.time() - t1) / 60:.1f} min]", flush=True)
 
-    print("\n" + "=" * 86)
-    print(f"{'variant':10s} {'scot':>7s} {'ratio':>7s} {'premium':>10s} "
+    print("\n" + "=" * 94)
+    print(f"{'variant':17s} {'scot':>7s} {'ratio':>7s} {'premium':>10s} "
           f"{'Scotland':>10s} {'E&W':>10s} {'el_th':>8s} {'churn':>6s} "
           f"{'>=2':>4s}")
     for r in rows:
-        print(f"{r['key']:10s} {r['scot_count']:7,d} {r['rate_ratio']:7.4f} "
+        print(f"{r['key']:17s} {r['scot_count']:7,d} {r['rate_ratio']:7.4f} "
               f"{r['premium']:10.4f} {r['premium_scotland']:10.4f} "
               f"{r['premium_ew']:10.4f} {r['el_th']:8.4f} "
               f"{r.get('churn', 0):6d} {r.get('churn2', 0):4d}")
     with open(OUT, "w") as fh:
-        json.dump(dict(ew_burglary_total=ew_total,
-                       ew_burglary_residential=ew_resid,
-                       ew_residential_share=ew_share,
-                       scotland_domestic_share=dom_share,
-                       matched_ew_scale=matched_scale,
+        json.dump(dict(police_uk_ew_burglary=ew_burg,
+                       police_uk_ew_attributed_residential=ew_attrib,
+                       ew_share_retained_by_model=ew_implied,
+                       ew_share_residential_ons=ew_res,
+                       ew_share_home_ons=ew_home,
+                       scotland_domestic_share=scot_dom,
+                       scotland_dwelling_share=scot_dwl,
+                       matched_ew_scale_domestic=scale_dom,
+                       matched_ew_scale_dwelling=scale_dwl,
                        variants=rows), fh, indent=1)
     print(f"\nwrote {OUT}")
 
