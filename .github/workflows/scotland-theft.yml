@@ -1,0 +1,161 @@
+name: scotland theft basis pricing
+
+# Theft geography comes from police.uk, which has no Scottish forces, so
+# every Scottish district is overridden with one national rate built on
+# SCOTLAND_HOUSEBREAKING_2024_25 = 7,381 - TOTAL Housebreaking, all
+# premises. England and Wales are not all-premises: Phase 2a divides
+# each district's burglary count by households PLUS its VOA non-domestic
+# premises count. Scotland was touched in that commit only to note that
+# VOA is E&W-only; the comparator was never revisited.
+#
+# This prices what that asymmetry is worth: five full simulations off
+# one scored frame - the published 7,381 against Scotland's Domestic
+# 5,192 and Dwelling 3,661 one-sided, plus two `matched` variants that
+# also scale E&W to its own measured residential share so neither
+# country carries commercial burglary the other has had removed. See
+# scripts/price_scotland_theft.py for where each comparator comes from.
+#
+# The naive reading - Scotland is inflated 7381/5192 = 1.42x - is one of
+# the things being tested rather than assumed, and it does not survive.
+# The E&W correction is a geographic attribution, not a category filter:
+# it nationally retains 91.2% of E&W burglaries (measured from the
+# model's own burglary.csv and premises.csv), while ONS police recorded
+# crime puts E&W's true residential share at 68.5%. So E&W already
+# carries 1.33x too much burglary against Scotland's 1.42x, and the
+# like-for-like over-statement is about 1.07x - small enough that only a
+# simulation can say whether it is worth a model change.
+#
+# The two taxonomies line up closely enough to make the comparison fair:
+# E&W residential 68.5% against Scottish domestic 70.3%, E&W home-only
+# 51.1% against Scottish dwelling 49.6%. The two matched variants should
+# therefore land near each other, and the gap between them is this
+# measurement's own uncertainty.
+#
+# The LEVEL cannot price: calibrate_frequency pins the exposure-weighted
+# national theft frequency to the ABI anchor, so a uniform change
+# cancels exactly and el_th must come back identical in all five. What
+# is at stake is the Scotland-to-E&W RATIO: 0.359 published, 0.336 and
+# 0.318 matched.
+#
+# MEASUREMENT ONLY. Nothing here touches the published model: no output
+# file is regenerated and there is deliberately no commit step. The
+# result is a table the user decides on.
+#
+# Runs on CI for the same reason the other pricing workflows do: the
+# laptop's commit limit cannot hold five simulate() passes next to its
+# usual neighbours, and a runner has its own memory.
+#
+# Triggered by PUSH to the experiment branch rather than by dispatch.
+# workflow_dispatch only works from the DEFAULT branch, and putting a
+# measurement workflow on main to price something that may never ship
+# gets the ordering backwards - main should learn about this when there
+# is a decision to record, not before.
+#
+# Push trigger retired 2026-09-01, answer recorded. Run 33449273312
+# priced all five variants. el_th comes back at 22.038710 in every one
+# of them (drift <= 2.2e-16, so the ct_th renormalisation held) and the
+# headline premium is 169.6483 in all five to four decimals: the basis
+# is a pure relativity and cannot touch the level, exactly as
+# calibrate_frequency promises.
+#
+# What it moves is Scotland. Mean Scottish premium GBP172.09 published:
+#
+#   matched_domestic  171.56  (-0.53, -0.3%)  48 movers, largest -0.90
+#   matched_dwelling  171.13  (-0.96, -0.6%)  82 movers, largest -1.64
+#
+# against the one-sided fix the naive reading implies:
+#
+#   domestic          169.62  (-2.47, -1.4%) 194 movers, largest -4.22
+#   dwelling          167.86  (-4.23, -2.5%) 312 movers, largest -7.23
+#
+# Nothing moves two rating groups in any variant. So the asymmetry is
+# real and worth about half a percent on Scottish premiums, and the
+# naive one-sided correction would have been four to five times too
+# large and in the wrong direction of confidence. Nothing shipped; 7,381
+# stays and LIMITATIONS records the measurement.
+#
+# Run 33448637463 is kept in the record as a cancelled first attempt
+# worth remembering: it priced Scotland against an E&W side it had only
+# described, closing the gap with an assumption where ONS Table A5a
+# publishes the number. The assumption was nearly right and the answer
+# still changed, because the comparison is not Scotland against truth -
+# it is Scotland against what the model's own denominator leaves
+# standing.
+on:
+  workflow_dispatch:
+    inputs:
+      nsim:
+        description: "Simulated years per district (blank = the model's 20,000)"
+        default: ""
+      batch:
+        description: "Districts per simulation batch (blank = the model's 80)"
+        default: ""
+
+concurrency:
+  group: scotland-theft
+  cancel-in-progress: false
+
+jobs:
+  price:
+    name: price the Scottish theft basis
+    runs-on: ubuntu-latest
+    # Five full 20,000-year simulations off one scored frame, on the
+    # rate the freeze-share run measured (seven in well under 340 min).
+    timeout-minutes: 300
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Clone postcode-district boundaries
+        run: |
+          git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git \
+            data/uk-postcode-polygons
+
+      # Same mirror, same pinned hashes as rebuild.yml - see the long note
+      # there for why BGS itself cannot be reached from GitHub runners.
+      - name: Download BGS geology from the data mirror
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download data-bgs-625k-v1 --dir data \
+            --pattern 'bgs_625k_*.geojson.gz'
+          gunzip data/bgs_625k_bedrock.geojson.gz \
+                 data/bgs_625k_superficial.geojson.gz
+          sha256sum -c <<'SUMS'
+          66524b94dfeb491a746994dfa5e334b52a9b15a42f82c15977df1d5c100c3fb7  data/bgs_625k_bedrock.geojson
+          a029e2ab61190c7103983c33d77c24743c7bb2c9fcfcd25ebd063ab9f3c38aee  data/bgs_625k_superficial.geojson
+          SUMS
+
+      - name: Reject incomplete geology
+        run: |
+          if ls data/*.partial 2>/dev/null; then
+            echo "::error::a geology layer is incomplete (.partial) - refusing to price"
+            exit 1
+          fi
+          python -u scripts/fetch_bgs.py --verify
+
+      - name: Price the variants
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.nsim }}" ];  then ARGS="$ARGS --nsim ${{ inputs.nsim }}"; fi
+          if [ -n "${{ inputs.batch }}" ]; then ARGS="$ARGS --batch ${{ inputs.batch }}"; fi
+          python -u scripts/price_scotland_theft.py $ARGS
+
+      - name: Show the table again at the end of the log
+        run: cat data/scotland_theft_pricing.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scotland-theft-pricing
+          path: data/scotland_theft_pricing.json
+          retention-days: 30
