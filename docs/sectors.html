@@ -250,7 +250,7 @@ body { overflow: hidden; }
 </style>
 </head>
 <body>
-<nav class="site-nav"><a class="brand" href="index.html"><span class="dots"><i style="background:var(--sub)"></i><i style="background:var(--wx)"></i><i style="background:var(--fl)"></i><i style="background:var(--gw)"></i></span><span class="txt">UK Home Insurance Risk Map</span></a><a class="navlink" href="index.html">Overview</a><a class="navlink" href="years.html"><span class="nav-full">What happened</span><span class="nav-short">History</span></a><a class="navlink" href="map.html"><span class="nav-full">The model</span><span class="nav-short">Model</span></a><a class="navlink" href="relative.html"><span class="nav-full">Relative risk</span><span class="nav-short">Relative</span></a><a class="navlink" href="methodology.html"><span class="nav-full">Methodology</span><span class="nav-short">Method</span></a><span class="spacer"></span><a class="ghlink" href="https://github.com/SMcode-source/uk-home-insurance-risk-map">GitHub ↗</a></nav>
+<nav class="site-nav"><a class="brand" href="index.html"><span class="dots"><i style="background:var(--sub)"></i><i style="background:var(--wx)"></i><i style="background:var(--fl)"></i><i style="background:var(--gw)"></i></span><span class="txt">UK Home Insurance Risk Map</span></a><a class="navlink" href="index.html">Overview</a><a class="navlink" href="years.html"><span class="nav-full">What happened</span><span class="nav-short">History</span></a><a class="navlink" href="map.html"><span class="nav-full">The model</span><span class="nav-short">Model</span></a><a class="navlink" href="relative.html"><span class="nav-full">Relative risk</span><span class="nav-short">Relative</span></a><a class="navlink" href="temperature.html"><span class="nav-full">Temperature</span><span class="nav-short">Temp</span></a><a class="navlink" href="methodology.html"><span class="nav-full">Methodology</span><span class="nav-short">Method</span></a><span class="spacer"></span><a class="ghlink" href="https://github.com/SMcode-source/uk-home-insurance-risk-map">GitHub ↗</a></nav>
 <main aria-label="Interactive risk map">
 <!-- The districts render to a single canvas, so there is nothing under
      the pointer for a screen reader or keyboard — no per-district DOM at
@@ -466,7 +466,7 @@ const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
    works while "the loaded features" means all of them. Under vector
    tiles it means the viewport's, so the scale (and the legend printed
    from it) would shift as you panned. Fixed nationally, once. */
-const BREAKS = {"premium":[131,144.2,157.2,170.6,187.1,214],"var995_vine":[4896.1,5393.9,5871,6427.7,7205.3,8563.6],"capital":[4.1451,4.6612,5.1081,5.5505,6.1581,7.0926],"er_smp105":[0.0014,0.0042,0.0078,0.0117,0.016,0.0305]};
+const BREAKS = {"premium":[132.4,145.4,158.2,171.2,187.2,212.2],"var995_vine":[4927.6,5424.6,5894,6436.3,7183.7,8456],"capital":[4.2206,4.7332,5.1738,5.6003,6.171,6.9871],"er_smp105":[0.0014,0.0042,0.0078,0.0117,0.016,0.0305]};
 /* Household-weighted median premium across the whole country - the
    anchor the relative-risk page divides by. Weighted by households, not
    by unit, so a sparse rural district counts as its people, not as one

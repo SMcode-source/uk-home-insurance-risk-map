@@ -13,6 +13,7 @@
 **[The model](https://smcode-source.github.io/uk-home-insurance-risk-map/map.html)** ·
 **[Sector map](https://smcode-source.github.io/uk-home-insurance-risk-map/sectors.html)** ·
 **[Relative risk](https://smcode-source.github.io/uk-home-insurance-risk-map/relative.html)** ·
+**[Temperature](https://smcode-source.github.io/uk-home-insurance-risk-map/temperature.html)** ·
 **[Methodology](https://smcode-source.github.io/uk-home-insurance-risk-map/methodology.html)**
 
 ---
@@ -57,6 +58,7 @@ docs/                         the published website (GitHub Pages source)
   sectors.html                the same map at postcode-sector resolution
   relative.html               the premium as a multiple of the UK median
   years.html                  what happened: ABI record + good-vs-bad-years
+  temperature.html            what 66 years of measured weather did to the model
   methodology.html            full methodology write-up
 site/                         page templates + shared stylesheet for docs/
 tests/test_copula.py          property tests for the copula machinery

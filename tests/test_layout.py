@@ -41,7 +41,7 @@ sync_api = pytest.importorskip(
 DOCS = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "docs"))
 
 PAGES = ["index.html", "map.html", "sectors.html", "relative.html",
-         "years.html", "methodology.html"]
+         "years.html", "temperature.html", "methodology.html"]
 
 # All three map pages are the same template with different data (and, on
 # relative.html, a different metric set), so every map invariant is
@@ -178,8 +178,11 @@ def test_no_horizontal_page_scroll(browser, site_url, page_name,
 # ------------------------------------------------------------- type size --
 
 @pytest.mark.parametrize("viewport_name", VIEWPORTS)
+# temperature.html carries two server-rendered charts, each shipped as a
+# wide and a narrow drawing swapped by media query - the same answer the
+# methodology diagrams give to the 3.4px bug, and this is what checks it.
 @pytest.mark.parametrize("page_name", ["years.html", "methodology.html",
-                                       "index.html"])
+                                       "index.html", "temperature.html"])
 def test_svg_text_renders_at_readable_size(browser, site_url, page_name,
                                            viewport_name):
     """No SVG text may render below MIN_EFFECTIVE_FONT_PX.
