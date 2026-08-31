@@ -55,6 +55,12 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
 HADUK = os.path.join(ROOT, "data", "haduk", "1km")
+# The polygon set and the output/state paths are module globals so that
+# append_csv and the helpers see one consistent set; --polygons/--tag
+# rebind them in main() before any use. The tag keeps a sector run's
+# checkpoint, weights cache and CSV from colliding with the district
+# run's - a stale 2,736-district weights cache silently applied to
+# 10,398 sectors would be the quiet kind of wrong.
 DISTRICTS = os.path.join(ROOT, "data", "districts_risk.geojson")
 OUT = os.path.join(ROOT, "data", "haduk_district_annual_1km.csv")
 CKPT = os.path.join(ROOT, "data", "haduk_1km_state.npz")
@@ -150,6 +156,14 @@ def main():
     ap.add_argument("--recent-first", action="store_true",
                     help="process newest years first, so an interrupted run "
                          "leaves the most useful years done")
+    ap.add_argument("--polygons", default=None,
+                    help="alternative polygon set (e.g. "
+                         "data/sectors_risk.geojson for the 10,398 postcode "
+                         "sectors); needs a 'name' property per feature")
+    ap.add_argument("--tag", default="",
+                    help="suffix for the output CSV, checkpoint and weights "
+                         "cache (e.g. _sectors), so runs over different "
+                         "polygon sets cannot share state")
     ap.add_argument("--pet-sensitivity", action="store_true",
                     help="also run the drought integrals at PET x 0.85 and "
                          "x 0.70, emitting *_k85/*_k70 columns. Hargreaves "
@@ -158,6 +172,15 @@ def main():
                          "this measures whether it moves the MAP or only "
                          "the level. Same flag as haduk_district_daily.py.")
     args = ap.parse_args()
+
+    global DISTRICTS, OUT, CKPT, WCACHE
+    if args.polygons:
+        DISTRICTS = os.path.join(ROOT, args.polygons) \
+            if not os.path.isabs(args.polygons) else args.polygons
+    if args.tag:
+        OUT = OUT.replace(".csv", f"{args.tag}.csv")
+        CKPT = CKPT.replace(".npz", f"{args.tag}.npz")
+        WCACHE = WCACHE.replace(".npz", f"{args.tag}.npz")
 
     import xarray as xr
 
