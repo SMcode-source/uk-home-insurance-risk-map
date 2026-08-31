@@ -323,7 +323,18 @@ trusted.**
 | 3 | Theft, Scotland | **Recorded Crime in Scotland** by local authority | LA → district apportionment by households | Medium — LA is far coarser than street level; would improve on one flat national rate but not match E&W |
 | 4 | Accidental damage proxy | EPC/VOA stock type + census tenure | district | Low — no anchor for what AD actually correlates with |
 | 5 | Fire resolution | **Home Office incident-level fire statistics** if published below authority level | district | Low — needs checking |
-| 8 | PET bias | **Met Office MORECS / MOSES** published PET, or a citable UK-calibrated Hargreaves coefficient | replace the PET term | **Required before the SMD index ships** |
+| 8 | PET bias | **Hydro-PE** (CEH, doi:10.5285/9275ab7e-6e93-42bc-8e72-59c98d409deb), the citable Penman–Monteith replacement; or Met Office MORECS/MOSES | replace the PET term | Optional. This row read "**Required before the SMD index ships**" until 2026-08-31, when the index shipped without it: the bias was measured to move the LEVEL, which the calibration re-pins, and not the MAP (rank correlation ≥ +0.998), so it stopped being a blocker and became a level-only improvement. See §7.8. |
+
+**Every source in this table is free.** The project's budget is zero
+(decided 2026-08-31, see DATA_SOURCES), and that decision costs this
+table nothing — EPC Open Data, VOA, NRW, Dynamic Coast, BGS's open
+products, Recorded Crime in Scotland, Home Office fire statistics and
+Hydro-PE are all open, some behind a free registration. What the budget
+does close is elsewhere: the licensed PAF/AddressBase and BGS
+superficial-thickness routes, which would have improved exposure and
+`SUP_WEIGHT`. Those are now permanent limits rather than future work.
+The claims triangle in §7 was never a money question — it is not
+purchasable at any price.
 
 **Rule that governs all of the above:** a source only ships if it carries a
 published, citable anchor. No correction factor may be invented to make a

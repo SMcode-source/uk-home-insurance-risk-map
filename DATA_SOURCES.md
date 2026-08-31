@@ -1106,6 +1106,31 @@ districts**, used as the exposure weight throughout.
     `scripts/measure_frost_era.py`, which tested re-aiming the frost
     climatology and rejected it against within-era controls.
 
+## Budget: zero, decided 2026-08-31
+
+**The user has decided this project will not spend money.** That is a
+standing constraint, not a current cashflow position, so the licensed
+datasets below are **out of scope permanently** rather than "not yet
+afforded" — nobody should re-cost PAF/AddressBase or BGS superficial
+thickness hoping the answer changed. Anything that needs a paid licence,
+a paid API tier, or a commercial agreement is closed.
+
+What this does NOT close, and the distinction is the whole point of
+keeping the list: **free-but-gated** sources stay open. MIDAS Open was
+never money-blocked, only one registration away, and it is now live and
+carrying the model's gust component. CEDA HadUK-Grid was the same story.
+So the test for anything below is "does it cost money", not "is it
+inconvenient" — a registration, an email, or an OGL attribution is a
+cost the project can pay.
+
+Bearing on the model as it stands: the assumed θ(s) copula forms and the
+ABI-calibrated compound Bernoulli×LogNormal are **permanent**, because
+the claims triangle that would replace them cannot be bought at any
+price anyway (see below) and is not merely expensive. `SUP_WEIGHT` stays
+a bounded 0.5 prior. Census households smeared over each district stays
+the exposure basis. These are now documented limits rather than
+outstanding work, and LIMITATIONS records them as such.
+
 ## Blocked on non-open data — what each would unblock
 
 Kept here so nobody re-derives the shopping list. None of these have an

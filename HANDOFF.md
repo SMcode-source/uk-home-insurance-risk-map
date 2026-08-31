@@ -52,8 +52,14 @@ to `data/haduk_district_annual_1km.csv` without ever fitting anywhere
 (174 GB, run 33319459184). Both per-district year tables — 5 km local,
 1 km from CI — are complete, schema-identical and gitignored; the
 scripts regenerate them. The CEDA token (secret `CEDA_TOKEN`, also
-`~/.ceda_token`) **expires 2026-09-01 16:27 UTC**; nothing planned
-still needs it. Daily data ends **2025-12**, so the ABI's 2026 quarters
+`~/.ceda_token`) **expires 2026-09-01 16:27 UTC and is being allowed to
+lapse** — nothing planned needs it, and the four HadUK workflows say so
+in their own headers. **This is an expiry, not a budget decision**: CEDA
+is free and a renewal is one registration away, exactly like MIDAS Open
+was, so if a future question needs the daily grids the answer is "get a
+new token", not "we cannot afford it". The dead secret is harmless where
+it is; delete it only if you want the settings page tidy. Daily data
+ends **2025-12**, so the ABI's 2026 quarters
 have no matching weather year. `snowLying` exists at 12 km and was Gate
 3's snow driver before Gate 3 closed.
 
@@ -65,6 +71,27 @@ damage) completed 2026-08-17. Phase 2 is EPC/VOA exposure realism —
 (the buildings/contents cover split) went live the same day.** Two
 anchor corrections went live 2026-08-25: theft's paid total and the
 escape-of-water freeze share.
+
+**The budget is zero, decided 2026-08-31, and it is a standing rule
+rather than a mood.** Nothing licensed, nothing paid-tier, nothing
+needing a commercial agreement. DATA_SOURCES opens its blocked-data
+section with what this closes permanently — PAF/AddressBase, BGS
+superficial thickness — and, more usefully, what it does NOT close:
+free-but-gated sources are still fair game, which is how MIDAS Open
+went from "blocked" to carrying the gust component. Test any future
+source on "does it cost money", never on "is it inconvenient". The
+consequence for the model is that the assumed θ(s) copula forms, the
+compound Bernoulli×LogNormal, `SUP_WEIGHT`'s 0.5 prior and
+census-households exposure are permanent limits, not a backlog.
+
+**Branches, trimmed 2026-08-31.** Only `main` and `sector-model` exist
+now. The six merged experiment branches were deleted after checking
+that nothing unique lived on them (what looked unique was pre-vector
+-tiles leftovers — Leaflet assets and the GeoJSON that PMTiles
+replaced — deliberately gone from main), and after lifting
+`year_claim_view.py` and `price_eow_sigma.py` onto main, which were the
+only real content stranded. `sector-model` is synced to main and stays;
+it is never merged INTO main.
 
 **Shipping is not the same as settling.** Two objections were stated,
 overruled by the user, and remain open: council tax tracks MARKET value
