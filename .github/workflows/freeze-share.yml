@@ -28,11 +28,22 @@ name: freeze share pricing
 # workflow_dispatch only works from the DEFAULT branch, and putting a
 # measurement workflow on main to price something that may never ship
 # gets the ordering backwards - main should learn about this when there
-# is a decision to record, not before. Retire this trigger to
-# workflow_dispatch, with the answer recorded here, once it has run.
+# is a decision to record, not before.
+#
+# Push trigger retired 2026-08-31, answer recorded. Run 33431160741
+# priced all six variants: el_eow comes back identical to ONE ULP in
+# every one of them, the widest premium excursion across a 0.20-0.40
+# share range is 0.17 pence, and the era change isolated against its own
+# instrument control is 0.02 pence. The share cannot move the level -
+# only who pays it (353 districts change rating group at 0.20, largest
+# single move about GBP15). Nothing shipped; the share stays at 0.31 and
+# LIMITATIONS records why.
+#
+# Run 33427929182, the first attempt, is kept in the record as a wrong
+# answer worth remembering: it reported ~2 pence of movement that was
+# entirely the harness failing to renormalise ct_eow against the new
+# claim weights. See price_freeze_share.price().
 on:
-  push:
-    branches: [exp/freeze-era]
   workflow_dispatch:
     inputs:
       nsim:
