@@ -25,9 +25,25 @@ pence). **Gate 2 measured 2026-08-30 — the freeze half closes as a
 no-reorder, the SMD half is a real different map; section below.**
 Gate 3 closed as a no-ship (no anchor, and sigma provably moves
 nothing). Gate 4 measured (a bad year is dearer claims, not more
-claims). The premium is untouched by all of it. What remains is the
-user's decisions: whether to price the SMD curve, whether to re-aim
-the freeze question at the level, and what Tab 4 publishes.
+claims).
+
+**All three decisions the workstream left to the user are now closed,
+2026-08-31.** The SMD curve is PUBLISHED at both grains (`cwd_yr` at
+`SUB_DROUGHT_SHARE = 0.565`, premium GBP169.6477). The freeze re-aim is
+ANSWERED NO — measured, then priced anyway, and `EOW_FREEZE_SHARE`
+stays 0.31 because the model is structurally blind to the frost level
+and the map sits inside its own noise floor. Tab 4 SHIPPED as
+`/temperature.html`. So the premium moved 0.8 pence across the whole
+workstream, which is the honest headline: five gates of temperature
+work found one real map (subsidence geography) and no level.
+
+**What the workstream leaves open**, in its own sections below: the
+frost SHARE is distributional and unanchored (0.17 pence across a 2x
+range, but 353 districts re-rate — there is no UK per-era attribution
+to settle it); the PET bias is level-not-map at both resolutions; and
+the published climate scenario is flood-only, so it cannot show
+subsidence worsening or escape of water easing. The dependence
+re-specification was always a later phase and has not started.
 
 **The HadUK archive state, 2026-08-30:** 12 km AND 5 km daily
 tasmin/tasmax/rainfall 1960-2025 are complete on this laptop under
@@ -147,7 +163,8 @@ across CI slice restarts it is not even comparable; the workflow
 header documents that). The per-year reset keeps the discrimination
 (relativity p5/p95 = 0.33/1.41) without the ratchet.
 
-**What blocks pricing, and neither is mine to wave through:**
+**What blocked pricing — BOTH CLEARED BY MEASUREMENT 2026-08-31, see
+the next section:**
 
 - **The PET level is inflated ~a third** — Hargreaves-Samani gives UK
   annual PET 668-697 mm against a true 450-550 (known weakness in humid
@@ -155,6 +172,7 @@ header documents that). The per-year reset keeps the discrimination
   Rankings are sound; the LEVEL is not shippable without MORECS/MOSES
   PET or a citable UK Hargreaves coefficient. A uniform bias does NOT
   cancel out of a deficit, because the deficit subtracts rainfall.
+  *Cleared: measured to move the level only — the map survives.*
 - **The share has no published anchor.** `EOW_FREEZE_SHARE = 0.31`
   cleared this hurdle with the ABI's own weather-attribution arithmetic
   agreeing across two releases (0.311/0.307). The subsidence equivalent
@@ -165,6 +183,329 @@ header documents that). The per-year reset keeps the discrimination
   routes: the ABI quarterly series' H2 concentration (78% of 2022
   notified claims in H2 is itself an attribution measurement), or a
   dose-response presentation like SUP_WEIGHT's.
+  *Cleared: the ABI's own arithmetic yields 0.565 by two agreeing
+  routes; priced at 0.40/0.565/0.70 so the table shows sensitivity.*
+
+## PUBLISHED 2026-08-31 (second): the temperature tab, and the freeze re-aim answered
+
+Two things the user asked for together ("do all of these"): the freeze
+LEVEL question Gate 2 left open, and what the fourth content tab
+publishes now that the workstream has reported.
+
+**The freeze re-aim: do not re-aim.** `measure_frost_era.py` on the
+66-year daily extraction. The decline is real and strongly significant
+- **-0.326 days/yr, p=0.0002, -7.5% of the mean per decade**, 49.0 days
+in 1961-1990 against 38.9 in 1991-2020 - and the model cannot feel any
+of it, because `eow_rate` divides frost by its own exposure-weighted
+mean and a proportional decline cancels exactly. So only the SHAPE and
+the SHARE can price.
+
+The shape was read against **within-era controls** - same climate,
+different sample - because a shorter recent window is a noisier
+estimate as well as a more current one, and without a control any
+re-aimed window shows movement that looks like signal:
+
+  candidate            |drel| p95     control (same n)
+  1996-2025 [n=30]        0.045       0.158  (two 15y halves)
+  2006-2025 [n=20]        0.091       0.158
+  2016-2025 [n=10]        0.187       0.178  (two disjoint decades)
+  1961-1990 [n=30]        0.185       0.158
+
+Both windows worth considering are far inside the noise; the recent
+decade only matches its own sample-size control; and the 1961-1990 map
+- a genuinely different climate 30 years back - differs from today's by
+no more than two arbitrary decades inside the published window differ
+from each other. 1 km and 5 km agree to the third decimal.
+
+**Then it was priced anyway, because a prediction is worth testing**
+(CI run 33431160741, six variants, 23 min):
+
+  variant           share   premium    d prem  capital   el_eow  churn
+  baseline          0.310  169.6483    +0.00p   5.5270  42.3871      0
+  share_200         0.200  169.6499    +0.16p   5.5285  42.3871    353
+  share_266         0.266  169.6490    +0.07p   5.5277  42.3871    158
+  share_400         0.400  169.6466    -0.17p   5.5253  42.3871    288
+  daily_1991_2020   0.310  169.6484    +0.01p   5.5271  42.3871    168
+  era_2006_2025     0.310  169.6482    -0.01p   5.5269  42.3871    220
+
+el_eow identical to ONE ULP everywhere - the construction proving
+itself. The era isolated against its own instrument control is **0.02
+pence**. Nearly doubling the share moves the premium 0.17 pence but
+moves 353 districts a rating group, +/-GBP15 at the extremes
+(Inverness-shire and the frostiest districts down as the dial drops,
+the Isles of Scilly up). **A distributional question wearing a pricing
+question's clothes**, with no UK per-era attribution to settle it.
+EOW_FREEZE_SHARE stays 0.31; LIMITATIONS section 4 records the gap.
+
+**The trap, and it cost a whole run.** The first attempt (33427929182)
+reported ~2 pence of movement and flagged el_eow drifting 5.4e-4. That
+was the harness, not the model: build_model normalises the four
+attritional council-tax severity multipliers with CLAIM weights
+(households x that peril's OWN rate), so `ct_eow` is a function of
+`eow_rate`. Overwrite eow_rate on an already-scored frame and the
+severity normalisation left behind belongs to the old rate - the level
+then drifts with the SHAPE of the relativity and reads exactly like a
+priced effect. main() is correct and always was (it computes ct_eow
+after eow_rate); only a harness can get this wrong. **Any future
+harness that overwrites a `*_rate` column must renormalise that peril's
+`ct_*` before calibrating.** The fix needs no fresh read of
+ct_bands.csv - renormalising the frame's own column on the new weights
+is exact, because the old constant cancels.
+
+**The temperature tab is live** at `/temperature.html`, fifth content
+tab, never titled "prediction" and saying so in its opening line. Two
+server-rendered charts (household-weighted national series, 1960-2025)
+from `data/temperature_series.json`. Drought +3.6%/decade (p=0.036)
+with 5 of 6 canonical surges in the index's own top ten; frost
+-7.5%/decade with the blindness explained rather than hidden; Gate 4's
+"a bad year is dearer claims, not more claims"; and a limits section
+saying the climate scenario is flood-only, so it cannot show subsidence
+worsening or escape of water easing.
+
+**"Every figure injected, none typed" is what this entry said, and it
+was false in the one section that most needed it.** The bad-year
+section carried TEN hand-typed numbers - 1.38x count, 2.63x value, the
+1.25x/2.11x shift-share, the storm and flood shares and their per-peril
+ratios - directly under a `temperature_bits()` docstring citing defect
+3 as the reason nothing is ever typed. They were measured before Gate 2
+and every one had drifted by publication: count 1.38 -> 1.36, value
+2.63 -> 2.67, mix 1.25 -> 1.24, within 2.11 -> 2.15, flood 2.18/2.83 ->
+2.13/2.88. The page was quoting a model that no longer existed, which
+is defect 3 exactly, on the page whose own comment warns about it.
+
+Fixed by injection, and without a simulation: the committed
+`data/year_analysis.json` buckets already carry UNROUNDED
+`claims_*_per_100k` and `cost_*_per_claim` - `year_claim_view.py` added
+those columns precisely because the rounded `inc_*_pct` ones cannot
+support the division - so `temperature_bits()` recomputes the whole
+decomposition from committed data at build time. The shift-share holds
+each peril's typical cost per claim fixed and moves only the mix; mix x
+within multiplies back to the total exactly (1.2435 x 2.1477 = 2.6707),
+which is what makes quoting both honest rather than one number twice.
+The prose survived the new figures unchanged in meaning - storm still
+nearly flat, flood still the engine.
+
+`year_claim_view.py` (Gate 4) and `price_eow_sigma.py` (Gate 3) were
+brought onto main in the same commit. Both lived ONLY on unmerged
+experiment branches far behind main, so a published claim and a
+recorded no-ship had their provenance sitting on branches a cleanup
+would have deleted.
+
+**Then the whole site was swept for the same defect, and the same page
+had three more.** A scan of every template for typed model outputs
+found `£169.66` written into the drought section - the PRE-Gate-2
+premium, when the published figure is 169.6477, so the page rounded to
+a penny the model no longer charges - plus `43.5%`/`56.5%` restating
+`SUB_DROUGHT_SHARE` and `31%` restating `EOW_FREEZE_SHARE`. All three
+now inject, the two shares straight from `build_model` by the local
+-import idiom the file already uses elsewhere. A new `__PREM_MEAN__`
+lives in `load_stats()` beside `__PREM_MIN__`/`__PREM_MAX__`,
+household-weighted to two decimals, because this project routinely
+reports sub-penny results and rounding to the pound would hide the
+differences the gates exist to measure.
+
+The sentence around it had to change too: it read "the headline premium
+stayed at GBP169.66", and Gate 2 moved it 0.8 pence. Injection alone
+would have produced "stayed at GBP169.65" - true numbers inside a false
+claim. It now reads "moved by less than a penny, to GBP169.65". **A
+placeholder does not make a sentence honest; the prose around it has to
+survive the substitution.**
+
+Everything else the scan flagged in `methodology.template.html` is a
+SOURCE constant - ABI shares, VOA counts, published anchors - which is
+prose about the world rather than output of the model, and is correctly
+typed.
+
+**The last asymmetry closed too, and closing it caught a fourteenth
+wrong number.** sub-level, eow-sigma and freeze-share had each
+committed a pricing JSON; the SMD curve had not, so its churn was
+quoted from run 33410640013 with no artifact behind it. That run's
+artifact had not expired, so it is now `data/smd_curve_pricing.json`
+and the churn injects. `build_site` looks the row up by the SHIPPED
+index and share - `cwd_yr` at `SUB_DROUGHT_SHARE` - not by variant key,
+and raises unless exactly one priced variant matches, so re-tuning the
+share cannot leave the page quietly describing a variant the model no
+longer runs.
+
+Wiring it exposed the error. The page read "455 districts moved one
+rating group, one moved two", and `price_smd_curve.py` defines
+`churn` as ANY group change and `churn2` as `|delta| >= 2` - a SUBSET,
+not a separate population. The old sentence implied 456 movers; the
+truth is 455, one of which moved two. It now reads "455 of 2,736
+districts changed rating group, 1 of them by two". HANDOFF's own Gate 2
+churn line said the same thing loosely and has been made explicit; the
+prose at "This is a pure geography change" was already correct.
+
+Two guards were widened rather than worked around.
+`test_site_placeholders_all_resolve` scanned a **hard-coded pair** of
+templates, so all 23 of the new page's placeholders read as "defined but
+unused" - the guard could not see the page it guards. It now enumerates
+`site/*.template.html` with a count assertion. `test_layout` gained the
+page in both its page list and its SVG readable-size list; that second
+one is what proves the wide/narrow chart swap actually defeats the
+3.4px bug. 42 layout tests green including phone viewports, 67 model
+tests green.
+
+**Then the publish push went red, and the stale-intermediate trap at
+"docs/ was stale and the local check said fresh" below had bitten a
+second time - worse than the first.** I ran `build_site.py` alone to
+add the nav link. It re-wrapped `analysis/uk_risk_year_analysis.html`
+and `map/*.html`, gitignored intermediates my checkout had left at
+their PRE-Gate-2 state, so commit 5b56296 silently REVERTED four
+committed pages - map, relative, sectors, years - to the subsidence
+numbers the SMD curve had just replaced (`claims_sub_per_100k` 72.6
+back to 72.83, and the exceedance curves with it). Re-wrapping a stale
+intermediate does not merely fail to update a page; **it overwrites a
+correct page with old output, and the diff it produces looks like an
+ordinary one-line nav change.** Nothing local objected: 67 tests and 42
+layout tests passed on the reverted docs, because no test compares
+docs/ against the committed data - only CI's freshness step does, and
+that is what caught it. Fixed by running the full chain and committing
+the result, which is reproducible across two passes; the four pages now
+differ from 6f323aa by exactly the one nav line they were supposed to.
+
+**The live site was never wrong, and it is worth being precise about
+why**, because the reason is also the reason nobody would have noticed.
+`pages.yml` deploys a build ARTIFACT it constructs from `data/` and
+`site/`; it never serves `docs/`. It also did not run on either push -
+its path filter covers data, templates and `scripts/build_*.py`, and a
+docs-only commit matches none of them. So the reverted numbers sat in
+the repository while `smcode-source.github.io` kept serving 72.6
+throughout (checked). `docs/` is the fallback the workflow header
+describes - what Pages serves if the repository's Pages source is ever
+set back to a branch - plus the reviewable record of what the site
+says. A stale one is a live-site regression armed but not fired.
+
+So the rule below is not a tidiness preference: **never commit docs/
+built by `build_site.py` alone. Run `build_map.py`, `build_tiles.py`,
+`build_analysis.py`, `build_site.py`, in that order, every time.** The
+intermediates are gitignored, so a fresh clone cannot reproduce this -
+only a long-lived checkout like this one can, which is exactly why it
+recurs here and not in CI.
+
+## PUBLISHED 2026-08-31: the Gate 2 SMD curve, both grains in one push
+
+The user chose option 1 of the priced menu: ship `cwd_yr` at
+`SUB_DROUGHT_SHARE = 0.565`. What went live, all numbers from rebuilds
+rather than the harness (its baseline level sits 7e-6 high; see the
+Gate 1 publish note):
+
+  el_sub     19.805475 -> 19.807342  +0.009%: calibrate_frequency
+             re-pins the level (harness drift <= 1 ULP); the residue
+             is the geojson's per-district rounding under reshuffled
+             weights
+  el_total   164.120266 -> 164.121733  +0.0009%
+  capital    5.533736 -> 5.526963   -0.122%
+  premium    169.655786 -> 169.647739  -0.8 pence (harness said
+             169.6483 - the gap is the geojson's 1dp premium write)
+  sectors    169.6636    cross-grain drift +0.0094% (bound 0.5%)
+  nesting    median |sector-mean/district - 1| 1.16% (bound 3%), p95 6.6%
+  sub_rel    wmean exactly 1.000000 both grains; district 0.538-1.310,
+             sector 0.537-1.307
+  churn      455 of 2,736 districts change rating group, 1 of them by
+             two (churn2 is a SUBSET of churn, not an addition to it)
+  movers     up DA15/DA6/SE23 (+GBP8-13), down CF61/CF62/LL44
+
+Wiring is the eow_rate pattern exactly: `drought_from_haduk` loads
+`data/smd_climatology.csv` with exact name coverage (wrong grain =
+SystemExit), `sub_rel` is normalised on the live frame in main() and is
+a REQUIRED `_fields` column — a frame without it fails loudly rather
+than silently pricing geology-only (commit 8a8727e; test
+`test_sub_frequency_carries_the_drought_relativity`).
+
+The sector grain surfaced one real defect: 13 sectors came back NaN —
+exactly the 13 empty-geometry polygons (no centroid -> NaN latitude ->
+NaN Hargreaves Ra -> NaN PET; their daily met had silently come from an
+arbitrary fallback cell, so the whole row was untrustworthy). Each now
+takes its parent district's climatology via
+`make_smd_climatology.py --fill-empty-from`, printed per sector
+(children.csv posture). Two more features LOOK empty in
+sectors_risk.geojson but are GeometryCollections (IV51 9, ZE2 9) and
+extracted fine. Coherence after the fill: Spearman +0.9964,
+median rel diff 0.000 (commit c0596e8, DATA_SOURCES #34).
+
+Assembly followed the one-push procedure: sector-model got exp/smd-curve
+merged IN plus the sector-keyed climatology, `sector-model.yml
+skip_fetch=true` built on CI (run 33422250428 -> commit c8fac97), the
+output was crossed in as data/sectors_risk.geojson (fd97f77), and
+rebuild.yml commit=false re-rendered EVERYTHING on CI (run 33424274229)
+so docs carry both grains — the district geojson came back bit-identical
+to the previous verified rebuild (33418764800), which is the determinism
+check working. One trap for next time: actions/upload-artifact@v4 drops
+hidden files by default, so the artifact's docs/ was missing .nojekyll —
+restore it before committing or Pages breaks.
+
+## Gate 2 PRICED 2026-08-31: the SMD curve costs the level nothing and re-rates modestly — the user shipped it (see PUBLISHED above)
+
+Branch `exp/smd-curve` (commit 9d0a917, CI run 33410640013; artifact
+`smd-curve-pricing`, JSON also at `data/smd_curve_pricing.json` in the
+run). Seven full 20,000-year simulations off one scored frame:
+baseline + {cwd_yr, smd_jja} x shares {0.40, 0.565, 0.70}, the Gate 1
+harness pattern. The lever is `sub_rel` — a per-district frequency
+relativity on `p_sub`, exposure-weighted mean 1, normalised on the
+live frame like `eow_rate`; the column is absent from the real
+pipeline and provably bit-neutral when missing; dependence still reads
+`sub_score`.
+
+**The two blockers were closed with numbers first:**
+
+- **PET (measured, both resolutions):** `check_pet_sensitivity.py`
+  re-ran the drought integrals at PET x 0.85 and x 0.70 — at 1 km on
+  CI (workflow `haduk-1km-pet.yml`, run 33404395072, re-extracting
+  only 1991-2020 = 81 GB in the four probe-calibrated slices, done
+  ~1 h; branch `exp/haduk-1km-pet`) and at 5 km locally
+  (`haduk_district_daily.py --pet-sensitivity`, 70 min). Verdict
+  identical at both: the bias moves the LEVEL (cwd_yr climatology
+  240 -> 121 mm at x 0.70) and NOT the MAP — Spearman vs k=1.00 at or
+  above +0.9983 (cwd_yr) and +0.9940 (smd_jja) everywhere. The level
+  is exactly what calibration re-pins, so the priced relativity
+  survives the PET formula. If a shipped leg ever needs the level's
+  physics, the citable fix is Hydro-PE (PM PET on this same HadUK-Grid
+  met, 1 km daily 1969-2021, CC-BY,
+  doi:10.5285/9275ab7e-6e93-42bc-8e72-59c98d409deb). Run before the
+  CEDA token expired 2026-09-01 16:27 UTC; nothing planned needs CEDA
+  now.
+- **Share (derived, not guessed): 0.565 from the ABI's own releases**
+  by two agreeing routes — the 2018-12 release's 2,500 claims/quarter
+  pre-surge baseline (=> 10,000/yr) against 2022's 23,000 total with
+  13,000 drought-attributed (=> 13/23 = 0.565), cross-consistent with
+  2022's own H1 of 5,000 = base/2. Zurich's attribution (60% of upheld
+  claims root-induced clay shrinkage in an average year, ~85% in a
+  surge year) brackets it. Same derivation style as
+  `EOW_FREEZE_SHARE`'s 0.311/0.307.
+
+**The table (exposure-weighted GBP/policy; churn = districts changing
+premium decile vs baseline; el_sub pinned at 19.8065 in every variant,
+drift at most one ULP):**
+
+| variant      | share | capital | premium  | vs base | churn | >=2 grp |
+|--------------|-------|---------|----------|---------|-------|---------|
+| baseline     | —     | 5.5337  | 169.6551 | —       | 0     | 0       |
+| cwd_yr 0.40  | 0.400 | 5.5290  | 169.6504 | -0.003% | 336   | 0       |
+| cwd_yr 0.565 | 0.565 | 5.5270  | 169.6483 | -0.004% | 455   | 1       |
+| cwd_yr 0.70  | 0.700 | 5.5252  | 169.6466 | -0.005% | 547   | 1       |
+| smd_jja 0.40 | 0.400 | 5.5310  | 169.6524 | -0.002% | 234   | 0       |
+| smd_jja 0.565| 0.565 | 5.5298  | 169.6512 | -0.002% | 330   | 0       |
+| smd_jja 0.70 | 0.700 | 5.5288  | 169.6502 | -0.003% | 386   | 0       |
+
+Top movers, every variant: UP the Thames-estuary/Essex clay (cwd_yr:
+DA15/DA6/SE23 +GBP8-13; smd_jja: SS12/SE23/SS13 +GBP4-6), DOWN wet
+western coasts (CF61/CF62/LL44 and LL43/IV48, -GBP4-10). The same
+districts Gate 2's shape measurement called out in advance.
+
+**Reading it honestly:** the level cannot move by construction and did
+not (drift <= 7.1e-15); the tiny premium dips are capital reallocating
+as frequency shifts toward districts whose tail contribution differs.
+This is a pure geography change: at the anchor share 0.565 with the
+better index (cwd_yr — 5/6 canonical years), 455 of 2,736 districts
+change decile, exactly ONE by two or more groups. Compare Phase 2c
+(70.5% churn, 974 districts >= 2 groups, held) and the MIDAS gust swap
+(28.8%, 20 districts >= 2, published): this sits far below both. The
+open decisions are the user's: ship cwd_yr at 0.565 (with the PET
+verdict and the share derivation as the published justification),
+present the dose-response, or record it as a priced refusal for
+Tab 4 — the harness, evidence and derivations are all on the branch
+either way.
 
 Two streamer defects fixed before the CI run (commit on
 `exp/haduk-1km-ci`): `append_csv` wrote every year's rows TWICE (came

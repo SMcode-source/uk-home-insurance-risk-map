@@ -55,6 +55,12 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
 HADUK = os.path.join(ROOT, "data", "haduk", "1km")
+# The polygon set and the output/state paths are module globals so that
+# append_csv and the helpers see one consistent set; --polygons/--tag
+# rebind them in main() before any use. The tag keeps a sector run's
+# checkpoint, weights cache and CSV from colliding with the district
+# run's - a stale 2,736-district weights cache silently applied to
+# 10,398 sectors would be the quiet kind of wrong.
 DISTRICTS = os.path.join(ROOT, "data", "districts_risk.geojson")
 OUT = os.path.join(ROOT, "data", "haduk_district_annual_1km.csv")
 CKPT = os.path.join(ROOT, "data", "haduk_1km_state.npz")
@@ -150,7 +156,31 @@ def main():
     ap.add_argument("--recent-first", action="store_true",
                     help="process newest years first, so an interrupted run "
                          "leaves the most useful years done")
+    ap.add_argument("--polygons", default=None,
+                    help="alternative polygon set (e.g. "
+                         "data/sectors_risk.geojson for the 10,398 postcode "
+                         "sectors); needs a 'name' property per feature")
+    ap.add_argument("--tag", default="",
+                    help="suffix for the output CSV, checkpoint and weights "
+                         "cache (e.g. _sectors), so runs over different "
+                         "polygon sets cannot share state")
+    ap.add_argument("--pet-sensitivity", action="store_true",
+                    help="also run the drought integrals at PET x 0.85 and "
+                         "x 0.70, emitting *_k85/*_k70 columns. Hargreaves "
+                         "runs ~a third high in a maritime climate and the "
+                         "bias does NOT cancel out of max(PET - rain, 0); "
+                         "this measures whether it moves the MAP or only "
+                         "the level. Same flag as haduk_district_daily.py.")
     args = ap.parse_args()
+
+    global DISTRICTS, OUT, CKPT, WCACHE
+    if args.polygons:
+        DISTRICTS = os.path.join(ROOT, args.polygons) \
+            if not os.path.isabs(args.polygons) else args.polygons
+    if args.tag:
+        OUT = OUT.replace(".csv", f"{args.tag}.csv")
+        CKPT = CKPT.replace(".npz", f"{args.tag}.npz")
+        WCACHE = WCACHE.replace(".npz", f"{args.tag}.npz")
 
     import xarray as xr
 
@@ -176,6 +206,14 @@ def main():
 
     smd = np.zeros(n_d); cwd = np.zeros(n_d)
     run_len = np.zeros(n_d, dtype=int); run_sev = np.zeros(n_d)
+    # PET-sensitivity state: only the capped bucket carries across years,
+    # so only smd_s lives in the checkpoint. cwd_yr resets each 1 January
+    # by definition, and cwd_run is not worth scaling - the robustness
+    # question is about cwd_yr and smd_jja, the two indices the pricing
+    # experiment actually uses.
+    scales = (0.85, 0.70) if args.pet_sensitivity else ()
+    tag = {k: f"_k{int(round(k * 100))}" for k in scales}
+    smd_s = {k: np.zeros(n_d) for k in scales}
     # Rows are APPENDED to the CSV as each year finishes and are NOT held
     # in memory or in the checkpoint. Carrying them meant 2,736 dicts per
     # year accumulating to ~180,000, re-pickled into the checkpoint on
@@ -187,6 +225,14 @@ def main():
         z = np.load(CKPT, allow_pickle=True)
         smd, cwd = z["smd"], z["cwd"]
         run_len, run_sev = z["run_len"], z["run_sev"]
+        for k in scales:
+            key = "smd" + tag[k]
+            if key not in z:
+                raise SystemExit(
+                    "checkpoint predates --pet-sensitivity; delete "
+                    f"{CKPT} and restart rather than resuming with "
+                    "buckets that silently start cold mid-run")
+            smd_s[k] = z[key]
         done = set(z["done"].tolist())
         print(f"resuming: {len(done)} years already done, "
               f"appending to the existing CSV", flush=True)
@@ -220,6 +266,8 @@ def main():
         if args.recent_first:
             smd[:] = 0.0; cwd[:] = 0.0
             run_len[:] = 0; run_sev[:] = 0.0
+            for k in scales:
+                smd_s[k][:] = 0.0
         # WITHIN-YEAR deficit, reset every 1 January. The running cwd
         # below is floored at zero but not capped, so in a district that
         # never fully rewets it carries over - which makes its value
@@ -231,12 +279,17 @@ def main():
         # 1976 severe, and that memory is real - it is just not a
         # per-year quantity.
         cwd_yr = np.zeros(n_d)
+        cwd_yr_s = {k: np.zeros(n_d) for k in scales}
         acc = dict(rain=np.zeros(n_d), tmax=np.zeros(n_d), tmin=np.zeros(n_d),
                    pet=np.zeros(n_d), smd_max=np.zeros(n_d),
                    cwd_max=np.zeros(n_d), cwd_yr_max=np.zeros(n_d),
                    smd_jja=np.zeros(n_d),
                    frost=np.zeros(n_d), spells=np.zeros(n_d),
                    spell_days=np.zeros(n_d), worst=np.zeros(n_d))
+        for k in scales:
+            acc["smd_max" + tag[k]] = np.zeros(n_d)
+            acc["cwd_yr_max" + tag[k]] = np.zeros(n_d)
+            acc["smd_jja" + tag[k]] = np.zeros(n_d)
         days = jja_days = 0
         for mo in range(1, 13):
             paths = {}
@@ -280,6 +333,16 @@ def main():
                 acc["cwd_yr_max"] = np.maximum(acc["cwd_yr_max"], cwd_yr)
                 if mo in (6, 7, 8):
                     acc["smd_jja"] += smd
+                for k in scales:
+                    pk = k * pet[d]
+                    smd_s[k] = np.clip(smd_s[k] + pk - rn[d], 0.0, SMD_CAP)
+                    cwd_yr_s[k] = np.maximum(cwd_yr_s[k] + pk - rn[d], 0.0)
+                    acc["smd_max" + tag[k]] = np.maximum(
+                        acc["smd_max" + tag[k]], smd_s[k])
+                    acc["cwd_yr_max" + tag[k]] = np.maximum(
+                        acc["cwd_yr_max" + tag[k]], cwd_yr_s[k])
+                    if mo in (6, 7, 8):
+                        acc["smd_jja" + tag[k]] += smd_s[k]
                 frost = tn[d] < 0.0
                 acc["frost"] += frost
                 run_len = np.where(frost, run_len + 1, 0)
@@ -293,6 +356,14 @@ def main():
                 jja_days += nd
         year_rows = []
         for i, code in enumerate(names):
+            extra = {}
+            for k in scales:
+                extra["smd_max_mm" + tag[k]] = round(
+                    float(acc["smd_max" + tag[k]][i]), 1)
+                extra["cwd_yr_max_mm" + tag[k]] = round(
+                    float(acc["cwd_yr_max" + tag[k]][i]), 1)
+                extra["smd_jja_mean_mm" + tag[k]] = round(
+                    float(acc["smd_jja" + tag[k]][i]) / max(jja_days, 1), 1)
             year_rows.append({
                 "district": str(code), "year": yr,
                 "rain_mm": round(float(acc["rain"][i]), 1),
@@ -309,13 +380,15 @@ def main():
                 "freeze_spells": int(acc["spells"][i]),
                 "freeze_spell_days": int(acc["spell_days"][i]),
                 "worst_spell_degc_days": round(float(acc["worst"][i]), 1),
+                **extra,
             })
         append_csv(year_rows)
         if not args.keep:
             drop_year(yr)
         done.add(yr)
         np.savez_compressed(CKPT, smd=smd, cwd=cwd, run_len=run_len,
-                            run_sev=run_sev, done=np.array(sorted(done)))
+                            run_sev=run_sev, done=np.array(sorted(done)),
+                            **{"smd" + tag[k]: smd_s[k] for k in scales})
         el = (time.time() - t0) / 60
         left = len(range(args.y0, args.y1 + 1)) - len(done)
         print(f"  {yr} done ({len(done)} of "

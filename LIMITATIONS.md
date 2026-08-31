@@ -151,6 +151,33 @@ guess — the ABI's weather line itemises burst pipes at £153m (2023) and
 £202m (2025), which against EoW's 19.3% share of the home book imply
 0.311 and 0.307, two independent years agreeing to within 0.004.
 
+**The frost map is aimed at 1991–2020, and that was tested rather than
+assumed.** UK frost days are falling fast — −0.326 days/year, p = 0.0002,
+about −7.5% of the mean per decade, 49.0 days across 1961–1990 against
+38.9 across 1991–2020 — so the obvious objection is that the climatology
+is out of date. `measure_frost_era.py` re-derived the map on four
+candidate windows and read each against *within-era controls* that hold
+the climate fixed and vary only the sample, because a shorter, more
+recent window is a noisier estimate as well as a more current one. The
+two windows worth considering move the relativity far less than the
+noise does: 1996–2025 by |Δrel| p95 = 0.045 and 2006–2025 by 0.091,
+against 0.158 for two 15-year halves of the published window itself.
+Even the 1961–1990 map differs from today's by no more than two
+arbitrary decades inside the current window differ from each other. Both
+resolutions agree to the third decimal. **Re-aiming would buy a noisier
+estimate of the same map, so the window stays.**
+
+**What that leaves is a real limitation, and it is structural.** Frost
+enters as each district's days *divided by the national
+household-weighted mean*, so a decline that is roughly proportional
+across the country cancels exactly — the model cannot feel a warming
+winter at all, however far frost falls. Only `EOW_FREEZE_SHARE` could
+carry that signal, and no UK publication attributes escape-of-water
+claims to freeze *by era*, so there is nothing to calibrate a declining
+share against. The share is priced as a dose-response rather than
+adjusted on judgement (see the temperature page), and is carried at its
+anchored 0.31.
+
 **Further splitting the flat 69% is currently blocked, and not for want
 of trying.** Gate 3 searched for a burst-pipe breakout with geography and
 found none: three ABI series exist, two disagree by a third, the 2025
@@ -239,7 +266,10 @@ Also unanchored, and worth naming:
    of expected loss and its only geography is a 1991–2020 frost
    *climatology* with no year-to-year variation, on 31% of the peril. The
    other 69% is spatially flat. Nothing in the model distinguishes a
-   Victorian terrace's plumbing from a 2015 new build's.
+   Victorian terrace's plumbing from a 2015 new build's. The frost map
+   itself is sound — re-aiming its window was tested and rejected on
+   measurement (§4) — but the model is blind to the *level* of frost by
+   construction, so a warming winter cannot reach the premium.
 2. **Theft has no Scottish geography** — 442 districts on one flat rate,
    while England and Wales get street-level burglary points. Theft is
    13.4% of EL, so this is the largest *priced* coverage gap.

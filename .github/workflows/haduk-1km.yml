@@ -27,11 +27,15 @@
 # Nothing here is wired into the model. The merged CSV is measurement.
 name: haduk 1km extraction
 
+# Push trigger retired 2026-08-31, answer recorded. Run 33319459184
+# streamed all 174 GB in four slices, 4.5 h wall, and reduced it to
+# data/haduk_district_annual_1km.csv without the archive ever fitting
+# anywhere. exp/haduk-1km-ci merged (f2251ec) and is deleted, so the
+# trigger had nothing left to fire on. Dispatch remains, but note this
+# workflow cannot run at all after the CEDA token expires
+# 2026-09-01 16:27 UTC without a fresh secret.
 on:
   workflow_dispatch:
-  push:
-    branches: [exp/haduk-1km-ci]
-    paths: [.github/workflows/haduk-1km.yml]
 
 # fetch_haduk.py reads CEDA_TOKEN before ~/.ceda_token, so the secret
 # needs no file and is never written to disk. Only its expiry is printed.

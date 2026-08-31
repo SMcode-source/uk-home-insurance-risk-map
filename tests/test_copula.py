@@ -1226,8 +1226,19 @@ def test_site_placeholders_all_resolve():
         keys = set(re.findall(r'"(__[A-Z][A-Z_0-9]*__)"', fh.read()))
     assert len(keys) > 30, f"only {len(keys)} stats keys found - regex stale"
 
+    # Enumerated from disk, not listed here. This was a hard-coded pair
+    # until temperature.template.html was added beside them and every one
+    # of its placeholders read as "defined but unused" - the guard could
+    # not see the page it was meant to be guarding. A glob cannot fall
+    # behind the directory; the count assertion below stops it silently
+    # matching nothing instead.
     used = set()
-    for tpl in ("index.template.html", "methodology.template.html"):
+    templates = sorted(f for f in os.listdir(os.path.join(root, "site"))
+                       if f.endswith(".template.html"))
+    assert len(templates) >= 3, (
+        f"only {templates} found in site/ - the glob is stale, and an "
+        "unscanned template ships raw __TOKENS__ to the live page")
+    for tpl in templates:
         with open(os.path.join(root, "site", tpl), encoding="utf-8") as fh:
             found = set(token.findall(fh.read()))
         assert found, f"{tpl} has no placeholders - extraction is stale"

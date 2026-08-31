@@ -162,6 +162,14 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--from", dest="y0", type=int, default=1960)
     ap.add_argument("--to", dest="y1", type=int, default=2025)
+    ap.add_argument("--pet-sensitivity", action="store_true",
+                    help="also integrate every deficit with PET scaled by "
+                         "0.85 and 0.70, emitted as *_k85 / *_k70 columns. "
+                         "Hargreaves runs ~a third high in the UK; a "
+                         "uniform scale does NOT cancel out of "
+                         "max(PET - rain, 0), so whether the LEVEL bias "
+                         "moves the GEOGRAPHY is an empirical question, "
+                         "and this answers it in one pass.")
     args = ap.parse_args()
 
     import xarray as xr
@@ -188,6 +196,11 @@ def main():
     #                              compare column for column
     run_len = np.zeros(n_d, dtype=int)
     run_sev = np.zeros(n_d)
+
+    scales = (0.85, 0.70) if args.pet_sensitivity else ()
+    tag = {k: f"_k{int(round(k * 100))}" for k in scales}
+    smd_s = {k: np.zeros(n_d) for k in scales}
+    cwd_yr_s = {k: np.zeros(n_d) for k in scales}
 
     acc, rows = {}, []
     t0 = time.time()
@@ -218,6 +231,8 @@ def main():
 
         if mo == 1:
             cwd_yr[:] = 0.0
+            for k in scales:
+                cwd_yr_s[k][:] = 0.0
         a = acc.setdefault((yr), {
             "rain": np.zeros(n_d), "tmax": np.zeros(n_d),
             "tmin": np.zeros(n_d), "pet": np.zeros(n_d), "days": 0,
@@ -226,6 +241,9 @@ def main():
             "jja_days": 0, "frost_days": np.zeros(n_d),
             "spells": np.zeros(n_d), "worst_spell": np.zeros(n_d),
             "spell_days": np.zeros(n_d)})
+        for k in scales:
+            for base in ("smd_max", "cwd_yr_max", "smd_jja"):
+                a.setdefault(base + tag[k], np.zeros(n_d))
         a["rain"] += rn.sum(0)          # sum over DAYS, one value per district
         a["tmax"] += tx.sum(0)
         a["tmin"] += tn.sum(0)
@@ -245,6 +263,16 @@ def main():
             a["cwd_max"] = np.maximum(a["cwd_max"], cwd)
             cwd_yr = np.maximum(cwd_yr + pet[d] - rn[d], 0.0)
             a["cwd_yr_max"] = np.maximum(a["cwd_yr_max"], cwd_yr)
+            for k in scales:
+                pk = k * pet[d]
+                smd_s[k] = np.clip(smd_s[k] + pk - rn[d], 0.0, SMD_CAP)
+                a["smd_max" + tag[k]] = np.maximum(
+                    a["smd_max" + tag[k]], smd_s[k])
+                cwd_yr_s[k] = np.maximum(cwd_yr_s[k] + pk - rn[d], 0.0)
+                a["cwd_yr_max" + tag[k]] = np.maximum(
+                    a["cwd_yr_max" + tag[k]], cwd_yr_s[k])
+                if mo in (6, 7, 8):
+                    a["smd_jja" + tag[k]] += smd_s[k]
             if mo in (6, 7, 8):
                 a["smd_jja"] += smd
             frost = tn[d] < 0.0
@@ -285,6 +313,13 @@ def main():
                 "freeze_spells": int(a["spells"][i]),
                 "freeze_spell_days": int(a["spell_days"][i]),
                 "worst_spell_degc_days": round(float(a["worst_spell"][i]), 1),
+                **{col + t: round(
+                    float(a[base + t][i]) / (max(a["jja_days"], 1)
+                                             if base == "smd_jja" else 1), 1)
+                   for k, t in tag.items()
+                   for base, col in (("smd_max", "smd_max_mm"),
+                                     ("cwd_yr_max", "cwd_yr_max_mm"),
+                                     ("smd_jja", "smd_jja_mean_mm"))},
             })
 
     import csv

@@ -61,6 +61,11 @@ META = {
         "What UK home insurance actually paid out, year by year, from ABI "
         "releases — including their own revisions — beside what the model "
         "says a good, bad or catastrophic year looks like."),
+    "temperature.html": (
+        "Temperature — UK Home Insurance Risk Map",
+        "UK frost days are down a fifth since the 1961–1990 normal and "
+        "summer soil deficits are up. What that measured change does to "
+        "the model — one peril re-mapped, one deliberately left alone."),
     "methodology.html": (
         "Methodology — UK Home Insurance Risk Map",
         "How the peril scores are built from open data, how the 5-dim C-vine "
@@ -94,17 +99,23 @@ def head_tags(page):
 
 # (href, full label, short label for narrow screens)
 #
-# The four content tabs, in reading order: what actually happened, what
-# the model makes of it, the same model relative to the median, and the
-# methodology that backs both. sectors.html is deliberately NOT here -
-# it is the model tab at a finer grain, reached by the switch link in
-# the map panel, and a sixth nav item bought nothing but width. A
-# temperature tab joins this list when that workstream's remaining
-# gates have reported (see HANDOFF.md).
+# The content tabs, in reading order: what actually happened, what the
+# model makes of it, the same model relative to the median, what
+# temperature does to it, and the methodology that backs all of them.
+# sectors.html is deliberately NOT here - it is the model tab at a finer
+# grain, reached by the switch link in the map panel, and another nav
+# item bought nothing but width.
+#
+# The temperature tab joined on 2026-08-31, when the last of the
+# five-gate temperature workstream reported and its one shippable
+# result went live (the drought curve on subsidence frequency). It is
+# NOT called "prediction": nothing on it forecasts anything, and the
+# page says so in its own opening line.
 PAGES = [("index.html", "Overview", "Overview"),
          ("years.html", "What happened", "History"),
          ("map.html", "The model", "Model"),
          ("relative.html", "Relative risk", "Relative"),
+         ("temperature.html", "Temperature", "Temp"),
          ("methodology.html", "Methodology", "Method")]
 
 # Recognisable names for districts that top the premium ranking.
@@ -870,6 +881,12 @@ def load_stats():
         "__N_SIM__": f"{ya['n_sim']:,}",
         "__PREM_MIN__": f"{prem[0]:,.0f}",
         "__PREM_MAX__": f"{prem[-1]:,.0f}",
+        # The headline premium, household-weighted because that is what
+        # "the premium" means everywhere else here and in HANDOFF's
+        # publish notes. Two decimals: a model change worth under a penny
+        # is a real result this project keeps quoting, so rounding to the
+        # pound would hide exactly the differences the gates measure.
+        "__PREM_MEAN__": f"{np.average([p['premium'] for p in feats], weights=[p.get('households', 0) for p in feats]):,.2f}",
         "__CAT_UPLIFT__": f"{100 * (cat['mean_total'] - cat['indep_mean_total']) / cat['indep_mean_total']:.0f}",
         "__DIST_UPLIFT__": f"{np.mean([p['uplift_pct'] for p in feats]):.0f}",
         # The premium split, exposure-weighted because that is what
@@ -978,6 +995,228 @@ def cover_split(feats):
         "__SPLIT_FLOOR__": f"{100 * anchored_bld / tot:.1f}",
         "__SPLIT_CEIL__": f"{100 * (anchored_bld + unsplit) / tot:.1f}",
         "__SPLIT_EOW_PCT__": f"{100 * np.average([p['el_eow'] for p in feats], weights=w) / tot:.1f}",
+    }
+
+
+# ---- the temperature page's two series -------------------------------
+#
+# Drawn server-side as inline SVG, like the methodology diagrams and for
+# the same reason the resolution figure is: a chart built at build time
+# from the committed series cannot go stale, and a screenshot can. The
+# analysis page's client-side charting harness is deliberately NOT
+# reused here - it exists to redraw on resize, which these do not need,
+# and importing it would mean shipping its whole geometry system to a
+# page with two static plots.
+#
+# Two variants per chart, wide and narrow, swapped by media query. That
+# is the methodology page's answer to the measured 3.4px failure: a
+# fixed viewBox scales its TYPE down with everything else, so a phone
+# gets a correct layout nobody can read. Sizes below are chosen so each
+# variant renders near 1:1 at its own breakpoint.
+TEMPERATURE = os.path.join(ROOT, "data", "temperature_series.json")
+
+
+def _series_svg(t, key, *, wide, colour, unit, decimals=0, marks=()):
+    """One annual series with its least-squares trend, as inline SVG.
+
+    Arithmetic is +-*/ and round() only. The resolution figure's comment
+    explains why that matters: one unrounded transcendental differing by
+    an ULP between glibc and MSVC is enough to make docs/ "stale" in CI
+    with a diff no human can read.
+    """
+    years, vals = t["years"], t[key]
+    st = t[key + "_stats"]
+    W, H = (720, 250) if wide else (330, 260)
+    L, R, T, B = (46, 10, 16, 26) if wide else (36, 8, 14, 24)
+    pw, ph = W - L - R, H - T - B
+    hi = max(vals) * 1.08
+    x = lambda i: L + pw * i / (len(years) - 1)            # noqa: E731
+    y = lambda v: T + ph - ph * v / hi                     # noqa: E731
+
+    # The class is what the breakpoint keys on; without it the wide
+    # drawing stays visible on a phone and both charts render at once.
+    out = [f'<svg class="{"chart-wide" if wide else "chart-narrow-svg"}" '
+           f'viewBox="0 0 {W} {H}" role="img" '
+           f'aria-label="{unit} by year, {years[0]} to {years[-1]}">']
+    # horizontal grid + value ticks
+    for frac in (0.0, 0.5, 1.0):
+        v = hi * frac
+        out.append(f'<line x1="{L}" x2="{W - R}" y1="{y(v):.1f}" '
+                   f'y2="{y(v):.1f}" stroke="var(--grid)"/>')
+        out.append(f'<text class="tick-label" x="{L - 5}" y="{y(v) + 4:.1f}" '
+                   f'text-anchor="end">{v:,.{decimals}f}</text>')
+    # decade ticks; every 20 years on the narrow variant so labels cannot
+    # collide instead of shrinking
+    step = 10 if wide else 20
+    for i, yr in enumerate(years):
+        if yr % step == 0:
+            out.append(f'<text class="tick-label" x="{x(i):.1f}" '
+                       f'y="{H - 8}" text-anchor="middle">{yr}</text>')
+    # the marked years (canonical subsidence surges), behind the series
+    for yr in marks:
+        if yr in years:
+            i = years.index(yr)
+            out.append(f'<line x1="{x(i):.1f}" x2="{x(i):.1f}" y1="{T}" '
+                       f'y2="{T + ph}" stroke="var(--sub)" stroke-width="1.5" '
+                       f'stroke-opacity="0.30"/>')
+    # the series
+    pts = " ".join(f"{x(i):.1f},{y(v):.1f}" for i, v in enumerate(vals))
+    out.append(f'<polyline points="{pts}" fill="none" stroke="{colour}" '
+               f'stroke-width="1.8" stroke-linejoin="round"/>')
+    for yr in marks:
+        if yr in years:
+            i = years.index(yr)
+            out.append(f'<circle cx="{x(i):.1f}" cy="{y(vals[i]):.1f}" r="3.2" '
+                       f'fill="{colour}" stroke="var(--surface-1)" '
+                       f'stroke-width="1.2"/>')
+    # least-squares trend. Every such line passes through the centroid,
+    # so the stored slope alone fixes it - no second fitted constant to
+    # round, and nothing here to drift against the JSON.
+    mx = (len(years) - 1) / 2.0
+    my = sum(vals) / len(vals)
+    slope = st["slope_per_year"]
+    y0, y1 = my - slope * mx, my + slope * mx
+    out.append(f'<line x1="{L}" x2="{W - R}" y1="{y(y0):.1f}" '
+               f'y2="{y(y1):.1f}" stroke="var(--ink-1)" stroke-width="1.6" '
+               f'stroke-dasharray="6 4" stroke-opacity="0.75"/>')
+    out.append("</svg>")
+    return "".join(out)
+
+
+FREEZE_PRICING = os.path.join(ROOT, "data", "freeze_share_pricing.json")
+SMD_PRICING = os.path.join(ROOT, "data", "smd_curve_pricing.json")
+
+
+def temperature_bits():
+    """Every number and both charts on the temperature page.
+
+    Injected, never hand-written into the template: the stale-severity
+    -column defect (HANDOFF, defect 3) started as six numbers typed into
+    a page once and never revisited. The freeze dose-response is read
+    from the pricing run's own artifact for the same reason
+    seed_sensitivity.json is - a measured range quoted from memory is a
+    measured range that drifts.
+    """
+    with open(TEMPERATURE) as fh:
+        t = json.load(fh)
+    with open(FREEZE_PRICING) as fh:
+        fz = {r["key"]: r for r in json.load(fh)}
+    with open(os.path.join(ROOT, "data", "year_analysis.json")) as fh:
+        _yb = {b["label"]: b for b in json.load(fh)["buckets"]}
+    fs, ds = t["frost_days_stats"], t["cwd_yr_mm_stats"]
+    marks = t["canonical_subsidence_years"]
+    hits = t["cwd_canonical_hits"]
+
+    base = fz["baseline"]
+    # The widest premium excursion anywhere in the dose-response, in
+    # pence, and the largest single-district move that produced it.
+    _dp = [abs(r["premium"] - base["premium"]) for r in fz.values()]
+    _shares = [r for k, r in fz.items() if k.startswith("share_")]
+    _worst = max(_shares, key=lambda r: r["churn"])
+    _big = max((abs(v) for r in _shares
+                for _n, v in r["movers_up"] + r["movers_down"]))
+    _era = fz["era_2006_2025"]["premium"] - fz["daily_1991_2020"]["premium"]
+
+    # Gate 4's answer, recomputed from the committed year analysis rather
+    # than from the run that first measured it. The buckets already carry
+    # UNROUNDED claims_*_per_100k and cost_*_per_claim precisely so this
+    # is derivable without a simulation - see year_claim_view.py's
+    # docstring for why the rounded inc_*_pct columns are not usable.
+    #
+    # The shift-share is the standard one: hold every peril's typical
+    # cost per claim fixed and move only the claim MIX to get the mix
+    # term; the rest of the total ratio is severity rising within perils.
+    # The two multiply back to the total exactly, which is what makes
+    # quoting both honest rather than two separate framings of one number.
+    # Both shares are live model constants, not prose. The page states
+    # each one twice (the split reads "43.5% flat and 56.5% drought"),
+    # and a constant restated in text is a constant that can be changed
+    # in build_model without the page noticing - which is how the
+    # bad-year figures above went stale.
+    from build_model import SUB_DROUGHT_SHARE, EOW_FREEZE_SHARE
+
+    # The churn the published curve actually caused, looked up by the
+    # SHIPPED index and share rather than by the variant's key. If
+    # SUB_DROUGHT_SHARE is ever re-tuned this raises instead of quietly
+    # describing a variant the model no longer runs - which is the whole
+    # failure this page has now had four of.
+    with open(SMD_PRICING) as fh:
+        _smd = json.load(fh)
+    _shipped = [r for r in _smd
+                if r["index"] == "cwd_yr"
+                and abs(r["share"] - SUB_DROUGHT_SHARE) < 1e-9]
+    if len(_shipped) != 1:
+        raise SystemExit(
+            f"smd_curve_pricing.json has {len(_shipped)} variants at "
+            f"cwd_yr/{SUB_DROUGHT_SHARE} - the published curve must "
+            f"match exactly one priced variant")
+    _shipped = _shipped[0]
+
+    _ty, _cat = _yb["typical"], _yb["catastrophic"]
+    _P = ("wx", "fl", "sub", "gw")
+
+    def _w(b, p):
+        return b[f"claims_{p}_per_100k"] / b["claims_total_per_100k"]
+
+    _ratio = _cat["cost_total_per_claim"] / _ty["cost_total_per_claim"]
+    _mix = (sum(_w(_cat, p) * _ty[f"cost_{p}_per_claim"] for p in _P)
+            / sum(_w(_ty, p) * _ty[f"cost_{p}_per_claim"] for p in _P))
+    return {
+        "__FREEZE_MAX_PENCE__": f"{100 * max(_dp):.2f}",
+        "__FREEZE_MAX_CHURN__": f"{_worst['churn']:,}",
+        "__FREEZE_LOW__": f"{min(r['share'] for r in _shares):.2f}",
+        "__FREEZE_HIGH__": f"{max(r['share'] for r in _shares):.2f}",
+        "__FREEZE_BIG_MOVE__": f"{_big:.0f}",
+        "__FREEZE_ERA_PENCE__": f"{abs(100 * _era):.2f}",
+        "__TEMP_DROUGHT_CHART__": _series_svg(
+            t, "cwd_yr_mm", wide=True, colour="var(--sub)",
+            unit="Peak annual soil water deficit in mm", marks=marks),
+        "__TEMP_DROUGHT_CHART_N__": _series_svg(
+            t, "cwd_yr_mm", wide=False, colour="var(--sub)",
+            unit="Peak annual soil water deficit in mm", marks=marks),
+        "__TEMP_FROST_CHART__": _series_svg(
+            t, "frost_days", wide=True, colour="var(--gw)",
+            unit="Air-frost days per year"),
+        "__TEMP_FROST_CHART_N__": _series_svg(
+            t, "frost_days", wide=False, colour="var(--gw)",
+            unit="Air-frost days per year"),
+        "__TEMP_Y0__": str(t["years"][0]),
+        "__TEMP_Y1__": str(t["years"][-1]),
+        "__TEMP_NDIST__": f"{t['n_polygons']:,}",
+        "__TEMP_CLIM0__": str(t["clim"][0]),
+        "__TEMP_CLIM1__": str(t["clim"][1]),
+        "__TEMP_PREV0__": str(t["previous"][0]),
+        "__TEMP_PREV1__": str(t["previous"][1]),
+        "__TEMP_FROST_CLIM__": f"{fs['clim_mean']:.1f}",
+        "__TEMP_FROST_PREV__": f"{fs['previous_mean']:.1f}",
+        "__TEMP_FROST_DROP__": f"{abs(fs['previous_to_clim_pct']):.1f}",
+        "__TEMP_FROST_DECADE__": f"{abs(fs['pct_per_decade']):.1f}",
+        "__TEMP_FROST_P__": f"{fs['p_value']:.4f}".rstrip("0"),
+        "__TEMP_DROUGHT_CLIM__": f"{ds['clim_mean']:,.0f}",
+        "__TEMP_DROUGHT_DECADE__": f"{ds['pct_per_decade']:+.1f}",
+        "__TEMP_DROUGHT_P__": f"{ds['p_value']:.3f}",
+        "__TEMP_HITS__": str(len(hits)),
+        "__TEMP_CANON_N__": str(len(marks)),
+        "__TEMP_HIT_YEARS__": ", ".join(str(y) for y in hits),
+        "__TEMP_MISS_YEARS__": ", ".join(str(y) for y in
+                                         t["cwd_canonical_misses"]),
+        "__BY_COUNT__": f"{_cat['claims_total_per_100k'] / _ty['claims_total_per_100k']:.2f}",
+        "__BY_VALUE__": f"{_ratio:.2f}",
+        "__BY_MIX__": f"{_mix:.2f}",
+        "__BY_WITHIN__": f"{_ratio / _mix:.2f}",
+        "__BY_WX_FROM__": f"{100 * _w(_ty, 'wx'):.1f}",
+        "__BY_WX_TO__": f"{100 * _w(_cat, 'wx'):.1f}",
+        "__BY_FL_FROM__": f"{100 * _w(_ty, 'fl'):.1f}",
+        "__BY_FL_TO__": f"{100 * _w(_cat, 'fl'):.1f}",
+        "__BY_WX_COUNT__": f"{_cat['claims_wx_per_100k'] / _ty['claims_wx_per_100k']:.2f}",
+        "__BY_WX_VALUE__": f"{_cat['cost_wx_per_claim'] / _ty['cost_wx_per_claim']:.2f}",
+        "__BY_FL_COUNT__": f"{_cat['claims_fl_per_100k'] / _ty['claims_fl_per_100k']:.2f}",
+        "__BY_FL_VALUE__": f"{_cat['cost_fl_per_claim'] / _ty['cost_fl_per_claim']:.2f}",
+        "__SUB_DROUGHT_PCT__": f"{100 * SUB_DROUGHT_SHARE:.1f}",
+        "__SUB_FLAT_PCT__": f"{100 * (1 - SUB_DROUGHT_SHARE):.1f}",
+        "__EOW_FREEZE_PCT__": f"{100 * EOW_FREEZE_SHARE:.0f}",
+        "__SMD_CHURN__": f"{_shipped['churn']:,}",
+        "__SMD_CHURN2__": f"{_shipped['churn2']:,}",
     }
 
 
@@ -1095,6 +1334,8 @@ def main():
 
     render_template("index.template.html", "index.html", stats)
     render_template("methodology.template.html", "methodology.html", stats)
+    render_template("temperature.template.html", "temperature.html",
+                    dict(stats, **temperature_bits()))
     wrap_generated(os.path.join(ROOT, "map", "uk_home_insurance_risk_map.html"),
                    "map.html", MAP_CSS)
     wrap_generated(os.path.join(ROOT, "map", "uk_sector_risk_map.html"),
