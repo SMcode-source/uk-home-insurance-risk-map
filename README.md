@@ -166,6 +166,23 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
      one thing 625k does not publish: **thickness**. Effect: 1,452 districts
      raised, 749 lowered, exposure-weighted premium −0.2% (the ABI calibration
      re-pins the level), but **42.5% change rating group**.
+     Geology says which ground *can* shrink; since 2026-08-31 a **drought
+     climatology** says how often it is made to: each district's 1991–2020 mean
+     annual peak of the running water deficit max(cumsum(PET − rain), 0), reset
+     every 1 January, from **HadUK-Grid 1 km daily** observations streamed on CI
+     (174 GB that never touched a disk whole — `scripts/haduk_1km_stream.py`,
+     reduced by `scripts/make_smd_climatology.py` to
+     `data/smd_climatology.csv`). It enters claim **frequency** as a blend:
+     `sub_rel = (1 − 0.565) + 0.565 · deficit / mean`, the share being the
+     ABI's own drought-attribution arithmetic (13,000 of 2022's 23,000 claims;
+     DATA_SOURCES.md #34), normalised to an exposure-weighted mean of 1 so the
+     national level is untouched. Nationally the same index recovers **5 of the
+     6 canonical UK subsidence years** (1976, 1995, 2003, 2018, 2022). The
+     PET inside it is Hargreaves–Samani, ~a third high in a maritime climate —
+     measured (`scripts/check_pet_sensitivity.py`, both 1 km and 5 km grids) to
+     move the deficit's *level*, which calibration re-pins, and not its *map*
+     (rank correlation ≥ +0.998 at PET × 0.85/0.70). Dependence is untouched:
+     θ_WS still reads the geology score.
    - *Weather*: **Met Office** grids (Climate Data Portal ArcGIS services,
      fetched by `scripts/fetch_metoffice.py`), interpolated to district
      centroids by inverse-distance weighting: winter mean wind speed 5 km (UKCP18

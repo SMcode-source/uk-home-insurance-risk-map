@@ -170,7 +170,58 @@ the next section:**
   *Cleared: the ABI's own arithmetic yields 0.565 by two agreeing
   routes; priced at 0.40/0.565/0.70 so the table shows sensitivity.*
 
-## Gate 2 PRICED 2026-08-31: the SMD curve costs the level nothing and re-rates modestly — awaiting the user's decision
+## PUBLISHED 2026-08-31: the Gate 2 SMD curve, both grains in one push
+
+The user chose option 1 of the priced menu: ship `cwd_yr` at
+`SUB_DROUGHT_SHARE = 0.565`. What went live, all numbers from rebuilds
+rather than the harness (its baseline level sits 7e-6 high; see the
+Gate 1 publish note):
+
+  el_sub     19.805475 -> 19.807342  +0.009%: calibrate_frequency
+             re-pins the level (harness drift <= 1 ULP); the residue
+             is the geojson's per-district rounding under reshuffled
+             weights
+  el_total   164.120266 -> 164.121733  +0.0009%
+  capital    5.533736 -> 5.526963   -0.122%
+  premium    169.655786 -> 169.647739  -0.8 pence (harness said
+             169.6483 - the gap is the geojson's 1dp premium write)
+  sectors    169.6636    cross-grain drift +0.0094% (bound 0.5%)
+  nesting    median |sector-mean/district - 1| 1.16% (bound 3%), p95 6.6%
+  sub_rel    wmean exactly 1.000000 both grains; district 0.538-1.310,
+             sector 0.537-1.307
+  churn      455 of 2,736 districts move one rating group, 1 by two
+  movers     up DA15/DA6/SE23 (+GBP8-13), down CF61/CF62/LL44
+
+Wiring is the eow_rate pattern exactly: `drought_from_haduk` loads
+`data/smd_climatology.csv` with exact name coverage (wrong grain =
+SystemExit), `sub_rel` is normalised on the live frame in main() and is
+a REQUIRED `_fields` column — a frame without it fails loudly rather
+than silently pricing geology-only (commit 8a8727e; test
+`test_sub_frequency_carries_the_drought_relativity`).
+
+The sector grain surfaced one real defect: 13 sectors came back NaN —
+exactly the 13 empty-geometry polygons (no centroid -> NaN latitude ->
+NaN Hargreaves Ra -> NaN PET; their daily met had silently come from an
+arbitrary fallback cell, so the whole row was untrustworthy). Each now
+takes its parent district's climatology via
+`make_smd_climatology.py --fill-empty-from`, printed per sector
+(children.csv posture). Two more features LOOK empty in
+sectors_risk.geojson but are GeometryCollections (IV51 9, ZE2 9) and
+extracted fine. Coherence after the fill: Spearman +0.9964,
+median rel diff 0.000 (commit c0596e8, DATA_SOURCES #34).
+
+Assembly followed the one-push procedure: sector-model got exp/smd-curve
+merged IN plus the sector-keyed climatology, `sector-model.yml
+skip_fetch=true` built on CI (run 33422250428 -> commit c8fac97), the
+output was crossed in as data/sectors_risk.geojson (fd97f77), and
+rebuild.yml commit=false re-rendered EVERYTHING on CI (run 33424274229)
+so docs carry both grains — the district geojson came back bit-identical
+to the previous verified rebuild (33418764800), which is the determinism
+check working. One trap for next time: actions/upload-artifact@v4 drops
+hidden files by default, so the artifact's docs/ was missing .nojekyll —
+restore it before committing or Pages breaks.
+
+## Gate 2 PRICED 2026-08-31: the SMD curve costs the level nothing and re-rates modestly — the user shipped it (see PUBLISHED above)
 
 Branch `exp/smd-curve` (commit 9d0a917, CI run 33410640013; artifact
 `smd-curve-pricing`, JSON also at `data/smd_curve_pricing.json` in the

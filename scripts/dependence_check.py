@@ -27,6 +27,7 @@ from scores_real import (subsidence_score, weather_from_metoffice,  # noqa: E402
                          flood_from_agencies, groundwater_from_ea,
                          erosion_from_ncerm, sw_depth_severity,
                          theft_from_police, frost_from_metoffice,
+                         drought_from_haduk,
                          fires_from_mhclg, children_from_census)
 
 N_SIM = 400_000          # per district-batch; multi-peril years are rare
@@ -62,6 +63,10 @@ def main():
     gdf["eow_rate"] = bm.ABI_TARGET_FREQ["eow"] * (
         (1.0 - bm.EOW_FREEZE_SHARE)
         + bm.EOW_FREEZE_SHARE * gdf["frost_days"] / fmean)
+    gdf["sub_drought_mm"] = drought_from_haduk(gdf["name"].values)
+    dmean = np.average(gdf["sub_drought_mm"], weights=gdf["households"])
+    gdf["sub_rel"] = ((1.0 - bm.SUB_DROUGHT_SHARE)
+                      + bm.SUB_DROUGHT_SHARE * gdf["sub_drought_mm"] / dmean)
     fire_raw = fires_from_mhclg(gdf["name"].values,
                                 gdf["households"].values)
     gdf["fire_rate"] = bm.ABI_TARGET_FREQ["fire"] * fire_raw / np.average(

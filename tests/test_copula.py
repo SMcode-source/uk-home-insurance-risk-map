@@ -213,7 +213,8 @@ def test_inv_mixed_cdf_matches_bernoulli_lognormal():
 
 def fields(**over):
     """Default marginal_params inputs, overridable per test."""
-    f = dict(sub=0.5, wx=0.5, f_high=0.1, f_low=0.2, sw_high=0.1,
+    f = dict(sub=0.5, sub_rel=1.0, wx=0.5, f_high=0.1, f_low=0.2,
+             sw_high=0.1,
              sw_low=0.2, gw_frac=0.1, sw_sev=1.0, er=0.0, th=0.009,
              eow=1.0, fire=0.002, ad=0.009,
              ct_th=1.0, ct_eow=1.0, ct_fire=1.0, ct_ad=1.0)
@@ -306,6 +307,30 @@ def test_eow_frequency_is_the_frost_rate_scaled():
         assert float(m["p_eow"][0]) == 0.5
     finally:
         bm.FREQ_SCALE = old
+
+
+def test_sub_frequency_carries_the_drought_relativity():
+    """p_sub is the geology base times sub_rel (the Gate 2 SMD curve,
+    normalised in main() where the exposure weights live) and nothing
+    else - marginal_params must not renormalise it, for the same
+    batch-membership reason as eow_rate. The column is REQUIRED: a
+    frame without it must fail loudly rather than silently price
+    geology-only, because that is exactly the failure the experiment
+    branch's provably-inert default would have hidden after a publish.
+    """
+    base = bm.marginal_params(fields())
+    up = bm.marginal_params(fields(sub_rel=1.3))
+    assert abs(float(up["p_sub"][0]) / float(base["p_sub"][0])
+               - 1.3) < 1e-12
+    # frequency only: the severity params must be bit-identical
+    assert np.array_equal(base["sev_sub"]["mu"], up["sev_sub"]["mu"])
+    assert np.array_equal(base["sev_sub"]["sigma"], up["sev_sub"]["sigma"])
+    # and the dependence input is untouched by construction: theta_ws
+    # reads sub_score, which fields() carries separately as `sub`
+    f = fields()
+    del f["sub_rel"]
+    with pytest.raises(KeyError):
+        bm.marginal_params(f)
 
 
 def test_erosion_frequency_annualises_over_the_horizon():
@@ -459,6 +484,7 @@ def test_erosion_expected_loss_is_analytic_not_simulated(monkeypatch):
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.24, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.010, 0.005], "eow_rate": [0.011, 0.009],
+        "sub_rel": [1.0, 1.0],
         "fire_rate": [0.002, 0.001], "ad_rate": [0.009, 0.008],
         "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
         "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
@@ -484,6 +510,7 @@ def _cover_split_frame():
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.010, 0.005], "eow_rate": [0.011, 0.009],
+        "sub_rel": [1.0, 1.0],
         "fire_rate": [0.002, 0.001], "ad_rate": [0.009, 0.008],
         # Neutral council-tax relativities (Phase 2c). marginal_params
         # reads these for the four attritional severities, so the frame
@@ -555,6 +582,7 @@ def test_theft_expected_loss_is_analytic_not_simulated(monkeypatch):
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.010, 0.0], "eow_rate": [0.0, 0.0],
+        "sub_rel": [1.0, 1.0],
         "fire_rate": [0.0, 0.0], "ad_rate": [0.0, 0.0],
         "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
         "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
@@ -617,6 +645,7 @@ def test_fire_expected_loss_is_analytic_not_simulated(monkeypatch):
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.0, 0.0], "eow_rate": [0.0, 0.0],
+        "sub_rel": [1.0, 1.0],
         "fire_rate": [0.0025, 0.0], "ad_rate": [0.0, 0.0],
         "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
         "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
@@ -651,6 +680,7 @@ def test_eow_expected_loss_is_analytic_not_simulated(monkeypatch):
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.0, 0.0], "eow_rate": [0.012, 0.0],
+        "sub_rel": [1.0, 1.0],
         "fire_rate": [0.0, 0.0], "ad_rate": [0.0, 0.0],
         "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
         "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
@@ -709,6 +739,7 @@ def test_ad_expected_loss_is_analytic_not_simulated(monkeypatch):
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.0, 0.0], "eow_rate": [0.0, 0.0],
+        "sub_rel": [1.0, 1.0],
         "fire_rate": [0.0, 0.0], "ad_rate": [0.0095, 0.0],
         "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
         "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
@@ -765,6 +796,7 @@ def test_capital_allocation_is_stable_across_seeds():
         # appended LAST: earlier draws keep their positions in the fixture
         # stream, so pre-EoW expectations in these tests stay valid
         "eow_rate": rng.uniform(0.005, 0.03, n),
+        "sub_rel": np.ones(n),
         # and fire after EoW, same discipline
         "fire_rate": rng.uniform(0.001, 0.005, n),
         # and AD after fire, same discipline
@@ -964,6 +996,7 @@ def test_thread_count_does_not_change_a_single_bit():
         # appended LAST: earlier draws keep their positions in the fixture
         # stream, so pre-EoW expectations in these tests stay valid
         "eow_rate": rng.uniform(0.005, 0.03, n),
+        "sub_rel": np.ones(n),
         # and fire after EoW, same discipline
         "fire_rate": rng.uniform(0.001, 0.005, n),
         # and AD after fire, same discipline
@@ -1635,6 +1668,7 @@ def test_simulate_returns_the_columns_the_map_and_site_read():
             "f_low": [0.1], "sw_high": [0.02], "sw_low": [0.05],
             "gw_frac": [0.05], "sw_sev": [1.0], "er_frac": [0.01],
             "households": [500.0], "th_rate": [0.009], "eow_rate": [0.011],
+            "sub_rel": [1.0],
             "fire_rate": [0.002], "ad_rate": [0.009],
             "ct_th": [1.0], "ct_eow": [1.0],
             "ct_fire": [1.0], "ct_ad": [1.0],

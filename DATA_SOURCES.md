@@ -1011,6 +1011,57 @@ districts**, used as the exposure weight throughout.
     from primary text, so the suspect is FY2024 = 307 − 27 — and the
     2025-02 FY2024 release carries no subsidence line at all.
 
+34. **Drought climatology — the subsidence frequency relativity (the
+    Gate 2 SMD curve, published 2026-08-31).** `data/smd_climatology.csv`
+    holds each polygon's 1991–2020 mean of `cwd_yr_max_mm`: the annual
+    peak of the running water deficit max(cumsum(PET − rain), 0), reset
+    every 1 January, computed from **HadUK-Grid v1.3.2.ceda 1 km DAILY**
+    tasmin/tasmax/rainfall (Met Office via CEDA, OGL; account needed —
+    the same wall as #24). The 174 GB of daily grids never touched a
+    disk whole: `scripts/haduk_1km_stream.py` fetched, reduced and
+    deleted year by year on CI (`haduk-1km.yml`, run 33319459184 for
+    the full 66-year table; `haduk-1km-sectors.yml` for the sector
+    grain), and `scripts/make_smd_climatology.py` reduces the annual
+    table to the committed climatology. `scores_real.drought_from_haduk`
+    loads it with EXACT coverage required — a missing name means the
+    file is at the wrong grain (the ct_bands lesson, #30).
+
+    At the sector grain, the 13 sectors whose polygon is empty (no
+    geometry, so no centroid, no Hargreaves Ra, no PET) take their
+    parent district's climatology
+    (`make_smd_climatology.py --fill-empty-from`), printed sector by
+    sector at build time — the children.csv posture, not a silent
+    patch. Coherence between the grains: Spearman +0.9964 between
+    per-district sector means and the district table, median relative
+    difference 0.000.
+
+    **Why this index:** aggregated nationally it recovers 5 of the 6
+    canonical UK subsidence years (1976, 1995, 2003, 2018, 2022;
+    misses 2006); the capped 150 mm bucket saturates (94–96% of
+    districts peg) and the uncapped multi-year run is a trend, not a
+    year index. Full derivation in HANDOFF's Gate 2 sections.
+
+    **The share (SUB_DROUGHT_SHARE = 0.565)** is the ABI's own
+    arithmetic by two agreeing routes: the 2018-12 release frames
+    2,500 claims/quarter as the pre-surge baseline (⇒ 10,000/yr), and
+    the 2022 release attributes 13,000 of 23,000 claims to the drought
+    ⇒ 13/23 = 0.565 (2022's H1 of 5,000 = base/2 cross-checks the same
+    base — all from the releases in #33). Zurich's "An in-depth look
+    at subsidence" brackets it: ~60% of upheld claims are root-induced
+    clay shrinkage in an average year, ~85% in a surge year.
+
+    **The measured caveat:** the PET is Hargreaves–Samani (FAO-56
+    eq. 21 Ra), which runs ~a third high in a maritime climate, and a
+    uniform bias does not cancel out of the deficit. Measured
+    (`scripts/check_pet_sensitivity.py`, at 1 km on CI run 33404395072
+    and at 5 km locally): PET × 0.85/0.70 moves the LEVEL
+    (240 → 121 mm) and not the MAP — Spearman ≥ +0.9983 — and the
+    level is exactly what the ABI calibration re-pins, so only the map
+    is used. If the level itself is ever needed, the citable fix is
+    **Hydro-PE** (Penman–Monteith on the same HadUK-Grid met, 1 km
+    daily 1969–2021, CC-BY,
+    doi:10.5285/9275ab7e-6e93-42bc-8e72-59c98d409deb).
+
 ## Blocked on non-open data — what each would unblock
 
 Kept here so nobody re-derives the shopping list. None of these have an
