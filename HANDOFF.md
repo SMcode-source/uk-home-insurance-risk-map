@@ -262,7 +262,7 @@ second time - worse than the first.** I ran `build_site.py` alone to
 add the nav link. It re-wrapped `analysis/uk_risk_year_analysis.html`
 and `map/*.html`, gitignored intermediates my checkout had left at
 their PRE-Gate-2 state, so commit 5b56296 silently REVERTED four
-published pages - map, relative, sectors, years - to the subsidence
+committed pages - map, relative, sectors, years - to the subsidence
 numbers the SMD curve had just replaced (`claims_sub_per_100k` 72.6
 back to 72.83, and the exceedance curves with it). Re-wrapping a stale
 intermediate does not merely fail to update a page; **it overwrites a
@@ -274,13 +274,24 @@ that is what caught it. Fixed by running the full chain and committing
 the result, which is reproducible across two passes; the four pages now
 differ from 6f323aa by exactly the one nav line they were supposed to.
 
-So the rule below is not a tidiness preference, it is the only thing
-standing between a template edit and an unannounced model rollback on
-the live site: **never commit docs/ built by `build_site.py` alone.
-Run `build_map.py`, `build_tiles.py`, `build_analysis.py`,
-`build_site.py`, in that order, every time.** The intermediates are
-gitignored, so a fresh clone cannot reproduce this - only a long-lived
-checkout like this one can, which is exactly why it recurs here.
+**The live site was never wrong, and it is worth being precise about
+why**, because the reason is also the reason nobody would have noticed.
+`pages.yml` deploys a build ARTIFACT it constructs from `data/` and
+`site/`; it never serves `docs/`. It also did not run on either push -
+its path filter covers data, templates and `scripts/build_*.py`, and a
+docs-only commit matches none of them. So the reverted numbers sat in
+the repository while `smcode-source.github.io` kept serving 72.6
+throughout (checked). `docs/` is the fallback the workflow header
+describes - what Pages serves if the repository's Pages source is ever
+set back to a branch - plus the reviewable record of what the site
+says. A stale one is a live-site regression armed but not fired.
+
+So the rule below is not a tidiness preference: **never commit docs/
+built by `build_site.py` alone. Run `build_map.py`, `build_tiles.py`,
+`build_analysis.py`, `build_site.py`, in that order, every time.** The
+intermediates are gitignored, so a fresh clone cannot reproduce this -
+only a long-lived checkout like this one can, which is exactly why it
+recurs here and not in CI.
 
 ## PUBLISHED 2026-08-31: the Gate 2 SMD curve, both grains in one push
 
