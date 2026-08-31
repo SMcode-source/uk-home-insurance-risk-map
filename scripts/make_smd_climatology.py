@@ -60,6 +60,15 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--src", default=SRC)
     ap.add_argument("--out", default=OUT)
+    ap.add_argument("--fill-empty-from", default=None,
+                    help="district-grain climatology CSV used to fill "
+                         "polygons whose extraction came out NaN. The 13 "
+                         "known EMPTY-GEOMETRY sectors have no centroid, so "
+                         "their Hargreaves Ra (and with it PET and every "
+                         "deficit) is NaN - no location, no integral. Each "
+                         "takes its parent district's climatology, recorded "
+                         "loudly here rather than papered over in the "
+                         "extraction. Without this flag a NaN aborts.")
     args = ap.parse_args()
     acc = defaultdict(lambda: {"cwd": [], "jja": []})
     with open(args.src, newline="") as fh:
@@ -75,6 +84,29 @@ def main():
         rows.append({"district": d,
                      "cwd_yr_clim_mm": round(float(np.mean(a["cwd"])), 2),
                      "smd_jja_clim_mm": round(float(np.mean(a["jja"])), 2)})
+    bad = [r for r in rows
+           if not (np.isfinite(r["cwd_yr_clim_mm"])
+                   and np.isfinite(r["smd_jja_clim_mm"]))]
+    if bad and not args.fill_empty_from:
+        raise SystemExit(f"{len(bad)} polygons have NaN climatology "
+                         f"({', '.join(r['district'] for r in bad[:5])}...) "
+                         "- pass --fill-empty-from if these are the known "
+                         "empty-geometry sectors")
+    if args.fill_empty_from:
+        with open(args.fill_empty_from, newline="") as fh:
+            dist = {r["district"]: r for r in csv.DictReader(fh)}
+        for r in bad:
+            parent = r["district"].split(" ")[0]
+            if parent == r["district"] or parent not in dist:
+                raise SystemExit(f"{r['district']}: NaN climatology and no "
+                                 f"parent district '{parent}' to fill from")
+            r["cwd_yr_clim_mm"] = float(dist[parent]["cwd_yr_clim_mm"])
+            r["smd_jja_clim_mm"] = float(dist[parent]["smd_jja_clim_mm"])
+            print(f"  filled {r['district']} from district {parent} "
+                  f"(empty geometry - no centroid, no PET)")
+        if bad:
+            print(f"filled {len(bad)} empty-geometry sectors from their "
+                  f"parent districts")
     with open(args.out, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()
