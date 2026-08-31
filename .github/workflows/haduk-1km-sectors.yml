@@ -26,11 +26,19 @@
 # district one into main.
 name: haduk 1km sector extraction
 
+# Push trigger retired 2026-08-31, answer recorded. Run 33416724855
+# built the sector table; make_smd_climatology.py turned it into the
+# sector smd_climatology.csv (13 empty-geometry sectors filled from
+# their parent districts, printed per sector), and Gate 2 published at
+# both grains in one push (6f323aa). exp/haduk-1km-pet merged (fb8f957)
+# and is deleted. workflow_dispatch is ADDED here rather than kept:
+# this workflow only ever had a push trigger, so retiring it without a
+# replacement would leave the extraction unrunnable. It is dispatch-only
+# in name for now regardless - the CEDA token expires 2026-09-01
+# 16:27 UTC and this was the last CEDA-dependent run planned, so a
+# re-run needs a fresh secret first.
 on:
-  push:
-    branches: [exp/haduk-1km-pet]
-    paths:
-      - .github/workflows/haduk-1km-sectors.yml
+  workflow_dispatch:
 
 # fetch_haduk.py reads CEDA_TOKEN before ~/.ceda_token, so the secret
 # needs no file and is never written to disk. Only its expiry is printed.

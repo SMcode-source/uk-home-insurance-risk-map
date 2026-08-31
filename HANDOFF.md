@@ -25,9 +25,25 @@ pence). **Gate 2 measured 2026-08-30 — the freeze half closes as a
 no-reorder, the SMD half is a real different map; section below.**
 Gate 3 closed as a no-ship (no anchor, and sigma provably moves
 nothing). Gate 4 measured (a bad year is dearer claims, not more
-claims). The premium is untouched by all of it. What remains is the
-user's decisions: whether to price the SMD curve, whether to re-aim
-the freeze question at the level, and what Tab 4 publishes.
+claims).
+
+**All three decisions the workstream left to the user are now closed,
+2026-08-31.** The SMD curve is PUBLISHED at both grains (`cwd_yr` at
+`SUB_DROUGHT_SHARE = 0.565`, premium GBP169.6477). The freeze re-aim is
+ANSWERED NO — measured, then priced anyway, and `EOW_FREEZE_SHARE`
+stays 0.31 because the model is structurally blind to the frost level
+and the map sits inside its own noise floor. Tab 4 SHIPPED as
+`/temperature.html`. So the premium moved 0.8 pence across the whole
+workstream, which is the honest headline: five gates of temperature
+work found one real map (subsidence geography) and no level.
+
+**What the workstream leaves open**, in its own sections below: the
+frost SHARE is distributional and unanchored (0.17 pence across a 2x
+range, but 353 districts re-rate — there is no UK per-era attribution
+to settle it); the PET bias is level-not-map at both resolutions; and
+the published climate scenario is flood-only, so it cannot show
+subsidence worsening or escape of water easing. The dependence
+re-specification was always a later phase and has not started.
 
 **The HadUK archive state, 2026-08-30:** 12 km AND 5 km daily
 tasmin/tasmax/rainfall 1960-2025 are complete on this laptop under
