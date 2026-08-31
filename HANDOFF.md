@@ -147,7 +147,8 @@ across CI slice restarts it is not even comparable; the workflow
 header documents that). The per-year reset keeps the discrimination
 (relativity p5/p95 = 0.33/1.41) without the ratchet.
 
-**What blocks pricing, and neither is mine to wave through:**
+**What blocked pricing — BOTH CLEARED BY MEASUREMENT 2026-08-31, see
+the next section:**
 
 - **The PET level is inflated ~a third** — Hargreaves-Samani gives UK
   annual PET 668-697 mm against a true 450-550 (known weakness in humid
@@ -155,6 +156,7 @@ header documents that). The per-year reset keeps the discrimination
   Rankings are sound; the LEVEL is not shippable without MORECS/MOSES
   PET or a citable UK Hargreaves coefficient. A uniform bias does NOT
   cancel out of a deficit, because the deficit subtracts rainfall.
+  *Cleared: measured to move the level only — the map survives.*
 - **The share has no published anchor.** `EOW_FREEZE_SHARE = 0.31`
   cleared this hurdle with the ABI's own weather-attribution arithmetic
   agreeing across two releases (0.311/0.307). The subsidence equivalent
@@ -165,6 +167,80 @@ header documents that). The per-year reset keeps the discrimination
   routes: the ABI quarterly series' H2 concentration (78% of 2022
   notified claims in H2 is itself an attribution measurement), or a
   dose-response presentation like SUP_WEIGHT's.
+  *Cleared: the ABI's own arithmetic yields 0.565 by two agreeing
+  routes; priced at 0.40/0.565/0.70 so the table shows sensitivity.*
+
+## Gate 2 PRICED 2026-08-31: the SMD curve costs the level nothing and re-rates modestly — awaiting the user's decision
+
+Branch `exp/smd-curve` (commit 9d0a917, CI run 33410640013; artifact
+`smd-curve-pricing`, JSON also at `data/smd_curve_pricing.json` in the
+run). Seven full 20,000-year simulations off one scored frame:
+baseline + {cwd_yr, smd_jja} x shares {0.40, 0.565, 0.70}, the Gate 1
+harness pattern. The lever is `sub_rel` — a per-district frequency
+relativity on `p_sub`, exposure-weighted mean 1, normalised on the
+live frame like `eow_rate`; the column is absent from the real
+pipeline and provably bit-neutral when missing; dependence still reads
+`sub_score`.
+
+**The two blockers were closed with numbers first:**
+
+- **PET (measured, both resolutions):** `check_pet_sensitivity.py`
+  re-ran the drought integrals at PET x 0.85 and x 0.70 — at 1 km on
+  CI (workflow `haduk-1km-pet.yml`, run 33404395072, re-extracting
+  only 1991-2020 = 81 GB in the four probe-calibrated slices, done
+  ~1 h; branch `exp/haduk-1km-pet`) and at 5 km locally
+  (`haduk_district_daily.py --pet-sensitivity`, 70 min). Verdict
+  identical at both: the bias moves the LEVEL (cwd_yr climatology
+  240 -> 121 mm at x 0.70) and NOT the MAP — Spearman vs k=1.00 at or
+  above +0.9983 (cwd_yr) and +0.9940 (smd_jja) everywhere. The level
+  is exactly what calibration re-pins, so the priced relativity
+  survives the PET formula. If a shipped leg ever needs the level's
+  physics, the citable fix is Hydro-PE (PM PET on this same HadUK-Grid
+  met, 1 km daily 1969-2021, CC-BY,
+  doi:10.5285/9275ab7e-6e93-42bc-8e72-59c98d409deb). Run before the
+  CEDA token expired 2026-09-01 16:27 UTC; nothing planned needs CEDA
+  now.
+- **Share (derived, not guessed): 0.565 from the ABI's own releases**
+  by two agreeing routes — the 2018-12 release's 2,500 claims/quarter
+  pre-surge baseline (=> 10,000/yr) against 2022's 23,000 total with
+  13,000 drought-attributed (=> 13/23 = 0.565), cross-consistent with
+  2022's own H1 of 5,000 = base/2. Zurich's attribution (60% of upheld
+  claims root-induced clay shrinkage in an average year, ~85% in a
+  surge year) brackets it. Same derivation style as
+  `EOW_FREEZE_SHARE`'s 0.311/0.307.
+
+**The table (exposure-weighted GBP/policy; churn = districts changing
+premium decile vs baseline; el_sub pinned at 19.8065 in every variant,
+drift at most one ULP):**
+
+| variant      | share | capital | premium  | vs base | churn | >=2 grp |
+|--------------|-------|---------|----------|---------|-------|---------|
+| baseline     | —     | 5.5337  | 169.6551 | —       | 0     | 0       |
+| cwd_yr 0.40  | 0.400 | 5.5290  | 169.6504 | -0.003% | 336   | 0       |
+| cwd_yr 0.565 | 0.565 | 5.5270  | 169.6483 | -0.004% | 455   | 1       |
+| cwd_yr 0.70  | 0.700 | 5.5252  | 169.6466 | -0.005% | 547   | 1       |
+| smd_jja 0.40 | 0.400 | 5.5310  | 169.6524 | -0.002% | 234   | 0       |
+| smd_jja 0.565| 0.565 | 5.5298  | 169.6512 | -0.002% | 330   | 0       |
+| smd_jja 0.70 | 0.700 | 5.5288  | 169.6502 | -0.003% | 386   | 0       |
+
+Top movers, every variant: UP the Thames-estuary/Essex clay (cwd_yr:
+DA15/DA6/SE23 +GBP8-13; smd_jja: SS12/SE23/SS13 +GBP4-6), DOWN wet
+western coasts (CF61/CF62/LL44 and LL43/IV48, -GBP4-10). The same
+districts Gate 2's shape measurement called out in advance.
+
+**Reading it honestly:** the level cannot move by construction and did
+not (drift <= 7.1e-15); the tiny premium dips are capital reallocating
+as frequency shifts toward districts whose tail contribution differs.
+This is a pure geography change: at the anchor share 0.565 with the
+better index (cwd_yr — 5/6 canonical years), 455 of 2,736 districts
+change decile, exactly ONE by two or more groups. Compare Phase 2c
+(70.5% churn, 974 districts >= 2 groups, held) and the MIDAS gust swap
+(28.8%, 20 districts >= 2, published): this sits far below both. The
+open decisions are the user's: ship cwd_yr at 0.565 (with the PET
+verdict and the share derivation as the published justification),
+present the dose-response, or record it as a priced refusal for
+Tab 4 — the harness, evidence and derivations are all on the branch
+either way.
 
 Two streamer defects fixed before the CI run (commit on
 `exp/haduk-1km-ci`): `append_csv` wrote every year's rows TWICE (came
