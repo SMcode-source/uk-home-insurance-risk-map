@@ -138,9 +138,30 @@ def era_frost(gdf):
 
 
 def price(gdf, rate):
-    """Re-calibrate and re-simulate the frame under one eow_rate column."""
+    """Re-calibrate and re-simulate the frame under one eow_rate column.
+
+    ct_eow has to be renormalised here, and missing that is a trap worth
+    naming. build_model scales the four attritional severities by the
+    council-tax band mix and normalises each one with CLAIM weights -
+    households x that peril's OWN rate - so that its claim-weighted mean
+    is exactly 1 and the ABI severity level survives. That makes ct_eow a
+    function of eow_rate. Overwrite eow_rate on an already-scored frame
+    and the severity multiplier left behind belongs to the old rate: the
+    claim-weighted mean is no longer 1, the EoW level drifts with the
+    SHAPE of the relativity, and the drift reads exactly like a priced
+    effect. It measured 5.4e-4 on el_eow at share 0.20 - about 2 pence of
+    premium, the same order as everything this harness is trying to
+    resolve - before this line existed.
+
+    The constant cancels, so the frame's own normalised column is all
+    that is needed: ct_rel/A renormalised on the new weights gives
+    ct_rel/B exactly, whatever A was.
+    """
     g = gdf.copy()
     g["eow_rate"] = rate
+    wgt = g["households"].values * rate
+    g["ct_eow"] = g["ct_eow"].values / np.average(g["ct_eow"].values,
+                                                  weights=wgt)
     bm.calibrate_frequency(g)
     bm.calibrate_spatial(g)
     sim, _year = bm.simulate(g)
