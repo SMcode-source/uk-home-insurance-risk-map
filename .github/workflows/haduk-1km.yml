@@ -1,0 +1,157 @@
+# The full 1 km per-district extraction, 1960-2025, on CI.
+#
+# The probe (haduk-1km-probe.yml, run 33274608365) measured where CEDA's
+# ceiling lives: one runner gets 9.6 MB/s, four concurrent runners get
+# 3.6-7.1 MB/s each - aggregate ~14.5 MB/s, or 1.5x solo for 4x the
+# machines. Mostly per-account, with a little headroom. So this uses
+# exactly FOUR slices: more runners would split the same pipe thinner,
+# fewer would leave the headroom unused. 174 GB / ~14.5 MB/s ~= 3.4 h of
+# download plus ~40 min of interleaved compute per slice.
+#
+# SLICE BOUNDARIES AND THE INTEGRALS. SMD, the uncapped deficit and any
+# freeze spell are RUNNING state - a slice that starts cold at its first
+# 1 January is wrong about that January's spells and about cwd_run for a
+# year or two. So every slice except the first fetches ONE SPIN-UP YEAR
+# it does not emit: the state at its first emitted 1 January has a full
+# year of history behind it, which rewets the SMD bucket and carries any
+# New Year freeze spell correctly. What one spin-up year cannot rebuild
+# is cwd_run_max_mm's MULTI-year drought memory - that column is only
+# fully honest in a single sequential pass, and the merged file says so
+# in its provenance line here. cwd_yr_max_mm, the comparable index,
+# resets every 1 January by definition and is exact in every slice.
+#
+# Each attempt resumes from the script's own checkpoint, so a transient
+# CEDA failure costs the year in flight, not the slice. Artifacts upload
+# even on failure - a dead slice leaves its finished years inspectable.
+#
+# Nothing here is wired into the model. The merged CSV is measurement.
+name: haduk 1km extraction
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [exp/haduk-1km-ci]
+    paths: [.github/workflows/haduk-1km.yml]
+
+# fetch_haduk.py reads CEDA_TOKEN before ~/.ceda_token, so the secret
+# needs no file and is never written to disk. Only its expiry is printed.
+env:
+  CEDA_TOKEN: ${{ secrets.CEDA_TOKEN }}
+
+concurrency:
+  group: haduk-1km
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    name: ${{ matrix.slice.from }}-${{ matrix.slice.to }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        slice:
+          - { from: 1960, to: 1976, emit: 1960 }
+          - { from: 1976, to: 1992, emit: 1977 }
+          - { from: 1992, to: 2009, emit: 1993 }
+          - { from: 2009, to: 2025, emit: 2010 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install
+        run: pip install -r requirements.txt xarray netCDF4
+
+      - name: Extract ${{ matrix.slice.from }}-${{ matrix.slice.to }}
+        run: |
+          test -n "$CEDA_TOKEN" || {
+            echo "::error::CEDA_TOKEN secret is not set on this repo."
+            exit 1
+          }
+          ok=0
+          for attempt in 1 2 3; do
+            if python -u scripts/haduk_1km_stream.py \
+                --from ${{ matrix.slice.from }} --to ${{ matrix.slice.to }} \
+                --hours 4.8; then
+              ok=1; break
+            fi
+            echo "attempt $attempt failed; resuming from the checkpoint"
+            sleep 90
+          done
+          test "$ok" = 1
+
+      - name: Drop the spin-up year
+        run: |
+          python - <<'PY'
+          import csv
+          path = "data/haduk_district_annual_1km.csv"
+          with open(path, newline="") as f:
+              rows = [r for r in csv.DictReader(f)
+                      if int(r["year"]) >= ${{ matrix.slice.emit }}]
+          years = sorted({r["year"] for r in rows})
+          print(f"emitting {len(rows)} rows, years {years[0]}-{years[-1]}"
+                if rows else "NOTHING TO EMIT")
+          with open(path, "w", newline="") as f:
+              w = csv.DictWriter(f, fieldnames=list(rows[0]))
+              w.writeheader()
+              w.writerows(rows)
+          PY
+
+      - name: Upload slice
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: haduk-1km-${{ matrix.slice.from }}-${{ matrix.slice.to }}
+          path: |
+            data/haduk_district_annual_1km.csv
+            data/haduk_1km_state.npz
+          if-no-files-found: warn
+
+  merge:
+    needs: extract
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: haduk-1km-*
+          path: slices
+
+      - name: Merge and verify coverage
+        run: |
+          python - <<'PY'
+          import csv, glob, sys
+          rows = []
+          for p in sorted(glob.glob("slices/*/haduk_district_annual_1km.csv")):
+              with open(p, newline="") as f:
+                  got = list(csv.DictReader(f))
+              print(f"{p}: {len(got)} rows")
+              rows += got
+          keys = [(r["district"], r["year"]) for r in rows]
+          assert len(keys) == len(set(keys)), "duplicate district-years"
+          rows.sort(key=lambda r: (r["district"], int(r["year"])))
+          with open("haduk_district_annual_1km.csv", "w", newline="") as f:
+              w = csv.DictWriter(f, fieldnames=list(rows[0]))
+              w.writeheader()
+              w.writerows(rows)
+          years = {int(r["year"]) for r in rows}
+          missing = sorted(set(range(1960, 2026)) - years)
+          n_d = len({r["district"] for r in rows})
+          print(f"{len(rows)} rows, {n_d} districts, "
+                f"{len(years)} years, missing: {missing or 'none'}")
+          if missing or len(rows) != n_d * 66:
+              sys.exit("INCOMPLETE - see the slice artifacts")
+          PY
+
+      - name: Upload merged table
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: haduk-district-annual-1km
+          path: haduk_district_annual_1km.csv
+          if-no-files-found: error

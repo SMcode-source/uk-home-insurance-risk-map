@@ -18,31 +18,28 @@ subsidence and a cold-spell/thaw index replacing air-frost days;
 **(3)** structure — burst-pipe breakout, three non-water freeze
 variants priced side by side, snowmelt; **(4)** a year-view conditional
 claim count and value. The dependence re-specification is deliberately
-its own later phase. **Gate 0 is in progress on `exp/subsidence-series`
-— the ABI half is done (DATA_SOURCES #33) and the `theta_ws`
-measurement is done (it costs GBP0.65).** **Gate 1 is PRICED and
-awaiting the user's decision: the level envelope is GBP164.94 to
-GBP169.66 and the severity period fix costs 0.7 pence.** Both
-sections follow. The premium is untouched.
+its own later phase. **Every gate has now reported.** Gate 0 closed
+(ABI series in, `theta_ws` costs GBP0.65, HadUK on disk). Gate 1
+published 2026-08-28 (severity fix taken, level held at GBP307m, 0.6
+pence). **Gate 2 measured 2026-08-30 — the freeze half closes as a
+no-reorder, the SMD half is a real different map; section below.**
+Gate 3 closed as a no-ship (no anchor, and sigma provably moves
+nothing). Gate 4 measured (a bad year is dearer claims, not more
+claims). The premium is untouched by all of it. What remains is the
+user's decisions: whether to price the SMD curve, whether to re-aim
+the freeze question at the level, and what Tab 4 publishes.
 
-**Gate 0's CEDA half is BLOCKED ON THE USER, 2026-08-27.**
-`scripts/fetch_haduk.py` is written, enumerates correctly and refuses to
-run: **the CEDA token expired 2026-08-12** (issued 08-09, ~72 h life — it
-is the one from the MIDAS gust fetch). Regenerate at
-<https://services.ceda.ac.uk/account/token/> and overwrite
-`~/.ceda_token`; nobody but the account holder can do this. Then:
-
-    .venv/Scripts/python.exe scripts/fetch_haduk.py
-
-**2,376 files**, HadUK-Grid v1.3.2.ceda, 12 km daily `tasmin`/`tasmax`/
-`rainfall`, 1960–2025 (792 months each). `--dry-run` enumerates with no
-token at all, so the job can be re-costed any time. Daily data ends
-**2025-12**, so the ABI's 2026 quarters have no matching weather year.
-The script decodes the token's public `exp` claim and dies with "EXPIRED
-N days ago" before writing anything — the failure this guards against is
-2,376 8 KB login pages saved under `.nc` names, which only surfaces when
-xarray refuses to open them. `snowLying` exists at 12 km and is Gate 3's
-snow driver.
+**The HadUK archive state, 2026-08-30:** 12 km AND 5 km daily
+tasmin/tasmax/rainfall 1960-2025 are complete on this laptop under
+`data/haduk/` (gitignored); the 1 km set was streamed on CI and reduced
+to `data/haduk_district_annual_1km.csv` without ever fitting anywhere
+(174 GB, run 33319459184). Both per-district year tables — 5 km local,
+1 km from CI — are complete, schema-identical and gitignored; the
+scripts regenerate them. The CEDA token (secret `CEDA_TOKEN`, also
+`~/.ceda_token`) **expires 2026-09-01 16:27 UTC**; nothing planned
+still needs it. Daily data ends **2025-12**, so the ABI's 2026 quarters
+have no matching weather year. `snowLying` exists at 12 km and was Gate
+3's snow driver before Gate 3 closed.
 
 **The whole roadmap is now published, at both grains.** Phase 1
 (attritional perils: theft → escape of water → fire → accidental
@@ -77,14 +74,582 @@ four vine perils now take their EL analytically and flood severity is
 no longer blended in log space. Re-measure any marginal change with
 `.venv/Scripts/python.exe scripts/analytic_el_check.py`.
 
-Current headline figures (2026-08-25 publish, CI 32789547647
-verified): exposure-weighted premium **£169.66** over 27.26m
-households; loss cost £164.12 ≈ 75% of the £219 all-home-claims cost.
-The fall from £176.66 is theft's level correction (−3.96%); the EoW
-freeze share moved geography only and cost the level nothing. Climate
+Current headline figures (**2026-08-28 publish**, CI 33138216612 +
+33138240678 verified): exposure-weighted premium **£169.66**
+(169.6558) over 27.26m households; loss cost £164.12 ≈ 75% of the £219
+all-home-claims cost. The last move was Gate 1's subsidence severity
+fix, worth **−0.6 pence** and entirely capital — `el_total` is
+bit-identical across it. Before that, the fall from £176.66 was theft's
+level correction (−3.96%); the EoW freeze share moved geography only
+and cost the level nothing. Climate
 uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
+
+## Gate 2 MEASURED 2026-08-30: freeze reorders nothing; the SMD curve is a real, different map
+
+Run `scripts/gate2_geography_shape.py` (against either resolution's
+table) and `scripts/compare_haduk_resolutions.py`. Data: the full 5 km
+extraction locally (`haduk_district_daily.py`, 84 min, 66 years x 2,736
+districts) and the full 1 km extraction on CI — four probe-sized slices
+streaming 174 GB none of which ever touched a disk whole
+(`.github/workflows/haduk-1km.yml`, run 33319459184, 4.5 h wall, every
+slice green first try). Everything below was computed at BOTH
+resolutions and agreed to the second decimal, which is the cleanest
+possible answer to "was 1 km worth it": **1 km confirms 5 km rather
+than changing it** — per-year cross-district rank agreement +0.97 to
++0.997 on every comparable column, and the districts 5 km genuinely
+cannot separate number **14** (7 groups, mostly co-cell small urban
+pairs), inside which 1 km spreads the drought indices by only 1-3%.
+The old "84% of households share a 12 km cell / 40% a 5 km cell"
+statistic measured CELL sharing, not value degeneracy — area-weighted
+overlap already separates nearly every district.
+
+**FREEZE HALF, CLOSED — a cold-spell/thaw index does not reorder the
+map.** At all 2,736 districts, like-for-like on the same instrument and
+window (5 km, 1991-2020): spells +0.993, days-in-spells +0.984,
+worst-spell severity +0.971 Spearman against plain air-frost days; the
+1 km table repeats them (+0.994/+0.985/+0.972). The ERA5 22-point
+provisional answer holds at full coverage, now INCLUDING the Scottish
+districts ERA5 could not see. A relativity that reorders nothing cannot
+move a premium, so the swap buys no geography and the physical argument
+(pipes burst on the thaw after a sustained freeze) is true but
+priced-in by rank. Instrument agreement corroborates: the 5 km
+1991-2020 frost climatology matches the model's 1 km HadUK layer at
++0.98, means 40.5 vs 40.0 days. What survives is the LEVEL question the
+provisional section already posed — frost days fell ~20% between eras
+while the map stayed +0.98 rank-stable — i.e. should `EOW_FREEZE_SHARE`
+be time-varying at all. That is a re-aim for the user, not a geography
+experiment.
+
+**SUB HALF — the drought climatology is genuinely different geography,
+unlike the freeze swap.** The model's subsidence surface is geology
+alone (`p_sub = 0.002 + 0.028*sub_score^1.5`); no weather enters it.
+Against that geology the drought climatologies correlate at rho ~ 0.69
+— clay country and dry country overlap (both are the southeast) but are
+far from one map. An `EOW_FREEZE_SHARE`-style blend
+`p_sub * (1-share + share*rel)` at share 0.31 keeps rank rho ~ 0.987
+yet moves **523** districts (JJA-mean SMD) to **1,284** (per-year peak
+deficit) by more than 10% in subsidence frequency. Extremes are
+physically right without being told: wettest-lowest all west Highlands
+(PH50, PH43/44/49, HS3/5, IV54), driest-highest Thames estuary and
+Bedfordshire/Cambridgeshire clay (DA8/9/17/18, RM17-20, SS0/4/8, MK42,
+SE28). Nationally, the household-weighted per-year deficit
+(`cwd_yr_max_mm`) recovers **5 of the 6 canonical subsidence years** in
+its top ten — 1976, 1995, 2003, 2018, 2022, missing only 2006 — and
+the JJA-mean SMD 4 of 6. The index family works.
+
+**Which index: `cwd_yr_max_mm`.** The capped bucket (`smd_max_mm`)
+saturates (94-96% of districts peg, spread 0.60-1.06); the uncapped
+RUN integral (`cwd_run_max_mm`) carries multi-year memory that turns
+its national top ten into 2016-2025 — a trend, not a year index (and
+across CI slice restarts it is not even comparable; the workflow
+header documents that). The per-year reset keeps the discrimination
+(relativity p5/p95 = 0.33/1.41) without the ratchet.
+
+**What blocks pricing, and neither is mine to wave through:**
+
+- **The PET level is inflated ~a third** — Hargreaves-Samani gives UK
+  annual PET 668-697 mm against a true 450-550 (known weakness in humid
+  maritime climates, recorded at `haduk_district_daily.py`'s commit).
+  Rankings are sound; the LEVEL is not shippable without MORECS/MOSES
+  PET or a citable UK Hargreaves coefficient. A uniform bias does NOT
+  cancel out of a deficit, because the deficit subtracts rainfall.
+- **The share has no published anchor.** `EOW_FREEZE_SHARE = 0.31`
+  cleared this hurdle with the ABI's own weather-attribution arithmetic
+  agreeing across two releases (0.311/0.307). The subsidence equivalent
+  — what fraction of subsidence frequency rides the drought curve
+  rather than the geology base — has no such number yet. BGS/ABI both
+  attribute the large majority of UK subsidence claims to clay
+  shrink-swell, but "large majority" is not a parameter. Candidate
+  routes: the ABI quarterly series' H2 concentration (78% of 2022
+  notified claims in H2 is itself an attribution measurement), or a
+  dose-response presentation like SUP_WEIGHT's.
+
+Two streamer defects fixed before the CI run (commit on
+`exp/haduk-1km-ci`): `append_csv` wrote every year's rows TWICE (came
+in with the memory-fix rewrite; the local 1960-62 CSV predates it and
+was checked clean), and the progress line called
+`shutil.disk_usage('C:/')`, which would have thrown FileNotFoundError
+on the first completed year of any Linux run.
+
+## Gate 0 CEDA strand CLOSED 2026-08-29: HadUK-Grid daily is on disk
+
+The token was regenerated by the account holder and the fetch ran clean:
+**2,376 files, 1,508 MB** under `data/haduk` (gitignored) - tasmin,
+tasmax and rainfall at 12 km, 792 files each, **66 complete years
+1960-2025, no gaps**, release v20260512 of v1.3.2.ceda. Verified by
+opening three files with xarray rather than trusting the fetcher's
+magic-byte check: 112x82 grid, correct units, physical ranges.
+
+That retires the last blocker on Gate 0 and gives Gate 2 the source ERA5
+could not provide - ERA5 was unusable for frost in Scotland, and the
+model's existing frost/rain layers are 1991-2020 CLIMATOLOGIES with no
+year-to-year variation at all.
+
+**The subsidence signal is present, and it discriminates.** UK-land-mean
+JJA rainfall, 1960-2025, median 245 mm (matches the published figure;
+driest 107 mm in 1995, wettest 380 mm in 2012):
+
+| driest JJA | mm | % of median | mean summer tasmax |
+|---|---|---|---|
+| 1995 | 107 | 43.6% | 20.7 C |
+| 1976 | 108 | 44.0% | 21.1 C |
+| 1983 | 128 | 52.3% | 20.1 C |
+| 1984 | 146 | 59.5% | 19.6 C |
+| 2022 | 164 | 66.8% | 20.5 C |
+| 2018 | 174 | 70.9% | 20.6 C |
+
+1976 and 1995 are the two driest summers AND the two warmest - the two
+canonical UK subsidence catastrophe years, recovered from the data
+without being told to look for them. 1975 also makes the driest ten,
+which is the consecutive-summer desiccation that made 1976 so severe.
+2018 and 2022, the modern surge years, are both there.
+
+**Two counter-cases matter more than the hits**, because they are why
+the leg must be built on PET/SMD and not a temperature index: **2023**
+is the 10th warmest summer at **118% of median rainfall** (warm and wet
+- should produce no subsidence), and **1981** is in the driest ten at
+the coolest tasmax of that group, 17.6 C. Neither variable alone
+separates a subsidence year from a non-subsidence one. That is the
+empirical case for Hargreaves-Samani PET off the daily tasmax-tasmin
+range, which is precisely what this download makes possible.
+
+METHOD NOTE, because I got it wrong once. The first pass computed
+`a.sum("time").mean()`, which turns the NaN sea mask into zeros and
+dilutes the spatial mean by ocean - it reported a median of 46 mm
+against a true 245 mm. Rankings and ratios were unaffected (the land
+mask is identical every year, so the dilution factor cancels) and came
+out bit-identical on the corrected run, but the LEVEL was wrong. Take
+the spatial mean first, then sum over time.
+
+Token expires 2026-09-01 16:27 UTC. The 5 km per-district relativity
+pass is ~14x the volume per file and was NOT taken - 12 km is what Gate
+2 needs, and 5 km should earn its place before a fresh token is spent
+on it.
+
+## Gate 4 MEASURED 2026-08-29: a bad year is dearer claims, not more claims
+
+`exp/year-claim-view`, CI run 33258862898, one 20,000-year simulation off
+one scored frame. `year_analysis` now emits `claims_<peril>_per_100k` and
+`cost_<peril>_per_claim` per bucket, from the UNROUNDED arrays, alongside
+the `mean_*`/`inc_*_pct` it already published. The four vine perils, as a
+multiple of the typical year:
+
+| bucket | claims/yr | count x | GBP/claim | value x | cost/policy |
+|---|---|---|---|---|---|
+| good | 102,636 | 0.70x | 4,235 | 0.58x | £28.00 |
+| typical | 147,112 | 1.00x | 7,357 | 1.00x | £69.80 |
+| bad | 186,856 | 1.27x | 11,399 | 1.55x | £137.40 |
+| catastrophic | 203,673 | 1.38x | 19,352 | 2.63x | £254.30 |
+
+**Value beats count roughly two to one.** A catastrophic year costs 3.64x
+a typical one, and 2.63 of that is the size of the average claim against
+1.38 from the number of them. Count also saturates — 1.27x to 1.38x from
+bad to catastrophic — while value keeps climbing, 1.55x to 2.63x. The
+identity holds: count x times value x reproduces the cost ratio to within
+0.12% in every bucket, which is the arithmetic check the harness prints.
+
+**The value effect is itself two effects, and the smaller one is mix.**
+Holding every peril at its typical-year cost per claim and moving only
+the claim MIX to each bucket's:
+
+| bucket | value x | of which mix | of which severity |
+|---|---|---|---|
+| good | 0.58x | 0.79x | 0.73x |
+| bad | 1.55x | 1.13x | 1.37x |
+| catastrophic | 2.63x | 1.25x | 2.11x |
+
+Storm falls from 74.7% of claims in a typical year to 66.2% in a
+catastrophic one while flood rises 9.2% -> 14.4% and subsidence
+15.3% -> 18.2%, so cheap claims give way to dear ones. That is worth
+1.25x. The remaining 2.11x is genuine severity inside the perils.
+
+**Storm is not what makes a bad year bad.** It is two thirds to four
+fifths of all claims and is nearly flat in both dimensions — 1.23x count
+and 1.06x value at catastrophic. Flood is the engine: 2.18x count AND
+2.83x value, compounding to 6.2x its typical cost per policy (£24.10 ->
+£148.70). Subsidence is second, 1.65x by 1.84x.
+
+Two caveats, both real:
+
+- **Groundwater's value multiplier is non-monotonic** — 1.34x at bad,
+  1.20x at catastrophic. It is the smallest leg by far (1.1% of claims,
+  ~2,300 a year) and so the noisiest; do not read a story into that
+  reversal without more simulated years. It is also exactly the leg the
+  rounding floor below made unreadable.
+- **This is the four vine perils only**, £56.90 of the £164.12 EL. The
+  four attritional legs (theft, EoW, fire, AD) are outside the year view
+  by design, disclosed and reasoned at `analysis/template.html:86`. So
+  this answers why a bad WEATHER-AND-GEOLOGY year is expensive, not why
+  a bad year for the book is. Sanity check against the ABI's 2025
+  actual — 560,000 home claims across all perils — holds: 147,112
+  typical and 203,673 catastrophic for a subset of perils both come in
+  under it.
+
+**Why the fields had to be added rather than derived.** `inc_<peril>_pct`
+publishes at 2 dp of a PERCENT, smallest step 0.01% — about 1,550 claims
+across a 15.5m book. Dividing `mean_*` by it to recover a cost per claim
+inherits 0.6–0.9% error on weather, 2.6–12.5% on flood, 2.1–7.1% on
+subsidence and **25–50% on groundwater**, whose incidence rounds to
+0.00/0.01/0.01/0.02 across the four buckets. That is a resolution floor,
+not sampling noise: more simulated years would not have moved it.
+
+`test_year_view_claim_count_and_value` guards the identity
+`mean_<peril> == claims_<peril>_per_100k / 1e5 * cost_<peril>_per_claim`
+and was checked to bite — it fails when the conditioning divide is
+removed. Counts are CLAIMS, not claimants: a policy claiming on two
+perils counts twice, which is the basis the ABI's own figure uses.
+
+Committed to main as 6a0db2a and **inert** — `build_model` is not in
+tests.yml's docs-freshness path (only build_map/build_analysis/build_site
+run there), so `data/` and `docs/` are untouched until someone rebuilds.
+Nothing here changes the premium. Publishing any of it is the user's
+call; the numbers above are quotable, the site does not yet show them.
+
+## Gate 3 PRICED 2026-08-28: the answer is exactly zero, and provably
+
+`exp/eow-sigma`, CI run 33217184873, four full 20,000-year simulations
+off one scored frame: `SEV_SIGMA["eow"]` at **0.96 / 1.00 / 1.20 /
+1.41**, spanning both ABI readings.
+
+| sigma | EL | tvar99_euler | capital | premium | churn |
+|---|---|---|---|---|---|
+| 1.00 | 164.121341 | 256.3502754466515 | 5.533736 | 169.655077 | — |
+| 0.96 | 164.121341 | **256.3502754466515** | 5.533736 | 169.655077 | 0 |
+| 1.20 | 164.121341 | **256.3502754466515** | 5.533736 | 169.655077 | 0 |
+| 1.41 | 164.121341 | **256.3502754466515** | 5.533736 | 169.655077 | 0 |
+
+`tvar99_euler` is identical **to the last bit** in all four. That is not
+a broken harness — sigma demonstrably reached the model, because
+`el_eow` wobbles by 2.8e-14, exactly the ULP signature of the
+`M / exp(s^2/2) * exp(s^2/2)` round trip. It is the right answer.
+
+**Why.** Both places the premium comes from take the severity's MEAN and
+nothing else:
+
+    simulate()        el_eow = p_eow * exp(mu + s^2/2)
+    cond_expected()   q * exp(mu + s^2/2)   -> year_loss -> tvar99_euler
+                                            -> capital -> premium
+
+and `mu = log(_median_for_mean(M, s)) = log(M) - s^2/2`, so
+`exp(mu + s^2/2) == M` and **sigma cancels in both**, exactly, per
+district. I had checked the first identity and assumed the second did
+not hold. It does.
+
+**This is deliberate and it is already on the published page** — the
+methodology's "Averaging expectations, not accidents" gives the formula
+as `Phi(...) x E[severity_i]`. Averaging REALISED losses over the worst
+200 of 20,000 years made the Euler allocation correlate **0.49** with
+itself across seeds; conditioning on the systemic draw took it to
+**0.9985**. The price of that fix, never stated until now, is that
+**capital responds to frequency CLUSTERING and never to severity
+DISPERSION**.
+
+**So the whole `SEV_SIGMA` table is invisible to the premium** — not
+just EoW's. It reaches only `tvar99_vine`, `tvar99_indep` and
+`var995_*`, which are diagnostics. That is now written at the
+definition site in `build_model.py` and guarded by
+`test_severity_sigma_cannot_move_capital`, so the next person does not
+spend a CI run rediscovering it.
+
+**What this does and does not settle.** Gate 3 is closed: neither the
+burst-pipe leg (no anchor, and no geography for one) nor the sigma
+variant (no effect, provably) can ship. It does NOT say severity
+dispersion is irrelevant to a home insurer — it says THIS model does not
+charge for it, by a choice made for seed stability. If that should
+change, the test named above is the one to change, and changing it means
+re-opening the 0.49-vs-0.9985 result.
+
+**Process note, since it cost a CI run.** The answer was derivable by
+reading `cond_expected` before launching anything. I verified the EL
+identity analytically and took the capital path on trust. The run was
+not wasted — it is the evidence behind the guard — but it should have
+been a confirmation, not a discovery.
+
+## Gate 3 prep 2026-08-28: the burst-pipe breakout has NO shippable anchor
+
+Gate 3 proposes splitting burst pipes out of the escape-of-water leg as
+its own peril. Desk research on the ABI's public releases, all figures
+now in `data/abi_annual.csv` with their bases kept apart. **Verdict: do
+not build the leg.** The reasons are worth keeping, because two of them
+are findings in their own right.
+
+**There are THREE ABI series here and they are not the same thing.**
+
+1. *The annual weather line* (the release the model's storm/flood/
+   subsidence anchors come from). Its home-weather total less storm less
+   flood gives **153 (2023), 174 (2024), 202 (2025)**. The residual
+   method is validated: for 2023 it reproduces the published GBP153m to
+   within 1 (573-133-286 = 154).
+2. *The winter-advice releases*, a **settled-claims** basis: 2023
+   **12,000 claims averaging over GBP17,000**; 2024 **~8,000 claims,
+   ~GBP33,000, GBP250m total**.
+3. The model's own EoW anchor, GBP657m from the ABI's "GBP1.8m a day".
+
+Series 1 and 2 do not reconcile: 12,000 x 17,000 = **GBP204m vs the
+weather line's GBP153m (+33%)**, and 8,000 x 33,000 = GBP264m (the ABI
+says GBP250m) **vs GBP174m (+44%)**. Same peril, same year, two ABI
+publications, a third apart. This is the paid-vs-notified problem Gate 1
+hit, in a new place.
+
+**Finding 1: the 2025 "burst pipes" figure is not burst pipes.** The
+2026-02 release's footnote says the weather figures "cover damage caused
+by burst or frozen pipes, **escape of water**, as well as damage as a
+result from storms and flooding". So the GBP202m residual is burst pipes
+*and* weather-attributed escape of water. The likeliest reading is that
+the **basis is the same in both years** and the 2023 release's "burst
+pipes" label for its own residual was simply loose — and the evidence
+for that is `EOW_FREEZE_SHARE`'s own derivation, which got **0.311 from
+2023 and 0.307 from 2025**. Two different bases would not agree to
+0.004. So this does not undermine `EOW_FREEZE_SHARE = 0.31`; if anything
+it explains why it held up.
+
+**Finding 2, and this is the useful one: the burst-pipe tail is already
+representable inside the existing EoW lognormal, and the model's sigma
+now has a published cross-check for the first time.** Split at the 2024
+figures, burst pipes would be **4.9% of EoW claims but 40% of EoW paid**
+— a 13x severity ratio. That sounds like it needs its own leg. It does
+not. Asking what lognormal sigma puts that much value in that few claims:
+
+| ABI reading | claims | avg | % of EoW count | % of EoW paid | implied sigma |
+|---|---|---|---|---|---|
+| 2023 (12k x >GBP17,000) | 12,000 | 17,000 | 7.3% | 31.1% | **0.96** |
+| 2024 (8k x ~GBP33,000) | 8,000 | 33,000 | 4.9% | 40.2% | **1.41** |
+| the model today | — | — | — | — | **1.00** |
+
+`SEV_SIGMA["eow"] = 1.00` was a judgement call and has never had an
+anchor. It now has one, and the anchor is a **lower bound**: the ABI
+says the 2023 average *exceeded* GBP17,000, so the sigma that reading
+implies is **at least 0.96**, not equal to it. The model's 1.00 is
+therefore consistent with 2023 rather than confirmed by it — but
+"consistent with a published figure" is strictly more than this
+parameter had yesterday, and the bound rules out the low end.
+
+**Why the leg still cannot ship.** Two observations, and they disagree by
+47% on sigma. The average claim nearly **doubled** (17,000 -> 33,000)
+while the count fell **a third** (12,000 -> 8,000) — the signature of a
+small catastrophe-driven book, not a severity anchor. And the 2024 pair
+could not be verified against the ABI primary: the cold-weather page
+404s on fetch and only secondary reports carry it. Under the house rule
+that a parameter without a published anchor does not ship, this is not
+close.
+
+**Sigma is not a clean substitute for the leg, and saying so needs a
+correction to the paragraph above.** In the model, frost enters escape
+of water through **frequency only** — `eow_rate` is the anchor level
+times the frost relativity — while EoW severity is
+`ABI["sev_eow"] * ct_eow`, a council-tax factor, with **one sigma
+everywhere**. So a cold district gets more EoW claims at the same
+average cost. Raising sigma would add cost concentration **uniformly**;
+a real burst-pipe leg would tie it to frost geography. Those are
+different models, and the ABI publishes **no geography at all** for
+burst pipes — so the leg is unanchored in a second, independent way, not
+just on severity. That strengthens the verdict rather than weakening it,
+but the sigma option is a different question, not a cheaper version of
+the same one.
+
+**And it is a pure capital question — WRONG, and the CI run says so.**
+I wrote here that sigma leaves EL unchanged and "only the tail, and
+hence capital, moves", bounded by the GBP5.53 capital charge. The bound
+is not a fraction of GBP5.53. **It is zero.** See the section below.
+
+**What would change the answer.** A third year on the winter-advice
+basis, which arrives each winter; or an ABI release that states burst
+pipes and escape of water separately on the same basis; or any public
+source for burst-pipe **geography**, which is the gap nothing here
+fills. Until then the honest Gate 3 experiment is **not** a new leg but
+the one-parameter question — is `SEV_SIGMA["eow"]` right at 1.00, given
+2023 implies at least 0.96 and 2024 implies 1.41 — and that is
+priceable today with the existing harness, on CI rather than this
+laptop.
+
+## Gate 2 shape check 2026-08-28 (PROVISIONAL, 22 of 57 points — superseded by "Gate 2 MEASURED 2026-08-30" above)
+
+Run `scripts/freeze_index_shape.py`. It works off whatever
+`fetch_era5_daily.py` has cached, which is what that fetcher's
+farthest-point traversal is for — every prefix is a national sample. At
+**22 points** it already answers two of Gate 2's three questions, and
+the answers point somewhere other than where the gate was aimed.
+
+**Q1: a cold-spell/thaw index does not reorder the map.** Spearman
+against the `frost_days` the model uses today:
+
+| index | rho vs frost_days |
+|---|---|
+| spells (>=3 consecutive frost days) | **+0.994** |
+| days inside those spells | **+0.992** |
+| freeze-degree-days inside them | **+0.990** |
+| thaw events | **+0.994** |
+| mean thaw jump (degC) | +0.772 |
+
+Foreseeable in hindsight — every one of these is a monotone function of
+"how cold is it here" — but it is now measured rather than assumed. The
+physical argument for the swap (pipes burst when a SUSTAINED freeze
+THAWS, not on days the air dipped below zero) is sound and still buys
+**no spatial differentiation**. A relativity that reorders nothing
+cannot move a premium. Only `thaw_jump` is a genuinely different
+ranking, and it is the weakest-motivated of the six.
+
+**Q2: the level is moving; the map is not.** 1960-1992 vs 1993-2025,
+frost days **36.3 -> 29.2 (-19.6%)** and sustained spells **4.06 -> 3.44
+(-15.2%)** — but rank correlation between the two eras is **+0.98**.
+Britain is getting uniformly less frosty, not differently frosty.
+
+**So Gate 2's freeze half looks like a LEVEL question, not a geography
+question** — whether `EOW_FREEZE_SHARE` (the freeze-sensitive slice of
+escape of water) should be time-varying at all, rather than which
+districts carry it. That is a different experiment from the one the gate
+describes, and it is the user's call whether to re-aim it.
+
+**Q3, and this one changes what the ERA5 fetch is worth. ERA5 is not a
+usable freeze instrument in Scotland.** Against the model's HadUK-Grid
+1 km layer, both restricted to 1991-2020:
+
+| | n | ERA5 | HadUK | bias | Pearson | mean abs diff |
+|---|---|---|---|---|---|---|
+| England & Wales | 8 | 25.7 | 33.1 | -22% | **+0.902** | 7.8 d |
+| Scotland | 14 | 30.8 | 53.5 | -42% | **+0.547** | **32.9 d** |
+
+The two largest errors have **opposite signs** — IV4 -68 days, PH33
+(Lochaber) **+68** — which is the signature of a ~31 km cell landing on
+the wrong terrain rather than a bias anything could correct. The
+islands and far-north coastal districts (KW1/KW14/KW17, ZE1/ZE3, PA42,
+IV51) are all strongly negative, as a cell that is mostly sea should be.
+
+Consequences:
+
+- **CEDA HadUK-Grid is not a nice-to-have for Gate 2, it is the only
+  viable source.** ERA5 cannot cross-check freeze where freeze exposure
+  is highest.
+- The ~35 remaining ERA5 points (about a week of grinding) buy a decent
+  cross-check for England & Wales and little for the Highlands and
+  islands. Worth finishing, not worth waiting on.
+- This is **not** evidence the model's frost layer is wrong. It is
+  evidence ERA5 point-sampling is the wrong instrument for it — which is
+  the reason `fetch_haduk.py` exists.
+
+**Read the sample honestly.** 14 of the 22 points are Scottish, because
+farthest-point traversal maximises geographic spread and the north is
+sparse. The all-points "-37%" therefore overstates the
+population-weighted error. Re-run at 57 before quoting any of this as
+settled; Q1's +0.99 is the one number unlikely to move.
+
+## PUBLISHED 2026-08-28: Gate 1's severity fix, both grains in one push
+
+**User decision: "take the severity fix and hold the level at 307."**
+`sev_subsidence` 17,820 -> **17,264**; `subsidence_paid` stays at the
+published FY2025 GBP307m. Districts from CI **33138216612**, sectors
+from **33138240678**, assembled and landed together.
+
+| | published before | now | change |
+| --- | --- | --- | --- |
+| `el_total` | 164.120266 | 164.120266 | **bit-identical** |
+| `capital` | 5.540486 | 5.533736 | -0.122% |
+| `premium` | 169.661936 | **169.655786** | **-0.6 pence** (-0.0036%) |
+| buildings / contents | — | 113.29 / 56.36 | — |
+| sector premium | — | 169.6704 | drift **0.0086%** vs districts |
+
+**2 districts of 2,736 change rating group; none moves two.** The
+headline stays **GBP169.66** at 2dp, which is the honest way to say
+that this correction removes a documented period mismatch without
+moving the price.
+
+**The full rebuild confirmed the identity that was argued from the
+algebra.** `el_total` came back **bit-identical district by district**
+to the file it replaced — a copula-free way of saying the same thing
+the Gate 1 derivation said: `sev` cancels out of
+`p_sub(i)*paid/(POLICIES*raw)`, so the whole 0.6 pence is capital.
+
+**One caveat on the pricing harness — DIAGNOSED 2026-08-28, it is
+output rounding, not an error.** `price_sub_level.py` predicted capital
+5.533736 and the real rebuild delivered **5.533736**, exact to six
+decimals; but its *baseline* `el_total` was 164.1213406 against the
+published 164.120266, **+0.0011**. Both calibration functions are
+idempotent and `el_total` is analytic, so neither was the suspect.
+
+The cause is `build_model.main()`'s write block: `el*` and `premium` are
+rounded to **1 dp** per district before the GeoJSON is written, while
+`capital` falls through to **4 dp**. The published means are therefore
+means of *rounded* columns — verified: the stored file has
+`max |x - round(x,1)| = 0` for `el_total` and `premium`, and
+`max |x - round(x,4)| = 0` for `capital`, and its exposure-weighted
+means are exactly the three figures quoted above.
+
+Quantised that way, 1-dp rounding puts **SD 0.00067** on the
+exposure-weighted mean of 2,736 districts, so the observed gap is
+**1.65 SD** — ordinary. 4-dp rounding puts SD 6.7e-7 on capital's mean,
+which is precisely why the harness matched capital to the digit and
+missed `el_total` by 1e-3. **The gap scales with each column's
+granularity, which is the signature of rounding and of nothing else.**
+
+Two consequences that outlive Gate 1:
+
+- The harness is not offset. It reports UNROUNDED means; the file
+  reports rounded ones. Paired differences were always trustworthy, and
+  now absolute levels are too — to **±0.0013** (95%) on `el_total` and
+  `premium`, and to ~1e-6 on `capital`.
+- **`el_total` and `premium` read out of `districts_risk.geojson` are
+  only good to about ±0.0013.** Quoting either to six decimals from that
+  file is spurious precision. The £169.66 headline is safe by a factor
+  of four; a future gate arguing over a tenth of a penny is not, and
+  should re-derive from an unrounded run.
+
+**Assembly followed the documented one-push procedure.** `rebuild.yml`
+ran with `commit=false` precisely so it could not land the district
+grain on its own; `sector-model.yml` ran on `sector-model` after main
+was merged INTO it, and committed its output there; the sector file was
+then crossed into main as `data/sectors_risk.geojson`. Locally only
+`build_map` / `build_analysis` / `build_site` were run — **never
+`make_images`**, whose PNG encoder differs from CI's and would fail the
+next run as "docs/ is stale". 93 tests green, including both cross-grain
+guards, and the level guard passed with 58x margin.
+
+**What this does NOT do.** The claim-count budget got worse, exactly as
+priced: subsidence 17,228 -> 17,783 implied claims, spare down from
+10,060 to **9,505** against a remainder that needs 36,176. That is a
+property of the ABI series rather than of this choice — every
+consistent severity pairing pushes the same way — and it is now
+recorded in `anchor_budget.py`, whose subsidence row also stopped
+claiming the two figures came from "one release" when they never did.
+
+## Fixed 2026-08-28: the published calibration figures had drifted twice
+
+Right after the Gate 1 publish I grepped the **live** page for
+GBP17,820 — a number that should no longer have existed anywhere — and
+found it. The eight-row ABI calibration table on the methodology page
+was hand-written, and it had drifted **twice**:
+
+- **subsidence**, that same day, by my own severity change; and
+- **theft**, stale since **2026-08-25**. It read GBP450m / ~118,000 /
+  0.76% when the model had been moved to GBP341.6m / 89,895 / 0.58%
+  three days earlier. Its footnote was worse than stale: it argued that
+  "the resulting frequency (0.76%) sits inside the envelope" when the
+  model had deliberately been put at the envelope's **floor**, so the
+  page was defending a choice the model no longer made.
+
+The landing page carried the same theft error in prose — "theft to the
+last published theft total (~GBP450m)".
+
+**Every numeric cell in both is now injected from `build_model.ABI`**
+(`build_site.py`, the `__CAL_*__` keys), so there is one place to change
+an anchor and it is the model. Three-significant-figure rounding is done
+with a negative `ndigits` — that is what turns 99,592 into ~99,600 — and
+the keys are spelled out as **literals**, because
+`test_site_placeholders_all_resolve` greps `build_site.py` for quoted
+tokens and an f-string-built key is invisible to it.
+
+README's copy of the table cannot be derived — markdown has no build
+step — so it is **pinned by a test** instead:
+`test_readme_calibration_table_matches_the_model` parses the rows and
+checks paid, average claim and implied count against `ABI`. Verified it
+bites, by reverting one cell and watching it fail by name.
+
+**A red commit, and why.** b5db786 went to main with
+`test_site_placeholders_all_resolve` failing. The cause was mine and
+worth naming: `pytest ... | tail -3 && git commit && git push` — `tail`
+exits 0, so the `&&` chain never saw pytest's failure. 50244f8 fixed the
+test; every push since reads pytest's own exit code. 94 green.
 
 ## Gate 1 priced 2026-08-27: the subsidence level, four ways
 

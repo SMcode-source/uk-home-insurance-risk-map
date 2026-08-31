@@ -303,6 +303,28 @@ __NAV__
     outright. And <b>peat is excluded</b>: it subsides badly, but by consolidation and
     oxidation rather than shrink–swell, so pricing it inside this peril would conflate two
     mechanisms under one calibration.</p>
+    <p>Geology says which ground <i>can</i> shrink; weather says how often it is made to.
+    Each district also carries a <b>drought climatology</b> built from the Met Office's
+    HadUK-Grid <b>1&nbsp;km daily</b> observations: the running water deficit
+    max(cumsum(PET&nbsp;−&nbsp;rain),&nbsp;0), reset every 1&nbsp;January, peaked within each
+    year and averaged over 1991–2020 — the same index that, aggregated nationally, recovers
+    five of the six canonical UK subsidence years (1976, 1995, 2003, 2018, 2022). It enters
+    claim <b>frequency</b> as a blend: <b>56.5%</b> of subsidence frequency rides the
+    district's deficit relative to the national exposure-weighted mean, the rest stays on
+    the flat geology base. The share is the ABI's own attribution arithmetic — its 2022
+    release counts 13,000 of that year's 23,000 claims as drought-driven, and its pre-surge
+    baseline of 2,500 claims a quarter implies the same split — bracketed by Zurich's
+    engineering attribution (~60% of upheld claims are root-induced clay shrinkage in an
+    average year, ~85% in a surge year). The blend is normalised so the national claim level
+    is untouched: it moves <i>who</i> carries subsidence risk, not how much of it there
+    is.</p>
+    <p class="note">One measured caveat. The PET inside the deficit is Hargreaves–Samani,
+    which runs roughly a third high in a maritime climate — so the deficit's <b>level</b> in
+    millimetres is not a soil-physics quantity. Re-running the whole integral with PET
+    scaled to 0.85× and 0.70× leaves the district <b>ranking</b> essentially unchanged
+    (rank correlation +0.998 and better, at both the 1&nbsp;km and 5&nbsp;km grids), and the
+    level is exactly what the ABI calibration re-pins — so the map survives the formula, and
+    only the map is used.</p>
 
     <h3>Flood — rasterised official extents</h3>
     <p>The published flood maps are rendered as images at 13–100 m per pixel and the painted
@@ -770,32 +792,34 @@ __NAV__
       <table class="data">
         <tr><th>Peril</th><th class="num">Paid, 2025</th><th class="num">Average claim</th>
             <th class="num">Implied claims</th><th class="num">Frequency</th></tr>
-        <tr><td><strong style="color:var(--wx)">Storm</strong></td><td class="num">£244m</td>
-            <td class="num">£2,450</td><td class="num">~99,600</td><td class="num">0.64%</td></tr>
-        <tr><td><strong style="color:var(--fl)">Flood</strong></td><td class="num">£312m</td>
-            <td class="num">£30,000</td><td class="num">~10,400</td><td class="num">0.067%</td></tr>
-        <tr><td><strong style="color:var(--sub)">Subsidence</strong></td><td class="num">£307m</td>
-            <td class="num">£17,820</td><td class="num">~17,200</td><td class="num">0.111%</td></tr>
+        <tr><td><strong style="color:var(--wx)">Storm</strong></td><td class="num">£__CAL_WX_PAID__m</td>
+            <td class="num">£__CAL_WX_SEV__</td><td class="num">~__CAL_WX_N__</td><td class="num">__CAL_WX_FREQ__%</td></tr>
+        <tr><td><strong style="color:var(--fl)">Flood</strong></td><td class="num">£__CAL_FL_PAID__m</td>
+            <td class="num">£__CAL_FL_SEV__</td><td class="num">~__CAL_FL_N__</td><td class="num">__CAL_FL_FREQ__%</td></tr>
+        <tr><td><strong style="color:var(--sub)">Subsidence</strong></td><td class="num">£__CAL_SUB_PAID__m</td>
+            <td class="num">£__CAL_SUB_SEV__</td><td class="num">~__CAL_SUB_N__</td><td class="num">__CAL_SUB_FREQ__%</td></tr>
         <tr><td><strong style="color:var(--gw)">Groundwater</strong></td><td class="num">—</td>
-            <td class="num">£20,000</td><td class="num">—</td><td class="num">pegged at 10% of flood</td></tr>
-        <tr><td><strong style="color:var(--th)">Theft</strong></td><td class="num">£450m <small>(2018)</small></td>
-            <td class="num">£3,800</td><td class="num">~118,000</td><td class="num">0.76%</td></tr>
-        <tr><td><strong style="color:var(--eow)">Escape of water</strong></td><td class="num">~£657m <small>(£1.8m/day)</small></td>
-            <td class="num">£4,000</td><td class="num">~164,000</td><td class="num">1.06%</td></tr>
-        <tr><td><strong style="color:var(--fire)">Fire</strong></td><td class="num">~£434m <small>(triangle)</small></td>
-            <td class="num">£14,000</td><td class="num">~31,000</td><td class="num">0.20%</td></tr>
-        <tr><td><strong style="color:var(--ad)">Accidental damage</strong></td><td class="num">~£227m <small>(triangle)</small></td>
-            <td class="num">£1,650</td><td class="num">~137,000</td><td class="num">0.89%</td></tr>
+            <td class="num">£__CAL_GW_SEV__</td><td class="num">—</td><td class="num">pegged at 10% of flood</td></tr>
+        <tr><td><strong style="color:var(--th)">Theft</strong></td><td class="num">£__CAL_TH_PAID__m <small>(envelope floor)</small></td>
+            <td class="num">£__CAL_TH_SEV__</td><td class="num">~__CAL_TH_N__</td><td class="num">__CAL_TH_FREQ__%</td></tr>
+        <tr><td><strong style="color:var(--eow)">Escape of water</strong></td><td class="num">~£__CAL_EOW_PAID__m <small>(£1.8m/day)</small></td>
+            <td class="num">£__CAL_EOW_SEV__</td><td class="num">~__CAL_EOW_N__</td><td class="num">__CAL_EOW_FREQ__%</td></tr>
+        <tr><td><strong style="color:var(--fire)">Fire</strong></td><td class="num">~£__CAL_FIRE_PAID__m <small>(triangle)</small></td>
+            <td class="num">£__CAL_FIRE_SEV__</td><td class="num">~__CAL_FIRE_N__</td><td class="num">__CAL_FIRE_FREQ__%</td></tr>
+        <tr><td><strong style="color:var(--ad)">Accidental damage</strong></td><td class="num">~£__CAL_AD_PAID__m <small>(triangle)</small></td>
+            <td class="num">£__CAL_AD_SEV__</td><td class="num">~__CAL_AD_N__</td><td class="num">__CAL_AD_FREQ__%</td></tr>
       </table>
     </div>
     <p class="note">Over ~15.5m policies (ABI premium-tracker coverage), these eight perils
     come to <b>£__MEAN_EL__</b> per policy per year — <b>__EL_CLAIMS_SHARE__%</b> of the
     £219 that all home claims cost. Groundwater is not reported separately by the ABI, so
-    it is a documented assumption rather than a calibration. Theft's paid figure is
-    <b>2018 vintage</b> — the last year the ABI published a theft-specific total — while
-    its £3,800 average claim is current; mixing vintages is the honest option available,
-    and the resulting frequency (0.76%) sits inside the envelope every cross-check allows
-    (0.58–0.97%). Escape of water has no single published total either: its £657m is the
+    it is a documented assumption rather than a calibration. Theft has no current published
+    total at all: the ABI's last theft-specific figure is 2018's £450m and its
+    £__CAL_TH_SEV__ average claim is present-day, so pairing them implies 0.97–0.76%
+    of policies against ~0.58% if claims fell with recorded burglary. That 0.58–0.97%
+    spread is the documented envelope on theft's LEVEL, and the model sits at its
+    <b>floor</b> — £__CAL_TH_PAID__m, i.e. 0.58% × 15.5m × £__CAL_TH_SEV__ — because
+    theft was otherwise carrying the whole of the model's claim-count overshoot. Escape of water has no single published total either: its £657m is the
     ABI's rolling <b>"£1.8m a day"</b> figure, and the £4,000 average follows from
     escape-of-water's ~29% share of 2025's 560,000 home claims — three independent public
     numbers that close into one self-consistent triangle, which is the cross-check. Fire

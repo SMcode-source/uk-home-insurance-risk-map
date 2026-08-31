@@ -4,7 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__PAGE_TITLE__</title>
-<style>__LEAFLET_CSS__</style>
+<!-- MapLibre and the PMTiles protocol are LINKED, not inlined as Leaflet
+     was. Inlining made sense at 47 KB gzipped for one page; at 267 KB
+     across two map pages it would be paid twice and re-paid on every
+     publish, where a linked file is fetched once and cached across both
+     pages and every later visit. -->
+<link rel="stylesheet" href="assets/maplibre-gl.css">
 <style>
   :root {
     color-scheme: light;
@@ -99,7 +104,7 @@
   #about summary { cursor: pointer; font-weight: 600; color: var(--ink-1); font-size: 12.5px; }
   #about p { margin: 8px 0 0; font-size: 11.5px; }
   #about .note { color: var(--ink-muted); }
-  .leaflet-tooltip.district-tip {
+  .district-tip {
     background: var(--surface-1); color: var(--ink-1);
     border: 1px solid var(--border); border-radius: 7px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
@@ -107,11 +112,11 @@
   }
   .district-tip .tip-name { font-weight: 650; }
   .district-tip .tip-val { color: var(--ink-2); font-variant-numeric: tabular-nums; }
-  .leaflet-popup-content-wrapper {
+  .maplibregl-popup-content {
     background: var(--surface-1); color: var(--ink-1);
     border-radius: 10px; font-family: inherit;
   }
-  .leaflet-popup-tip { background: var(--surface-1); }
+  .maplibregl-popup-tip { border-top-color: var(--surface-1); border-bottom-color: var(--surface-1); }
   .pop table { border-collapse: collapse; font-size: 12px; margin-top: 6px; }
   .pop td { padding: 2px 8px 2px 0; color: var(--ink-2); font-variant-numeric: tabular-nums; }
   .pop td:first-child { color: var(--ink-muted); }
@@ -155,9 +160,9 @@
   }
   .pop-fold summary:hover { color: var(--ink-1); }
   .pop .wrapv { font-size: 11px; }
-  .leaflet-container { font-family: inherit; }
-  .leaflet-control-attribution { background: color-mix(in oklab, var(--surface-1) 80%, transparent) !important; color: var(--ink-muted) !important; }
-  .leaflet-control-attribution a { color: var(--ink-2) !important; }
+  .maplibregl-map { font-family: inherit; }
+  .maplibregl-ctrl-attrib { background: color-mix(in oklab, var(--surface-1) 80%, transparent) !important; color: var(--ink-muted) !important; }
+  .maplibregl-ctrl-attrib a { color: var(--ink-2) !important; }
 </style>
 </head>
 <body>
@@ -309,7 +314,8 @@ page</a>.</p>
 </details>
 </main>
 
-<script>__LEAFLET_JS__</script>
+<script src="assets/maplibre-gl.js"></script>
+<script src="assets/pmtiles.js"></script>
 <script>
 /* The district GeoJSON is fetched, not inlined. Inlined it made map.html
    5.08 MB — 100x every other page, unparseable-before-paint, and
@@ -369,24 +375,35 @@ const notMapped = p => p.country && p.country !== 'England';
 const fmtGBP = v => '£' + Math.round(v).toLocaleString('en-GB');
 const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
 
-function quantileBreaks(values, n) {
-  const s = [...values].sort((a, b) => a - b);
-  const br = [];
-  for (let i = 1; i < n; i++) br.push(s[Math.floor(i * s.length / n)]);
-  return br;
-}
-
-/* Everything below needs DATA (quantile breaks, the layer, the deep
-   link), so it all lives in one init function called when the fetch
-   lands. */
-function initMap(DATA) {
-
-const feats = DATA.features;
-const vals = k => feats.map(f => f.properties[k]);
+/* Quantile breaks for premium, 1-in-200, capital and erosion, cut by
+   scripts/build_map.py over the whole country at build time. They used
+   to be cut here, in the browser, from the loaded features - which only
+   works while "the loaded features" means all of them. Under vector
+   tiles it means the viewport's, so the scale (and the legend printed
+   from it) would shift as you panned. Fixed nationally, once. */
+const BREAKS = __QUANTILE_BREAKS__;
+/* Household-weighted median premium across the whole country - the
+   anchor the relative-risk page divides by. Weighted by households, not
+   by unit, so a sparse rural district counts as its people, not as one
+   vote; and a median, not a mean, so the skewed top of the premium
+   distribution cannot drag everyone else's ratio. */
+const REL_MEDIAN = __REL_MEDIAN__;
+const DEFAULT_METRIC = '__DEFAULT_METRIC__';
 
 /* Erosion bins are cut over the COASTAL districts only — quantiles across
    all 2,700 would put every break at zero. */
-const EROSION_BREAKS = quantileBreaks(vals('er_smp105').filter(v => v > 0), 7);
+const EROSION_BREAKS = BREAKS.er_smp105;
+
+/* Everything below needs the name index (search, the deep link, the
+   arrow walk), so it all lives in one init function called when that
+   fetch lands. The tiles load independently, on the map's own schedule. */
+function initMap(INDEX) {
+
+/* name -> [name, west, south, east, north], the whole country. */
+const byName = new Map(INDEX.map(e => [e[0], e]));
+
+const TILE_LAYER = '__TILE_LAYER__';
+const UNITS_DIR = '__UNITS_DIR__';
 
 /* Climate repricing uses the DIVERGING ramp, whose neutral swatch is the
    middle of seven. The breaks must therefore straddle zero at that middle
@@ -412,69 +429,89 @@ const METRICS = {
     label: 'Rating group (1–10)',
     legend: 'Rating group — technical premium decile',
     ramp: RAMP_GROUP,
-    color: p => RAMP_GROUP[p.group - 1],
+    /* to-color is not decoration: ['at'] on a literal array yields a
+       string as far as the style spec is concerned, and fill-color
+       rejects it as array<string> rather than array<color>. */
+    paint: () => ['to-color',
+                  ['at', ['-', ['get', 'group'], 1], ['literal', RAMP_GROUP]]],
     rows: () => RAMP_GROUP.map((c, i) => [c, 'Group ' + (i + 1) + (i === 0 ? ' — lowest premium' : i === 9 ? ' — highest' : '')]),
     tip: p => 'Group ' + p.group + ' · ' + fmtGBP(p.premium),
   },
   premium: {
     label: 'Technical premium (£)',
     legend: 'Technical premium, £/policy/yr (quantile bins)',
-    ramp: RAMP_BLUE, breaks: quantileBreaks(vals('premium'), 7),
-    value: p => p.premium, fmt: fmtGBP,
+    ramp: RAMP_BLUE, breaks: BREAKS.premium,
+    col: 'premium', fmt: fmtGBP,
     tip: p => fmtGBP(p.premium) + '/yr',
+  },
+  rel: {
+    /* The same premium surface as the metric above, re-expressed as a
+       multiple of the national median - no new model output; it reads
+       the premium column. The bins are NOT the quantile breaks: those
+       split the country into equal sevenths, which on a ratio scale
+       yields bands like "0.98x-1.05x" - technically correct and
+       useless. A relative page is about magnitude, so the bands are
+       fixed multiples of the median, with the middle band straddling
+       1x. Omitted everywhere except the relative-risk page, which
+       exists to answer exactly this one question. */
+    label: 'Relative premium (× UK median)',
+    legend: 'Technical premium as a multiple of the UK median',
+    ramp: RAMP_BLUE,
+    breaks: [0.5, 0.75, 0.9, 1.1, 1.5, 2.5].map(r => r * REL_MEDIAN),
+    col: 'premium', fmt: v => (v / REL_MEDIAN).toFixed(2).replace(/0$/, '') + '×',
+    tip: p => (p.premium / REL_MEDIAN).toFixed(2) + '× the UK median · '
+              + fmtGBP(p.premium) + '/yr',
   },
   sub_score: {
     label: 'Subsidence risk score',
     legend: 'Subsidence score (BGS shrink–swell geology)',
     ramp: RAMP_ORANGE, breaks: [0.1, 0.25, 0.4, 0.55, 0.7, 0.85],
-    value: p => p.sub_score, fmt: v => v.toFixed(2),
+    col: 'sub_score', fmt: v => v.toFixed(2),
     tip: p => 'score ' + p.sub_score.toFixed(2),
   },
   wx_score: {
     label: 'Weather risk score',
     legend: 'Weather score (Met Office wind & rain)',
     ramp: RAMP_BLUE, breaks: [0.1, 0.2, 0.35, 0.5, 0.65, 0.8],
-    value: p => p.wx_score, fmt: v => v.toFixed(2),
+    col: 'wx_score', fmt: v => v.toFixed(2),
     tip: p => 'score ' + p.wx_score.toFixed(2),
   },
   fl_score: {
     label: 'Flood risk score',
     legend: 'Flood score (river / sea / surface water zones)',
     ramp: RAMP_AQUA, breaks: [0.1, 0.2, 0.35, 0.5, 0.65, 0.8],
-    value: p => p.fl_score, fmt: v => v.toFixed(2),
+    col: 'fl_score', fmt: v => v.toFixed(2),
     tip: p => 'score ' + p.fl_score.toFixed(2) + ' · ' + (100 * p.f_high).toFixed(1) + '% river/sea · ' + (100 * p.sw_high).toFixed(1) + '% surface',
   },
   gw_score: {
     label: 'Groundwater risk score',
     legend: 'Groundwater score (EA alert-area coverage)',
     ramp: RAMP_VIOLET, breaks: [0.1, 0.2, 0.35, 0.5, 0.65, 0.8],
-    value: p => p.gw_score, fmt: v => v.toFixed(2),
+    col: 'gw_score', fmt: v => v.toFixed(2),
     tip: p => 'score ' + p.gw_score.toFixed(2) + ' · ' + (100 * p.gw_frac).toFixed(0) + '% of postcodes in alert areas',
   },
   var995: {
     label: '1-in-200 combined loss (£)',
     legend: '99.5% VaR of combined annual loss (C-vine)',
-    ramp: RAMP_BLUE, breaks: quantileBreaks(vals('var995_vine'), 7),
-    value: p => p.var995_vine, fmt: fmtGBP,
+    ramp: RAMP_BLUE, breaks: BREAKS.var995_vine,
+    col: 'var995_vine', fmt: fmtGBP,
     tip: p => fmtGBP(p.var995_vine),
   },
   capital: {
     label: 'Capital charge (£)',
     legend: 'Capital charge — Euler share of portfolio tail risk',
-    ramp: RAMP_DIVERGING, breaks: quantileBreaks(vals('capital'), 7),
-    value: p => p.capital, fmt: fmtGBP,
+    ramp: RAMP_DIVERGING, breaks: BREAKS.capital,
+    col: 'capital', fmt: fmtGBP,
     tip: p => fmtGBP(p.capital) + ' of ' + fmtGBP(p.premium) + ' premium',
   },
   sw_depth: {
     label: 'Surface-water depth (m)',
     legend: 'Mean surface-water depth where it floods (EA depth bands, England)',
     ramp: RAMP_DEPTH, breaks: [0.15, 0.22, 0.30, 0.40, 0.55, 0.75],
-    value: p => p.sw_depth_m,
+    col: 'sw_depth_m',
     fmt: v => v.toFixed(2) + ' m',
-    color: p => notMapped(p) ? NO_DATA
-      : (p.sw_depth_m > 0
-        ? binColor({ ramp: RAMP_DEPTH, breaks: [0.15, 0.22, 0.30, 0.40, 0.55, 0.75] }, p.sw_depth_m)
-        : NO_DATA),
+    paint: bins => ['case', NOT_MAPPED, NO_DATA,
+                    ['<=', ['get', 'sw_depth_m'], 0], NO_DATA, bins],
     rows: () => [[NO_DATA, 'No depth — no surface water, or outside England']].concat(
       legendBands(RAMP_DEPTH, [0.15, 0.22, 0.30, 0.40, 0.55, 0.75], v => v.toFixed(2) + ' m')),
     tip: p => notMapped(p)
@@ -487,7 +524,7 @@ const METRICS = {
     label: 'Climate repricing (%)',
     legend: 'Premium under the EA future flood scenario vs present day',
     ramp: RAMP_DIVERGING, breaks: CC_BREAKS,
-    value: p => p.cc_uplift_pct,
+    col: 'cc_uplift_pct',
     fmt: v => (v >= 0 ? '+' : '') + v.toFixed(0) + '%',
     /* The EA publishes future extents for England only, so a zero outside
        it is "not modelled", not "no change" — the distinction the
@@ -499,10 +536,8 @@ const METRICS = {
        unmodelled area is contiguous (Wales and Scotland), and the tooltip
        says which. The erosion and depth layers had the same collision
        against real VALUE bands, which did matter, and were fixed. */
-    color: p => p.cc_covered
-      ? binColor({ ramp: RAMP_DIVERGING, breaks: CC_BREAKS },
-                 p.cc_uplift_pct)
-      : NO_DATA,
+    paint: bins => ['case',
+                    ['!', ['to-boolean', ['get', 'cc_covered']]], NO_DATA, bins],
     rows: () => [[NO_DATA, 'Not modelled — England only']].concat(
       legendBands(RAMP_DIVERGING, CC_BREAKS,
                   v => (v >= 0 ? '+' : '') + v.toFixed(0) + '%')),
@@ -516,7 +551,7 @@ const METRICS = {
     label: 'Coastal erosion (blight)',
     legend: 'Land lost to erosion by 2105, planned defences — NOT insured',
     ramp: RAMP_ROSE, breaks: EROSION_BREAKS,
-    value: p => p.er_smp105,
+    col: 'er_smp105',
     fmt: v => (100 * v).toFixed(2) + '%',
     /* Four states, not two. A zero here means three different things and
        conflating them misleads:
@@ -527,10 +562,9 @@ const METRICS = {
            stopping it, which is the most interesting thing here.
        Blackpool and Eastbourne sit in that last case and would read as
        "no exposure" on a naive two-way split. */
-    color: p => notMapped(p) ? NO_DATA
-      : (p.er_smp105 > 0
-        ? binColor({ ramp: RAMP_ROSE, breaks: EROSION_BREAKS }, p.er_smp105)
-        : (p.er_nfi105 > 0 ? DEFENDED : NO_DATA)),
+    paint: bins => ['case', NOT_MAPPED, NO_DATA,
+                    ['>', ['get', 'er_smp105'], 0], bins,
+                    ['>', ['get', 'er_nfi105'], 0], DEFENDED, NO_DATA],
     rows: () => [[NO_DATA, 'No erosion mapped — inland, or outside England'],
                  [DEFENDED, 'Held at zero by planned defences']].concat(
       legendBands(RAMP_ROSE, EROSION_BREAKS, v => (100 * v).toFixed(2) + '%')),
@@ -546,22 +580,86 @@ const METRICS = {
   },
 };
 
-function binColor(m, v) {
-  let i = 0;
-  while (i < m.breaks.length && v >= m.breaks[i]) i++;
-  return m.ramp[i];
+/* ---- colour ----
+
+   Leaflet coloured each feature by calling a JavaScript closure per
+   polygon. MapLibre paints from a style expression on the GPU instead,
+   which is why every metric declares a COLUMN and optional guards
+   rather than a `value`/`color` function: there is no per-feature
+   JavaScript left to run, and a feature gets its colour the moment its
+   tile lands rather than after a pass over the loaded set.
+
+   legendRows reads the same `ramp` and `breaks` arrays this is built
+   from, so the two cannot disagree about the bins. Metrics that add
+   states outside the ramp - not mapped, defended, not modelled - spell
+   those out in both `paint` and `rows`, which is the one place a
+   legend can still drift from the map it labels. */
+function fillExpr(m) {
+  const bins = ['step', ['get', m.col], m.ramp[0]];
+  (m.breaks || []).forEach((b, i) => bins.push(b, m.ramp[i + 1]));
+  return m.paint ? m.paint(bins) : bins;
 }
-function colorFor(m, p) { return m.color ? m.color(p) : binColor(m, m.value(p)); }
 
-let current = 'group';
+/* England-only datasets, as an expression. `country` is always carried
+   in the tile, so the has-check is belt and braces rather than a real
+   branch - but a missing country must not read as "not England". */
+const NOT_MAPPED = ['all', ['has', 'country'], ['!=', ['get', 'country'], 'England']];
 
-/* ---- map ---- */
-const map = L.map('map', { renderer: L.canvas({ padding: 0.3 }), zoomSnap: 0.5 })
-  .setView([54.3, -3.4], 6);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  opacity: 0.45, className: 'basemap',
-  attribution: '&copy; OpenStreetMap &middot; boundaries: uk-postcode-polygons',
-}).addTo(map);
+let current = DEFAULT_METRIC;
+
+/* ---- map ----
+
+   MapLibre's zoom is a 512px-tile scale and Leaflet's a 256px one, so
+   every zoom carried over from the Leaflet version is one LOWER here for
+   the same view on screen: the opening 6 becomes 5, and the search's
+   fitBounds cap of 11 becomes 10. They look like off-by-ones and are
+   not - getting this wrong shows the country at half the intended size.
+
+   The PMTiles URL is resolved against the document rather than written
+   relative: the protocol handler issues its own HTTP range requests and
+   does not inherit the page's base, so 'assets/x.pmtiles' would be
+   requested against the site root and 404 on any page not at the top
+   level. */
+maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile);
+const TILE_URL = 'pmtiles://' + new URL('__TILE_ASSET__', location.href).href;
+
+/* Hover is drawn from feature-state rather than by restyling a layer,
+   which is what Leaflet did. A vector tile has no persistent per-feature
+   object to restyle, and the source is keyed by name (promoteId) so the
+   state survives the feature being re-tiled as you zoom. */
+const HOVER = ['boolean', ['feature-state', 'hover'], false];
+const FLASH = ['boolean', ['feature-state', 'flash'], false];
+
+const map = new maplibregl.Map({
+  container: 'map',
+  center: [-3.4, 54.3], zoom: 5,
+  /* Written here rather than fetched: a remote style URL is one more
+     thing that can be down, and this one is short. */
+  style: {
+    version: 8,
+    sources: {
+      osm: {
+        type: 'raster', tileSize: 256, maxzoom: 19,
+        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        attribution: '&copy; OpenStreetMap &middot; boundaries: ONS/OS postcode centroids',
+      },
+      units: { type: 'vector', url: TILE_URL, promoteId: 'name' },
+    },
+    layers: [
+      { id: 'basemap', type: 'raster', source: 'osm',
+        paint: { 'raster-opacity': 0.45 } },
+      { id: 'fill', type: 'fill', source: 'units', 'source-layer': '__TILE_LAYER__',
+        paint: { 'fill-color': '#cccccc', 'fill-opacity': 0.82 } },
+      { id: 'outline', type: 'line', source: 'units', 'source-layer': '__TILE_LAYER__',
+        paint: {
+          'line-color': ['case', HOVER, '#0b0b0b', FLASH, '#0b0b0b', '#ffffff'],
+          'line-width': ['case', HOVER, 2, FLASH, 3, 0.5],
+          'line-opacity': ['case', HOVER, 1, FLASH, 1, 0.55],
+        } },
+    ],
+  },
+});
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
 
 /* The popup is layered for a READER, not a debugger: what they tapped for
    (rating, premium), then the eight peril rows that explain it, then the
@@ -697,21 +795,55 @@ function erosionBlock(p) {
     '</table></div>';
 }
 
-const layer = L.geoJSON(DATA, {
-  style: f => ({
-    fillColor: colorFor(METRICS[current], f.properties),
-    fillOpacity: 0.82, color: '#ffffff', weight: 0.5, opacity: 0.55,
-  }),
-  onEachFeature: (f, lyr) => {
-    lyr.bindTooltip(() =>
-      '<div class="tip-name">' + f.properties.name + '</div>' +
-      '<div class="tip-val">' + METRICS[current].tip(f.properties) + '</div>',
-      { sticky: true, className: 'district-tip' });
-    lyr.bindPopup(() => popupHtml(f.properties), { maxWidth: 320 });
-    lyr.on('mouseover', () => lyr.setStyle({ weight: 2, opacity: 1, color: '#0b0b0b' }));
-    lyr.on('mouseout', () => lyr.setStyle({ weight: 0.5, opacity: 0.55, color: '#ffffff' }));
-  },
-}).addTo(map);
+/* ---- hover and tooltip ----
+
+   The tooltip is our own element, not a library one: MapLibre has no
+   tooltip, and its Popup is the wrong tool (it takes pointer events and
+   fights the click-to-open popup). Every column the tip functions read
+   is a TILE column, so a tooltip never waits on a fetch. */
+const tip = document.createElement('div');
+tip.className = 'district-tip';
+tip.style.cssText = 'position:absolute;z-index:900;pointer-events:none;' +
+                    'display:none;white-space:nowrap';
+map.getContainer().appendChild(tip);
+
+let hovered = null;
+function setHover(id) {
+  if (hovered === id) return;
+  const at = h => ({ source: 'units', sourceLayer: TILE_LAYER, id: h });
+  if (hovered !== null) map.setFeatureState(at(hovered), { hover: false });
+  hovered = id;
+  if (hovered !== null) map.setFeatureState(at(hovered), { hover: true });
+}
+
+map.on('mousemove', 'fill', e => {
+  const f = e.features && e.features[0];
+  if (!f) return;
+  setHover(f.id);
+  map.getCanvas().style.cursor = 'pointer';
+  tip.innerHTML = '<div class="tip-name">' + f.properties.name + '</div>' +
+                  '<div class="tip-val">' + METRICS[current].tip(f.properties) + '</div>';
+  tip.style.display = '';
+  // Flip the tooltip to the other side of the cursor near an edge, so it
+  // never hangs off the map and cannot widen the page.
+  const box = map.getContainer().getBoundingClientRect();
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = (e.point.x + 14 + w > box.width ? e.point.x - 14 - w
+                                                   : e.point.x + 14) + 'px';
+  tip.style.top = (e.point.y + 14 + h > box.height ? e.point.y - 14 - h
+                                                  : e.point.y + 14) + 'px';
+});
+
+map.on('mouseleave', 'fill', () => {
+  setHover(null);
+  map.getCanvas().style.cursor = '';
+  tip.style.display = 'none';
+});
+
+map.on('click', 'fill', e => {
+  const f = e.features && e.features[0];
+  if (f) openUnit(f.properties.name, e.lngLat);
+});
 
 /* ---- controls & legend ---- */
 const btnBox = document.getElementById('metricBtns');
@@ -749,10 +881,12 @@ function setMetric(key) {
     b.setAttribute('aria-pressed', b.dataset.key === key);
   });
   const m = METRICS[key];
-  layer.setStyle(f => ({
-    fillColor: colorFor(m, f.properties),
-    fillOpacity: 0.82, color: '#ffffff', weight: 0.5, opacity: 0.55,
-  }));
+  /* The fill is painted from the expression, on the GPU - no per-feature
+     JavaScript, and features still in flight get the right colour the
+     moment their tile lands. Guarded because setMetric also runs before
+     the style has loaded; map.on('load') re-applies whatever is current. */
+  if (map.style && map.getLayer('fill'))
+    map.setPaintProperty('fill', 'fill-color', fillExpr(m));
   document.getElementById('legendTitle').textContent = m.legend;
   const box = document.getElementById('legendRows');
   box.innerHTML = '';
@@ -763,7 +897,11 @@ function setMetric(key) {
     box.appendChild(row);
   }
 }
-setMetric('group');
+setMetric(DEFAULT_METRIC);
+/* The buttons and legend are built above, before the style exists. The
+   fill expression needs a layer to sit on, so re-apply once there is
+   one - and after any later style reload, which drops paint overrides. */
+map.on('load', () => setMetric(current));
 
 /* The popupopen handler MUST be attached before the deep-link block
    below runs: the deep link calls target.openPopup() synchronously, so a
@@ -787,31 +925,34 @@ setMetric('group');
    own WCAG failure, and focusing it is also what makes a screen reader
    start reading the district's numbers. */
 
+/* Every route below reads INDEX, never the map. Under tiles the only
+   features the map holds are the viewport's, so a scan over what is
+   loaded finds nothing outside it - search, the deep link and the arrow
+   walk would each fail for anywhere you had not already looked at. */
 function findDistrict(name) {
   const want = (name || '').trim().toUpperCase();
-  if (!want) return null;
-  let target = null;
-  layer.eachLayer(l => { if (l.feature.properties.name === want) target = l; });
-  return target;
+  return want ? (byName.get(want) || null) : null;
 }
 
-function goToDistrict(target, flash) {
-  map.fitBounds(target.getBounds(), { maxZoom: 11, padding: [40, 40] });
-  target.openPopup();
-  if (flash) {
-    target.setStyle({ weight: 3, opacity: 1, color: '#0b0b0b' });
-    setTimeout(() => target.setStyle({ weight: 0.5, opacity: 0.55, color: '#ffffff' }), 4000);
-  }
+/* An index entry is [name, west, south, east, north]. */
+const centreOf = e => [(e[1] + e[3]) / 2, (e[2] + e[4]) / 2];
+
+function goToDistrict(entry, flash) {
+  // maxZoom 10 here is Leaflet's 11 - see the note on the map's zoom.
+  map.fitBounds([[entry[1], entry[2]], [entry[3], entry[4]]],
+                { maxZoom: 10, padding: 40 });
+  openUnit(entry[0], centreOf(entry), flash);
 }
 
 const search = document.getElementById('districtSearch');
 /* one string, one parse: 10k createElement calls are visibly slower */
 document.getElementById('districtList').innerHTML =
-  feats.map(f => '<option value="' + f.properties.name + '">').join('');
+  INDEX.map(e => '<option value="' + e[0] + '">').join('');
 search.disabled = false;
 
 let returnFocusTo = null;   // who gets focus back when the popup closes
-let openPopupRef = null;    // which popup is currently open, if any
+let popup = null;           // the open popup, if any
+let openName = null;        // and which unit it belongs to
 
 /* 'change', not 'input': district names nest (YO2 is a district and a
    prefix of YO25), so acting per keystroke would hijack the box halfway
@@ -831,32 +972,34 @@ const ARROWS = { ArrowUp: [0, -1], ArrowDown: [0, 1],
    direction, preferring straight-ahead (off-axis drift counts double).
    A linear scan over every cached bound is well under a millisecond —
    no adjacency graph needed. */
-function stepToNeighbour(fromPopup, dir) {
-  const origin = map.latLngToLayerPoint(fromPopup.getLatLng());
+function stepToNeighbour(fromName, dir) {
+  const from = byName.get(fromName);
+  if (!from) return;
+  const origin = map.project(centreOf(from));
   let best = null, bestScore = Infinity;
-  layer.eachLayer(l => {
-    if (l.getPopup() === fromPopup) return;
-    const at = map.latLngToLayerPoint(l.getBounds().getCenter());
+  for (const e of INDEX) {
+    if (e[0] === fromName) continue;
+    const at = map.project(centreOf(e));
     const dx = at.x - origin.x, dy = at.y - origin.y;
     const along = dx * dir[0] + dy * dir[1];
-    if (along <= 0) return;                              // behind us
+    if (along <= 0) continue;                            // behind us
     const across = Math.abs(dx * dir[1]) + Math.abs(dy * dir[0]);
-    if (across > along) return;                          // outside the cone
+    if (across > along) continue;                        // outside the cone
     const score = along + 2 * across;
-    if (score < bestScore) { bestScore = score; best = l; }
-  });
+    if (score < bestScore) { bestScore = score; best = e; }
+  }
   if (best) goToDistrict(best, false);
 }
 
 function wireDialog(popup) {
   const el = popup.getElement();
   if (!el) return;
-  const box = el.querySelector('.leaflet-popup-content');
+  const box = el.querySelector('.maplibregl-popup-content');
   const hd = el.querySelector('.pop .hd');
   el.setAttribute('role', 'dialog');
   el.setAttribute('aria-label',
     (hd ? hd.textContent + ' — ' : '') + 'district details');
-  const closer = el.querySelector('.leaflet-popup-close-button');
+  const closer = el.querySelector('.maplibregl-popup-close-button');
   if (closer) closer.setAttribute('aria-label', 'Close district details');
   box.setAttribute('tabindex', '0');
   box.focus({ preventScroll: true });
@@ -869,45 +1012,112 @@ function wireDialog(popup) {
          Escape the right target is known without guessing. */
       const back = returnFocusTo || map.getContainer();
       returnFocusTo = null;
-      map.closePopup();
+      popup.remove();
       back.focus({ preventScroll: true });
     } else if ((ev.ctrlKey || ev.altKey) && ARROWS[ev.key]) {
       ev.preventDefault();
-      stepToNeighbour(popup, ARROWS[ev.key]);
+      stepToNeighbour(openName, ARROWS[ev.key]);
     }
   });
 }
 
-map.on('popupopen', e => {
-  openPopupRef = e.popup;
-  keepClearWhenSettled(e.popup);
-  // Opening a <details> fold grows the popup upward from its anchor, so
-  // it can slide back under a panel after the open-time pass. 'toggle'
-  // does not bubble, but a capture listener on the popup root still sees
-  // it.
-  const el = e.popup.getElement();
-  if (el) el.addEventListener('toggle', () => keepPopupClear(e.popup), true);
-  wireDialog(e.popup);
-});
+/* ---- opening a unit ----
 
-/* Fallback for every OTHER way a popup closes (map click, a new popup
-   replacing it): if the teardown dropped focus on <body>, put it back on
-   the map. Deferred beyond the teardown, which is not synchronous with
-   the close; the Escape path above restores focus itself, exactly
-   because this check is a race. Walking to a neighbour is safe here:
-   by the time this runs, the new popup owns openPopupRef and has taken
-   focus anyway. */
-map.on('popupclose', e => {
-  setTimeout(() => {
-    if (openPopupRef !== e.popup) return;
-    openPopupRef = null;
-    if (document.activeElement === document.body) {
-      const back = returnFocusTo || map.getContainer();
-      returnFocusTo = null;
-      back.focus({ preventScroll: true });
-    }
-  }, 60);
-});
+   The row comes from the area shard, not from the tile under the
+   pointer. A popup can be opened by the search box or a ?d= deep link
+   long before that unit's tile has loaded, so reading it off the map
+   would fail exactly where it is hardest to notice. One fetch per
+   postcode area, cached; a failed fetch is evicted so a retry can work. */
+const shards = new Map();
+function shardFor(name) {
+  const area = name.match(/^[A-Za-z]+/)[0];
+  if (!shards.has(area)) {
+    shards.set(area, fetch(UNITS_DIR + area + '.json')
+      .then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + r.url);
+        return r.json();
+      })
+      .catch(err => { shards.delete(area); throw err; }));
+  }
+  return shards.get(area);
+}
+
+/* Outline a unit for four seconds, as the Leaflet version did after a
+   search or a deep link.
+
+   Feature state lives on the SOURCE and is applied as tiles arrive, so
+   this still flashes a unit whose tile has not loaded. But calling it
+   before the STYLE has loaded throws, and the deep link runs during
+   init - which took the whole popup down with it, silently, because
+   the throw unwound into the index fetch's catch. Wait for the map. */
+function flashUnit(name) {
+  const ref = { source: 'units', sourceLayer: TILE_LAYER, id: name };
+  const run = () => {
+    map.setFeatureState(ref, { flash: true });
+    setTimeout(() => map.setFeatureState(ref, { flash: false }), 4000);
+  };
+  if (map.loaded()) run(); else map.once('idle', run);
+}
+
+function openUnit(name, lngLat, flash) {
+  const entry = byName.get(name);
+  if (!entry) return;
+  const at = lngLat || centreOf(entry);
+
+  if (flash) flashUnit(name);
+
+  shardFor(name).then(rows => {
+    const p = rows[name];
+    if (!p) throw new Error(name + ' is missing from its area file');
+    show(popupHtml(p));
+  }).catch(err => {
+    /* Say so in the popup that was asked for. A popup that never appears
+       reads as a dead map. */
+    show('<div class="pop"><div class="hd">' + name + '</div>' +
+         '<p class="pop-note">Details failed to load — ' + err +
+         '</p></div>');
+  });
+
+  function show(html) {
+    if (popup) popup.remove();
+    openName = name;
+    /* focusAfterOpen off: wireDialog moves focus to the scrollable
+       content itself, which is what a screen reader needs to start
+       reading, and letting MapLibre focus the container first only
+       fights it. */
+    const pop = new maplibregl.Popup({ maxWidth: '320px',
+                                       focusAfterOpen: false })
+      .setLngLat(at).setHTML(html).addTo(map);
+    popup = pop;
+
+    const el = pop.getElement();
+    // Opening a <details> fold grows the popup upward from its anchor, so
+    // it can slide back under a panel after the open-time pass. 'toggle'
+    // does not bubble, but a capture listener on the popup root sees it.
+    if (el) el.addEventListener('toggle', () => keepPopupClear(pop), true);
+    keepClearWhenSettled(pop);
+    wireDialog(pop);
+
+    /* Fallback for every OTHER way a popup closes (map click, a new
+       popup replacing it): if the teardown dropped focus on <body>, put
+       it back on the map. Deferred beyond the teardown, which is not
+       synchronous with the close; the Escape path in wireDialog restores
+       focus itself, exactly because this check is a race. Bailing when a
+       newer popup has taken over makes walking to a neighbour safe. */
+    pop.on('close', () => {
+      setTimeout(() => {
+        if (popup !== pop) return;
+        popup = null;
+        openName = null;
+        if (document.activeElement === document.body) {
+          const back = returnFocusTo || map.getContainer();
+          returnFocusTo = null;
+          back.focus({ preventScroll: true });
+        }
+      }, 60);
+    });
+  }
+}
 
 /* ---- deep link: map.html?d=SW1 (and ?m=metric) ---- */
 (function () {
@@ -919,13 +1129,14 @@ map.on('popupclose', e => {
 })();
 /* Keep an opened popup clear of the floating panels.
 
-   Leaflet's autoPan keeps a popup inside the MAP; it knows nothing about
-   #controls, #legend and #about floating on top of it. This cannot be
-   solved with z-index: .leaflet-map-pane carries a transform, so it is a
-   stacking context and every pane inside it - popups included - is
-   trapped below whatever that pane resolves to. Raising
-   .leaflet-popup-pane changes nothing (measured); raising the map pane
-   hides the panels behind the map. So nudge the map instead.
+   A map library's own popup-panning keeps a popup inside the MAP; it
+   knows nothing about #controls, #legend and #about floating on top of
+   it. Under Leaflet this could not be fixed with z-index either, for a
+   specific reason: .leaflet-map-pane carried a transform, so it was a
+   stacking context and every pane inside it - popups included - was
+   trapped below whatever that pane resolved to. MapLibre positions its
+   popups the same way, inside the transformed map container, so the
+   conclusion carries over unchanged: nudge the map instead.
 
    Two rules learned the hard way, both from getting this wrong first:
    only dodge a panel the popup ACTUALLY overlaps (an earlier version
@@ -934,7 +1145,7 @@ map.on('popupclose', e => {
    screen), and never accept a dodge that pushes the popup off screen -
    an overlapped popup you can scroll beats a tidy one you cannot see.
 
-   panBy with animate:false, so this also works where rAF does not run.
+   panBy with duration:0, so this also works where rAF does not run.
    NB `p` is reserved in this file for a district's properties - the
    output-contract test greps for p.<column> - so panel rects are `q`. */
 function keepPopupClear(popup) {
@@ -982,7 +1193,7 @@ function keepPopupClear(popup) {
     if (moves.length) { if (moves[0].axis === 'y') my += moves[0].d; else mx += moves[0].d; }
     // otherwise leave it: better overlapped and readable than off screen
   }
-  if (mx || my) map.panBy([-mx, -my], { animate: false });
+  if (mx || my) map.panBy([-mx, -my], { duration: 0 });
 }
 /* Run the keep-clear pass only after the map SETTLES. At popupopen an
    animated pan is usually still in flight - the deep link's fitBounds,
@@ -1001,22 +1212,26 @@ function keepClearWhenSettled(popup) {
     // during the deep link's zoom animation, measured the popup at
     // x=-96, panned to "fix" it, and the animation's final frame put
     // everything straight back (instrumented and watched it happen).
-    // _animatingZoom/_panAnim are private but this Leaflet is pinned,
-    // inlined at build time.
-    if (map._animatingZoom || (map._panAnim && map._panAnim._inProgress)) {
-      map.once('moveend zoomend', run);
+    // Leaflet forced this through _animatingZoom/_panAnim, both private.
+    // MapLibre asks the same question in public API, so the pinned-and-
+    // inlined justification the Leaflet version needed is gone.
+    if (map.isMoving() || map.isZooming() || map.isEasing()) {
+      map.once('moveend', run);
       return;
     }
     done = true;
     keepPopupClear(popup);
   };
-  map.once('moveend zoomend', run);
+  map.once('moveend', run);
   setTimeout(run, 350);
 }
 
 } /* end initMap */
 
-fetch('__DATA_ASSET__')
+/* The tiles carry the map; this fetch carries the name index, which is
+   what search, the deep link and the arrow walk read. It is small and
+   national, and the tiles load independently of it. */
+fetch('__INDEX_ASSET__')
   .then(r => {
     if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + r.url);
     return r.json();

@@ -9,9 +9,10 @@
 ![Districts: 2,736](https://img.shields.io/badge/districts-2%2C736-6f5cc4?style=flat-square)
 ![Perils: 8 insured + 1](https://img.shields.io/badge/perils-8_insured_%2B_1-52514e?style=flat-square)
 
-**[Interactive map](https://smcode-source.github.io/uk-home-insurance-risk-map/map.html)** ·
+**[What happened](https://smcode-source.github.io/uk-home-insurance-risk-map/years.html)** ·
+**[The model](https://smcode-source.github.io/uk-home-insurance-risk-map/map.html)** ·
 **[Sector map](https://smcode-source.github.io/uk-home-insurance-risk-map/sectors.html)** ·
-**[Good vs bad years](https://smcode-source.github.io/uk-home-insurance-risk-map/years.html)** ·
+**[Relative risk](https://smcode-source.github.io/uk-home-insurance-risk-map/relative.html)** ·
 **[Methodology](https://smcode-source.github.io/uk-home-insurance-risk-map/methodology.html)**
 
 ---
@@ -54,7 +55,8 @@ docs/                         the published website (GitHub Pages source)
   index.html                  landing page: findings + top-risk districts
   map.html                    interactive map (districts), site nav injected
   sectors.html                the same map at postcode-sector resolution
-  years.html                  good-vs-bad-years analysis
+  relative.html               the premium as a multiple of the UK median
+  years.html                  what happened: ABI record + good-vs-bad-years
   methodology.html            full methodology write-up
 site/                         page templates + shared stylesheet for docs/
 tests/test_copula.py          property tests for the copula machinery
@@ -96,16 +98,18 @@ scripts/
   derive_sectors.py           Code-Point centroids -> postcode-SECTOR polygons
   validate_sectors_scotland.py scores them against NRS's official Scottish set
   compare_sector_model.py     sector model vs the published district one
-  build_map.py                -> both map pages (district + sector) + assets
+  build_map.py                -> both map pages (district + sector)
+  build_tiles.py              -> map/tiles/*.pmtiles, map/units/, map/*_index.json
   build_analysis.py           -> analysis/uk_risk_year_analysis.html
   build_site.py               wraps both + templates -> docs/
   make_images.py              favicon + social card, rendered from the geojson
   dependence_check.py         does the copula actually matter? -> dependence.json
   check_*.py                  small sanity-check helpers (calibration, geojson,
                               surface water, year buckets)
-map/template.html             map page (Leaflet inlined at build time)
+map/template.html             map page (MapLibre GL, linked at build time)
 analysis/template.html        good/bad-years page (hand-rolled SVG charts)
-assets/leaflet.{js,css}       Leaflet 1.9.4, inlined into the map HTML
+assets/maplibre-gl.{js,css}   MapLibre GL JS 5.6.1, linked from the map pages
+assets/pmtiles.js             PMTiles 4.3.0 protocol handler
 ```
 
 ## Map layers
@@ -162,6 +166,23 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
      one thing 625k does not publish: **thickness**. Effect: 1,452 districts
      raised, 749 lowered, exposure-weighted premium −0.2% (the ABI calibration
      re-pins the level), but **42.5% change rating group**.
+     Geology says which ground *can* shrink; since 2026-08-31 a **drought
+     climatology** says how often it is made to: each district's 1991–2020 mean
+     annual peak of the running water deficit max(cumsum(PET − rain), 0), reset
+     every 1 January, from **HadUK-Grid 1 km daily** observations streamed on CI
+     (174 GB that never touched a disk whole — `scripts/haduk_1km_stream.py`,
+     reduced by `scripts/make_smd_climatology.py` to
+     `data/smd_climatology.csv`). It enters claim **frequency** as a blend:
+     `sub_rel = (1 − 0.565) + 0.565 · deficit / mean`, the share being the
+     ABI's own drought-attribution arithmetic (13,000 of 2022's 23,000 claims;
+     DATA_SOURCES.md #34), normalised to an exposure-weighted mean of 1 so the
+     national level is untouched. Nationally the same index recovers **5 of the
+     6 canonical UK subsidence years** (1976, 1995, 2003, 2018, 2022). The
+     PET inside it is Hargreaves–Samani, ~a third high in a maritime climate —
+     measured (`scripts/check_pet_sensitivity.py`, both 1 km and 5 km grids) to
+     move the deficit's *level*, which calibration re-pins, and not its *map*
+     (rank correlation ≥ +0.998 at PET × 0.85/0.70). Dependence is untouched:
+     θ_WS still reads the geology score.
    - *Weather*: **Met Office** grids (Climate Data Portal ArcGIS services,
      fetched by `scripts/fetch_metoffice.py`), interpolated to district
      centroids by inverse-distance weighting: winter mean wind speed 5 km (UKCP18
@@ -232,15 +253,22 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    |---|---|---|---|---|
    | Storm | £244m (2025) | £2,450 | ~99,600 | 0.64% |
    | Flood | £312m (2025) | £30,000 | ~10,400 | 0.067% |
-   | Subsidence | £307m (2025) | £17,820 | ~17,200 | 0.111% |
+   | Subsidence | £307m (2025) | £17,264 | ~17,800 | 0.115% |
    | Groundwater | not published | £20,000 | — | pegged at 10% of flood |
-   | Theft | £450m (2018, last published) | £3,800 | ~118,000 | 0.76% |
+   | Theft | £342m (floor of a 0.58–0.97% envelope) | £3,800 | ~89,900 | 0.580% |
    | Escape of water | ~£657m (ABI "£1.8m a day") | £4,000 | ~164,000 | 1.06% |
-   | Fire | ~£434m (triangle, no published total) | £14,000 | ~31,000 | 0.20% |
-   | Accidental damage | ~£227m (triangle, never published) | £1,650 | ~137,000 | 0.89% |
+   | Fire | ~£434m (triangle, no published total) | £14,000 | ~31,000 | 0.200% |
+   | Accidental damage | ~£227m (triangle, never published) | £1,650 | ~138,000 | 0.888% |
 
-   Together these come to **£170 per policy per year — about 77% of the
-   £219 that all home claims cost**. ⚠️ **These are eight-peril technical
+   Together these come to **£164 per policy per year — about 75% of the
+   £219 that all home claims cost**.
+
+   <!-- These figures are HAND-WRITTEN; markdown has no build step. The
+   same table on the methodology page is now DERIVED from build_model.ABI
+   (build_site.py, __CAL_*__), after this copy and that one drifted apart
+   twice in three days - theft's 2026-08-25 level correction and
+   subsidence's 2026-08-28 severity fix. Re-read them both against
+   `python scripts/anchor_budget.py` whenever an ABI anchor moves. --> ⚠️ **These are eight-peril technical
    premiums, not home insurance premiums**: a real policy also carries
    expenses, commission and profit. What is *not* fitted —
    and is where the model earns its keep — is the geography, the dependence
@@ -724,9 +752,10 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
                                                      # h-inverse bisection for erosion is the dominant cost)
 .venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs -> data/sensitivity.json (~25 min, optional)
 .venv/Scripts/python scripts/make_images.py          # favicon + 1200x630 social card, rendered from the data
-.venv/Scripts/python scripts/build_map.py            # -> both map pages + both data assets (district and sector).
-                                                     # The GeoJSON is fetched by the pages, not inlined, so they
-                                                     # need HTTP: `python -m http.server` inside docs/
+.venv/Scripts/python scripts/build_map.py            # -> both map pages (district and sector)
+.venv/Scripts/python scripts/build_tiles.py          # -> vector tiles, popup shards, name index (~3 min).
+                                                     # The pages read these over HTTP, by byte range, so they
+                                                     # need a server: `python -m http.server` inside docs/
 .venv/Scripts/python scripts/build_analysis.py       # -> analysis/uk_risk_year_analysis.html
 ```
 

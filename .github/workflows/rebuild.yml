@@ -118,9 +118,14 @@ jobs:
       # order from README's rebuild section - I had already tripped over
       # the missing build_analysis.py step once locally.
       - name: Rebuild images, map, analysis and site
+        # build_tiles.py joined the order with the four-tabs restructure
+        # (the maps read vector tiles now; tests.yml builds them the same
+        # way) - this workflow was not updated then and failed on its
+        # first post-restructure dispatch (run 33417982687).
         run: |
           python -u scripts/make_images.py
           python -u scripts/build_map.py
+          python -u scripts/build_tiles.py
           python -u scripts/build_analysis.py
           python -u scripts/build_site.py
 

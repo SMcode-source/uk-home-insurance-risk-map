@@ -57,6 +57,7 @@ from scores_real import (subsidence_score, weather_from_metoffice,
                          flood_from_agencies, groundwater_from_ea,
                          erosion_from_ncerm, sw_depth_severity, load_country,
                          theft_from_police, frost_from_metoffice,
+                         drought_from_haduk,
                          fires_from_mhclg, children_from_census,
                          ct_value_from_bands,
                          flood_future, flood_score_from_fractions,
@@ -97,6 +98,7 @@ OUTPUT_COLUMNS = [
     "gust_rp50",
     "f_high", "f_low", "sw_high", "sw_low", "gw_frac",
     "sw_sev", "sw_depth_m", "th_rate", "frost_days", "eow_rate",
+    "sub_drought_mm", "sub_rel",
     "fire_rate", "ad_rate",
     "er_score", "er_smp55", "er_smp105", "er_nfi55", "er_nfi105",
     "er_smp105_lo", "er_smp105_hi", "er_nfi105_lo", "er_nfi105_hi",
@@ -396,6 +398,26 @@ _median_for_mean = lambda mean, sigma: mean / np.exp(sigma ** 2 / 2)
 # first commit and drifted six cells wide once the ABI calibration landed
 # (HANDOFF, defect 3). The per-peril REASONING for each value stays at the
 # point of use in marginal_params, which is the only place they are read.
+# Lognormal severity SPREAD per peril. Read this before pricing one:
+# NONE of these can move the published premium, and that is by design.
+# Both places the premium comes from take the severity's MEAN only -
+# simulate()'s analytic el_<peril> = p * exp(mu + sigma^2/2), and
+# cond_expected()'s q * exp(mu + sigma^2/2), which builds year_loss and
+# hence tvar99_euler and hence capital. marginal_params sets
+# mu = log(_median_for_mean(M, s)) = log(M) - s^2/2, so exp(mu + s^2/2)
+# is M and sigma cancels exactly, per district, in both.
+#
+# That is the price of the variance reduction that made the Euler
+# allocation reproducible (seed correlation 0.49 -> 0.9985; see the
+# methodology page, "Averaging expectations, not accidents"): capital
+# responds to frequency CLUSTERING, never to severity DISPERSION. These
+# sigmas therefore reach only the diagnostic columns - tvar99_vine,
+# tvar99_indep, var995_*.
+#
+# Measured, so nobody has to again: Gate 3 priced eow at 0.96 / 1.00 /
+# 1.20 / 1.41 on CI (run 33217184873) and tvar99_euler came back
+# identical to the LAST BIT in all four. Guarded by
+# test_severity_sigma_cannot_move_capital.
 SEV_SIGMA = dict(sub=0.90, wx=1.10, fl=0.90, gw=0.80, er=0.35,
                  th=1.00, eow=1.00, fire=1.30, ad=0.90)
 
@@ -529,6 +551,21 @@ W_EOW = 0.026
 # the mildest down (Isles of Scilly and west Cornwall, -4.3% to -5.5%),
 # which is the sign test passing on both tails at once.
 EOW_FREEZE_SHARE = 0.31
+# The drought-attributable share of subsidence FREQUENCY - what
+# fraction of p_sub rides the district's drought climatology rather
+# than the flat geology base. Derived the same way as EOW_FREEZE_SHARE,
+# from the ABI's own releases, by two routes that agree: the 2018-12
+# release frames 2,500 claims/quarter as the pre-surge baseline
+# (=> 10,000/yr), and the 2022 release attributes 13,000 of 23,000
+# claims to that year's drought => 13/23 = 0.565 (cross-check: 2022's
+# own H1 of 5,000 = base/2 implies the same 10,000 base). Zurich's
+# attribution study brackets it - ~60% of upheld claims are
+# root-induced clay shrinkage in an average year, ~85% in a surge year.
+# Priced on exp/smd-curve (CI 33410640013) at 0.40/0.565/0.70: the
+# level is pinned by calibration in every variant (el_sub drift at most
+# one ULP), so like EOW_FREEZE_SHARE this is a pure relativity dial -
+# at 0.565, 455 of 2,736 districts change premium decile, one by two.
+SUB_DROUGHT_SHARE = 0.565
 # Fire's loading comes from the same derivation as theft's and EoW's,
 # and lands even lower than theft. The FIRE0201 national series
 # (1981/82-2025/26) shows a steady secular DECLINE of -2.5%/yr - a
@@ -689,7 +726,17 @@ def marginal_params(f):
     each lognormal's MEAN matches the published ABI average claim.
     """
     sub, wx = f["sub"], f["wx"]
-    p_sub = 0.002 + 0.028 * sub ** 1.5
+    # sub_rel is the drought relativity on subsidence FREQUENCY only -
+    # the Gate 2 SMD curve, published with SUB_DROUGHT_SHARE. Geology
+    # keeps the base shape and the dependence structure is untouched
+    # (theta_ws still reads sub_score). Its exposure-weighted mean is
+    # exactly 1, normalised in main() where the exposure weights live -
+    # NEVER here, because this function runs on batches and a per-chunk
+    # mean would depend on chunk membership - so calibrate_frequency
+    # re-pins the ABI level and the curve is pure geography. A required
+    # column like eow_rate: a frame without it must fail loudly, not
+    # silently price geology-only.
+    p_sub = (0.002 + 0.028 * sub ** 1.5) * f["sub_rel"]
     p_wx = 0.010 + 0.090 * wx ** 1.2
     # river/sea flood frequency from actual zone fractions: ~1.5%/yr for a
     # property in the defended 1in100/200 zone, ~0.3%/yr in the rest of
@@ -843,7 +890,8 @@ def marginal_params(f):
 def _fields(src):
     """Pull the marginal_params inputs out of a GeoDataFrame/chunk."""
     return {k: src[v].values for k, v in
-            [("sub", "sub_score"), ("wx", "wx_score"), ("f_high", "f_high"),
+            [("sub", "sub_score"), ("sub_rel", "sub_rel"),
+             ("wx", "wx_score"), ("f_high", "f_high"),
              ("f_low", "f_low"), ("sw_high", "sw_high"), ("sw_low", "sw_low"),
              ("gw_frac", "gw_frac"), ("sw_sev", "sw_sev"), ("er", "er_frac"),
              ("th", "th_rate"), ("eow", "eow_rate"),
@@ -1583,6 +1631,27 @@ def year_analysis(year, n_districts):
         return [[round(n_sim / r, 2), round(float(srt[r - 1]), 1)]
                 for r in ranks]
 
+    # Conditional claim COUNT and VALUE, emitted directly rather than left
+    # to be derived. `inc_*_pct` is published to 2 dp of a PERCENT, so its
+    # smallest step is 0.01% - about 1,550 claims across a 15.5m book - and
+    # dividing `mean_*` by it to get a cost per claim inherits that as
+    # 2.4-12.5% error on flood and subsidence and 25-50% on groundwater,
+    # whose incidence rounds to 0.00/0.01/0.01/0.02. Measured 2026-08-29;
+    # that is a resolution floor, not noise, and it is why these two
+    # quantities are computed here from the UNROUNDED arrays instead.
+    #
+    # claims_*_per_100k is per 100,000 policies (2 dp = ~3 claims
+    # nationally), cost_*_per_claim is E[loss | claimed] in whole pounds.
+    # The identity that ties them back to the published figures is
+    #     mean_<peril> == claims_<peril>_per_100k / 1e5 * cost_<peril>_per_claim
+    # and test_year_view_claim_count_and_value guards it.
+    def _count_value(inc_key, val, idx):
+        """(claims per 100k policies, E[cost | claimed]) for one peril."""
+        frac = float(year[inc_key][idx].mean()) / n
+        if frac <= 0.0:
+            return 0.0, None      # no claims in this bucket: no cost either
+        return 1e5 * frac, float(val[idx].mean()) / frac
+
     buckets = []
     typical_mean = None
     for label, lo, hi in BUCKETS:
@@ -1601,6 +1670,20 @@ def year_analysis(year, n_districts):
             inc_gw_pct=round(100 * float(year["inc_g"][idx].mean()) / n, 2),
             indep_mean_total=round(float(ti[idx_i].mean()), 1),
         )
+        tot_claims = 0.0
+        for key, inc_key, val in (("sub", "inc_s", s), ("wx", "inc_w", w),
+                                  ("fl", "inc_f", f), ("gw", "inc_g", g)):
+            cnt, cost = _count_value(inc_key, val, idx)
+            b[f"claims_{key}_per_100k"] = round(cnt, 2)
+            b[f"cost_{key}_per_claim"] = None if cost is None else round(cost)
+            tot_claims += cnt
+        # A policy claiming on two perils in one year counts twice here:
+        # these are CLAIMS, not claimants, which is the basis the ABI's
+        # own 560,000 home-claims figure is on.
+        b["claims_total_per_100k"] = round(tot_claims, 2)
+        b["cost_total_per_claim"] = (
+            round(float(tv[idx].mean()) / (tot_claims / 1e5))
+            if tot_claims else None)
         if label == "typical":
             typical_mean = b["mean_total"]
         buckets.append(b)
@@ -1739,6 +1822,27 @@ def main():
     gdf["eow_rate"] = ABI_TARGET_FREQ["eow"] * (
         (1.0 - EOW_FREEZE_SHARE)
         + EOW_FREEZE_SHARE * gdf["frost_days"] / fmean)
+
+    print("scoring subsidence drought exposure from HadUK-Grid...")
+    # sub_rel = flat base + drought-sensitive slice on the district's
+    # 1991-2020 drought climatology relative to the exposure-weighted
+    # mean - the Gate 2 SMD curve, same construction as eow_rate's
+    # freeze slice. It multiplies subsidence FREQUENCY only, in
+    # marginal_params; the geology (sub_score) keeps the base shape and
+    # the dependence structure still reads sub_score, untouched. The
+    # normalisation lives HERE, never per batch, and its
+    # exposure-weighted mean is exactly 1, so calibrate_frequency
+    # re-pins the ABI level regardless (measured: el_sub drift at most
+    # one ULP across shares 0-0.70, CI 33410640013). The climatology's
+    # Hargreaves PET runs ~a third high in maritime climates; measured
+    # at both grid resolutions to move the LEVEL and not the MAP
+    # (Spearman >= +0.998 at PET x 0.85/0.70), and the level is what
+    # calibration re-pins - scripts/check_pet_sensitivity.py re-runs
+    # that verdict.
+    gdf["sub_drought_mm"] = drought_from_haduk(gdf["name"].values)
+    dmean = np.average(gdf["sub_drought_mm"], weights=gdf["households"])
+    gdf["sub_rel"] = ((1.0 - SUB_DROUGHT_SHARE)
+                      + SUB_DROUGHT_SHARE * gdf["sub_drought_mm"] / dmean)
 
     print("scoring fire from MHCLG dwelling-fire incidents...")
     # fire_rate = anchor frequency x the district's dwelling-fire
@@ -1910,6 +2014,15 @@ def main():
     # zero readable as "not modelled" rather than "no change".
     for col in ("el_total_cc", "capital_cc", "premium_cc", "cc_uplift_pct"):
         out[col] = out[col].fillna(0.0)
+    # Output precision. This is the ONLY place the published columns are
+    # quantised, and it is worth knowing what it costs before reading a
+    # figure back out of the file: `el*` and `premium` land on 1 dp
+    # (below), `capital` on 4 dp. Across 2,736 districts, 1-dp rounding
+    # puts SD 0.00067 on an exposure-weighted mean and 4-dp rounding puts
+    # SD 6.7e-7 on one. That is why price_sub_level.py reproduced capital
+    # to six decimals and missed el_total by 0.0011 - two quantisations,
+    # not a disagreement. Anything argued to better than +-0.0013 on EL
+    # or premium must come from an unrounded run, not from this file.
     round1 = {"wind_ms": 1, "wdr_idx": 1, "rain10_days": 1, "precip_mm": 0,
               "gust_rp50": 0, "households": 0, "sw_depth_m": 2,
               "frost_days": 1}

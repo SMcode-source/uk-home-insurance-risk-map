@@ -213,7 +213,8 @@ def test_inv_mixed_cdf_matches_bernoulli_lognormal():
 
 def fields(**over):
     """Default marginal_params inputs, overridable per test."""
-    f = dict(sub=0.5, wx=0.5, f_high=0.1, f_low=0.2, sw_high=0.1,
+    f = dict(sub=0.5, sub_rel=1.0, wx=0.5, f_high=0.1, f_low=0.2,
+             sw_high=0.1,
              sw_low=0.2, gw_frac=0.1, sw_sev=1.0, er=0.0, th=0.009,
              eow=1.0, fire=0.002, ad=0.009,
              ct_th=1.0, ct_eow=1.0, ct_fire=1.0, ct_ad=1.0)
@@ -306,6 +307,30 @@ def test_eow_frequency_is_the_frost_rate_scaled():
         assert float(m["p_eow"][0]) == 0.5
     finally:
         bm.FREQ_SCALE = old
+
+
+def test_sub_frequency_carries_the_drought_relativity():
+    """p_sub is the geology base times sub_rel (the Gate 2 SMD curve,
+    normalised in main() where the exposure weights live) and nothing
+    else - marginal_params must not renormalise it, for the same
+    batch-membership reason as eow_rate. The column is REQUIRED: a
+    frame without it must fail loudly rather than silently price
+    geology-only, because that is exactly the failure the experiment
+    branch's provably-inert default would have hidden after a publish.
+    """
+    base = bm.marginal_params(fields())
+    up = bm.marginal_params(fields(sub_rel=1.3))
+    assert abs(float(up["p_sub"][0]) / float(base["p_sub"][0])
+               - 1.3) < 1e-12
+    # frequency only: the severity params must be bit-identical
+    assert np.array_equal(base["sev_sub"]["mu"], up["sev_sub"]["mu"])
+    assert np.array_equal(base["sev_sub"]["sigma"], up["sev_sub"]["sigma"])
+    # and the dependence input is untouched by construction: theta_ws
+    # reads sub_score, which fields() carries separately as `sub`
+    f = fields()
+    del f["sub_rel"]
+    with pytest.raises(KeyError):
+        bm.marginal_params(f)
 
 
 def test_erosion_frequency_annualises_over_the_horizon():
@@ -459,6 +484,7 @@ def test_erosion_expected_loss_is_analytic_not_simulated(monkeypatch):
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.24, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.010, 0.005], "eow_rate": [0.011, 0.009],
+        "sub_rel": [1.0, 1.0],
         "fire_rate": [0.002, 0.001], "ad_rate": [0.009, 0.008],
         "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
         "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
@@ -484,6 +510,7 @@ def _cover_split_frame():
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.010, 0.005], "eow_rate": [0.011, 0.009],
+        "sub_rel": [1.0, 1.0],
         "fire_rate": [0.002, 0.001], "ad_rate": [0.009, 0.008],
         # Neutral council-tax relativities (Phase 2c). marginal_params
         # reads these for the four attritional severities, so the frame
@@ -555,6 +582,7 @@ def test_theft_expected_loss_is_analytic_not_simulated(monkeypatch):
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.010, 0.0], "eow_rate": [0.0, 0.0],
+        "sub_rel": [1.0, 1.0],
         "fire_rate": [0.0, 0.0], "ad_rate": [0.0, 0.0],
         "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
         "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
@@ -617,6 +645,7 @@ def test_fire_expected_loss_is_analytic_not_simulated(monkeypatch):
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.0, 0.0], "eow_rate": [0.0, 0.0],
+        "sub_rel": [1.0, 1.0],
         "fire_rate": [0.0025, 0.0], "ad_rate": [0.0, 0.0],
         "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
         "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
@@ -651,6 +680,7 @@ def test_eow_expected_loss_is_analytic_not_simulated(monkeypatch):
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.0, 0.0], "eow_rate": [0.012, 0.0],
+        "sub_rel": [1.0, 1.0],
         "fire_rate": [0.0, 0.0], "ad_rate": [0.0, 0.0],
         "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
         "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
@@ -709,6 +739,7 @@ def test_ad_expected_loss_is_analytic_not_simulated(monkeypatch):
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "er_frac": [0.0, 0.0], "households": [1000.0, 2000.0],
         "th_rate": [0.0, 0.0], "eow_rate": [0.0, 0.0],
+        "sub_rel": [1.0, 1.0],
         "fire_rate": [0.0, 0.0], "ad_rate": [0.0095, 0.0],
         "ct_th": [1.0, 1.0], "ct_eow": [1.0, 1.0],
         "ct_fire": [1.0, 1.0], "ct_ad": [1.0, 1.0],
@@ -765,6 +796,7 @@ def test_capital_allocation_is_stable_across_seeds():
         # appended LAST: earlier draws keep their positions in the fixture
         # stream, so pre-EoW expectations in these tests stay valid
         "eow_rate": rng.uniform(0.005, 0.03, n),
+        "sub_rel": np.ones(n),
         # and fire after EoW, same discipline
         "fire_rate": rng.uniform(0.001, 0.005, n),
         # and AD after fire, same discipline
@@ -964,6 +996,7 @@ def test_thread_count_does_not_change_a_single_bit():
         # appended LAST: earlier draws keep their positions in the fixture
         # stream, so pre-EoW expectations in these tests stay valid
         "eow_rate": rng.uniform(0.005, 0.03, n),
+        "sub_rel": np.ones(n),
         # and fire after EoW, same discipline
         "fire_rate": rng.uniform(0.001, 0.005, n),
         # and AD after fire, same discipline
@@ -1243,10 +1276,27 @@ def test_every_asset_the_published_site_references_exists():
         re.compile(r'(?:href|src)\s*=\s*["\']([^"\']+)["\']', re.I),
         re.compile(r'content\s*=\s*["\']([^"\']+)["\']', re.I),
         re.compile(r'fetch\(\s*["\']([^"\']+)["\']'),
+        # the vector tile set, which is handed to the PMTiles protocol
+        # through new URL(...) rather than fetched directly - a fourth
+        # reference style, and the one whose 404 would blank the map
+        re.compile(r'new URL\(\s*["\']([^"\']+)["\']'),
     ]
     external = ("http://", "https://", "//", "#", "data:", "mailto:",
                 "javascript:")
     site_root = "https://smcode-source.github.io/uk-home-insurance-risk-map/"
+
+    # Tiles, popup shards and the name index are BUILD outputs, kept out
+    # of git because PMTiles do not delta-compress (~33 MB per publish).
+    # On an unbuilt checkout they are absent BY CONSTRUCTION, so their
+    # existence is not a thing this test can assert there. It still
+    # asserts every committed reference, and still asserts that the
+    # pages REFERENCE the tiles (the required[] list below). The
+    # existence check is run post-build by pages.yml before deploying
+    # and by tests.yml's rebuild job on every push.
+    built = os.path.isdir(os.path.join(docs, "assets", "tiles"))
+    BUILD_ONLY = ("assets/tiles/", "assets/units/",
+                  "assets/districts_index.json",
+                  "assets/sectors_index.json")
 
     missing, checked = [], set()
     for page in pages:
@@ -1268,6 +1318,8 @@ def test_every_asset_the_published_site_references_exists():
                 if not re.fullmatch(r"[\w./-]+", target):
                     continue
                 checked.add(target)
+                if not built and target.lstrip("/").startswith(BUILD_ONLY):
+                    continue
                 if not os.path.exists(os.path.join(docs, target.lstrip("/"))):
                     missing.append((page, ref))
 
@@ -1277,7 +1329,9 @@ def test_every_asset_the_published_site_references_exists():
         f"only {len(checked)} local references found across {len(pages)} "
         f"pages - the extraction has stopped matching")
     for required in ("assets/site.css", "assets/districts.json",
-                     "assets/social.png", "assets/map_data.geojson"):
+                     "assets/social.png", "assets/maplibre-gl.js",
+                     "assets/districts_index.json",
+                     "assets/tiles/districts.pmtiles"):
         assert required in checked, (
             f"{required} is no longer referenced by any page - if that is "
             f"deliberate, stop building it too")
@@ -1492,15 +1546,18 @@ def test_the_sector_model_nests_inside_the_district_model():
 def test_every_published_map_asset_carries_the_columns_its_page_reads():
     """The third direction of the column contract, added with sectors.
 
-    The pages no longer fetch the model output whole: build_map.py trims
-    each web asset to the columns the template reads (15.8 MB -> 13.4 MB
-    for sectors) and rounds them. That trim is a new way to ship a
-    silently broken popup - drop a column the template reads and it
-    renders `undefined`, with nothing raising anywhere. So: every column
-    the template reads must be present in EVERY published asset, and the
-    assets must agree with each other (the same template drives both, so
-    a column present in one and missing from the other is a bug by
-    construction).
+    The pages carry no data of their own. The popup's row comes from a
+    per-postcode-area shard written by build_tiles.py, which is a way to
+    ship a silently broken popup - drop a column the template reads and
+    it renders `undefined`, with nothing raising anywhere. So: every
+    column the template reads must be present on EVERY unit of EVERY
+    shard, and the two grains must agree with each other (the same
+    template drives both, so a column in one and not the other is a bug
+    by construction).
+
+    Checked against the shards rather than the tiles because the shard
+    is what the popup reads, and it is the one that carries all 62
+    columns - the tile deliberately carries only the 20 that paint.
     """
     import json
     import build_map
@@ -1513,7 +1570,7 @@ def test_every_published_map_asset_carries_the_columns_its_page_reads():
     # rebuild's bot commit not landed yet - the docs/ assets cannot
     # carry the column by construction, and failing here deadlocks
     # rebuild.yml's pre-flight against the very run that would fix it.
-    # Skipping is safe because build_map.web_asset hard-fails the BUILD
+    # Skipping is safe because build_map.rounded_props hard-fails the BUILD
     # if the model output lacks a template-read column, so `undefined`
     # can never actually publish. Once the model output carries every
     # column the template reads, this re-arms and guards drift again.
@@ -1526,28 +1583,36 @@ def test_every_published_map_asset_carries_the_columns_its_page_reads():
                     "output does not carry yet - awaiting the publish "
                     "rebuild's bot commit")
 
+    # Same reason as above: the shards are a build output. Skipping on an
+    # unbuilt checkout is safe because build_site.py hard-fails when the
+    # shards are missing, so an unbuilt docs/ cannot reach Pages.
+    if not os.path.isdir(os.path.join(root, "docs", "assets", "units")):
+        pytest.skip("docs/assets/units/ is a build output and this "
+                    "checkout has not been built - pages.yml and the "
+                    "rebuild job run this check after building")
+
     seen = {}
-    for asset, min_units in (("map_data.geojson", 2700),
-                             ("sector_data.geojson", 10000)):
-        path = os.path.join(root, "docs", "assets", asset)
-        assert os.path.exists(path), f"docs/assets/{asset} was not built"
-        with open(path, encoding="utf-8") as fh:
-            feats = json.load(fh)["features"]
-        assert len(feats) >= min_units, (
-            f"{asset} has only {len(feats)} units")
-        cols = set(feats[0]["properties"])
+    for grain, min_units in (("districts", 2700), ("sectors", 10000)):
+        d = os.path.join(root, "docs", "assets", "units", grain)
+        assert os.path.isdir(d), f"docs/assets/units/{grain}/ was not built"
+        rows = {}
+        for f in sorted(os.listdir(d)):
+            with open(os.path.join(d, f), encoding="utf-8") as fh:
+                rows.update(json.load(fh))
+        assert len(rows) >= min_units, (
+            f"{grain} shards hold only {len(rows)} units")
+        cols = set(next(iter(rows.values())))
         missing = sorted(needed - cols)
         assert not missing, (
-            f"docs/assets/{asset} lacks {missing}, which the map template "
+            f"the {grain} shards lack {missing}, which the map template "
             f"reads - the popup renders `undefined` for them")
-        # every feature, not just the first: a column present on one unit
-        # and absent on another is the same bug, one district deep
-        ragged = [f["properties"]["name"] for f in feats
-                  if set(f["properties"]) != cols]
+        # every unit, not just the first: a column present on one and
+        # absent on another is the same bug, one district deep
+        ragged = [k for k, v in rows.items() if set(v) != cols]
         assert not ragged, (
-            f"{asset}: {len(ragged)} units have a different column set, "
+            f"{grain}: {len(ragged)} units have a different column set, "
             f"first {ragged[:3]}")
-        seen[asset] = cols
+        seen[grain] = cols
 
     a, b = seen.values()
     assert a == b, (
@@ -1627,6 +1692,7 @@ def test_simulate_returns_the_columns_the_map_and_site_read():
             "f_low": [0.1], "sw_high": [0.02], "sw_low": [0.05],
             "gw_frac": [0.05], "sw_sev": [1.0], "er_frac": [0.01],
             "households": [500.0], "th_rate": [0.009], "eow_rate": [0.011],
+            "sub_rel": [1.0],
             "fire_rate": [0.002], "ad_rate": [0.009],
             "ct_th": [1.0], "ct_eow": [1.0],
             "ct_fire": [1.0], "ct_ad": [1.0],
@@ -1911,3 +1977,188 @@ def test_no_capital_formula_is_taken_against_a_draw_mean():
     assert not offenders, (
         "capital taken against a draw mean instead of el_total:\n  "
         + "\n  ".join(offenders))
+
+
+# The eight rows of README's calibration table, in README's order, each
+# naming the two ABI keys the row is a copy of. Groundwater is absent on
+# purpose: it has no published total and only its severity is a figure.
+README_CALIB_ROWS = [
+    ("Storm", "storm_paid", "sev_weather"),
+    ("Flood", "flood_paid", "sev_flood"),
+    ("Subsidence", "subsidence_paid", "sev_subsidence"),
+    ("Theft", "theft_paid", "sev_theft"),
+    ("Escape of water", "eow_paid", "sev_eow"),
+    ("Fire", "fire_paid", "sev_fire"),
+    ("Accidental damage", "ad_paid", "sev_ad"),
+]
+
+
+def test_readme_calibration_table_matches_the_model():
+    """README's calibration table is hand-written. Pin it to build_model.ABI.
+
+    Markdown has no build step, so this table is the one statement of the
+    anchors that cannot be derived. It has drifted twice in three days -
+    theft's 2026-08-25 level correction and subsidence's 2026-08-28
+    severity fix - and both times the wrong figure was published and sat
+    there. The same table on the methodology page IS derived now
+    (build_site.py, the __CAL_*__ keys); this test is the equivalent guard
+    for the copy that cannot be.
+
+    Checks the paid total, the average claim and the implied claim count.
+    The frequency column is the same division again and is left to the
+    count check, which is the tighter of the two.
+    """
+    import re
+    root = os.path.join(os.path.dirname(__file__), "..")
+    with open(os.path.join(root, "README.md"), encoding="utf-8") as fh:
+        readme = fh.read()
+
+    def cells(peril):
+        # the table is indented three spaces inside a numbered list item
+        m = re.search(r"^\s*\|\s*" + re.escape(peril) + r"\s*\|(.+)$",
+                      readme, re.M)
+        assert m, f"README has no calibration row for {peril}"
+        return [c.strip() for c in m.group(1).split("|")]
+
+    def money(cell):
+        m = re.search(r"£([\d,]+(?:\.\d+)?)\s*(m|bn)?", cell)
+        assert m, f"no money figure in {cell!r}"
+        return float(m.group(1).replace(",", "")) * {
+            None: 1.0, "m": 1e6, "bn": 1e9}[m.group(2)]
+
+    def count(cell):
+        m = re.search(r"([\d,]+)", cell)
+        assert m, f"no count in {cell!r}"
+        return float(m.group(1).replace(",", ""))
+
+    wrong = []
+    for peril, paid_key, sev_key in README_CALIB_ROWS:
+        paid_cell, sev_cell, n_cell = cells(peril)[:3]
+        paid, sev = bm.ABI[paid_key], bm.ABI[sev_key]
+        if abs(money(paid_cell) - paid) > 0.5e6:
+            wrong.append(f"{peril} paid: README {paid_cell!r} vs "
+                         f"ABI[{paid_key!r}] = {paid / 1e6:,.1f}m")
+        if abs(money(sev_cell) - sev) > 0.5:
+            wrong.append(f"{peril} severity: README {sev_cell!r} vs "
+                         f"ABI[{sev_key!r}] = {sev:,.0f}")
+        # three significant figures, which is how the table is written
+        implied = paid / sev
+        if abs(count(n_cell) - implied) > max(implied * 0.005, 50):
+            wrong.append(f"{peril} implied claims: README {n_cell!r} vs "
+                         f"{implied:,.0f}")
+
+    assert not wrong, (
+        "README's calibration table no longer matches build_model.ABI:\n  "
+        + "\n  ".join(wrong)
+        + "\n(README.md is hand-written - fix it there, then re-run "
+          "scripts/anchor_budget.py)")
+
+
+def test_severity_sigma_cannot_move_capital():
+    """SEV_SIGMA affects DIAGNOSTICS only - never the published premium.
+
+    Both places the premium comes from take the severity's MEAN and
+    nothing else:
+
+      simulate()  el_<peril> = p * exp(mu + sigma^2/2)          (analytic EL)
+      simulate()  cond_expected(...) = q * exp(mu + sigma^2/2)  (year_loss,
+                  from which tvar99_euler and therefore capital are built)
+
+    and marginal_params sets mu = log(_median_for_mean(M, s)), with
+    _median_for_mean(M, s) = M / exp(s^2/2). So exp(mu + s^2/2) == M and
+    sigma cancels out of both, exactly.
+
+    That is deliberate, not an oversight: averaging REALISED losses over
+    the worst 200 of 20,000 years made the allocation correlate 0.49 with
+    itself across seeds, and conditioning on the systemic draw took it to
+    0.9985 (see the methodology page, "Averaging expectations, not
+    accidents"). The price is that capital responds to frequency
+    CLUSTERING and never to severity DISPERSION.
+
+    Gate 3 priced SEV_SIGMA["eow"] at 0.96 / 1.00 / 1.20 / 1.41 on CI
+    (run 33217184873) and got tvar99_euler identical to the last bit in
+    all four. This test is that result turned into a guard, so nobody
+    spends another CI run discovering it. If the model ever SHOULD charge
+    capital for severity dispersion, this test is the one to change, and
+    changing it means revisiting the seed-stability result above.
+    """
+    for M in (4_000.0, 17_264.0, 30_000.0):
+        base = None
+        for s in (0.35, 0.80, 0.96, 1.00, 1.20, 1.41, 1.60):
+            mu = np.log(bm._median_for_mean(M, s))
+            mean = np.exp(mu + s * s / 2)
+            assert abs(mean / M - 1) < 1e-12, (
+                f"severity mean moved with sigma: M={M}, sigma={s}, "
+                f"got {mean}")
+            if base is None:
+                base = mean
+            # every sigma must give the SAME mean, not merely the right one
+            assert abs(mean - base) < 1e-9 * M, (
+                f"sigma {s} changed the mean by {mean - base:.3e} on {M}")
+
+
+def test_year_view_claim_count_and_value():
+    """The year view's claim COUNT and VALUE must reconstruct its own means.
+
+    Gate 4. `inc_*_pct` is published to 2 dp of a percent, so deriving a
+    cost per claim by dividing `mean_*` by it carries 2.4-12.5% error on
+    flood and subsidence and 25-50% on groundwater, whose incidence rounds
+    to 0.00/0.01/0.01/0.02 across the four buckets. year_analysis now
+    emits both quantities from the unrounded arrays instead.
+
+    This drives year_analysis with a SYNTHETIC year dict whose answers are
+    known by construction, so it needs no simulation: every district-year
+    loss is a fixed amount on a fixed fraction of exposure. Then
+
+        mean_<peril> == claims_<peril>_per_100k / 1e5 * cost_<peril>_per_claim
+
+    must hold, and cost_<peril>_per_claim must equal the amount actually
+    paid per claiming policy.
+    """
+    n_sim = 1000
+    expo_total = 1_000_000.0
+    rng = np.random.default_rng(3)
+    year = {}
+    # peril -> (incidence fraction, cost per claim). Deliberately includes
+    # a peril rarer than the 0.01% the old published field could resolve.
+    spec = {"s": (0.0015, 17_264.0), "w": (0.0071, 2_450.0),
+            "f": (0.0009, 30_000.0), "g": (0.00004, 20_000.0)}
+    for k, (frac, cost) in spec.items():
+        # vary incidence year to year so the bucket ordering is non-trivial
+        jitter = 1.0 + 0.3 * rng.standard_normal(n_sim)
+        inc = np.clip(frac * jitter, 0.0, 1.0) * expo_total
+        year[f"inc_{k}"] = inc
+        year[f"{k}_v"] = inc * cost           # exposure-weighted loss
+    for k in ("s", "f", "g"):                 # independence view, unused here
+        year[f"{k}_i"] = year[f"{k}_v"]
+    year["expo_total"] = expo_total
+
+    out = bm.year_analysis(year, 2736)
+
+    for b in out["buckets"]:
+        for key, ik in (("sub", "s"), ("wx", "w"), ("fl", "f"), ("gw", "g")):
+            cnt = b[f"claims_{key}_per_100k"]
+            cost = b[f"cost_{key}_per_claim"]
+            assert cnt > 0, f"{b['label']}/{key}: synthetic data always claims"
+            # the cost per claim is known exactly by construction
+            assert abs(cost - spec[ik][1]) <= 1, (
+                f"{b['label']}/{key}: cost per claim {cost} != "
+                f"{spec[ik][1]}")
+            # and it must rebuild the published mean
+            rebuilt = cnt / 1e5 * cost
+            assert abs(rebuilt - b[f"mean_{key}"]) < 0.05 + 0.001 * rebuilt, (
+                f"{b['label']}/{key}: {cnt}/1e5 x {cost} = {rebuilt} != "
+                f"published mean {b[f'mean_{key}']}")
+        # groundwater here is 4 claims per 100k - a rate the OLD 2-dp
+        # inc_gw_pct field rounds to 0.00%, i.e. loses completely. This
+        # asserts the new field does not.
+        assert b["claims_gw_per_100k"] > 0 and b["inc_gw_pct"] == 0.0, (
+            "the synthetic groundwater rate should be invisible to "
+            "inc_gw_pct and visible to claims_gw_per_100k - if this fails "
+            "the rates were changed and the point of the test is lost")
+
+    # totals are claims, not claimants: a policy can claim on two perils
+    for b in out["buckets"]:
+        parts = sum(b[f"claims_{k}_per_100k"]
+                    for k in ("sub", "wx", "fl", "gw"))
+        assert abs(b["claims_total_per_100k"] - parts) < 0.02

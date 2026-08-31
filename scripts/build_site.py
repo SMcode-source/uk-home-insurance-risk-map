@@ -2,7 +2,7 @@
 
   docs/index.html        landing page  (site/index.template.html + live numbers)
   docs/methodology.html  methodology   (site/methodology.template.html)
-  docs/map.html          the Leaflet map, with site nav injected
+  docs/map.html          the MapLibre map, with site nav injected
   docs/years.html        the year analysis, with site nav injected
   docs/assets/site.css   shared styles
   docs/.nojekyll         stop Pages running Jekyll over the output
@@ -10,7 +10,7 @@
 The map/years pages are the artefacts produced by build_map.py /
 build_analysis.py; this script only wraps them in the site chrome so the
 whole thing navigates as one website. (years is self-contained; the map
-fetches assets/map_data.geojson at runtime, copied in below.)
+reads vector tiles and popup shards at runtime, copied in below.)
 """
 
 import csv
@@ -42,7 +42,7 @@ META = {
         "2,736 UK postcode districts — a 5-dim vine copula calibrated to ABI "
         "payouts, plus a climate-change repricing. All open data."),
     "map.html": (
-        "Interactive map — UK Home Insurance Risk Map",
+        "The model — UK Home Insurance Risk Map",
         "Eleven layers across 2,736 postcode districts: rating group, "
         "premium, each peril score, surface-water depth, coastal erosion "
         "and the climate repricing. Click any district for its breakdown."),
@@ -51,11 +51,16 @@ META = {
         "The same model at postcode-sector resolution: 10,398 units "
         "instead of 2,736. Nineteen per cent of districts turn out to "
         "hold sectors that differ by more than 2x in premium."),
+    "relative.html": (
+        "Relative risk — UK Home Insurance Risk Map",
+        "Every postcode district's modelled premium as a multiple of the "
+        "UK median: 2.00x means homes there carry twice the median risk. "
+        "The same model, re-expressed for comparison."),
     "years.html": (
-        "Good years vs bad years — UK Home Insurance Risk Map",
-        "What separates a quiet year from an expensive one: cost by peril, how "
-        "widely claims spread, an exceedance curve, and a backtest against 35 "
-        "years of real UK weather."),
+        "What happened — UK Home Insurance Risk Map",
+        "What UK home insurance actually paid out, year by year, from ABI "
+        "releases — including their own revisions — beside what the model "
+        "says a good, bad or catastrophic year looks like."),
     "methodology.html": (
         "Methodology — UK Home Insurance Risk Map",
         "How the peril scores are built from open data, how the 5-dim C-vine "
@@ -88,10 +93,18 @@ def head_tags(page):
 <meta name="twitter:image" content="{img}">"""
 
 # (href, full label, short label for narrow screens)
+#
+# The four content tabs, in reading order: what actually happened, what
+# the model makes of it, the same model relative to the median, and the
+# methodology that backs both. sectors.html is deliberately NOT here -
+# it is the model tab at a finer grain, reached by the switch link in
+# the map panel, and a sixth nav item bought nothing but width. A
+# temperature tab joins this list when that workstream's remaining
+# gates have reported (see HANDOFF.md).
 PAGES = [("index.html", "Overview", "Overview"),
-         ("map.html", "Map", "Map"),
-         ("sectors.html", "Sector map", "Sectors"),
-         ("years.html", "Good vs bad years", "Years"),
+         ("years.html", "What happened", "History"),
+         ("map.html", "The model", "Model"),
+         ("relative.html", "Relative risk", "Relative"),
          ("methodology.html", "Methodology", "Method")]
 
 # Recognisable names for districts that top the premium ranking.
@@ -668,6 +681,73 @@ def load_stats():
         "__SECTOR_IOU_70__": str(val["pct_above_70"]),
     })
 
+    # ---- the ABI CALIBRATION table. Hand-written from the first commit,
+    # and by 2026-08-28 it had drifted twice at once. Theft still read
+    # GBP450m / ~118,000 / 0.76% three days after the 2026-08-25 level
+    # correction moved it to GBP341.6m / 89,895 / 0.58%, and subsidence
+    # read GBP17,820 / ~17,200 the moment Gate 1's severity fix landed.
+    # Both were found by grepping the LIVE page for a number that should
+    # no longer exist, which is not a control anyone should rely on.
+    #
+    # A published table that restates the calibration will always drift
+    # from the calibration; the only fix is to stop restating it. Counts
+    # and frequencies are rendered to three significant figures - the old
+    # cells mixed 2, 3 and 4 sig figs by hand and rounded 137,576 down to
+    # "~137,000".
+    def _sf3(x):
+        from math import floor, log10
+        if x <= 0:
+            return "0"
+        # d goes NEGATIVE for counts, which is the whole point: round()
+        # with a negative ndigits is what turns 99,592 into 99,600.
+        # Clamping it at zero (the first attempt) silently rendered every
+        # count in full and produced a table claiming five significant
+        # figures on a calibration good to three.
+        d = 2 - int(floor(log10(abs(x))))
+        return f"{round(x, d):,.{max(0, d)}f}"
+
+    def _cal(paid_key, sev_key):
+        n = ABI[paid_key] / ABI[sev_key]
+        return (f"{ABI[paid_key] / 1e6:,.0f}", f"{ABI[sev_key]:,.0f}",
+                _sf3(n), _sf3(100 * n / POLICIES))
+
+    _wx = _cal("storm_paid", "sev_weather")
+    _fl = _cal("flood_paid", "sev_flood")
+    _sb = _cal("subsidence_paid", "sev_subsidence")
+    _th = _cal("theft_paid", "sev_theft")
+    _ew = _cal("eow_paid", "sev_eow")
+    _fr = _cal("fire_paid", "sev_fire")
+    _ad = _cal("ad_paid", "sev_ad")
+    # Every key spelled out as a LITERAL, not built with an f-string.
+    # test_site_placeholders_all_resolve greps this file for quoted
+    # double-underscore tokens and fails any placeholder in a template it
+    # cannot find here - and an f-string key is invisible to it. (Do not
+    # write an example token in quotes anywhere in this file either: the
+    # same grep reads it as a defined key and the test then fails the
+    # other way, for a key no template uses. It has already happened.) The first
+    # version of this block used a loop and shipped 28 placeholders the
+    # guard could not see. Verbose beats unverifiable: the guard exists
+    # because raw __TOKEN__ text has reached the live page before.
+    calib_bits = {
+        "__CAL_WX_PAID__": _wx[0], "__CAL_WX_SEV__": _wx[1],
+        "__CAL_WX_N__": _wx[2], "__CAL_WX_FREQ__": _wx[3],
+        "__CAL_FL_PAID__": _fl[0], "__CAL_FL_SEV__": _fl[1],
+        "__CAL_FL_N__": _fl[2], "__CAL_FL_FREQ__": _fl[3],
+        "__CAL_SUB_PAID__": _sb[0], "__CAL_SUB_SEV__": _sb[1],
+        "__CAL_SUB_N__": _sb[2], "__CAL_SUB_FREQ__": _sb[3],
+        "__CAL_TH_PAID__": _th[0], "__CAL_TH_SEV__": _th[1],
+        "__CAL_TH_N__": _th[2], "__CAL_TH_FREQ__": _th[3],
+        "__CAL_EOW_PAID__": _ew[0], "__CAL_EOW_SEV__": _ew[1],
+        "__CAL_EOW_N__": _ew[2], "__CAL_EOW_FREQ__": _ew[3],
+        "__CAL_FIRE_PAID__": _fr[0], "__CAL_FIRE_SEV__": _fr[1],
+        "__CAL_FIRE_N__": _fr[2], "__CAL_FIRE_FREQ__": _fr[3],
+        "__CAL_AD_PAID__": _ad[0], "__CAL_AD_SEV__": _ad[1],
+        "__CAL_AD_N__": _ad[2], "__CAL_AD_FREQ__": _ad[3],
+        # Groundwater has no published total and is pegged to a share of
+        # flood, so only its severity is a calibration figure at all.
+        "__CAL_GW_SEV__": f"{ABI['sev_groundwater']:,.0f}",
+    }
+
     # ---- methodology peril table. EVERY numeric cell in it is injected.
     # The severity column was hand-written in the first commit and six of
     # its nine cells had drifted by up to +162% once the ABI calibration
@@ -775,6 +855,7 @@ def load_stats():
         **eow_bits,
         **fire_bits,
         **ad_bits,
+        **calib_bits,
         "__EL_CLAIMS_SHARE__": el_claims_share,
         **sector_bits,
         **climate_band_stats(),
@@ -943,21 +1024,19 @@ MAP_CSS = """
 #legend, #about { bottom: 22px; }
 body { overflow: hidden; }
 
-/* NOTE - do not try to fix popup/panel overlap with z-index. Leaflet's
-   .leaflet-map-pane carries a transform, which makes it a stacking
-   context, so every pane inside it (popups included) is trapped below
-   whatever that pane resolves to. Raising .leaflet-popup-pane changes
-   nothing - measured - and raising .leaflet-map-pane lifts the whole map
-   over the panels and hides them. The popup is kept clear of the panels
-   by panning instead; see keepPopupClear() in the map template. */
+/* NOTE - do not try to fix popup/panel overlap with z-index. The map
+   container carries a transform, which makes it a stacking context, so
+   the popup inside it is trapped below whatever that container resolves
+   to; this was measured under Leaflet and MapLibre positions its popups
+   the same way. The popup is kept clear of the panels by panning
+   instead; see keepPopupClear() in the map template. */
 
 /* The popup opens compact (headline, scores, disclosures), but a reader
    who unfolds everything is back to ~1,000px of content - taller than an
-   800px laptop viewport - and Leaflet adds overflow handling only when
-   given a maxHeight, which it never was. Cap it and let it scroll
-   everywhere; the phone rule below tightens this to the gap between the
-   floating panels. */
-.leaflet-popup-content { max-height: 60vh; overflow-y: auto; }
+   800px laptop viewport - and no map library caps a popup on its own.
+   Cap it and let it scroll everywhere; the phone rule below tightens
+   this to the gap between the floating panels. */
+.maplibregl-popup-content { max-height: 60vh; overflow-y: auto; }
 
 /* Phones: the three floating panels have to share one small screen.
    Full-width stacked panels, each capped and internally scrollable, so
@@ -978,8 +1057,8 @@ body { overflow: hidden; }
   #legend .legend-row span { font-size: 11px; }
   #about { left: 8px; right: 8px; bottom: 8px; max-width: none; max-height: 40vh; overflow-y: auto; }
 
-  /* Leaflet puts the zoom buttons at the map's top-left, which on a phone
-     is exactly where #controls sits. They were not merely hidden - they
+  /* The zoom buttons sit at the map's top-left, which on a phone is
+     exactly where #controls sits. They were not merely hidden - they
      were unreachable, and a tap on "zoom out" landed on the metric button
      underneath, silently switching the map's layer instead of zooming.
 
@@ -987,21 +1066,20 @@ body { overflow: hidden; }
      below that is free until #legend begins. Put the zoom there, and lift
      it above the panels (which sit at z-index 1000) so a panel growing
      can never bury it again. */
-  .leaflet-top.leaflet-left { top: calc(34vh + 18px); z-index: 1100; }
+  .maplibregl-ctrl-top-left { top: calc(34vh + 18px); z-index: 1100; }
 
   /* The popup must FIT the free band between #controls (top: 60px,
      max-height 34vh) and #legend (bottom: 62px, max-height 24vh), or
      keepPopupClear() has no clear position to move it to and leaves it
      under a panel - which is how the close button ended up untappable
      under the metric buttons (caught by the layout tests; the old cap of
-     42vh - 165px plus Leaflet's ~35px of wrapper margins and tip was
-     taller than the band by construction).
+     42vh - 165px plus ~35px of popup chrome and tip was taller than the
+     band by construction).
      Band = 100vh - (60 + 34vh) - (62 + 24vh) = 42vh - 122px. Less 2x8px
      keep-clear padding and ~35px chrome: content cap = 42vh - 173px.
      -180 leaves slack for font rounding. Width in vw so rotation is
      handled without JS. */
-  .leaflet-popup-content { max-height: calc(42vh - 180px); overflow-y: auto; max-width: calc(100vw - 64px); }
-  .leaflet-popup-content-wrapper { max-width: calc(100vw - 40px); }
+  .maplibregl-popup-content { max-height: calc(42vh - 180px); overflow-y: auto; max-width: calc(100vw - 64px); }
 }
 """
 
@@ -1021,6 +1099,8 @@ def main():
                    "map.html", MAP_CSS)
     wrap_generated(os.path.join(ROOT, "map", "uk_sector_risk_map.html"),
                    "sectors.html", MAP_CSS)
+    wrap_generated(os.path.join(ROOT, "map", "uk_relative_risk_map.html"),
+                   "relative.html", MAP_CSS)
     wrap_generated(os.path.join(ROOT, "analysis", "uk_risk_year_analysis.html"),
                    "years.html", YEARS_CSS)
 
@@ -1029,15 +1109,36 @@ def main():
                 os.path.join(DOCS, "assets", "site.css"))
     print("  assets/site.css")
 
-    # Each map's geometry+properties, fetched at runtime rather than
-    # inlined (which made the district page 5.08 MB; the sector data is
-    # three times that again). build_map.py trims these to the columns
-    # the template reads - do not copy the raw model output here.
-    for asset in ("map_data.geojson", "sector_data.geojson"):
-        shutil.copy(os.path.join(ROOT, "map", asset),
-                    os.path.join(DOCS, "assets", asset))
-        print(f"  assets/{asset}  ("
-              f"{os.path.getsize(os.path.join(DOCS, 'assets', asset)) / 1e6:.1f} MB)")
+    # MapLibre and the PMTiles protocol, linked by the map pages rather
+    # than inlined the way Leaflet was: 267 KB gzipped is worth fetching
+    # once and caching across both map pages, where 47 KB was not.
+    for lib in ("maplibre-gl.js", "maplibre-gl.css", "pmtiles.js"):
+        shutil.copy(os.path.join(ROOT, "assets", lib),
+                    os.path.join(DOCS, "assets", lib))
+        print(f"  assets/{lib}")
+
+    # The maps themselves: vector tiles, one popup shard per postcode
+    # area, and the national name index. All from build_tiles.py, which
+    # must therefore have run - a missing tile set is a blank map, so
+    # copy it loudly rather than skipping what is not there.
+    for grain in ("districts", "sectors"):
+        for rel in (os.path.join("tiles", f"{grain}.pmtiles"),
+                    f"{grain}_index.json"):
+            src = os.path.join(ROOT, "map", rel)
+            if not os.path.exists(src):
+                raise SystemExit(
+                    f"map/{rel} is missing - run scripts/build_tiles.py "
+                    f"before build_site.py, or the published map is blank")
+            dst = os.path.join(DOCS, "assets", rel)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy(src, dst)
+            print(f"  assets/{rel}  ({os.path.getsize(dst) / 1e6:.1f} MB)")
+        units_src = os.path.join(ROOT, "map", "units", grain)
+        units_dst = os.path.join(DOCS, "assets", "units", grain)
+        shutil.rmtree(units_dst, ignore_errors=True)
+        shutil.copytree(units_src, units_dst)
+        print(f"  assets/units/{grain}/  "
+              f"({len(os.listdir(units_dst))} area files)")
 
     # compact per-district lookup for the landing-page search (no geometry)
     with open(os.path.join(ROOT, "data", "districts_risk.geojson"),

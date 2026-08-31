@@ -73,6 +73,25 @@ is correcting - it is accepted here only because the alternative is no
 comparison at all, and because the algebra above says the severity cannot
 move the level anyway.
 
+WHAT THIS HARNESS'S NUMBERS ARE, to the digit. Every figure here is an
+exposure-weighted mean of UNROUNDED per-district values. The published
+`districts_risk.geojson` is not: `build_model.main()` rounds `el*` and
+`premium` to 1 dp per district and `capital` to 4 dp before writing.
+
+So comparing a row here against a published figure compares two
+different quantisations. Measured on the Gate 1 rebuild: capital agreed
+to six decimals (5.533736), `el_total` differed by +0.0011. That is not
+an error in either - 1-dp rounding across 2,736 districts puts SD 0.00067
+on the weighted mean, so +0.0011 is 1.65 SD, while 4-dp rounding puts
+SD 6.7e-7 on capital's. The gap scales with each column's granularity,
+which is the signature of rounding and of nothing else.
+
+Practical rule: quote THIS for differences, at full precision. Quote it
+for absolute levels too, but only to about +-0.0013 on EL and premium -
+and note that reading those back out of the GeoJSON carries the same
++-0.0013, so a rebuild is not the more precise source, merely the
+published one.
+
 Usage:
   price_sub_level.py                 # all five, full N_SIM
   price_sub_level.py --nsim 4000     # quick shape check, NOT for quoting

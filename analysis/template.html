@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UK Home Insurance — Good Years vs Bad Years</title>
+<title>UK Home Insurance — What Happened, Year by Year</title>
 <style>
   :root {
     color-scheme: light;
@@ -12,6 +12,7 @@
     --ink-1: #0b0b0b; --ink-2: #52514e; --ink-muted: #6f6d67;
     --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
     --wx: #2a78d6; --sub: #eb6834; --fl: #1baf7a; --gw: #6f5cc4; --indep: #898781;
+    --eow: #5b7c99;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -20,6 +21,7 @@
       --ink-1: #ffffff; --ink-2: #c3c2b7; --ink-muted: #898781;
       --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
       --wx: #3987e5; --sub: #d95926; --fl: #199e70; --gw: #9085e9;
+      --eow: #7fa3c0;
     }
   }
   :root[data-theme="dark"] {
@@ -28,6 +30,7 @@
     --ink-1: #ffffff; --ink-2: #c3c2b7; --ink-muted: #898781;
     --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
     --wx: #3987e5; --sub: #d95926; --fl: #199e70; --gw: #9085e9;
+    --eow: #7fa3c0;
   }
   * { box-sizing: border-box; }
   body {
@@ -53,6 +56,7 @@
   .legend span { display: inline-flex; align-items: center; gap: 6px; }
   .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
   .sw.line { width: 16px; height: 2px; border-radius: 1px; }
+  .sw.ghost { background: transparent; border: 2px solid var(--ink-muted); border-radius: 50%; width: 8px; height: 8px; }
   svg { display: block; width: 100%; height: auto; }
   /* Charts size their own canvas to the card (see geom() below), so they
      fit without scrolling. overflow-x stays as a safety net only - if a
@@ -82,8 +86,62 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Good years vs bad years</h1>
-  <div class="sub">UK home portfolio &middot; subsidence &times; weather &times; flood (incl. surface water) &times; groundwater &middot; C-vine copula &middot; <span id="nsim"></span> simulated years &middot; per-policy averages, <b>these four weather-driven perils only</b> &mdash; coastal erosion is in the model but not here, being chronic rather than episodic, so it has no good or bad years; theft, escape of water, fire and accidental damage are priced but sit outside the vine &mdash; theft's ~0.1% systemic loading means its bad years barely exist (a 1-in-100 theft year is ~1.3&times; average), fire's is smaller still (no systemic fire years in forty-five years of Home Office counts), accidental damage's is the smallest of all (the 2020&ndash;21 lockdowns, the biggest stay-at-home shock on record, moved AD claims by only ~6%), and while escape of water's freeze loading is real (winter 2010 doubled the year's burst-pipe bill), its bad years are cold snaps, not storm seasons, so all four would only blur the weather story told here</div>
+  <h1>What happened</h1>
+  <div class="sub">UK home insurance, year by year &mdash; first what was
+  <b>actually paid out</b>, from the ABI&rsquo;s own published figures with
+  their revisions shown, then what the model makes of good and bad years,
+  and whether the drivers it watches match the years Britain remembers.
+  No per-district claims data is published anywhere, by any insurer, at any
+  price &mdash; so the observed record here is national, and the maps on the
+  other tabs are model output calibrated to it.</div>
+
+  <h2>What the ABI actually paid</h2>
+  <p class="desc">Weather-related payouts to UK homes, as the Association of
+  British Insurers announced them &mdash; the observed numbers this model is
+  calibrated against. <b>Hollow markers are figures as first published where
+  the ABI later revised them</b>: claims keep settling after a year closes,
+  so the first announcement and the eventual cost differ &mdash; for 2023 by
+  a quarter.</p>
+  <div class="card">
+    <div class="legend">
+      <span><span class="sw" style="background:var(--wx)"></span>Weather claims paid to homes (&pound;m)</span>
+      <span><span class="sw" style="background:var(--indep)"></span>All home claims paid (&pound;m, context)</span>
+      <span><span class="sw ghost"></span>as first published, since revised</span>
+    </div>
+    <div id="abichart" class="chart"></div>
+  </div>
+
+  <h2>How many homes claimed</h2>
+  <p class="desc">Homes making claims per year by weather peril, where the
+  ABI has published a count. Burst pipes are the freeze component of escape
+  of water &mdash; announced in the winter releases rather than the annual
+  ones, which is why their years differ.</p>
+  <div class="card">
+    <div class="legend">
+      <span><span class="sw" style="background:var(--wx)"></span>Storm</span>
+      <span><span class="sw" style="background:var(--fl)"></span>Flood</span>
+      <span><span class="sw" style="background:var(--sub)"></span>Subsidence</span>
+      <span><span class="sw" style="background:var(--eow)"></span>Burst pipes</span>
+    </div>
+    <div id="abicount" class="chart"></div>
+  </div>
+
+  <h2>The subsidence record, quarter by quarter</h2>
+  <p class="desc">The ABI&rsquo;s subsidence announcements, assembled from
+  its press releases &mdash; one recovered from the Internet Archive after
+  the original page 404ed. Gaps are gaps in what the ABI chose to announce,
+  not quiet quarters. The 2018 surge &mdash; from 2,500 notified claims to
+  more than 10,000 in a single quarter &mdash; is the sharpest jump since
+  the series began, and 2022&rsquo;s record-heat summer is the modern
+  echo.</p>
+  <div class="card" style="overflow-x:auto">
+    <table class="buckets" id="abisub"></table>
+  </div>
+  <p class="note" id="abisources" style="margin-top:10px"></p>
+
+  <h2 style="margin-top:44px; font-size:19px">The model&rsquo;s view: good years vs bad years</h2>
+  <div class="sub">Everything below is <b>simulated</b> &mdash; the model&rsquo;s
+  answer to what separates a quiet year from an expensive one. UK home portfolio &middot; subsidence &times; weather &times; flood (incl. surface water) &times; groundwater &middot; C-vine copula &middot; <span id="nsim"></span> simulated years &middot; per-policy averages, <b>these four weather-driven perils only</b> &mdash; coastal erosion is in the model but not here, being chronic rather than episodic, so it has no good or bad years; theft, escape of water, fire and accidental damage are priced but sit outside the vine &mdash; theft's ~0.1% systemic loading means its bad years barely exist (a 1-in-100 theft year is ~1.3&times; average), fire's is smaller still (no systemic fire years in forty-five years of Home Office counts), accidental damage's is the smallest of all (the 2020&ndash;21 lockdowns, the biggest stay-at-home shock on record, moved AD claims by only ~6%), and while escape of water's freeze loading is real (winter 2010 doubled the year's burst-pipe bill), its bad years are cold snaps, not storm seasons, so all four would only blur the weather story told here</div>
 
   <div class="tiles" id="tiles"></div>
 
@@ -138,6 +196,19 @@
   </div>
   <p class="note" id="worstnote"></p>
 
+  <h2>How many claims, and how big?</h2>
+  <p class="desc">The same simulated buckets, split the other way: how many
+  claims each kind of year produces, and what each claim costs.
+  <span id="g4headline"></span> Counts are claims, not claimants &mdash; a
+  home claiming on two perils counts twice, which is the basis the
+  ABI&rsquo;s own published figure uses.</p>
+  <div class="card" style="overflow-x:auto">
+    <table class="buckets" id="g4counts"></table>
+  </div>
+  <div class="card" style="overflow-x:auto; margin-top:14px">
+    <table class="buckets" id="g4costs"></table>
+  </div>
+
   <div id="backtest" style="display:none; scroll-margin-top:64px">
     <h2>Does this match real UK years?</h2>
     <p class="desc">The loss model can't be validated without claims data — but its
@@ -186,6 +257,8 @@
 const A = __DATA__;
 const SENS = __SENS__;
 const HIST = __HISTORY__;
+const ABI = __ABI__;
+const ABISUB = __ABI_SUB__;
 const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
 const GBP = v => '£' + Math.round(v).toLocaleString('en-GB');
 const tip = document.getElementById('tip');
@@ -273,6 +346,147 @@ if (typeof ResizeObserver !== 'undefined') {
 }
 let _rt;
 addEventListener('resize', () => { clearTimeout(_rt); _rt = setTimeout(renderCharts, 150); });
+
+/* ---- observed: ABI payouts, with their own revisions visible ---------
+   Every row of data/abi_annual.csv carries the release it came from. The
+   chart plots the LATEST figure per year as the series and every
+   superseded figure as a hollow ghost marker at the same x - the
+   revision is part of the record, not a footnote. Latest = lexically
+   greatest vintage, which works because vintages start "YYYY-MM". */
+const latestBy = (rows, key) => {
+  const m = new Map();
+  for (const r of rows) {
+    const k = key(r);
+    if (!m.has(k) || r.vintage > m.get(k).vintage) m.set(k, r);
+  }
+  return m;
+};
+
+chart('abichart', function (mount) {
+  const g = geom('abichart', { W: 900, H: 300, L: 56, R: 16, T: 16, B: 30, GAP: 26 },
+                             { H: 250, L: 40, R: 10, T: 12, B: 28, GAP: 20 });
+  const { W, H, L, R, T, B, GAP } = g;
+  const panelH = (H - T - B - GAP) / 2;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
+  const series = [['weather_homes_total', '--wx', 'weather claims paid (£m)'],
+                  ['home_paid_total', '--indep', 'all home claims paid (£m)']];
+  const years = [...new Set(ABI.annual
+    .filter(r => series.some(s => s[0] === r.m)).map(r => r.y))].sort();
+  const slot = (W - L - R) / years.length;
+  const x = yr => L + (years.indexOf(yr) + 0.5) * slot;
+
+  series.forEach(([metric, colour, label], pi) => {
+    const rows = ABI.annual.filter(r => r.m === metric);
+    const latest = latestBy(rows, r => r.y);
+    const y0 = T + pi * (panelH + GAP) + 10;
+    const hi = Math.max(...rows.map(r => r.v)) * 1.12;
+    const y = v => y0 + panelH - (v / hi) * panelH;
+    el('text', { x: L, y: y0 - 3, class: 'axis-label' }, svg).textContent = label;
+    for (const v of [0, hi / 1.12]) {
+      el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: css('--grid') }, svg);
+      el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+        .textContent = Math.round(v).toLocaleString('en-GB');
+    }
+    const pts = [...latest.values()].sort((a, b) => a.y - b.y);
+    el('path', { d: pts.map((r, i) => (i ? 'L' : 'M') + x(r.y).toFixed(1) + ' ' + y(r.v).toFixed(1)).join(' '),
+                 fill: 'none', stroke: css(colour), 'stroke-width': 2 }, svg);
+    for (const r of rows) {
+      const cur = latest.get(r.y) === r;
+      const dot = el('circle', {
+        cx: x(r.y), cy: y(r.v), r: cur ? 4.5 : 4,
+        fill: cur ? css(colour) : css('--surface-1'),
+        stroke: css(colour), 'stroke-width': cur ? 0 : 2,
+      }, svg);
+      dot.addEventListener('mousemove', ev => showTip(
+        `<b>${r.y}</b> · £${r.v.toLocaleString('en-GB')}m<br>` +
+        (cur ? `${r.basis} · ${r.vintage}`
+             : `as first published (${r.vintage.replace(' comparative', '')})<br>since revised to £${latest.get(r.y).v.toLocaleString('en-GB')}m`),
+        ev.clientX, ev.clientY));
+      dot.addEventListener('mouseleave', hideTip);
+    }
+  });
+  years.forEach(yr => {
+    el('text', { x: x(yr), y: H - 8, 'text-anchor': 'middle', class: 'tick-label' }, svg)
+      .textContent = yr;
+  });
+});
+
+/* ---- observed: homes claiming, by peril ---- */
+chart('abicount', function (mount) {
+  const g = geom('abicount', { W: 900, H: 260, L: 56, R: 16, T: 18, B: 34 },
+                             { H: 220, L: 40, R: 10, T: 14, B: 32 });
+  const { W, H, L, R, T, B } = g;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
+  const perils = [['storm_homes', '--wx', 'Storm'], ['flood_homes', '--fl', 'Flood'],
+                  ['subsidence_homes', '--sub', 'Subsidence'],
+                  ['burstpipes_homes', '--eow', 'Burst pipes']];
+  const rows = ABI.annual.filter(r => perils.some(p => p[0] === r.m));
+  const latest = latestBy(rows, r => r.m + '|' + r.y);
+  const years = [...new Set(rows.map(r => r.y))].sort();
+  const hi = Math.max(...rows.map(r => r.v)) * 1.15;
+  const y = v => T + (1 - v / hi) * (H - T - B);
+  const slot = (W - L - R) / years.length;
+  const gap = g.narrow ? 2 : 6;
+  const bw = Math.min(34, (slot * 0.86 - 3 * gap) / 4);
+  const kfmt = v => v >= 1000 ? Math.round(v / 1000) + 'k' : v;
+  const ystep = hi > 80000 ? 20000 : 10000;
+  for (let v = 0; v <= hi; v += ystep) {
+    el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: css('--grid') }, svg);
+    el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = kfmt(v);
+  }
+  el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: css('--axis') }, svg);
+  years.forEach((yr, i) => {
+    const cx = L + slot * (i + 0.5);
+    perils.forEach(([m, colour, name], j) => {
+      const r = latest.get(m + '|' + yr);
+      if (!r) return;   // not every peril count is published every year
+      const bx = cx + (j - 1.5) * (bw + gap) - bw / 2;
+      const rect = el('rect', { x: bx, y: y(r.v), width: bw, height: H - B - y(r.v),
+                                fill: css(colour), rx: 2 }, svg);
+      rect.addEventListener('mousemove', ev => showTip(
+        `<b>${yr}</b> · ${name}<br><b>${r.v.toLocaleString('en-GB')}</b> homes claimed<br>${r.basis} · ${r.vintage}`,
+        ev.clientX, ev.clientY));
+      rect.addEventListener('mouseleave', hideTip);
+    });
+    el('text', { x: cx, y: H - B + 17, 'text-anchor': 'middle', class: 'tick-label' }, svg)
+      .textContent = yr;
+  });
+});
+
+/* ---- observed: the quarterly subsidence record ---- */
+(function () {
+  const BAS = { notified_count: 'notified', incurred_notified: 'incurred',
+                incurred_ultimate: 'ultimate', paid_in_period: 'paid in period',
+                avg_incurred: 'avg incurred', avg_paid: 'avg paid',
+                implied: 'implied', supported_households: 'households' };
+  const COLS = [['subsidence_claims', v => v.toLocaleString('en-GB')],
+                ['subsidence_incurred', v => '£' + v.toLocaleString('en-GB') + 'm'],
+                ['subsidence_paid', v => '£' + v.toLocaleString('en-GB') + 'm'],
+                ['subsidence_avg', v => '£' + v.toLocaleString('en-GB')]];
+  const periods = [...new Set(ABISUB.rows.map(r => r.p))].sort();
+  const html = periods.map(p => {
+    const cells = COLS.map(([m, fmt]) => {
+      const es = ABISUB.rows.filter(r => r.p === p && r.m === m);
+      return '<td>' + (es.length ? es.map(r =>
+        fmt(r.v) + (r.prov !== 'published' || es.length > 1
+          ? ` <small style="color:var(--ink-muted)">(${BAS[r.basis] || r.basis}${r.prov !== 'published' ? ', ' + r.prov : ''})</small>` : ''))
+        .join('<br>') : '—') + '</td>';
+    }).join('');
+    const vint = [...new Set(ABISUB.rows.filter(r => r.p === p).map(r => r.vintage))].sort();
+    return `<tr><td class="hl">${p}</td>${cells}<td><small>${vint.join('; ')}</small></td></tr>`;
+  }).join('');
+  document.getElementById('abisub').innerHTML =
+    `<tr><th>Period</th><th>Claims</th><th>Incurred</th><th>Paid</th>
+     <th>Avg / claim</th><th>ABI release</th></tr>` + html;
+
+  const links = ABI.sources.map(s => `<a href="${s.url}">${s.label}</a>`).join(' · ');
+  document.getElementById('abisources').innerHTML =
+    `<b>Sources.</b> ${links} · full provenance, including every recovered
+     figure's exact wording: <a href="https://github.com/SMcode-source/uk-home-insurance-risk-map/blob/main/data/abi_annual.csv">abi_annual.csv</a>
+     and <a href="https://github.com/SMcode-source/uk-home-insurance-risk-map/blob/main/data/abi_subsidence.csv">abi_subsidence.csv</a>
+     · how these anchor the model: <a href="methodology.html#calibration">methodology</a>.`;
+})();
 
 /* ---- stat tiles ---- */
 const bk = Object.fromEntries(A.buckets.map(b => [b.label, b]));
@@ -432,6 +646,38 @@ chart('incidence', function (mount) {
     in ${w.inc_wx_pct}% of districts for weather and ${w.inc_fl_pct}% for flood — a
     nationwide storm-and-flood event, which is exactly the joint tail the Gumbel
     pairs put mass on.`;
+})();
+
+/* ---- claim counts and claim sizes by bucket (Gate 4) ----
+   The headline multiples are computed from the data, not typed in, so a
+   re-simulation cannot leave this sentence quoting stale figures. */
+(function () {
+  const b0 = A.buckets[0];
+  if (!('claims_total_per_100k' in b0)) return;  // pre-Gate-4 data
+  const typ = A.buckets.find(b => b.label === 'typical');
+  const cat = A.buckets.find(b => b.label === 'catastrophic');
+  const xC = (cat.claims_total_per_100k / typ.claims_total_per_100k).toFixed(1);
+  const xV = (cat.cost_total_per_claim / typ.cost_total_per_claim).toFixed(1);
+  document.getElementById('g4headline').innerHTML =
+    `A bad year is mostly <b>dearer claims, not more claims</b>: the worst 1%
+     of years run at ${xC}× a typical year's claim count but ${xV}× its cost
+     per claim.`;
+  const P = [['total', 'All perils'], ['wx', 'Weather'], ['sub', 'Subsidence'],
+             ['fl', 'Flood'], ['gw', 'Groundwater']];
+  const num = v => Math.round(v).toLocaleString('en-GB');
+  const rows = (field, fmt) => A.buckets.map(b => `
+    <tr><td class="hl">${b.label}</td>` +
+    P.map(([k]) => `<td${k === 'total' ? ' class="hl"' : ''}>${fmt(b[`${field}_${k}${field === 'claims' ? '_per_100k' : '_per_claim'}`])}</td>`).join('') +
+    `<td>${(b[`${field}_total${field === 'claims' ? '_per_100k' : '_per_claim'}`] /
+            typ[`${field}_total${field === 'claims' ? '_per_100k' : '_per_claim'}`]).toFixed(2)}×</td></tr>`).join('');
+  const head = title => `<tr><th>Year bucket</th>` +
+    P.map(([, n]) => `<th>${n}</th>`).join('') + `<th>vs typical</th></tr>`;
+  document.getElementById('g4counts').innerHTML =
+    `<tr><th colspan="7" style="text-align:left; color:var(--ink-1)">Claims per 100,000 policies</th></tr>` +
+    head() + rows('claims', num);
+  document.getElementById('g4costs').innerHTML =
+    `<tr><th colspan="7" style="text-align:left; color:var(--ink-1)">Cost per claim</th></tr>` +
+    head() + rows('cost', v => GBP(v));
 })();
 
 /* ---- backtest: real hazard drivers by year ---- */
