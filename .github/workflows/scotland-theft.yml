@@ -1,0 +1,126 @@
+name: scotland theft basis pricing
+
+# Theft geography comes from police.uk, which has no Scottish forces, so
+# every Scottish district is overridden with one national rate built on
+# SCOTLAND_HOUSEBREAKING_2024_25 = 7,381 - TOTAL Housebreaking, all
+# premises. England and Wales are not all-premises: Phase 2a divides
+# each district's burglary count by households PLUS its VOA non-domestic
+# premises count. Scotland was touched in that commit only to note that
+# VOA is E&W-only; the comparator was never revisited.
+#
+# This prices what that asymmetry is worth: four full simulations off
+# one scored frame - the published 7,381 against Scotland's Domestic
+# 5,192 and Dwelling 3,661, plus a `matched` variant that also scales
+# E&W to the same residential share so neither country carries
+# commercial burglary the other has had removed. See
+# scripts/price_scotland_theft.py for where each comparator comes from.
+#
+# The naive reading - Scotland is inflated 7381/5192 = 1.42x - is one of
+# the things being tested rather than assumed. The E&W correction is a
+# geographic attribution, not a category filter, and the harness
+# measures how much of E&W's commercial burglary it actually removes
+# (91.2% retained) instead of taking the description on trust.
+#
+# The LEVEL cannot price: calibrate_frequency pins the exposure-weighted
+# national theft frequency to the ABI anchor, so a uniform change
+# cancels exactly and el_th must come back identical in all four. What
+# is at stake is the Scotland-to-E&W RATIO, currently 0.359.
+#
+# MEASUREMENT ONLY. Nothing here touches the published model: no output
+# file is regenerated and there is deliberately no commit step. The
+# result is a table the user decides on.
+#
+# Runs on CI for the same reason the other pricing workflows do: the
+# laptop's commit limit cannot hold four simulate() passes next to its
+# usual neighbours, and a runner has its own memory.
+#
+# Triggered by PUSH to the experiment branch rather than by dispatch.
+# workflow_dispatch only works from the DEFAULT branch, and putting a
+# measurement workflow on main to price something that may never ship
+# gets the ordering backwards - main should learn about this when there
+# is a decision to record, not before. Retire the push trigger and
+# record the answer in this comment once it has one, as freeze-share.yml
+# and smd-curve.yml did.
+on:
+  push:
+    branches: [exp/scotland-theft-basis]
+    paths:
+      - "scripts/price_scotland_theft.py"
+      - ".github/workflows/scotland-theft.yml"
+  workflow_dispatch:
+    inputs:
+      nsim:
+        description: "Simulated years per district (blank = the model's 20,000)"
+        default: ""
+      batch:
+        description: "Districts per simulation batch (blank = the model's 80)"
+        default: ""
+
+concurrency:
+  group: scotland-theft
+  cancel-in-progress: false
+
+jobs:
+  price:
+    name: price the Scottish theft basis
+    runs-on: ubuntu-latest
+    # Four full 20,000-year simulations off one scored frame, on the
+    # rate the freeze-share run measured (seven in well under 340 min).
+    timeout-minutes: 240
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Clone postcode-district boundaries
+        run: |
+          git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git \
+            data/uk-postcode-polygons
+
+      # Same mirror, same pinned hashes as rebuild.yml - see the long note
+      # there for why BGS itself cannot be reached from GitHub runners.
+      - name: Download BGS geology from the data mirror
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download data-bgs-625k-v1 --dir data \
+            --pattern 'bgs_625k_*.geojson.gz'
+          gunzip data/bgs_625k_bedrock.geojson.gz \
+                 data/bgs_625k_superficial.geojson.gz
+          sha256sum -c <<'SUMS'
+          66524b94dfeb491a746994dfa5e334b52a9b15a42f82c15977df1d5c100c3fb7  data/bgs_625k_bedrock.geojson
+          a029e2ab61190c7103983c33d77c24743c7bb2c9fcfcd25ebd063ab9f3c38aee  data/bgs_625k_superficial.geojson
+          SUMS
+
+      - name: Reject incomplete geology
+        run: |
+          if ls data/*.partial 2>/dev/null; then
+            echo "::error::a geology layer is incomplete (.partial) - refusing to price"
+            exit 1
+          fi
+          python -u scripts/fetch_bgs.py --verify
+
+      - name: Price the variants
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.nsim }}" ];  then ARGS="$ARGS --nsim ${{ inputs.nsim }}"; fi
+          if [ -n "${{ inputs.batch }}" ]; then ARGS="$ARGS --batch ${{ inputs.batch }}"; fi
+          python -u scripts/price_scotland_theft.py $ARGS
+
+      - name: Show the table again at the end of the log
+        run: cat data/scotland_theft_pricing.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scotland-theft-pricing
+          path: data/scotland_theft_pricing.json
+          retention-days: 30
