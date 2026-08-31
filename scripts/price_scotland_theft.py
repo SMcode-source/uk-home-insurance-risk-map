@@ -1,9 +1,11 @@
 """The Scottish theft basis, priced: is 7,381 the right comparator?
 
 Five full-fidelity runs off ONE scored frame, the price_freeze_share.py
-pattern - scoring is the expensive half and is identical across
-variants, so every variant re-calibrates and re-simulates the same frame
-with the same seed and all differences are PAIRED.
+pattern: scoring is identical across variants, so every variant
+re-calibrates and re-simulates the same frame with the same seed and all
+differences are PAIRED. (Unlike the sector grain, district scoring is
+cheap - 0.2 min against 3.7 min per simulation on a runner - so the
+saving here is determinism, not time.)
 
 WHAT IS ACTUALLY AT STAKE. Theft geography comes from police.uk, which
 has no Scottish forces, so every Scottish district is overridden with

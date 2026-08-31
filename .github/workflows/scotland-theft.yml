@@ -49,15 +49,39 @@ name: scotland theft basis pricing
 # workflow_dispatch only works from the DEFAULT branch, and putting a
 # measurement workflow on main to price something that may never ship
 # gets the ordering backwards - main should learn about this when there
-# is a decision to record, not before. Retire the push trigger and
-# record the answer in this comment once it has one, as freeze-share.yml
-# and smd-curve.yml did.
+# is a decision to record, not before.
+#
+# Push trigger retired 2026-09-01, answer recorded. Run 33449273312
+# priced all five variants. el_th comes back at 22.038710 in every one
+# of them (drift <= 2.2e-16, so the ct_th renormalisation held) and the
+# headline premium is 169.6483 in all five to four decimals: the basis
+# is a pure relativity and cannot touch the level, exactly as
+# calibrate_frequency promises.
+#
+# What it moves is Scotland. Mean Scottish premium GBP172.09 published:
+#
+#   matched_domestic  171.56  (-0.53, -0.3%)  48 movers, largest -0.90
+#   matched_dwelling  171.13  (-0.96, -0.6%)  82 movers, largest -1.64
+#
+# against the one-sided fix the naive reading implies:
+#
+#   domestic          169.62  (-2.47, -1.4%) 194 movers, largest -4.22
+#   dwelling          167.86  (-4.23, -2.5%) 312 movers, largest -7.23
+#
+# Nothing moves two rating groups in any variant. So the asymmetry is
+# real and worth about half a percent on Scottish premiums, and the
+# naive one-sided correction would have been four to five times too
+# large and in the wrong direction of confidence. Nothing shipped; 7,381
+# stays and LIMITATIONS records the measurement.
+#
+# Run 33448637463 is kept in the record as a cancelled first attempt
+# worth remembering: it priced Scotland against an E&W side it had only
+# described, closing the gap with an assumption where ONS Table A5a
+# publishes the number. The assumption was nearly right and the answer
+# still changed, because the comparison is not Scotland against truth -
+# it is Scotland against what the model's own denominator leaves
+# standing.
 on:
-  push:
-    branches: [exp/scotland-theft-basis]
-    paths:
-      - "scripts/price_scotland_theft.py"
-      - ".github/workflows/scotland-theft.yml"
   workflow_dispatch:
     inputs:
       nsim:

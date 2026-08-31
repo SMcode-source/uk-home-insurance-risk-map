@@ -223,6 +223,38 @@ Their materiality differs sharply, though, and the distinction matters:
 - **Surface-water depth and Scottish theft are the materially damaging
   ones**: they sit inside flood (12.27%) and theft (13.43%).
 
+**Scottish theft's *basis* has now been measured, and it is smaller than
+it looks** (run 33449273312, `scripts/price_scotland_theft.py`, artifact
+`data/scotland_theft_pricing.json`). The override uses 7,381 — *Total*
+Housebreaking, all premises — while Phase 2a gave England and Wales a
+residential-share denominator and never revisited the comparator. The
+obvious reading is that Scotland is inflated by 7381/5192 = 1.42×. It is
+not:
+
+| | share of burglary that is residential | inflation carried |
+|---|---|---|
+| E&W, as the model computes it | 91.2% retained by `hh/(hh+prem)` | — |
+| E&W, ONS Table A5a (Apr 2023–Mar 2026) | 68.5% | **1.33×** |
+| Scotland, Table A6 (2024-25) | 70.3% domestic | **1.42×** |
+
+Two errors in the same direction that nearly cancel: like-for-like,
+Scotland is over-stated by **1.07×**. Priced, that is **−£0.53 to −£0.96
+on the mean Scottish premium** (£172.09 published), 48–82 districts
+moving one rating group, none moving two, and the UK headline unchanged
+at £169.65. Correcting Scotland *alone* — the naive fix — would move it
+−£2.47 to −£4.23, four to five times too far. The two taxonomies line up
+closely enough for the comparison to be fair: E&W residential 68.5%
+against Scottish domestic 70.3%, E&W home-only 51.1% against Scottish
+dwelling 49.6%.
+
+Period is not a confound. Scottish housebreaking fell 18% between
+2023-24 and 2024-25, so a backward multi-year mean would sit above
+7,381 — but the police.uk archive runs 2023-07 to 2026-06, centred on
+December 2024, and the 2024-25 constant straddles that centre.
+
+**7,381 stays.** The *geography* gap (one flat rate across 442
+districts) remains the materially damaging half, and §7 still ranks it.
+
 ---
 
 ## 6. Unanchored assumptions

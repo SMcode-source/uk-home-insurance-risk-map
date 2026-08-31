@@ -402,7 +402,8 @@ districts**, used as the exposure weight throughout.
       incident-level data) — but 9 Scottish districts still show 1–2
       incidents via **British Transport Police**, which does cover
       Scottish railways. The country-mask fallback must OVERRIDE
-      Scotland, not merely fill blanks. Northern Ireland (PSNI) is in
+      Scotland, not merely fill blanks. The override's comparator was
+      measured on 2026-09-01 and **kept**: see #36 and LIMITATIONS §5. Northern Ireland (PSNI) is in
       the archive but outside the GB polygons; its rows land in the
       "outside every polygon" bucket (8,633 with BTP/coastal strays).
     - **Calibration anchor (the LEVEL):** the ABI stopped publishing an
@@ -1136,6 +1137,35 @@ districts**, used as the exposure weight throughout.
     Companion measurement, not a data source:
     `scripts/measure_frost_era.py`, which tested re-aiming the frost
     climatology and rejected it against within-era controls.
+
+36. **The two countries' burglary taxonomies — how the Scottish theft
+    override was checked (measured 2026-09-01).** Not an input to the
+    model: neither table is read at build time, and nothing changed as a
+    result. Both are cited here because the check turned on them.
+
+    - **Recorded Crime in Scotland 2024-25, Table A6** (gov.scot, OGL
+      v3.0), the source of `SCOTLAND_HOUSEBREAKING_2024_25`. Downloaded
+      to `data/cache/` (gitignored, refetchable). Theft by Housebreaking,
+      2024-25: Dwelling **3,661**, Non-dwelling **1,531**, Domestic
+      **5,192**, Other **2,189**, Total **7,381**. The model uses the
+      Total.
+    - **Crime in England and Wales: Appendix tables, year ending March
+      2026 edition, Table A5a** (ONS / Home Office police recorded
+      crime, OGL v3.0),
+      `https://www.ons.gov.uk/file?uri=/peoplepopulationandcommunity/crimeandjustice/datasets/crimeinenglandandwalesappendixtables/yearendingmarch2026/appendixtablesyemar2026.xlsx`.
+      Splits E&W burglary exactly the way Scotland splits housebreaking.
+      Summed over Apr 2023 – Mar 2026, which brackets the police.uk
+      window in #25: Residential **503,171**, of which home **375,677**;
+      total **734,529**. Residential share **68.5%** (68.7 / 67.9 / 68.9
+      by year — stable, so the window choice does no work).
+
+    The taxonomies line up: E&W residential 68.5% against Scottish
+    domestic 70.3%, E&W home-only 51.1% against Scottish dwelling 49.6%.
+    That is what makes the comparison fair, and it is why the naive
+    reading fails — see LIMITATIONS §5 and `price_scotland_theft.py`.
+    Note the file naming: the year-ending-March-**2025** edition is NOT
+    at the analogous URL (404); the 2026 edition carries the full time
+    series and is the one to fetch.
 
 ## Budget: zero, decided 2026-08-31
 
