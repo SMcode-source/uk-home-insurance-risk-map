@@ -1,0 +1,112 @@
+name: freeze share pricing
+
+# The freeze re-aim's decision half: what a warming winter can cost this
+# model. Six full simulations off one scored frame - the published
+# EOW_FREEZE_SHARE of 0.31 against a 0.20/0.266/0.40 dose-response, plus
+# two variants that separate the frost INSTRUMENT (daily extraction vs
+# the gridded climatology the model reads) from the frost ERA. See
+# scripts/price_freeze_share.py for where each share comes from.
+#
+# The map itself is NOT a variant here, and that is a measured decision
+# rather than an omission: measure_frost_era.py compared every candidate
+# window against within-era controls that hold the climate fixed and
+# vary only the sample, and the two defensible windows move the
+# relativity far less than two halves of the published era move it
+# against each other. The level cannot price at all - eow_rate divides
+# frost by its own exposure-weighted mean - so the share is the only
+# lever a warming winter has, and this prices it.
+#
+# MEASUREMENT ONLY. Nothing here touches the published model: no output
+# file is regenerated and there is deliberately no commit step. The
+# result is a table the user decides on.
+#
+# Runs on CI for the same reason the other pricing workflows do: the
+# laptop's commit limit cannot hold six simulate() passes next to its
+# usual neighbours, and a runner has its own memory.
+#
+# Triggered by PUSH to the experiment branch rather than by dispatch.
+# workflow_dispatch only works from the DEFAULT branch, and putting a
+# measurement workflow on main to price something that may never ship
+# gets the ordering backwards - main should learn about this when there
+# is a decision to record, not before. Retire this trigger to
+# workflow_dispatch, with the answer recorded here, once it has run.
+on:
+  push:
+    branches: [exp/freeze-era]
+  workflow_dispatch:
+    inputs:
+      nsim:
+        description: "Simulated years per district (blank = the model's 20,000)"
+        default: ""
+      batch:
+        description: "Districts per simulation batch (blank = the model's 80)"
+        default: ""
+
+concurrency:
+  group: freeze-share
+  cancel-in-progress: false
+
+jobs:
+  price:
+    name: price the freeze share
+    runs-on: ubuntu-latest
+    # Six full 20,000-year simulations off one scored frame, on the rate
+    # the SMD run measured (seven in well under 340 minutes).
+    timeout-minutes: 300
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Clone postcode-district boundaries
+        run: |
+          git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git \
+            data/uk-postcode-polygons
+
+      # Same mirror, same pinned hashes as rebuild.yml - see the long note
+      # there for why BGS itself cannot be reached from GitHub runners.
+      - name: Download BGS geology from the data mirror
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download data-bgs-625k-v1 --dir data \
+            --pattern 'bgs_625k_*.geojson.gz'
+          gunzip data/bgs_625k_bedrock.geojson.gz \
+                 data/bgs_625k_superficial.geojson.gz
+          sha256sum -c <<'SUMS'
+          66524b94dfeb491a746994dfa5e334b52a9b15a42f82c15977df1d5c100c3fb7  data/bgs_625k_bedrock.geojson
+          a029e2ab61190c7103983c33d77c24743c7bb2c9fcfcd25ebd063ab9f3c38aee  data/bgs_625k_superficial.geojson
+          SUMS
+
+      - name: Reject incomplete geology
+        run: |
+          if ls data/*.partial 2>/dev/null; then
+            echo "::error::a geology layer is incomplete (.partial) - refusing to price"
+            exit 1
+          fi
+          python -u scripts/fetch_bgs.py --verify
+
+      - name: Price the variants
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.nsim }}" ];  then ARGS="$ARGS --nsim ${{ inputs.nsim }}"; fi
+          if [ -n "${{ inputs.batch }}" ]; then ARGS="$ARGS --batch ${{ inputs.batch }}"; fi
+          python -u scripts/price_freeze_share.py $ARGS
+
+      - name: Show the table again at the end of the log
+        run: cat data/freeze_share_pricing.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: freeze-share-pricing
+          path: data/freeze_share_pricing.json
+          retention-days: 30
