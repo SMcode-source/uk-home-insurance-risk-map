@@ -164,6 +164,102 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-01: the Scottish theft basis is asymmetric, and it is worth half a percent
+
+Nothing published changed. `SCOTLAND_HOUSEBREAKING_2024_25` stays at
+**7,381**. Harness `scripts/price_scotland_theft.py`, CI run
+33449273312, artifact `data/scotland_theft_pricing.json`, record in
+LIMITATIONS §5 and DATA_SOURCES #36.
+
+**The defect, as it first looked.** Theft geography comes from police.uk,
+which has no Scottish forces, so all 442 Scottish districts are
+overridden with one national rate built on 7,381 — *Total* Housebreaking,
+all premises. Table A6 splits that into Dwelling 3,661, Non-dwelling
+1,531, Domestic 5,192, Other 2,189. Meanwhile Phase 2a (`eebb5c2`,
+2026-08-17) gave England and Wales a residential-share denominator
+(`annual / (hh + prem)`) and touched Scotland only to add the comment
+that VOA is E&W-only, "irrelevant under the override". The comparator was
+never revisited. Read that way, Scotland looks inflated by 7381/5192 =
+**1.42×**.
+
+**Why that reading is wrong, and this is the part worth carrying
+forward.** The comparison is not Scotland against truth. It is Scotland
+against *what the model's own E&W denominator leaves standing*. Two
+measurements:
+
+| | residential share of burglary | inflation carried |
+|---|---|---|
+| E&W as the model computes it | 91.2% retained by `hh/(hh+prem)` | — |
+| E&W, ONS Appendix Table A5a, Apr 2023–Mar 2026 | 68.5% | **1.33×** |
+| Scotland, Table A6, 2024-25 | 70.3% domestic | **1.42×** |
+
+The Phase 2a correction is a *geographic attribution*, not a category
+filter: it moves burglaries away from commercial cores but nationally
+keeps nine in ten of them. So both countries carry commercial burglary,
+in almost the same proportion, and the errors nearly cancel —
+like-for-like Scotland is over-stated by **1.07×**. The 91.2% figure is
+computed by the harness from `burglary.csv` and `premises.csv` and
+printed, never typed.
+
+The two taxonomies line up closely enough for the comparison to be fair:
+E&W residential 68.5% against Scottish domestic 70.3%, E&W home-only
+51.1% against Scottish dwelling 49.6%.
+
+**Priced.** Five variants off one scored frame; `el_th` comes back at
+22.038710 in all five (drift ≤ 2.2e-16) and the headline premium is
+169.6483 in all five to four decimals — the basis is a pure relativity
+and cannot touch the level. Mean Scottish premium is £172.09 published:
+
+| variant | Scotland | ratio | Scottish mean | movers | largest |
+|---|---|---|---|---|---|
+| baseline | 7,381 | 0.3593 | 172.09 | — | — |
+| **matched_domestic** | 5,192 + E&W ×0.7514 | 0.3363 | **171.56** | 48 | −0.90 |
+| **matched_dwelling** | 3,661 + E&W ×0.5610 | 0.3177 | **171.13** | 82 | −1.64 |
+| domestic *(one-sided)* | 5,192 | 0.2527 | 169.62 | 194 | −4.22 |
+| dwelling *(one-sided)* | 3,661 | 0.1782 | 167.86 | 312 | −7.23 |
+
+Nothing moves two rating groups in any variant. The naive one-sided fix
+is four to five times too large. The matched pair lands 0.43 apart — that
+gap is the measurement's own uncertainty, not a result. Largest movers
+are the same districts in all four: AB13, G61, G77, G63, EH10 down;
+W1C, WC2N, W1F, WC2E, EC3V up — wealthy Scottish suburbs against London
+commercial cores, exactly the two ends a Scotland-versus-E&W level change
+should move, and a sign nothing else leaked.
+
+**Period is not a confound.** Scottish housebreaking fell 18% between
+2023-24 and 2024-25, so a backward multi-year mean would sit well above
+7,381 — but the police.uk archive runs 2023-07 to 2026-06, centred on
+December 2024, and the 2024-25 constant straddles that centre. Fifteen of
+its thirty-six months are later than the newest published Scottish year.
+There is nothing to correct towards.
+
+**Three process notes.**
+
+1. **The first run was cancelled on purpose** (33448637463, five minutes
+   in). Its `matched` variant closed the E&W gap with an *assumption* —
+   that the two countries split burglary alike — when ONS publishes the
+   number for free. The assumption turned out to be nearly right and the
+   answer still changed, because the denominator, not the truth, is the
+   comparator. Cancel and re-measure; do not ship a guess next to five
+   measurements.
+2. **The `ct_*` claim-weight trap applies to `ct_th`** exactly as it does
+   to `ct_eow` (the trap that cost a freeze run). Overwrite `th_rate` on a
+   scored frame and the leftover severity multiplier belongs to the old
+   rate. The harness renormalises before calibrating, and a void-run guard
+   asserts the rebuilt baseline reproduces the frame's own `th_rate`
+   before any simulation runs.
+3. **"Scoring is the expensive half" is a SECTOR-grain fact.** At district
+   grain it took 0.2 min against 3.7 min per simulation. That line was
+   copied from `price_freeze_share.py`'s docstring into the new script and
+   is corrected there; the single scored frame buys determinism here, not
+   time.
+
+**What is still open.** The theft *geography* gap — one flat rate across
+442 districts — is untouched and is the materially damaging half.
+LIMITATIONS §7 still ranks it, with Recorded Crime in Scotland by local
+authority (32 councils, apportioned via the cached ONSPD) as the free
+route.
+
 ## Gate 2 MEASURED 2026-08-30: freeze reorders nothing; the SMD curve is a real, different map
 
 Run `scripts/gate2_geography_shape.py` (against either resolution's
