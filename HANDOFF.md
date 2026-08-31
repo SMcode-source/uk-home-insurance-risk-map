@@ -37,6 +37,15 @@ and the map sits inside its own noise floor. Tab 4 SHIPPED as
 workstream, which is the honest headline: five gates of temperature
 work found one real map (subsidence geography) and no level.
 
+**The current premium is £169.6477 — £169.65 at 2dp, districts;
+£169.6636 at sector grain.** Stated here because everything below this
+line is a dated entry quoting whatever was live at the time, and
+£169.66 appears in many of them correctly as history. That ambiguity
+already cost something real: the temperature tab shipped with £169.66
+typed into it and quoted a penny the model no longer charges. **Never
+type this figure into a page** — `__PREM_MEAN__` injects it,
+household-weighted, and the placeholder cannot go stale.
+
 **What the workstream leaves open**, in its own sections below: the
 frost SHARE is distributional and unanchored (0.17 pence across a 2x
 range, but 353 districts re-rate — there is no UK per-era attribution
@@ -338,10 +347,32 @@ claim. It now reads "moved by less than a penny, to GBP169.65". **A
 placeholder does not make a sentence honest; the prose around it has to
 survive the substitution.**
 
-Everything else the scan flagged in `methodology.template.html` is a
-SOURCE constant - ABI shares, VOA counts, published anchors - which is
-prose about the world rather than output of the model, and is correctly
-typed.
+**"Everything else the scan flagged is a source constant" - wrong
+again, and caught by building the guard.** The methodology page typed
+`56.5%` for `SUB_DROUGHT_SHARE` too, one page over from the temperature
+tab that had just been fixed, and it was waved through as an ABI figure
+because the ABI attribution is where the 0.565 comes from. Provenance is
+not the test. The test is whether changing `build_model` changes the
+page: this one would not have. It is `__SUB_DROUGHT_PCT__` now, and the
+three share placeholders moved out of `temperature_bits()` into
+`load_stats()` so any page can state them. `docs/methodology.html` did
+not change by one byte, which is the point - the fix is invisible today
+and load-bearing the next time the share moves.
+
+The rest of what the scan flagged there really is source constants -
+ABI shares, VOA counts, published anchors - prose about the world rather
+than model output, correctly typed.
+
+**A guard now exists, because finding this by eye twice in one day is
+not a method.** `test_templates_do_not_retype_live_model_figures`
+formats what the model says NOW exactly as the placeholder does, and
+fails if that string appears literally in any template - verified by
+re-typing `169.65` into the temperature page, which fails with the file
+and line. It deliberately does NOT check `EOW_FREEZE_SHARE` as "31%":
+the methodology claims-mix table legitimately sums to 31%, so that
+string cannot tell the constant from an unrelated total, and a guard
+that cries wolf gets weakened. An honest gap beats a disabled test; the
+share is injected anyway.
 
 **The last asymmetry closed too, and closing it caught a fourteenth
 wrong number.** sub-level, eow-sigma and freeze-share had each
