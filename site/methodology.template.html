@@ -303,6 +303,28 @@ __NAV__
     outright. And <b>peat is excluded</b>: it subsides badly, but by consolidation and
     oxidation rather than shrink–swell, so pricing it inside this peril would conflate two
     mechanisms under one calibration.</p>
+    <p>Geology says which ground <i>can</i> shrink; weather says how often it is made to.
+    Each district also carries a <b>drought climatology</b> built from the Met Office's
+    HadUK-Grid <b>1&nbsp;km daily</b> observations: the running water deficit
+    max(cumsum(PET&nbsp;−&nbsp;rain),&nbsp;0), reset every 1&nbsp;January, peaked within each
+    year and averaged over 1991–2020 — the same index that, aggregated nationally, recovers
+    five of the six canonical UK subsidence years (1976, 1995, 2003, 2018, 2022). It enters
+    claim <b>frequency</b> as a blend: <b>56.5%</b> of subsidence frequency rides the
+    district's deficit relative to the national exposure-weighted mean, the rest stays on
+    the flat geology base. The share is the ABI's own attribution arithmetic — its 2022
+    release counts 13,000 of that year's 23,000 claims as drought-driven, and its pre-surge
+    baseline of 2,500 claims a quarter implies the same split — bracketed by Zurich's
+    engineering attribution (~60% of upheld claims are root-induced clay shrinkage in an
+    average year, ~85% in a surge year). The blend is normalised so the national claim level
+    is untouched: it moves <i>who</i> carries subsidence risk, not how much of it there
+    is.</p>
+    <p class="note">One measured caveat. The PET inside the deficit is Hargreaves–Samani,
+    which runs roughly a third high in a maritime climate — so the deficit's <b>level</b> in
+    millimetres is not a soil-physics quantity. Re-running the whole integral with PET
+    scaled to 0.85× and 0.70× leaves the district <b>ranking</b> essentially unchanged
+    (rank correlation +0.998 and better, at both the 1&nbsp;km and 5&nbsp;km grids), and the
+    level is exactly what the ABI calibration re-pins — so the map survives the formula, and
+    only the map is used.</p>
 
     <h3>Flood — rasterised official extents</h3>
     <p>The published flood maps are rendered as images at 13–100 m per pixel and the painted

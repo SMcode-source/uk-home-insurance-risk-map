@@ -20,14 +20,14 @@ name: SMD curve pricing
 # measurement workflow on main to price something that may never ship
 # gets the ordering backwards - main should learn about this when there
 # is a decision to record, not before.
+# Push trigger retired 2026-08-31: run 33410640013 priced all seven
+# variants (level pinned to one ULP everywhere; at the 0.565 anchor
+# with cwd_yr, 455 of 2,736 districts change decile, one by two
+# groups) and the user decided to publish cwd_yr at 0.565. The publish
+# wiring that followed touches build_model.py, and re-pricing the
+# already-priced table on every wiring commit would cost ~5 CI hours
+# per push for nothing.
 on:
-  push:
-    branches: [exp/smd-curve]
-    paths:
-      - "scripts/price_smd_curve.py"
-      - "scripts/build_model.py"
-      - "data/smd_climatology.csv"
-      - ".github/workflows/smd-curve.yml"
   workflow_dispatch:
     inputs:
       nsim:

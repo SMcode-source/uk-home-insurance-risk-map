@@ -260,8 +260,15 @@ Also unanchored, and worth naming:
 8. **Hargreaves-Samani PET overestimates UK evapotranspiration** by about
    a third (668–697 mm modelled against a true 450–550). A known weakness
    of the method in humid maritime climates. The bias does **not** cancel
-   in the drought index because the deficit subtracts rainfall. *The new
-   SMD index is not shippable until this is fixed.*
+   in the drought index because the deficit subtracts rainfall.
+   *Measured 2026-08-31 (`scripts/check_pet_sensitivity.py`, 1 km and
+   5 km): the bias moves the index's LEVEL, which the ABI calibration
+   re-pins, and not its MAP (rank correlation ≥ +0.998 at PET × 0.85
+   and × 0.70) — so the published relativity survives it. The deficit's
+   millimetre values are still not soil-physics quantities and are never
+   published as such; Hydro-PE (doi:10.5285/9275ab7e-6e93-42bc-8e72-
+   59c98d409deb) is the citable Penman–Monteith replacement if a level
+   is ever needed.*
 9. **HadUK-Grid 1 km is interpolated from a station network**, so 1 km
    spacing is not 1 km of independent information. It buys district
    *separation*, not necessarily district *accuracy*.

@@ -382,6 +382,39 @@ def frost_from_metoffice(targets_bng):
     return frost
 
 
+def drought_from_haduk(names):
+    """Per-district 1991-2020 drought climatology (HadUK-Grid 1 km daily
+    via CEDA, reduced by make_smd_climatology.py): the mean annual peak
+    of the within-year cumulative water deficit max(cumsum(PET-rain), 0),
+    reset each 1 January. The subsidence frequency driver for the Gate 2
+    SMD curve. Returns raw mm, NOT a stretched score, for the same
+    reason as frost_from_metoffice above: the marginal wants a physical
+    relativity, and its normalisation lives in main() with the exposure
+    weights.
+
+    Coverage is required EXACTLY, no fallback: the file is built from
+    the very polygon set being scored, so a missing name means the file
+    is at the wrong GRAIN (a district-keyed file under the sector build,
+    or vice versa - the ct_bands failure mode, where "AB10" met "AB10 1"
+    and every row silently missed). The only correct response is to
+    refuse loudly.
+    """
+    table = {}
+    with open(os.path.join(DATA, "smd_climatology.csv"), newline="") as fh:
+        for row in csv.DictReader(fh):
+            table[row["district"]] = float(row["cwd_yr_clim_mm"])
+    missing = [n for n in names if n not in table]
+    if missing:
+        raise SystemExit(
+            f"smd_climatology.csv: {len(missing)} of {len(names)} names "
+            f"missing (e.g. {missing[:5]}) - wrong grain? The file must "
+            "be built from the same polygon set it scores.")
+    vals = np.array([table[n] for n in names], dtype=float)
+    print(f"  drought: {len(names)} of {len(table)} rows used -> "
+          f"climatology range {vals.min():.0f}..{vals.max():.0f} mm")
+    return vals
+
+
 # ----------------------------------------------------------------- flood
 
 

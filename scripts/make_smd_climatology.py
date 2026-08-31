@@ -29,9 +29,20 @@ The citable fix, if the leg ever ships, is Hydro-PE (Penman-Monteith on
 this same HadUK-Grid met, 1 km daily 1969-2021, CC-BY,
 doi:10.5285/9275ab7e-6e93-42bc-8e72-59c98d409deb).
 
-Usage:  make_smd_climatology.py
+Usage:  make_smd_climatology.py [--src <annual csv>] [--out <csv>]
+
+The defaults reduce the district table. The SECTOR grain (the same
+construction over data/sectors_risk.geojson, workflow
+haduk-1km-sectors.yml) is reduced with:
+  make_smd_climatology.py --src data/haduk_sector_annual_1km.csv \
+      --out data/smd_climatology.csv
+and that output is committed on the sector-model branch under the SAME
+filename - scores_real.drought_from_haduk reads one path and the grain
+is decided by which branch's file is checked out, exactly like
+children.csv and households.csv.
 """
 
+import argparse
 import csv
 import os
 from collections import defaultdict
@@ -46,8 +57,12 @@ CLIM = (1991, 2020)
 
 
 def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--src", default=SRC)
+    ap.add_argument("--out", default=OUT)
+    args = ap.parse_args()
     acc = defaultdict(lambda: {"cwd": [], "jja": []})
-    with open(SRC, newline="") as fh:
+    with open(args.src, newline="") as fh:
         for r in csv.DictReader(fh):
             if CLIM[0] <= int(r["year"]) <= CLIM[1]:
                 acc[r["district"]]["cwd"].append(float(r["cwd_yr_max_mm"]))
@@ -60,11 +75,11 @@ def main():
         rows.append({"district": d,
                      "cwd_yr_clim_mm": round(float(np.mean(a["cwd"])), 2),
                      "smd_jja_clim_mm": round(float(np.mean(a["jja"])), 2)})
-    with open(OUT, "w", newline="") as fh:
+    with open(args.out, "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()
         w.writerows(rows)
-    print(f"wrote {OUT}: {len(rows)} districts, {CLIM[0]}-{CLIM[1]}")
+    print(f"wrote {args.out}: {len(rows)} polygons, {CLIM[0]}-{CLIM[1]}")
 
 
 if __name__ == "__main__":

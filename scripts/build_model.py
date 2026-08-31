@@ -57,6 +57,7 @@ from scores_real import (subsidence_score, weather_from_metoffice,
                          flood_from_agencies, groundwater_from_ea,
                          erosion_from_ncerm, sw_depth_severity, load_country,
                          theft_from_police, frost_from_metoffice,
+                         drought_from_haduk,
                          fires_from_mhclg, children_from_census,
                          ct_value_from_bands,
                          flood_future, flood_score_from_fractions,
@@ -97,6 +98,7 @@ OUTPUT_COLUMNS = [
     "gust_rp50",
     "f_high", "f_low", "sw_high", "sw_low", "gw_frac",
     "sw_sev", "sw_depth_m", "th_rate", "frost_days", "eow_rate",
+    "sub_drought_mm", "sub_rel",
     "fire_rate", "ad_rate",
     "er_score", "er_smp55", "er_smp105", "er_nfi55", "er_nfi105",
     "er_smp105_lo", "er_smp105_hi", "er_nfi105_lo", "er_nfi105_hi",
@@ -542,6 +544,21 @@ W_EOW = 0.026
 # the mildest down (Isles of Scilly and west Cornwall, -4.3% to -5.5%),
 # which is the sign test passing on both tails at once.
 EOW_FREEZE_SHARE = 0.31
+# The drought-attributable share of subsidence FREQUENCY - what
+# fraction of p_sub rides the district's drought climatology rather
+# than the flat geology base. Derived the same way as EOW_FREEZE_SHARE,
+# from the ABI's own releases, by two routes that agree: the 2018-12
+# release frames 2,500 claims/quarter as the pre-surge baseline
+# (=> 10,000/yr), and the 2022 release attributes 13,000 of 23,000
+# claims to that year's drought => 13/23 = 0.565 (cross-check: 2022's
+# own H1 of 5,000 = base/2 implies the same 10,000 base). Zurich's
+# attribution study brackets it - ~60% of upheld claims are
+# root-induced clay shrinkage in an average year, ~85% in a surge year.
+# Priced on exp/smd-curve (CI 33410640013) at 0.40/0.565/0.70: the
+# level is pinned by calibration in every variant (el_sub drift at most
+# one ULP), so like EOW_FREEZE_SHARE this is a pure relativity dial -
+# at 0.565, 455 of 2,736 districts change premium decile, one by two.
+SUB_DROUGHT_SHARE = 0.565
 # Fire's loading comes from the same derivation as theft's and EoW's,
 # and lands even lower than theft. The FIRE0201 national series
 # (1981/82-2025/26) shows a steady secular DECLINE of -2.5%/yr - a
@@ -702,19 +719,17 @@ def marginal_params(f):
     each lognormal's MEAN matches the published ABI average claim.
     """
     sub, wx = f["sub"], f["wx"]
-    # sub_rel is the Gate 2 SMD-curve lever: a per-district drought
-    # relativity multiplying subsidence FREQUENCY only - geology keeps
-    # the base shape, dependence structure untouched (theta_ws still
-    # reads sub_score). Exposure-weighted mean 1 by construction, so
-    # calibrate_frequency re-pins the ABI level exactly, the same
-    # division of labour as eow_rate's freeze slice. The real pipeline
-    # carries NO sub_rel column (_fields defaults it to 1.0, provably
-    # inert); only the pricing harness (price_smd_curve.py) puts a real
-    # curve on the frame, and only a publish decision would wire one
-    # into main(). The .get default is for hand-built test dicts that
-    # bypass _fields; _fields itself always supplies the key on real
-    # frames, so the harness's curve cannot be silently dropped here.
-    p_sub = (0.002 + 0.028 * sub ** 1.5) * f.get("sub_rel", 1.0)
+    # sub_rel is the drought relativity on subsidence FREQUENCY only -
+    # the Gate 2 SMD curve, published with SUB_DROUGHT_SHARE. Geology
+    # keeps the base shape and the dependence structure is untouched
+    # (theta_ws still reads sub_score). Its exposure-weighted mean is
+    # exactly 1, normalised in main() where the exposure weights live -
+    # NEVER here, because this function runs on batches and a per-chunk
+    # mean would depend on chunk membership - so calibrate_frequency
+    # re-pins the ABI level and the curve is pure geography. A required
+    # column like eow_rate: a frame without it must fail loudly, not
+    # silently price geology-only.
+    p_sub = (0.002 + 0.028 * sub ** 1.5) * f["sub_rel"]
     p_wx = 0.010 + 0.090 * wx ** 1.2
     # river/sea flood frequency from actual zone fractions: ~1.5%/yr for a
     # property in the defended 1in100/200 zone, ~0.3%/yr in the rest of
@@ -867,22 +882,15 @@ def marginal_params(f):
 
 def _fields(src):
     """Pull the marginal_params inputs out of a GeoDataFrame/chunk."""
-    out = {k: src[v].values for k, v in
-           [("sub", "sub_score"), ("wx", "wx_score"), ("f_high", "f_high"),
-            ("f_low", "f_low"), ("sw_high", "sw_high"), ("sw_low", "sw_low"),
-            ("gw_frac", "gw_frac"), ("sw_sev", "sw_sev"), ("er", "er_frac"),
-            ("th", "th_rate"), ("eow", "eow_rate"),
-            ("fire", "fire_rate"), ("ad", "ad_rate"),
-            ("ct_th", "ct_th"), ("ct_eow", "ct_eow"),
-            ("ct_fire", "ct_fire"), ("ct_ad", "ct_ad")]}
-    # Neutral when the column is absent, so hand-built test frames and
-    # pre-experiment callers (sensitivity.py, dependence_check.py) keep
-    # working while the SMD curve is unpriced. A publish decision makes
-    # this a REQUIRED column like eow_rate - remove the default in the
-    # same commit that wires the curve into main() for real.
-    out["sub_rel"] = (src["sub_rel"].values if "sub_rel" in src
-                      else np.ones(len(out["sub"])))
-    return out
+    return {k: src[v].values for k, v in
+            [("sub", "sub_score"), ("sub_rel", "sub_rel"),
+             ("wx", "wx_score"), ("f_high", "f_high"),
+             ("f_low", "f_low"), ("sw_high", "sw_high"), ("sw_low", "sw_low"),
+             ("gw_frac", "gw_frac"), ("sw_sev", "sw_sev"), ("er", "er_frac"),
+             ("th", "th_rate"), ("eow", "eow_rate"),
+             ("fire", "fire_rate"), ("ad", "ad_rate"),
+             ("ct_th", "ct_th"), ("ct_eow", "ct_eow"),
+             ("ct_fire", "ct_fire"), ("ct_ad", "ct_ad")]}
 
 
 def inv_mixed_cdf(u, p, mu, sigma):
@@ -1807,6 +1815,27 @@ def main():
     gdf["eow_rate"] = ABI_TARGET_FREQ["eow"] * (
         (1.0 - EOW_FREEZE_SHARE)
         + EOW_FREEZE_SHARE * gdf["frost_days"] / fmean)
+
+    print("scoring subsidence drought exposure from HadUK-Grid...")
+    # sub_rel = flat base + drought-sensitive slice on the district's
+    # 1991-2020 drought climatology relative to the exposure-weighted
+    # mean - the Gate 2 SMD curve, same construction as eow_rate's
+    # freeze slice. It multiplies subsidence FREQUENCY only, in
+    # marginal_params; the geology (sub_score) keeps the base shape and
+    # the dependence structure still reads sub_score, untouched. The
+    # normalisation lives HERE, never per batch, and its
+    # exposure-weighted mean is exactly 1, so calibrate_frequency
+    # re-pins the ABI level regardless (measured: el_sub drift at most
+    # one ULP across shares 0-0.70, CI 33410640013). The climatology's
+    # Hargreaves PET runs ~a third high in maritime climates; measured
+    # at both grid resolutions to move the LEVEL and not the MAP
+    # (Spearman >= +0.998 at PET x 0.85/0.70), and the level is what
+    # calibration re-pins - scripts/check_pet_sensitivity.py re-runs
+    # that verdict.
+    gdf["sub_drought_mm"] = drought_from_haduk(gdf["name"].values)
+    dmean = np.average(gdf["sub_drought_mm"], weights=gdf["households"])
+    gdf["sub_rel"] = ((1.0 - SUB_DROUGHT_SHARE)
+                      + SUB_DROUGHT_SHARE * gdf["sub_drought_mm"] / dmean)
 
     print("scoring fire from MHCLG dwelling-fire incidents...")
     # fire_rate = anchor frequency x the district's dwelling-fire
