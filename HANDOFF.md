@@ -291,6 +291,37 @@ experiment branches far behind main, so a published claim and a
 recorded no-ship had their provenance sitting on branches a cleanup
 would have deleted.
 
+**Then the whole site was swept for the same defect, and the same page
+had three more.** A scan of every template for typed model outputs
+found `£169.66` written into the drought section - the PRE-Gate-2
+premium, when the published figure is 169.6477, so the page rounded to
+a penny the model no longer charges - plus `43.5%`/`56.5%` restating
+`SUB_DROUGHT_SHARE` and `31%` restating `EOW_FREEZE_SHARE`. All three
+now inject, the two shares straight from `build_model` by the local
+-import idiom the file already uses elsewhere. A new `__PREM_MEAN__`
+lives in `load_stats()` beside `__PREM_MIN__`/`__PREM_MAX__`,
+household-weighted to two decimals, because this project routinely
+reports sub-penny results and rounding to the pound would hide the
+differences the gates exist to measure.
+
+The sentence around it had to change too: it read "the headline premium
+stayed at GBP169.66", and Gate 2 moved it 0.8 pence. Injection alone
+would have produced "stayed at GBP169.65" - true numbers inside a false
+claim. It now reads "moved by less than a penny, to GBP169.65". **A
+placeholder does not make a sentence honest; the prose around it has to
+survive the substitution.**
+
+Everything else the scan flagged in `methodology.template.html` is a
+SOURCE constant - ABI shares, VOA counts, published anchors - which is
+prose about the world rather than output of the model, and is correctly
+typed. One asymmetry is worth naming for whoever revisits Gate 2: the
+sub-level, eow-sigma and freeze-share runs all committed a pricing
+JSON, but the SMD curve did not, so "455 of 2,736 districts moved one
+rating group" is quoted from run 33410640013 with no artifact behind
+it. It is a historical fact about one run rather than a live model
+output, so it is defensible as typed - but it is the only figure on the
+page that cannot re-derive itself.
+
 Two guards were widened rather than worked around.
 `test_site_placeholders_all_resolve` scanned a **hard-coded pair** of
 templates, so all 23 of the new page's placeholders read as "defined but

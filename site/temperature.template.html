@@ -98,7 +98,7 @@ __NAV__
       <div class="door">
         <span class="tag off">measured, left alone</span>
         <h3>Frost → escape of water</h3>
-        <p>Escape of water is __PCT_EOW__% of claim cost, and 31% of it rides on frost days.
+        <p>Escape of water is __PCT_EOW__% of claim cost, and __EOW_FREEZE_PCT__% of it rides on frost days.
         Frost has fallen by a fifth since the 1961–1990 normal — and the model is blind to
         that by construction. Why, and whether that is defensible, is below.</p>
       </div>
@@ -134,11 +134,12 @@ __NAV__
     never fitted to them. The miss is __TEMP_MISS_YEARS__.</p>
 
     <p>On that evidence the subsidence frequency surface stopped being geology alone. Each
-    district's frequency is now multiplied by a relativity that is 43.5% flat and 56.5%
-    drought climatology, the 56.5% being the ABI's own attribution arithmetic rather than a
-    tuned number. The national loss cost cannot move — the calibration re-pins it — so the
-    change is purely about who carries it: 455 of __N_DISTRICTS__ districts moved one rating
-    group, one moved two, and the headline premium stayed at £169.66.
+    district's frequency is now multiplied by a relativity that is __SUB_FLAT_PCT__% flat and
+    __SUB_DROUGHT_PCT__% drought climatology, the __SUB_DROUGHT_PCT__% being the ABI's own
+    attribution arithmetic rather than a tuned number. The national loss cost cannot move —
+    the calibration re-pins it — so the change is purely about who carries it: 455 of
+    __N_DISTRICTS__ districts moved one rating group, one moved two, and the headline premium
+    moved by less than a penny, to £__PREM_MEAN__.
     <a href="methodology.html#perils">How the subsidence surface is built →</a></p>
   </section>
 

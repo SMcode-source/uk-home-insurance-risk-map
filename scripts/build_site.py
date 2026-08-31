@@ -881,6 +881,12 @@ def load_stats():
         "__N_SIM__": f"{ya['n_sim']:,}",
         "__PREM_MIN__": f"{prem[0]:,.0f}",
         "__PREM_MAX__": f"{prem[-1]:,.0f}",
+        # The headline premium, household-weighted because that is what
+        # "the premium" means everywhere else here and in HANDOFF's
+        # publish notes. Two decimals: a model change worth under a penny
+        # is a real result this project keeps quoting, so rounding to the
+        # pound would hide exactly the differences the gates measure.
+        "__PREM_MEAN__": f"{np.average([p['premium'] for p in feats], weights=[p.get('households', 0) for p in feats]):,.2f}",
         "__CAT_UPLIFT__": f"{100 * (cat['mean_total'] - cat['indep_mean_total']) / cat['indep_mean_total']:.0f}",
         "__DIST_UPLIFT__": f"{np.mean([p['uplift_pct'] for p in feats]):.0f}",
         # The premium split, exposure-weighted because that is what
@@ -1121,6 +1127,13 @@ def temperature_bits():
     # term; the rest of the total ratio is severity rising within perils.
     # The two multiply back to the total exactly, which is what makes
     # quoting both honest rather than two separate framings of one number.
+    # Both shares are live model constants, not prose. The page states
+    # each one twice (the split reads "43.5% flat and 56.5% drought"),
+    # and a constant restated in text is a constant that can be changed
+    # in build_model without the page noticing - which is how the
+    # bad-year figures above went stale.
+    from build_model import SUB_DROUGHT_SHARE, EOW_FREEZE_SHARE
+
     _ty, _cat = _yb["typical"], _yb["catastrophic"]
     _P = ("wx", "fl", "sub", "gw")
 
@@ -1181,6 +1194,9 @@ def temperature_bits():
         "__BY_WX_VALUE__": f"{_cat['cost_wx_per_claim'] / _ty['cost_wx_per_claim']:.2f}",
         "__BY_FL_COUNT__": f"{_cat['claims_fl_per_100k'] / _ty['claims_fl_per_100k']:.2f}",
         "__BY_FL_VALUE__": f"{_cat['cost_fl_per_claim'] / _ty['cost_fl_per_claim']:.2f}",
+        "__SUB_DROUGHT_PCT__": f"{100 * SUB_DROUGHT_SHARE:.1f}",
+        "__SUB_FLAT_PCT__": f"{100 * (1 - SUB_DROUGHT_SHARE):.1f}",
+        "__EOW_FREEZE_PCT__": f"{100 * EOW_FREEZE_SHARE:.0f}",
     }
 
 
