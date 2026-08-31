@@ -255,12 +255,41 @@ is exact, because the old constant cancels.
 **The temperature tab is live** at `/temperature.html`, fifth content
 tab, never titled "prediction" and saying so in its opening line. Two
 server-rendered charts (household-weighted national series, 1960-2025)
-from `data/temperature_series.json`; every figure injected, none typed.
-Drought +3.6%/decade (p=0.036) with 5 of 6 canonical surges in the
-index's own top ten; frost -7.5%/decade with the blindness explained
-rather than hidden; Gate 4's "a bad year is dearer claims, not more
-claims"; and a limits section saying the climate scenario is flood-only,
-so it cannot show subsidence worsening or escape of water easing.
+from `data/temperature_series.json`. Drought +3.6%/decade (p=0.036)
+with 5 of 6 canonical surges in the index's own top ten; frost
+-7.5%/decade with the blindness explained rather than hidden; Gate 4's
+"a bad year is dearer claims, not more claims"; and a limits section
+saying the climate scenario is flood-only, so it cannot show subsidence
+worsening or escape of water easing.
+
+**"Every figure injected, none typed" is what this entry said, and it
+was false in the one section that most needed it.** The bad-year
+section carried TEN hand-typed numbers - 1.38x count, 2.63x value, the
+1.25x/2.11x shift-share, the storm and flood shares and their per-peril
+ratios - directly under a `temperature_bits()` docstring citing defect
+3 as the reason nothing is ever typed. They were measured before Gate 2
+and every one had drifted by publication: count 1.38 -> 1.36, value
+2.63 -> 2.67, mix 1.25 -> 1.24, within 2.11 -> 2.15, flood 2.18/2.83 ->
+2.13/2.88. The page was quoting a model that no longer existed, which
+is defect 3 exactly, on the page whose own comment warns about it.
+
+Fixed by injection, and without a simulation: the committed
+`data/year_analysis.json` buckets already carry UNROUNDED
+`claims_*_per_100k` and `cost_*_per_claim` - `year_claim_view.py` added
+those columns precisely because the rounded `inc_*_pct` ones cannot
+support the division - so `temperature_bits()` recomputes the whole
+decomposition from committed data at build time. The shift-share holds
+each peril's typical cost per claim fixed and moves only the mix; mix x
+within multiplies back to the total exactly (1.2435 x 2.1477 = 2.6707),
+which is what makes quoting both honest rather than one number twice.
+The prose survived the new figures unchanged in meaning - storm still
+nearly flat, flood still the engine.
+
+`year_claim_view.py` (Gate 4) and `price_eow_sigma.py` (Gate 3) were
+brought onto main in the same commit. Both lived ONLY on unmerged
+experiment branches far behind main, so a published claim and a
+recorded no-ship had their provenance sitting on branches a cleanup
+would have deleted.
 
 Two guards were widened rather than worked around.
 `test_site_placeholders_all_resolve` scanned a **hard-coded pair** of

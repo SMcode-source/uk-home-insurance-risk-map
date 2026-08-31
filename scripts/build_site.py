@@ -1094,6 +1094,8 @@ def temperature_bits():
         t = json.load(fh)
     with open(FREEZE_PRICING) as fh:
         fz = {r["key"]: r for r in json.load(fh)}
+    with open(os.path.join(ROOT, "data", "year_analysis.json")) as fh:
+        _yb = {b["label"]: b for b in json.load(fh)["buckets"]}
     fs, ds = t["frost_days_stats"], t["cwd_yr_mm_stats"]
     marks = t["canonical_subsidence_years"]
     hits = t["cwd_canonical_hits"]
@@ -1107,6 +1109,27 @@ def temperature_bits():
     _big = max((abs(v) for r in _shares
                 for _n, v in r["movers_up"] + r["movers_down"]))
     _era = fz["era_2006_2025"]["premium"] - fz["daily_1991_2020"]["premium"]
+
+    # Gate 4's answer, recomputed from the committed year analysis rather
+    # than from the run that first measured it. The buckets already carry
+    # UNROUNDED claims_*_per_100k and cost_*_per_claim precisely so this
+    # is derivable without a simulation - see year_claim_view.py's
+    # docstring for why the rounded inc_*_pct columns are not usable.
+    #
+    # The shift-share is the standard one: hold every peril's typical
+    # cost per claim fixed and move only the claim MIX to get the mix
+    # term; the rest of the total ratio is severity rising within perils.
+    # The two multiply back to the total exactly, which is what makes
+    # quoting both honest rather than two separate framings of one number.
+    _ty, _cat = _yb["typical"], _yb["catastrophic"]
+    _P = ("wx", "fl", "sub", "gw")
+
+    def _w(b, p):
+        return b[f"claims_{p}_per_100k"] / b["claims_total_per_100k"]
+
+    _ratio = _cat["cost_total_per_claim"] / _ty["cost_total_per_claim"]
+    _mix = (sum(_w(_cat, p) * _ty[f"cost_{p}_per_claim"] for p in _P)
+            / sum(_w(_ty, p) * _ty[f"cost_{p}_per_claim"] for p in _P))
     return {
         "__FREEZE_MAX_PENCE__": f"{100 * max(_dp):.2f}",
         "__FREEZE_MAX_CHURN__": f"{_worst['churn']:,}",
@@ -1146,6 +1169,18 @@ def temperature_bits():
         "__TEMP_HIT_YEARS__": ", ".join(str(y) for y in hits),
         "__TEMP_MISS_YEARS__": ", ".join(str(y) for y in
                                          t["cwd_canonical_misses"]),
+        "__BY_COUNT__": f"{_cat['claims_total_per_100k'] / _ty['claims_total_per_100k']:.2f}",
+        "__BY_VALUE__": f"{_ratio:.2f}",
+        "__BY_MIX__": f"{_mix:.2f}",
+        "__BY_WITHIN__": f"{_ratio / _mix:.2f}",
+        "__BY_WX_FROM__": f"{100 * _w(_ty, 'wx'):.1f}",
+        "__BY_WX_TO__": f"{100 * _w(_cat, 'wx'):.1f}",
+        "__BY_FL_FROM__": f"{100 * _w(_ty, 'fl'):.1f}",
+        "__BY_FL_TO__": f"{100 * _w(_cat, 'fl'):.1f}",
+        "__BY_WX_COUNT__": f"{_cat['claims_wx_per_100k'] / _ty['claims_wx_per_100k']:.2f}",
+        "__BY_WX_VALUE__": f"{_cat['cost_wx_per_claim'] / _ty['cost_wx_per_claim']:.2f}",
+        "__BY_FL_COUNT__": f"{_cat['claims_fl_per_100k'] / _ty['claims_fl_per_100k']:.2f}",
+        "__BY_FL_VALUE__": f"{_cat['cost_fl_per_claim'] / _ty['cost_fl_per_claim']:.2f}",
     }
 
 
