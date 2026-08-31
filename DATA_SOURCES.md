@@ -1078,13 +1078,30 @@ districts**, used as the exposure weight throughout.
     figure is what an average policy experienced rather than an average
     square kilometre. Measured: drought **+3.6%/decade** (p = 0.036),
     frost **−7.5%/decade** (p = 0.000204, −20.5% between the 1961–1990
-    and 1991–2020 normals). Every figure on the page is injected from
-    this file at build time — none is typed into the template.
+    and 1991–2020 normals).
+
+    **Every figure on the page is injected at build time — none is typed
+    into the template.** That sentence stood here while it was false: at
+    first publication the page carried thirteen hand-typed numbers (the
+    ten of the bad-year decomposition, the premium, and the two peril
+    shares), all measured pre-Gate-2 and all drifted by the time it went
+    live. They were converted to placeholders on 2026-08-31; HANDOFF's
+    temperature-tab entry records what each one said and why typing them
+    is the defect this repository keeps rediscovering.
 
     The same page publishes the freeze dose-response from
     `data/freeze_share_pricing.json` (CI run 33431160741, six full
-    simulations), committed for the reason `seed_sensitivity.json` is: a
-    measured range quoted from memory is a measured range that drifts.
+    simulations) and the published curve's own churn from
+    `data/smd_curve_pricing.json` (CI run 33410640013, seven full
+    simulations), both committed for the reason `seed_sensitivity.json`
+    is: a measured range quoted from memory is a measured range that
+    drifts. The SMD artifact was the last priced gate without one — its
+    churn figures had been quoted from a run ID for a day. `build_site`
+    looks its row up by the SHIPPED index and share (`cwd_yr`,
+    `SUB_DROUGHT_SHARE`) rather than by variant key, and raises if that
+    does not match exactly one priced variant, so re-tuning the share
+    cannot silently leave the page describing a variant the model no
+    longer runs.
     Companion measurement, not a data source:
     `scripts/measure_frost_era.py`, which tested re-aiming the frost
     climatology and rejected it against within-era controls.

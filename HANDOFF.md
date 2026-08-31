@@ -314,13 +314,27 @@ survive the substitution.**
 Everything else the scan flagged in `methodology.template.html` is a
 SOURCE constant - ABI shares, VOA counts, published anchors - which is
 prose about the world rather than output of the model, and is correctly
-typed. One asymmetry is worth naming for whoever revisits Gate 2: the
-sub-level, eow-sigma and freeze-share runs all committed a pricing
-JSON, but the SMD curve did not, so "455 of 2,736 districts moved one
-rating group" is quoted from run 33410640013 with no artifact behind
-it. It is a historical fact about one run rather than a live model
-output, so it is defensible as typed - but it is the only figure on the
-page that cannot re-derive itself.
+typed.
+
+**The last asymmetry closed too, and closing it caught a fourteenth
+wrong number.** sub-level, eow-sigma and freeze-share had each
+committed a pricing JSON; the SMD curve had not, so its churn was
+quoted from run 33410640013 with no artifact behind it. That run's
+artifact had not expired, so it is now `data/smd_curve_pricing.json`
+and the churn injects. `build_site` looks the row up by the SHIPPED
+index and share - `cwd_yr` at `SUB_DROUGHT_SHARE` - not by variant key,
+and raises unless exactly one priced variant matches, so re-tuning the
+share cannot leave the page quietly describing a variant the model no
+longer runs.
+
+Wiring it exposed the error. The page read "455 districts moved one
+rating group, one moved two", and `price_smd_curve.py` defines
+`churn` as ANY group change and `churn2` as `|delta| >= 2` - a SUBSET,
+not a separate population. The old sentence implied 456 movers; the
+truth is 455, one of which moved two. It now reads "455 of 2,736
+districts changed rating group, 1 of them by two". HANDOFF's own Gate 2
+churn line said the same thing loosely and has been made explicit; the
+prose at "This is a pure geography change" was already correct.
 
 Two guards were widened rather than worked around.
 `test_site_placeholders_all_resolve` scanned a **hard-coded pair** of
@@ -388,7 +402,8 @@ Gate 1 publish note):
   nesting    median |sector-mean/district - 1| 1.16% (bound 3%), p95 6.6%
   sub_rel    wmean exactly 1.000000 both grains; district 0.538-1.310,
              sector 0.537-1.307
-  churn      455 of 2,736 districts move one rating group, 1 by two
+  churn      455 of 2,736 districts change rating group, 1 of them by
+             two (churn2 is a SUBSET of churn, not an addition to it)
   movers     up DA15/DA6/SE23 (+GBP8-13), down CF61/CF62/LL44
 
 Wiring is the eow_rate pattern exactly: `drought_from_haduk` loads

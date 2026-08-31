@@ -1084,6 +1084,7 @@ def _series_svg(t, key, *, wide, colour, unit, decimals=0, marks=()):
 
 
 FREEZE_PRICING = os.path.join(ROOT, "data", "freeze_share_pricing.json")
+SMD_PRICING = os.path.join(ROOT, "data", "smd_curve_pricing.json")
 
 
 def temperature_bits():
@@ -1133,6 +1134,23 @@ def temperature_bits():
     # in build_model without the page noticing - which is how the
     # bad-year figures above went stale.
     from build_model import SUB_DROUGHT_SHARE, EOW_FREEZE_SHARE
+
+    # The churn the published curve actually caused, looked up by the
+    # SHIPPED index and share rather than by the variant's key. If
+    # SUB_DROUGHT_SHARE is ever re-tuned this raises instead of quietly
+    # describing a variant the model no longer runs - which is the whole
+    # failure this page has now had four of.
+    with open(SMD_PRICING) as fh:
+        _smd = json.load(fh)
+    _shipped = [r for r in _smd
+                if r["index"] == "cwd_yr"
+                and abs(r["share"] - SUB_DROUGHT_SHARE) < 1e-9]
+    if len(_shipped) != 1:
+        raise SystemExit(
+            f"smd_curve_pricing.json has {len(_shipped)} variants at "
+            f"cwd_yr/{SUB_DROUGHT_SHARE} - the published curve must "
+            f"match exactly one priced variant")
+    _shipped = _shipped[0]
 
     _ty, _cat = _yb["typical"], _yb["catastrophic"]
     _P = ("wx", "fl", "sub", "gw")
@@ -1197,6 +1215,8 @@ def temperature_bits():
         "__SUB_DROUGHT_PCT__": f"{100 * SUB_DROUGHT_SHARE:.1f}",
         "__SUB_FLAT_PCT__": f"{100 * (1 - SUB_DROUGHT_SHARE):.1f}",
         "__EOW_FREEZE_PCT__": f"{100 * EOW_FREEZE_SHARE:.0f}",
+        "__SMD_CHURN__": f"{_shipped['churn']:,}",
+        "__SMD_CHURN2__": f"{_shipped['churn2']:,}",
     }
 
 
