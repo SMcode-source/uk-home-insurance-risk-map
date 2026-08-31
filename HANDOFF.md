@@ -93,6 +93,32 @@ consequence for the model is that the assumed θ(s) copula forms, the
 compound Bernoulli×LogNormal, `SUP_WEIGHT`'s 0.5 prior and
 census-households exposure are permanent limits, not a backlog.
 
+**The published site had five dead citation links, 2026-08-31.** Found
+by checking the live deployment rather than the build - CI verifies
+local assets offline and never touches an external URL, correctly, so
+nothing was going to catch this. The years page renders `ABI.sources`
+as clickable links, and five of its fourteen 404'd after ABI's
+media-hub migration. Three are live again under renamed slugs and were
+remapped after reading each article and matching the figures this repo
+quotes from it; two are withdrawn from abi.org.uk entirely and stay
+archive-only, including the 2025-08 release behind `sev_subsidence =
+GBP17,264`, which is Gate 1's live severity anchor. DATA_SOURCES #33
+carries the mapping table and the verification method.
+
+**The trap in that job is worth knowing before anyone repeats it.** ABI
+now runs a single-page app that returns **HTTP 200 for any slug** under
+`/media-hub/news-post/`, nonsense included, and echoes the slug into
+the HTML - so a status check says "fixed" and a keyword grep says "the
+article mentions subsidence" when the page is empty. I nearly recorded
+five successful remappings on exactly that evidence. What actually
+distinguishes them is ABI's `sitemap.xml` and rendering the page in a
+real browser, where a missing article says "No news articles found."
+Both were run against a deliberately bogus slug as a control first.
+`web.archive.org` is unreachable from this sandbox by every client
+tried, so the two archive-only citations could not be re-verified here
+and were left exactly as they are rather than replaced with links
+nobody has opened.
+
 **Branches, trimmed 2026-08-31.** Only `main` and `sector-model` exist
 now. The six merged experiment branches were deleted after checking
 that nothing unique lived on them (what looked unique was pre-vector
