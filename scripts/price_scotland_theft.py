@@ -121,6 +121,22 @@ sys.path.insert(0, HERE)
 import build_model as bm        # noqa: E402
 import scores_real as sr        # noqa: E402
 
+# SUPERSEDED 2026-09-01. This harness patches a module constant, and
+# setattr on a module always succeeds - so once scores_real stopped
+# carrying a flat Scottish override, every "variant" here would score
+# the identical published model and print a table of zeros that reads
+# like "no effect". Fail loudly instead. The answer this harness did
+# produce is in LIMITATIONS.md section 5 and
+# data/scotland_theft_pricing.json; its successor, which replaced the
+# override with council geography, is price_scotland_theft_geography.py.
+if not hasattr(sr, "SCOTLAND_HOUSEBREAKING_2024_25"):
+    raise SystemExit(
+        "SUPERSEDED: scores_real no longer carries a flat Scottish "
+        "housebreaking override - it reads data/housebreaking.csv. The "
+        "basis question this harness answered is closed (LIMITATIONS.md "
+        "section 5, data/scotland_theft_pricing.json); rerunning it now "
+        "would measure the published model against itself.")
+
 OUT = os.path.join(ROOT, "data", "scotland_theft_pricing.json")
 
 # Recorded Crime in Scotland 2024-25, Table A6 (gov.scot, OGL v3.0),

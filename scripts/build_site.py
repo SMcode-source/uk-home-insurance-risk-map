@@ -466,9 +466,14 @@ def load_stats():
     # The winsorisation cap IS the maximum surviving rate, so it needs no
     # side channel from the model; the district count at the cap is an
     # exact float equality because np.minimum wrote the cap value itself.
-    # Scotland's uniform override is the only value shared by hundreds of
-    # districts, so it is recoverable as the most frequent exact rate.
-    _vals, _counts = np.unique(th_rate, return_counts=True)
+    # Scotland used to be recoverable as the modal rate, because the
+    # override gave hundreds of districts one identical value. Council
+    # geography ended that (2026-09-01), so read the country flag and
+    # summarise the spread the 32 councils actually produce.
+    _scot = np.array([p.get("country") == "Scotland" for p in feats])
+    _s_rate = th_rate[_scot]
+    _s_w = _w[_scot]
+    _s_ok = _scot.any() and _s_rate.max() > 0
     th_bits = {
         "__TH_INCIDENTS__": f"{sum(int(r['burglaries']) for r in b_rows):,}",
         "__TH_MONTHS__": b_rows[0]["months"],
@@ -476,7 +481,15 @@ def load_stats():
         "__TH_CAP_PCT__": f"{100 * th_rate.max():.1f}",
         "__TH_CLIPPED__": str(int((th_rate == th_rate.max()).sum())
                               if th_rate.max() > 0 else 0),
-        "__TH_SCOT_PCT__": f"{100 * _vals[_counts.argmax()]:.2f}",
+        # 3dp, not the 2dp the rest of this dict uses: the smallest
+        # council rate rounds to "0.04%" at 2dp, and 0.63/0.04 is 15.8,
+        # which contradicts the 16x spread injected beside it.
+        "__TH_SCOT_MEAN_PCT__": (f"{100 * np.average(_s_rate, weights=_s_w):.3f}"
+                                 if _s_ok else "0.000"),
+        "__TH_SCOT_LO_PCT__": f"{100 * _s_rate.min():.3f}" if _s_ok else "0.000",
+        "__TH_SCOT_HI_PCT__": f"{100 * _s_rate.max():.3f}" if _s_ok else "0.000",
+        "__TH_SCOT_SPREAD_X__": (f"{_s_rate.max() / _s_rate.min():.0f}"
+                                 if _s_ok and _s_rate.min() > 0 else "0"),
         "__TH_CAT_CORR__": (f"{np.corrcoef(th_el, _el - th_el)[0, 1]:.2f}"
                             if th_el.max() > 0 else "0.00"),
     }

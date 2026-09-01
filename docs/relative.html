@@ -326,8 +326,10 @@ page</a>.</p>
   rate divides by households <b>plus VOA non-domestic premises</b> &mdash; each district
   carries only the residential share of its break-ins, instead of shop-dense cores
   wearing retail burglaries as household risk &mdash; with a 99.9th-percentile cap kept
-  as a tiny-denominator backstop. Scotland is not on police.uk and takes the national
-  housebreaking rate from Recorded Crime in Scotland instead. The rate is scaled to the
+  as a tiny-denominator backstop. Scotland is not on police.uk and takes recorded
+  housebreaking from Recorded Crime in Scotland instead &mdash; published for all 32
+  council areas and apportioned to districts by household share, averaged over
+  2023&ndash;24 to 2025&ndash;26. The rate is scaled to the
   ABI's national claim count, so the burglary&rarr;claim propensity cancels out and
   never has to be assumed.</p>
   <p><b>Escape of water.</b> A flat base &mdash; plumbing and appliance failure has no
@@ -386,7 +388,7 @@ page</a>.</p>
   while TVaR stays monotone in dependence. <b>Rating groups are deciles of THIS map's
   own units</b>, so a group 7 sector and a group 7 district are not the same
   population &mdash; compare the premiums, not the group numbers.</p>
-  <p><b>Reading this map.</b> This is the <b>same technical premium</b> as the model map, re-expressed: each district is shown as a multiple of the UK median premium (&pound;164/yr, household-weighted), so 2.00&times; means homes there carry twice the median modelled risk. Nothing new is modelled on this page &mdash; it exists because &ldquo;2.4&times; the UK median&rdquo; answers &ldquo;how exposed is my area?&rdquo; more directly than a &pound; figure does.</p>
+  <p><b>Reading this map.</b> This is the <b>same technical premium</b> as the model map, re-expressed: each district is shown as a multiple of the UK median premium (&pound;163/yr, household-weighted), so 2.00&times; means homes there carry twice the median modelled risk. Nothing new is modelled on this page &mdash; it exists because &ldquo;2.4&times; the UK median&rdquo; answers &ldquo;how exposed is my area?&rdquo; more directly than a &pound; figure does.</p>
   <p class="note">Hazard data: BGS Geology 625k, Met Office HadUK-Grid / Climate
   Data Portal (incl. air-frost days), EA / NRW / SEPA flood maps, EA flood-risk
   postcode data, police.uk street-level burglary (all OGL).
@@ -466,13 +468,13 @@ const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
    works while "the loaded features" means all of them. Under vector
    tiles it means the viewport's, so the scale (and the legend printed
    from it) would shift as you panned. Fixed nationally, once. */
-const BREAKS = {"premium":[137,149,160.3,171.6,185.1,208.6],"var995_vine":[5082.9,5541.6,5960.1,6385,7019.4,8165.7],"capital":[4.4001,4.8628,5.223,5.6342,6.1242,6.9284],"er_smp105":[0.0011,0.0028,0.0057,0.0084,0.0124,0.021]};
+const BREAKS = {"premium":[136.6,148.6,160.3,171.5,184.9,208.5],"var995_vine":[5082.3,5539.4,5947.7,6385.2,7009,8172.4],"capital":[4.4001,4.8628,5.2231,5.6342,6.1242,6.9284],"er_smp105":[0.0011,0.0028,0.0057,0.0084,0.0124,0.021]};
 /* Household-weighted median premium across the whole country - the
    anchor the relative-risk page divides by. Weighted by households, not
    by unit, so a sparse rural district counts as its people, not as one
    vote; and a median, not a mean, so the skewed top of the premium
    distribution cannot drag everyone else's ratio. */
-const REL_MEDIAN = 164;
+const REL_MEDIAN = 163;
 const DEFAULT_METRIC = 'rel';
 
 /* Erosion bins are cut over the COASTAL districts only — quantiles across
