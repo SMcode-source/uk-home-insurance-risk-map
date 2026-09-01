@@ -403,7 +403,9 @@ districts**, used as the exposure weight throughout.
       incidents via **British Transport Police**, which does cover
       Scottish railways. The country-mask fallback must OVERRIDE
       Scotland, not merely fill blanks. The override's comparator was
-      measured on 2026-09-01 and **kept**: see #36 and LIMITATIONS §5. Northern Ireland (PSNI) is in
+      measured on 2026-09-01 and **kept** (#36, LIMITATIONS §5); its
+      *geography* was closed the same day, from one national rate to the
+      32 councils' housebreaking counts (#37). Northern Ireland (PSNI) is in
       the archive but outside the GB polygons; its rows land in the
       "outside every polygon" bucket (8,633 with BTP/coastal strays).
     - **Calibration anchor (the LEVEL):** the ABI stopped publishing an
@@ -533,9 +535,9 @@ districts**, used as the exposure weight throughout.
     - **Devolved:** Wales — StatsWales "Fires ... by area and
       financial year" cubes (OData/JSON, dwelling fires by FRA/LA);
       Scotland — statistics.gov.scot "Fire - Type of Incident"
-      (accidental dwelling fires down to datazone). Better than
-      theft's flat-Scotland override: both nations have real
-      sub-national counts.
+      (accidental dwelling fires down to datazone). Both nations have
+      real sub-national counts, which is also the route theft's
+      Scotland took on 2026-09-01 (#37).
     - **Level anchor (triangle, no direct figure exists):** the ABI
       publishes NO current domestic fire split — the 2025 full-year
       release (£3.4bn/560k home claims) and Q1 2026 release were both
@@ -649,8 +651,10 @@ districts**, used as the exposure weight throughout.
       placed, 2,415 of 2,736 districts have any. Most commercial:
       SE1 7,696 / E1 6,620 / E14 6,397.
     - **Scotland deliberately absent:** VOA covers E&W only, and
-      theft's Scotland is a flat national override (#25), so a
-      commercial correction there would adjust nothing.
+      theft's Scotland is overridden with recorded housebreaking
+      (#25, #37), so a commercial correction there would adjust
+      nothing. The Scottish counts are all-premises, which is a
+      separate and measured asymmetry — LIMITATIONS §5.
     - **Effect (local check against the published rates):** cap falls
       6.22% → 3.40% and binds 14 districts instead of doing crude
       duty for every commercial core; W1J 6.22% → 1.85% real rate,
@@ -1144,11 +1148,16 @@ districts**, used as the exposure weight throughout.
     result. Both are cited here because the check turned on them.
 
     - **Recorded Crime in Scotland 2024-25, Table A6** (gov.scot, OGL
-      v3.0), the source of `SCOTLAND_HOUSEBREAKING_2024_25`. Downloaded
+      v3.0), the source of the flat national override the model used
+      until 2026-09-01. Downloaded
       to `data/cache/` (gitignored, refetchable). Theft by Housebreaking,
       2024-25: Dwelling **3,661**, Non-dwelling **1,531**, Domestic
       **5,192**, Other **2,189**, Total **7,381**. The model uses the
-      Total.
+      Total, and still does - council geography (#37) disaggregated that
+      choice, it did not revisit it. **This workbook is NOT the freshest publication of the same
+      series** — see #37, which carries 2025-26. Treating it as the
+      newest available is what made the period note in LIMITATIONS §5
+      wrong for a few hours.
     - **Crime in England and Wales: Appendix tables, year ending March
       2026 edition, Table A5a** (ONS / Home Office police recorded
       crime, OGL v3.0),
@@ -1166,6 +1175,59 @@ districts**, used as the exposure weight throughout.
     Note the file naming: the year-ending-March-**2025** edition is NOT
     at the analogous URL (404); the 2026 edition carries the full time
     series and is the one to fetch.
+
+37. **statistics.gov.scot `recorded-crime` — the same Scottish series,
+    fresher and by council area (found 2026-09-01).** Free, open, OGL
+    v3.0.
+    `https://statistics.gov.scot/downloads/cube-table?uri=http%3A%2F%2Fstatistics.gov.scot%2Fdata%2Frecorded-crime`
+    returns the whole cube as CSV (~11 MB): 60 crime/offence categories
+    × 32 council areas + Scotland × 1996/1997 onward, Count and rate per
+    10,000 population. Cached at
+    `data/cache/scotland_recorded_crime_by_la.csv` (gitignored).
+    `scripts/fetch_housebreaking.py` reads "Crimes: Group 3:
+    Housebreaking" from it.
+
+    **Two things it gives that #36's workbook does not.**
+
+    - **A fresher year.** The cube carries **2025-26** (6,968
+      housebreakings; 315,357 All Crimes against 299,111 the year
+      before — a complete year), where the Recorded Crime in Scotland
+      2024-25 workbook naturally stops at 2024-25. Month-weighted over
+      the police.uk archive window in #25, the archive-matched Scottish
+      figure is **7,681/yr against the 7,381 the model uses**. The
+      general rule, worth more than this instance: **a statistical
+      agency's flagship workbook and its open-data cube are not the same
+      vintage** — check the cube before concluding a series ends where
+      the bulletin ends.
+    - **Council-area geography.** All 32 councils, and they sum to
+      exactly Table A6's 7,381 for 2024-25 — the same measurement
+      disaggregated, not a different series, and
+      `fetch_housebreaking.py` asserts that tie rather than assuming it.
+      2024-25 spans Shetland 6 to City of Edinburgh 1,306.
+
+    `data/housebreaking.csv` (442 Scottish districts, annual counts on
+    the 2024-25 and three-year bases) is built from this plus the cached
+    ONSPD lookup, apportioning each council's count by the households
+    each district contributes to it. **The model reads its `hb_3yr`
+    column** (shipped 2026-09-01): three published years, 2023-24 to
+    2025-26, mean **7,794/yr**, which sits within 1.5% of the
+    archive-matched 7,681 above and replaces the flat 7,381. A single
+    year is noisy in the smallest councils, which is why the window and
+    not `hb_1yr` is used; both columns are written so the choice stays
+    auditable. `scores_real.theft_from_police` hard-fails if the file is
+    missing or covers the wrong grain, the same posture as
+    `burglary.csv` and `premises.csv`.
+
+    **Two seams worth knowing.** The file is keyed on postcode
+    *districts* here and on postcode *sectors* on `sector-model`, from
+    the same script under a two-line diff (the `RISK` path and
+    `postcode_key`); a district-keyed file on the sector branch joins
+    nothing, which is what the coverage guard catches. And four sectors
+    (DG3 9, EH52 1, ML7 9, TD8 9) hold only terminated postcodes, so
+    ONSPD places them in no council at all: they take their parent
+    outcode's household rate and the result is renormalised, so the
+    national total is still conserved exactly. Above 1% orphans the
+    script refuses to write.
 
 ## Budget: zero, decided 2026-08-31
 

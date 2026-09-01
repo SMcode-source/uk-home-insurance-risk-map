@@ -46,7 +46,7 @@ DRIVERS = {
              "postcode-level flag", "England; 0.02 background elsewhere"),
     "th":   ("Theft", "police.uk street-level burglary points, "
              "668,609 of them", "street-level points", "E&W; Scotland at "
-             "a national housebreaking rate"),
+             "council housebreaking"),
     "eow":  ("Escape of water", "Met Office air-frost days 1991-2020 "
              "climatology, on ~15% of the peril", "1 km climatology",
              "UK, but NO year-to-year variation"),

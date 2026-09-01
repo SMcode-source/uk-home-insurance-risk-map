@@ -226,12 +226,45 @@ W1C, WC2N, W1F, WC2E, EC3V up — wealthy Scottish suburbs against London
 commercial cores, exactly the two ends a Scotland-versus-E&W level change
 should move, and a sign nothing else leaked.
 
-**Period is not a confound.** Scottish housebreaking fell 18% between
+**Period IS a confound — corrected 2026-09-01, hours after this section
+was written.** What stood here: Scottish housebreaking fell 18% between
 2023-24 and 2024-25, so a backward multi-year mean would sit well above
 7,381 — but the police.uk archive runs 2023-07 to 2026-06, centred on
-December 2024, and the 2024-25 constant straddles that centre. Fifteen of
-its thirty-six months are later than the newest published Scottish year.
-There is nothing to correct towards.
+December 2024, and the 2024-25 constant straddles that centre; fifteen of
+its thirty-six months are later than the newest published Scottish year,
+so there is nothing to correct towards.
+
+The reasoning was fine. **The premise was wrong**, and the way it was
+wrong is worth keeping: I took "newest published Scottish year" from the
+publication the constant came from — the Recorded Crime in Scotland
+workbook — and never asked whether the same numbers were published
+somewhere fresher. They are. **statistics.gov.scot's `recorded-crime`
+cube carries 2025-26**: 6,968 housebreakings, a complete year (315,357
+All Crimes against 299,111 the year before). Thirty-three of the
+archive's thirty-six months are published, not twenty-one.
+
+| overlap with 2023-07…2026-06 | housebreaking |
+|---|---|
+| 2023-24, Jul–Mar (9 months) | 9,033 × 9/12 = 6,775 |
+| 2024-25 (12 months) | 7,381 |
+| 2025-26 (12 months) | 6,968 |
+| 2026-27, Apr–Jun (3 months) | not yet published |
+
+Month-weighted over the 33 published months: **7,681/yr, 4.1% above the
+constant in use**. Scotland is *under*-stated on period by roughly as
+much as the basis work found it *over*-stated on definition, in the
+opposite direction, so the netted like-for-like over-statement is nearer
+1.03× than 1.07×. It does not change the decision — 7,381 stays, and
+both corrections are inside the noise the matched pair already spans —
+but "there is nothing to correct towards" was a stronger claim than the
+evidence supported, and it was made because one source was treated as
+the source.
+
+The lesson generalises past this peril: **a statistical agency's flagship
+PDF/workbook and its open-data cube are not the same vintage.** Check the
+cube before concluding a series ends where the bulletin ends. Priced in
+`price_scotland_theft_geography.py` as the `level_3yr` variant, so the
+correction is measured rather than merely noted.
 
 **Three process notes.**
 
@@ -1381,11 +1414,15 @@ How it is built (all of it on main now):
   at the household-weighted p99.9 (6.22% districts / 8.29% sectors —
   the cap re-solves per resolution over its own exposure distribution;
   office cores are burgled as shops, not homes); Scotland OVERRIDDEN
-  (not filled) with the national housebreaking rate, 0.29%/yr.
+  (not filled) with recorded housebreaking at COUNCIL resolution since
+  2026-09-01 — `data/housebreaking.csv`, `hb_3yr`, 32 councils
+  apportioned by household share, 0.039-0.632%/yr against the flat
+  0.29% it replaced.
 - Site copy (759c841): every theft number injected from committed data
   (`__TH_*__` in build_site.load_stats — the cap recovered as the max
-  surviving rate, the Scotland override as the most frequent exact
-  rate); popup shows the measured burglary rate, not a fake 0–1 score;
+  surviving rate; Scotland was recovered as the most frequent exact rate
+  until council geography ended that on 2026-09-01, and is now
+  summarised from the `country` flag as min/mean/max/spread); popup shows the measured burglary rate, not a fake 0–1 score;
   theft bronze `--th` contrast-checked both themes; the years page
   stays four-peril episodic on purpose and says so.
 

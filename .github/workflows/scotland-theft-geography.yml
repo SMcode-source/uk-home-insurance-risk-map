@@ -1,0 +1,147 @@
+name: scotland theft geography pricing
+
+# police.uk has no Scottish forces, so all 442 Scottish districts share
+# ONE theft rate: 7,381 housebreakings over 2,504,952 households,
+# 0.2947%/yr, identical from Shetland to central Edinburgh, while England
+# and Wales get street-level burglary points. That is the largest
+# remaining geography gap in a peril worth 13.43% of claim cost, and
+# LIMITATIONS section 7 ranks it as the free one to close.
+#
+# statistics.gov.scot publishes Group 3 Housebreaking for all 32 council
+# areas, and those 32 sum to exactly the 7,381 the model already uses -
+# the same measurement disaggregated, not a different series.
+# scripts/fetch_housebreaking.py apportions it to districts by the
+# households each contributes to each council, conserving the total
+# exactly, and the flat 0.2947% becomes 0.0459% (HS3) to 0.6209% (EH2).
+#
+# Five full simulations off one scored frame, separating the two
+# questions before combining them:
+#
+#   baseline         flat 7,381. Published.
+#   level_3yr        flat 7,794, still one rate. Period alone.
+#   geog_1yr         council geography at 7,381. Geography alone.
+#   geog_3yr_shape   3-year geography renormalised to 7,381. Quieter
+#                    shape (Shetland recorded SIX housebreakings in
+#                    2024-25; a one-year council rate is Poisson noise).
+#   geog_3yr_level   3-year geography at 7,794. Both - the candidate.
+#
+# The period half also corrects the record. The basis measurement
+# (run 33449273312) said period was not a confound because the newest
+# published Scottish year was 2024-25 and the police.uk archive
+# (2023-07 to 2026-06) straddles it. statistics.gov.scot carries
+# 2025-26 - 6,968, a complete year - so the archive-matched Scottish
+# figure is 7,681/yr month-weighted, 4.1% ABOVE the constant in use.
+#
+# The national theft LEVEL cannot move in any variant:
+# calibrate_frequency pins the exposure-weighted UK frequency to the ABI
+# anchor, so el_th must come back identical and every variant is a pure
+# relativity.
+#
+# MEASUREMENT ONLY. Nothing here touches the published model: no output
+# file is regenerated and there is deliberately no commit step. The
+# result is a table the user decides on.
+#
+# ANSWERED 2026-09-01, and SHIPPED. Runs 33454831130 (19m07s) and
+# 33456953906 (19m51s, a deliberate retrigger) agree. Against the flat
+# baseline, exposure-weighted GBP/policy:
+#
+#   variant           premium   Scotland   E&W      churn (Scottish)
+#   baseline          169.6483  172.0869   169.4016   -
+#   level_3yr         169.6483  172.5472   169.3550   28  (13)
+#   geog_1yr          169.6483  172.0891   169.4014  177 (116)
+#   geog_3yr_shape    169.6483  172.0878   169.4015  193 (128)
+#   geog_3yr_level    169.6483  172.5482   169.3549  179 (126)
+#
+# el_th, el_total, capital and TVaR are identical to 1e-14 in every
+# variant, exactly as calibrate_frequency guarantees: this is a pure
+# relativity and the UK headline cannot move. What geography buys is
+# the map - Scottish rates 0.039% to 0.632%/yr, a 16x spread where
+# there was one flat 0.2947%. Edinburgh pays up to +GBP14 (EH10, EH2,
+# EH9), rural Aberdeenshire down to -GBP8 (AB31, AB32, AB34).
+#
+# The user shipped `geog_3yr_level`: council geography on the
+# three-year window, at its own 7,794 level. It is now the model
+# (scores_real reads data/housebreaking.csv's hb_3yr), which is also
+# why price_scotland_theft_geography.py now refuses to run - its flat
+# baseline no longer exists. Push trigger retired accordingly.
+on:
+  workflow_dispatch:
+    inputs:
+      nsim:
+        description: "Simulated years per district (blank = the model's 20,000)"
+        default: ""
+      batch:
+        description: "Districts per simulation batch (blank = the model's 80)"
+        default: ""
+
+concurrency:
+  group: scotland-theft-geography
+  cancel-in-progress: false
+
+jobs:
+  price:
+    name: price the Scottish theft geography
+    runs-on: ubuntu-latest
+    # Five full 20,000-year simulations off one scored frame; the basis
+    # run did five in 19 minutes total at district grain.
+    timeout-minutes: 240
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Clone postcode-district boundaries
+        run: |
+          git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git \
+            data/uk-postcode-polygons
+
+      # Same mirror, same pinned hashes as rebuild.yml - see the long note
+      # there for why BGS itself cannot be reached from GitHub runners.
+      - name: Download BGS geology from the data mirror
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download data-bgs-625k-v1 --dir data \
+            --pattern 'bgs_625k_*.geojson.gz'
+          gunzip data/bgs_625k_bedrock.geojson.gz \
+                 data/bgs_625k_superficial.geojson.gz
+          sha256sum -c <<'SUMS'
+          66524b94dfeb491a746994dfa5e334b52a9b15a42f82c15977df1d5c100c3fb7  data/bgs_625k_bedrock.geojson
+          a029e2ab61190c7103983c33d77c24743c7bb2c9fcfcd25ebd063ab9f3c38aee  data/bgs_625k_superficial.geojson
+          SUMS
+
+      - name: Reject incomplete geology
+        run: |
+          if ls data/*.partial 2>/dev/null; then
+            echo "::error::a geology layer is incomplete (.partial) - refusing to price"
+            exit 1
+          fi
+          python -u scripts/fetch_bgs.py --verify
+
+      # housebreaking.csv is COMMITTED, not fetched here: it is 442 rows
+      # built from a cached 235 MB ONSPD lookup that has no business on a
+      # runner, the same reason ct_bands.csv is committed.
+      - name: Price the variants
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.nsim }}" ];  then ARGS="$ARGS --nsim ${{ inputs.nsim }}"; fi
+          if [ -n "${{ inputs.batch }}" ]; then ARGS="$ARGS --batch ${{ inputs.batch }}"; fi
+          python -u scripts/price_scotland_theft_geography.py $ARGS
+
+      - name: Show the table again at the end of the log
+        run: cat data/scotland_theft_geography_pricing.json
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scotland-theft-geography-pricing
+          path: data/scotland_theft_geography_pricing.json
+          retention-days: 30

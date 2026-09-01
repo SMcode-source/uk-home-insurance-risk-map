@@ -19,8 +19,10 @@ Counts are rounded to the nearest 10 and small counts are suppressed
 under-counts by at most a handful of premises in the emptiest LSOAs.
 
 Scotland is deliberately absent: VOA covers England & Wales only, and
-the theft peril overrides Scotland with a flat national housebreaking
-rate anyway, so a commercial correction there would adjust nothing.
+the theft peril overrides Scotland with recorded housebreaking anyway
+(data/housebreaking.csv), so a commercial correction there would adjust
+nothing. Note the Scottish counts are all-premises, which is a separate
+and measured asymmetry - LIMITATIONS.md section 5.
 
 The LSOA vintage is not documented in the CSV itself, so the
 apportionment matches the file's codes against BOTH the 2011 and 2021

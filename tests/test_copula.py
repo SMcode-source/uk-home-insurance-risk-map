@@ -418,6 +418,8 @@ def _theft_fixture(tmp_path, premises_rows):
         "SCOT,Scotland,1.0\n")
     (tmp_path / "premises.csv").write_text(
         "name,premises\n" + premises_rows)
+    (tmp_path / "housebreaking.csv").write_text(
+        "name,hb_1yr,hb_3yr\nSCOT,3.0,3.3\n")
     return np.array(["CORE", "HOME", "SCOT"]), np.array([100.0, 5000.0, 900.0])
 
 
@@ -464,6 +466,51 @@ def test_premises_join_failure_is_fatal_not_silent(tmp_path, monkeypatch):
     (tmp_path / "premises.csv").write_text(
         "name,premises\nCORE,1900.0\nHOME,50.0\n")
     sr.theft_from_police(names, hh)
+
+
+def test_scotland_reads_council_housebreaking_and_a_missing_file_is_fatal(
+        tmp_path, monkeypatch):
+    """Scotland's theft rate comes from housebreaking.csv, per area.
+
+    Until 2026-09-01 every Scottish district shared one national rate,
+    and the fallback that produced it was arithmetic on a constant -
+    nothing to go stale, nothing to join wrong. Council geography made
+    it a FILE, which brings both file traps with it: absent (the run
+    should stop, not fall back to a flat rate nobody chose) and keyed on
+    the wrong grain (a district-keyed file on the sector branch joins
+    nothing, and `.get(n, 0.0)` would hand every Scottish sector a rate
+    of exactly zero - a void run that looks like cheap Scotland).
+    """
+    import scores_real as sr
+    monkeypatch.setattr(sr, "DATA", str(tmp_path))
+
+    names, hh = _theft_fixture(tmp_path, "CORE,1900.0\nHOME,50.0\n")
+    # two Scottish areas in different councils, so the rate cannot be flat
+    (tmp_path / "burglary.csv").write_text(
+        "name,burglaries,months\nCORE,600,12\nHOME,60,12\n"
+        "SCOT,30,12\nSCOT2,30,12\n")
+    (tmp_path / "country.csv").write_text(
+        "name,country,share\nCORE,England,1.0\nHOME,England,1.0\n"
+        "SCOT,Scotland,1.0\nSCOT2,Scotland,1.0\n")
+    (tmp_path / "housebreaking.csv").write_text(
+        "name,hb_1yr,hb_3yr\nSCOT,3.0,3.3\nSCOT2,30.0,33.0\n")
+    names = np.array(["CORE", "HOME", "SCOT", "SCOT2"])
+    hh = np.array([100.0, 5000.0, 900.0, 900.0])
+
+    rate = sr.theft_from_police(names, hh)
+    assert rate[2] == pytest.approx(3.3 / 900.0)      # hb_3yr, not hb_1yr
+    assert rate[3] == pytest.approx(33.0 / 900.0)
+    assert rate[3] > rate[2]                          # geography, not a rate
+
+    # wrong grain: the file joins nothing rather than yielding zeros
+    (tmp_path / "housebreaking.csv").write_text(
+        "name,hb_1yr,hb_3yr\nSCOT 1,3.0,3.3\nSCOT2 1,30.0,33.0\n")
+    with pytest.raises(SystemExit, match="housebreaking.csv covers only"):
+        sr.theft_from_police(names, hh)
+
+    (tmp_path / "housebreaking.csv").unlink()
+    with pytest.raises(SystemExit, match="housebreaking.csv missing"):
+        sr.theft_from_police(names, hh)
 
 
 def test_erosion_expected_loss_is_analytic_not_simulated(monkeypatch):

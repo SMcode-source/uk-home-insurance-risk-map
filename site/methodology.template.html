@@ -377,11 +377,20 @@ __NAV__
       it) — no longer doing the commercial correction's job, just guarding the handful of
       districts whose combined denominator is so small that a few incidents would
       otherwise swing the rate wildly.</li>
-      <li><b>Scotland.</b> Police Scotland does not publish to police.uk, so Scottish
-      districts carry the <b>national housebreaking rate</b> (__TH_SCOT_PCT__%/yr) from
-      Recorded Crime in Scotland instead — an override, not a fill, because the only
-      "Scottish" rows in the archive are British Transport Police railway incidents,
-      which would otherwise masquerade as tiny local rates.</li>
+      <li><b>Scotland.</b> Police Scotland does not publish to police.uk, so Scotland is
+      <b>overridden, not filled</b>: the only "Scottish" rows in the archive are British
+      Transport Police railway incidents, which would otherwise masquerade as tiny local
+      rates. Scottish areas instead carry recorded <b>housebreaking</b> from
+      <a href="https://statistics.gov.scot/data/recorded-crime">Recorded Crime in
+      Scotland</a>, which publishes it for all <b>32 council areas</b> — apportioned onto
+      postcode geography by the households each area contributes to each council, and
+      averaged over three years (2023-24 to 2025-26) because a single year is noisy in
+      the smallest councils. Scottish rates run
+      <b>__TH_SCOT_LO_PCT__%–__TH_SCOT_HI_PCT__%/yr</b> (mean __TH_SCOT_MEAN_PCT__%), a
+      __TH_SCOT_SPREAD_X__× spread where until 1 September 2026 this map showed one flat
+      national rate. It remains a 32-value step function: areas inside the same council
+      still share a value, which is the resolution of the source rather than a defect of
+      the join.</li>
     </ul>
     <p><b>Theft sits outside the vine copula, on purpose.</b> Burglary does not arrive on
     the storm track: the correlation between a district's theft expected loss and its
@@ -1181,7 +1190,7 @@ __NAV__
         <tr><td><strong>National Records of Scotland</strong></td><td>Scotland's Census 2022 household total</td></tr>
         <tr><td><strong>police.uk</strong></td><td>Street-level crime archive, latest 36 months — burglary points (England, Wales, BTP)</td><td>Theft</td></tr>
         <tr><td><strong>VOA</strong></td><td>Non-domestic rating: stock of properties 2025 — premises counts by LSOA (England &amp; Wales)</td><td>Theft residential share</td></tr>
-        <tr><td><strong>Scottish Government</strong></td><td>Recorded Crime in Scotland 2024–25 — national housebreaking count</td><td>Theft (Scotland override)</td></tr>
+        <tr><td><strong>statistics.gov.scot</strong></td><td><a href="https://statistics.gov.scot/data/recorded-crime">Recorded Crime in Scotland</a> — Group 3 housebreaking by council area, 2023–24 to 2025–26</td><td>Theft (Scotland override)</td></tr>
         <tr><td><strong>ABI</strong></td><td>Domestic claims paid by peril, 2025 (theft: 2018, the last published; escape of water: the "£1.8m a day" figure; fire: average-payout quote only)</td><td>Loss calibration</td></tr>
         <tr><td><strong>Home Office / MHCLG</strong></td><td>Fire statistics: incident-level low-level-geography dataset (LSOA), FIRE0201 national series to 1981/82</td><td>Fire frequency, geography and loading</td></tr>
         <tr><td><strong>SFRS / statistics.gov.scot</strong></td><td>Dwelling fires by council area</td><td>Fire geography (Scotland)</td></tr>

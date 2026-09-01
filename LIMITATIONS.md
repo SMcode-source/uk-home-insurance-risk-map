@@ -200,7 +200,7 @@ Every one of these prints its own count at build time.
 | where | rule | scale | why |
 |---|---|---|---|
 | Groundwater | non-England districts get `GW_BACKGROUND = 0.02` | **623 of 2,736 districts** | EA alert areas are England-only. NRW/SEPA publish no equivalent. |
-| Theft, Scotland | one national housebreaking rate (7,381 recorded 2024-25 → 0.295%/yr) | **442 districts** | Police Scotland publishes no incident-level data. |
+| Theft, Scotland | housebreaking at **council** resolution (32 areas, three-year mean 7,794/yr → 0.039–0.632%/yr), apportioned by household share | **442 districts, 32 distinct values** | Police Scotland publishes no incident-level data; the cube stops at council area. |
 | Surface-water depth | districts with no mapped depth fall back to multiplier 1.0 | **651 of 2,736** | NRW and SEPA publish no depth product. |
 | Coastal erosion | districts outside NCERM score **zero** | **2,384 of 2,736** | NCERM is England-only. |
 | Gridded CSV layers | missing districts take the **national median** | varies, printed per layer | A missing grid reading is not a zero reading. |
@@ -220,8 +220,11 @@ Their materiality differs sharply, though, and the distinction matters:
 - **Groundwater IS priced** (0.82% of EL), so its England-only basis and
   flat 0.02 background do reach the premium — but at that weight the
   effect is small.
-- **Surface-water depth and Scottish theft are the materially damaging
-  ones**: they sit inside flood (12.27%) and theft (13.43%).
+- **Surface-water depth was the materially damaging one left**: it sits
+  inside flood (12.27%). Scottish theft sat beside it inside theft
+  (13.43%) until 2026-09-01, when the flat national rate was replaced by
+  council geography (§7); what remains there is a 32-value step
+  function, not a single value.
 
 **Scottish theft's *basis* has now been measured, and it is smaller than
 it looks** (run 33449273312, `scripts/price_scotland_theft.py`, artifact
@@ -247,13 +250,40 @@ closely enough for the comparison to be fair: E&W residential 68.5%
 against Scottish domestic 70.3%, E&W home-only 51.1% against Scottish
 dwelling 49.6%.
 
-Period is not a confound. Scottish housebreaking fell 18% between
-2023-24 and 2024-25, so a backward multi-year mean would sit above
-7,381 — but the police.uk archive runs 2023-07 to 2026-06, centred on
-December 2024, and the 2024-25 constant straddles that centre.
+**Period IS a confound, and it points the other way — this corrects
+what was written here on 2026-09-01.** The original note said period was
+not a confound: Scottish housebreaking fell 18% between 2023-24 and
+2024-25, so a backward multi-year mean would sit above 7,381, but the
+police.uk archive runs 2023-07 to 2026-06, is centred on December 2024,
+and the 2024-25 constant straddles that centre. That reasoning was sound
+and the premise was wrong. It assumed 2024-25 was the newest published
+Scottish year, because the Recorded Crime in Scotland workbook is where
+the constant came from. **statistics.gov.scot carries 2025-26** — 6,968
+housebreakings, a complete year (315,357 All Crimes against 299,111 the
+year before). So 33 of the archive's 36 months are published, not 21:
 
-**7,381 stays.** The *geography* gap (one flat rate across 442
-districts) remains the materially damaging half, and §7 still ranks it.
+| overlap with 2023-07…2026-06 | housebreaking |
+|---|---|
+| 2023-24, Jul–Mar (9 months) | 9,033 × 9/12 = 6,775 |
+| 2024-25 (12 months) | 7,381 |
+| 2025-26 (12 months) | 6,968 |
+| 2026-27, Apr–Jun (3 months) | not yet published |
+
+Month-weighted over the 33 published months, the archive-matched figure
+is **7,681/yr — 4.1% ABOVE the constant in use**. Scotland is
+*under*-stated on period by roughly as much as the basis work found it
+*over*-stated on definition, and in the opposite direction. Netted, the
+like-for-like over-statement is nearer 1.03× than the 1.07× above.
+
+**The definition correction was not applied; the period one effectively
+has been.** 7,381 over 5,192 stands: the two definitional errors nearly
+cancel, and correcting Scotland alone would move it four to five times
+too far. But shipping council geography on 2026-09-01 (§7) also moved
+the *window*. The model now reads the three published years 2023-24 to
+2025-26, whose mean is **7,794/yr** — 5.6% above the old constant, and
+within 1.5% of the 7,681 the archive overlap implies. The *geography*
+gap this section used to rank as the materially damaging half is closed
+to council resolution.
 
 ---
 
@@ -302,11 +332,21 @@ Also unanchored, and worth naming:
    itself is sound — re-aiming its window was tested and rejected on
    measurement (§4) — but the model is blind to the *level* of frost by
    construction, so a warming winter cannot reach the premium.
-2. **Theft has no Scottish geography** — 442 districts on one flat rate,
-   while England and Wales get street-level burglary points. Theft is
-   13.4% of EL, so this is the largest *priced* coverage gap.
-3. **Surface-water depth is England-only** — 651 districts fall back to a
-   flat severity multiplier inside flood, which is 12.3% of EL.
+2. **Surface-water depth is England-only** — 651 districts fall back to a
+   flat severity multiplier inside flood, which is 12.3% of EL. With
+   Scottish theft closed to council resolution below, this is now the
+   largest *priced* coverage gap.
+3. **Theft's Scottish geography stops at council area.** It was one flat
+   rate across all 442 districts until 2026-09-01, when the 32 councils'
+   housebreaking counts replaced it (§5), apportioned onto districts by
+   household share — a 16× spread where there had been none, worth
+   **+£0.46** on the mean Scottish premium, **nothing** at the headline,
+   and 126 Scottish districts moving one rating group. What remains is a
+   32-value step function: districts inside one council are still
+   indistinguishable from each other, against street-level points in
+   England and Wales. The residual gap is bounded by whatever
+   within-council variation the council totals hide, and no free source
+   resolves it further.
 4. **Accidental damage is driven by census child-share.** That is a
    demographic proxy for "households with children have more accidents",
    not a hazard measurement. 8.9% of EL rests on it.
