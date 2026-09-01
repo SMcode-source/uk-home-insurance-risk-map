@@ -89,7 +89,7 @@ is outside it:
 |---|---|---|---|---|---|
 | Escape of water | £42.39 | **25.83%** | air-frost days | 1991–2020 **climatology** | UK — **no year-to-year variation** |
 | Fire | £28.00 | 17.06% | MHCLG dwelling-fire incidents | fire-authority area | GB |
-| Theft | £22.04 | 13.43% | police.uk burglary points | **street level** | E&W; Scotland one flat rate |
+| Theft | £22.04 | 13.43% | police.uk burglary points | **street level** | E&W; Scotland at council resolution |
 | Flood | £20.13 | 12.27% | EA NaFRA2 / NRW FRAW / SEPA zones | polygon fractions | UK; depth England only |
 | Subsidence | £19.81 | 12.07% | BGS clay shrink–swell | 1:625,000 | GB |
 | Storm | £15.74 | 9.59% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
@@ -392,7 +392,7 @@ trusted.**
 | 1 | Scotland | **Scottish EPC Register** (separate from E&W) | same | Medium — needs checking |
 | 2 | Coastal erosion outside England | **NRW shoreline management / Wales coastal monitoring**; **Dynamic Coast** (Scotland) | frontage → district, matching NCERM's method | Medium — Dynamic Coast is the established Scottish equivalent; needs verification |
 | 2 | Groundwater outside England | **BGS susceptibility to groundwater flooding**; SEPA/NRW flood maps | polygon fractions per district | Medium — BGS product is GB-wide, but is *susceptibility*, not EA's alert-area basis, so the two do not merge cleanly |
-| 3 | Theft, Scotland | **Recorded Crime in Scotland** by local authority | LA → district apportionment by households | Medium — LA is far coarser than street level; would improve on one flat national rate but not match E&W |
+| 3 | Theft, Scotland | **Recorded Crime in Scotland** by local authority | LA → district apportionment by households | **DONE 2026-09-01.** Shipped from the statistics.gov.scot cube (DATA_SOURCES #37), not the workbook — the cube carries all 32 councils and a fresher year. LA is still far coarser than street level, so this improved on one flat rate without matching E&W, exactly as forecast here. |
 | 4 | Accidental damage proxy | EPC/VOA stock type + census tenure | district | Low — no anchor for what AD actually correlates with |
 | 5 | Fire resolution | **Home Office incident-level fire statistics** if published below authority level | district | Low — needs checking |
 | 8 | PET bias | **Hydro-PE** (CEH, doi:10.5285/9275ab7e-6e93-42bc-8e72-59c98d409deb), the citable Penman–Monteith replacement; or Met Office MORECS/MOSES | replace the PET term | Optional. This row read "**Required before the SMD index ships**" until 2026-08-31, when the index shipped without it: the bias was measured to move the LEVEL, which the calibration re-pins, and not the MAP (rank correlation ≥ +0.998), so it stopped being a blocker and became a level-only improvement. See §7.8. |
