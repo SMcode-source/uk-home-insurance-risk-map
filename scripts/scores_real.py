@@ -842,12 +842,12 @@ def erosion_from_ncerm(names):
     return score, out
 
 
-# Scotland fallback for the theft peril. Police Scotland publishes no
-# incident-level data, so Scottish districts get one national rate:
-# recorded housebreaking 2024-25 (Recorded Crime in Scotland, gov.scot,
-# all premises - the same definitional mix as police.uk's "Burglary")
-# over the model's own Scottish household total.
-SCOTLAND_HOUSEBREAKING_2024_25 = 7_381
+# Scotland's theft geography arrives in its own file, data/housebreaking.csv,
+# because police.uk carries no Scottish forces: 32 council housebreaking
+# counts from the statistics.gov.scot recorded-crime cube, apportioned onto
+# postcode geography by household share (scripts/fetch_housebreaking.py,
+# DATA_SOURCES.md #37). It replaced a single flat national rate on
+# 2026-09-01 - the measurement is LIMITATIONS.md 7.
 
 
 def theft_from_police(names, households):
@@ -879,10 +879,10 @@ def theft_from_police(names, households):
     - Scotland is OVERRIDDEN, not filled: police.uk has no Scottish
       forces, but British Transport Police leaks a handful of Scottish
       railway burglaries into the data, so "has data" cannot be the
-      test. Every Scottish district gets the national housebreaking
-      rate; Welsh/English districts keep their own. (VOA covers E&W
-      only, so Scottish premises are 0 - irrelevant under the
-      override.)
+      test. Scottish areas take their rate from housebreaking.csv -
+      council counts apportioned to postcode geography - and
+      Welsh/English areas keep their own. (VOA covers E&W only, so
+      Scottish premises are 0 - irrelevant under the override.)
     """
     path = os.path.join(DATA, "burglary.csv")
     if not os.path.exists(path):
@@ -939,10 +939,34 @@ def theft_from_police(names, households):
                 "scripts/fetch_premises.py (DATA_SOURCES.md #29)")
 
     if scot.any():
-        scot_rate = SCOTLAND_HOUSEBREAKING_2024_25 / hh[scot].sum()
-        rate[scot] = scot_rate
-        print(f"  theft: {int(scot.sum())} Scottish districts -> national "
-              f"housebreaking rate {scot_rate:.3%}/yr")
+        hb_path = os.path.join(DATA, "housebreaking.csv")
+        if not os.path.exists(hb_path):
+            raise SystemExit("data/housebreaking.csv missing - run "
+                             "scripts/fetch_housebreaking.py first "
+                             "(DATA_SOURCES.md #37)")
+        # hb_3yr, not hb_1yr: three years of council counts (2023-24 to
+        # 2025-26) rather than one. A single year is noisy in the small
+        # councils, and 2024-25 alone is now a year stale - the cube
+        # publishes 2025-26. The three-year window is the priced variant.
+        hb_table = {}
+        with open(hb_path, newline="") as fh:
+            for row in csv.DictReader(fh):
+                hb_table[row["name"]] = float(row["hb_3yr"])
+        scot_names = [n for n, s in zip(names, scot) if s]
+        hb_missing = [n for n in scot_names if n not in hb_table]
+        if hb_missing:
+            raise SystemExit(
+                f"housebreaking.csv covers only "
+                f"{len(scot_names) - len(hb_missing)}/{len(scot_names)} "
+                f"Scottish areas (first missing: {hb_missing[:5]}) - stale "
+                "file, or a district-keyed file on the sector branch? Rerun "
+                "scripts/fetch_housebreaking.py (DATA_SOURCES.md #37)")
+        hb = np.array([hb_table.get(n, 0.0) for n in names])
+        rate[scot] = hb[scot] / hh[scot]
+        print(f"  theft: {int(scot.sum())} Scottish areas -> "
+              f"{hb[scot].sum():,.0f} housebreakings/yr across 32 councils, "
+              f"mean {np.average(rate[scot], weights=hh[scot]):.3%}/yr, "
+              f"range {rate[scot].min():.3%}-{rate[scot].max():.3%}")
 
     ew_r, ew_w = rate[~scot], hh[~scot]
     o = np.argsort(ew_r, kind="stable")   # stable: ties keep file order,

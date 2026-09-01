@@ -293,9 +293,12 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    residential share, so the City and Mayfair price at the rate their actual
    residents face; rates are still **winsorised at the exposure-weighted
    99.9th percentile** (~3.4%/yr) as a tiny-denominator backstop; and
-   **Scotland is overridden** (not filled) with the national housebreaking rate from
+   **Scotland is overridden** (not filled) with recorded housebreaking from
    Recorded Crime in Scotland, because police.uk lacks Police Scotland and its
-   only "Scottish" rows are British Transport Police railway incidents.
+   only "Scottish" rows are British Transport Police railway incidents — at
+   **32-council resolution** (`scripts/fetch_housebreaking.py`, apportioned to
+   postcode geography by household share, three-year mean 2023-24…2025-26),
+   which replaced a single flat national rate on 2026-09-01.
    **Theft sits outside the vine** — no meteorological driver — so it adds
    ~£29 of expected loss and almost no capital: an independent, stable peril
    earns nearly a full diversification credit. Its expected loss is taken

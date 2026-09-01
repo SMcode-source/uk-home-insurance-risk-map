@@ -88,6 +88,20 @@ sys.path.insert(0, HERE)
 import build_model as bm        # noqa: E402
 import scores_real as sr        # noqa: E402
 
+# SHIPPED 2026-09-01. `geog_3yr_level` won and is now the model:
+# scores_real reads data/housebreaking.csv's hb_3yr for Scotland. The
+# flat override every variant here is measured against is gone, so the
+# `baseline` run would BE the new model and the whole table would
+# collapse to zeros. Fail rather than reprice the answer as nothing.
+# The result is data/scotland_theft_geography_pricing.json and
+# LIMITATIONS.md section 7.
+if not hasattr(sr, "SCOTLAND_HOUSEBREAKING_2024_25"):
+    raise SystemExit(
+        "SHIPPED: council geography IS the model now (scores_real reads "
+        "data/housebreaking.csv), so the flat baseline this harness "
+        "needs no longer exists. The priced result is in "
+        "data/scotland_theft_geography_pricing.json.")
+
 HOUSEBREAKING = os.path.join(ROOT, "data", "housebreaking.csv")
 OUT = os.path.join(ROOT, "data", "scotland_theft_geography_pricing.json")
 

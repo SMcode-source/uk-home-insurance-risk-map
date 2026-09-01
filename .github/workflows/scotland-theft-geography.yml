@@ -41,20 +41,30 @@ name: scotland theft geography pricing
 # file is regenerated and there is deliberately no commit step. The
 # result is a table the user decides on.
 #
-# Triggered by PUSH to the experiment branch rather than by dispatch.
-# workflow_dispatch only works from the DEFAULT branch, and putting a
-# measurement workflow on main to price something that may never ship
-# gets the ordering backwards. Retire the push trigger and record the
-# answer in this comment once it has one, as freeze-share.yml,
-# smd-curve.yml and scotland-theft.yml did.
+# ANSWERED 2026-09-01, and SHIPPED. Runs 33454831130 (19m07s) and
+# 33456953906 (19m51s, a deliberate retrigger) agree. Against the flat
+# baseline, exposure-weighted GBP/policy:
+#
+#   variant           premium   Scotland   E&W      churn (Scottish)
+#   baseline          169.6483  172.0869   169.4016   -
+#   level_3yr         169.6483  172.5472   169.3550   28  (13)
+#   geog_1yr          169.6483  172.0891   169.4014  177 (116)
+#   geog_3yr_shape    169.6483  172.0878   169.4015  193 (128)
+#   geog_3yr_level    169.6483  172.5482   169.3549  179 (126)
+#
+# el_th, el_total, capital and TVaR are identical to 1e-14 in every
+# variant, exactly as calibrate_frequency guarantees: this is a pure
+# relativity and the UK headline cannot move. What geography buys is
+# the map - Scottish rates 0.039% to 0.632%/yr, a 16x spread where
+# there was one flat 0.2947%. Edinburgh pays up to +GBP14 (EH10, EH2,
+# EH9), rural Aberdeenshire down to -GBP8 (AB31, AB32, AB34).
+#
+# The user shipped `geog_3yr_level`: council geography on the
+# three-year window, at its own 7,794 level. It is now the model
+# (scores_real reads data/housebreaking.csv's hb_3yr), which is also
+# why price_scotland_theft_geography.py now refuses to run - its flat
+# baseline no longer exists. Push trigger retired accordingly.
 on:
-  push:
-    branches: [exp/scotland-theft-geography]
-    paths:
-      - "scripts/price_scotland_theft_geography.py"
-      - "scripts/fetch_housebreaking.py"
-      - "data/housebreaking.csv"
-      - ".github/workflows/scotland-theft-geography.yml"
   workflow_dispatch:
     inputs:
       nsim:

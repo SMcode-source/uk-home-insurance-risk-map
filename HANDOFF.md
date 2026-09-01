@@ -1414,11 +1414,15 @@ How it is built (all of it on main now):
   at the household-weighted p99.9 (6.22% districts / 8.29% sectors —
   the cap re-solves per resolution over its own exposure distribution;
   office cores are burgled as shops, not homes); Scotland OVERRIDDEN
-  (not filled) with the national housebreaking rate, 0.29%/yr.
+  (not filled) with recorded housebreaking at COUNCIL resolution since
+  2026-09-01 — `data/housebreaking.csv`, `hb_3yr`, 32 councils
+  apportioned by household share, 0.039-0.632%/yr against the flat
+  0.29% it replaced.
 - Site copy (759c841): every theft number injected from committed data
   (`__TH_*__` in build_site.load_stats — the cap recovered as the max
-  surviving rate, the Scotland override as the most frequent exact
-  rate); popup shows the measured burglary rate, not a fake 0–1 score;
+  surviving rate; Scotland was recovered as the most frequent exact rate
+  until council geography ended that on 2026-09-01, and is now
+  summarised from the `country` flag as min/mean/max/spread); popup shows the measured burglary rate, not a fake 0–1 score;
   theft bronze `--th` contrast-checked both themes; the years page
   stays four-peril episodic on purpose and says so.
 

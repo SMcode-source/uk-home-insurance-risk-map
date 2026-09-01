@@ -90,9 +90,10 @@ YEAR_1 = "2024/2025"
 YEARS_3 = ("2023/2024", "2024/2025", "2025/2026")
 
 # Table A6's Total Housebreaking for 2024-25, the constant the model
-# currently divides by households. The cube's 32 councils must sum to
-# it, or the two publications have drifted apart and the join is not the
-# disaggregation it claims to be.
+# divided by households before this file existed. The cube's 32 councils
+# must sum to it, or the two publications have drifted apart and the
+# join is not the disaggregation it claims to be. It is the join's
+# PROOF, not the level in use: the model reads the three-year column.
 TABLE_A6_TOTAL_2024_25 = 7_381
 
 
