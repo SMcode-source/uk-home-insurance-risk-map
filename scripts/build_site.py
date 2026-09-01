@@ -481,10 +481,13 @@ def load_stats():
         "__TH_CAP_PCT__": f"{100 * th_rate.max():.1f}",
         "__TH_CLIPPED__": str(int((th_rate == th_rate.max()).sum())
                               if th_rate.max() > 0 else 0),
-        "__TH_SCOT_MEAN_PCT__": (f"{100 * np.average(_s_rate, weights=_s_w):.2f}"
-                                 if _s_ok else "0.00"),
-        "__TH_SCOT_LO_PCT__": f"{100 * _s_rate.min():.2f}" if _s_ok else "0.00",
-        "__TH_SCOT_HI_PCT__": f"{100 * _s_rate.max():.2f}" if _s_ok else "0.00",
+        # 3dp, not the 2dp the rest of this dict uses: the smallest
+        # council rate rounds to "0.04%" at 2dp, and 0.63/0.04 is 15.8,
+        # which contradicts the 16x spread injected beside it.
+        "__TH_SCOT_MEAN_PCT__": (f"{100 * np.average(_s_rate, weights=_s_w):.3f}"
+                                 if _s_ok else "0.000"),
+        "__TH_SCOT_LO_PCT__": f"{100 * _s_rate.min():.3f}" if _s_ok else "0.000",
+        "__TH_SCOT_HI_PCT__": f"{100 * _s_rate.max():.3f}" if _s_ok else "0.000",
         "__TH_SCOT_SPREAD_X__": (f"{_s_rate.max() / _s_rate.min():.0f}"
                                  if _s_ok and _s_rate.min() > 0 else "0"),
         "__TH_CAT_CORR__": (f"{np.corrcoef(th_el, _el - th_el)[0, 1]:.2f}"
