@@ -247,13 +247,34 @@ closely enough for the comparison to be fair: E&W residential 68.5%
 against Scottish domestic 70.3%, E&W home-only 51.1% against Scottish
 dwelling 49.6%.
 
-Period is not a confound. Scottish housebreaking fell 18% between
-2023-24 and 2024-25, so a backward multi-year mean would sit above
-7,381 — but the police.uk archive runs 2023-07 to 2026-06, centred on
-December 2024, and the 2024-25 constant straddles that centre.
+**Period IS a confound, and it points the other way — this corrects
+what was written here on 2026-09-01.** The original note said period was
+not a confound: Scottish housebreaking fell 18% between 2023-24 and
+2024-25, so a backward multi-year mean would sit above 7,381, but the
+police.uk archive runs 2023-07 to 2026-06, is centred on December 2024,
+and the 2024-25 constant straddles that centre. That reasoning was sound
+and the premise was wrong. It assumed 2024-25 was the newest published
+Scottish year, because the Recorded Crime in Scotland workbook is where
+the constant came from. **statistics.gov.scot carries 2025-26** — 6,968
+housebreakings, a complete year (315,357 All Crimes against 299,111 the
+year before). So 33 of the archive's 36 months are published, not 21:
 
-**7,381 stays.** The *geography* gap (one flat rate across 442
-districts) remains the materially damaging half, and §7 still ranks it.
+| overlap with 2023-07…2026-06 | housebreaking |
+|---|---|
+| 2023-24, Jul–Mar (9 months) | 9,033 × 9/12 = 6,775 |
+| 2024-25 (12 months) | 7,381 |
+| 2025-26 (12 months) | 6,968 |
+| 2026-27, Apr–Jun (3 months) | not yet published |
+
+Month-weighted over the 33 published months, the archive-matched figure
+is **7,681/yr — 4.1% ABOVE the constant in use**. Scotland is
+*under*-stated on period by roughly as much as the basis work found it
+*over*-stated on definition, and in the opposite direction. Netted, the
+like-for-like over-statement is nearer 1.03× than the 1.07× above.
+
+**7,381 stays** — the two corrections are small and partly cancel. The
+*geography* gap (one flat rate across 442 districts) remains the
+materially damaging half, and §7 still ranks it.
 
 ---
 
