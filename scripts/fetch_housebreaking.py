@@ -220,16 +220,32 @@ def main():
 
     print("postcode lookup...", flush=True)
     pc = scottish_postcodes()
+    n_orphan = sum(1 for d in scot if d not in pc)
+    if n_orphan:
+        print(f"  {n_orphan} of {len(scot)} Scottish units hold only "
+              "terminated postcodes - filled from their parent outward "
+              "code, then the total renormalised", flush=True)
 
-    # A district the model calls Scotland with no Scottish postcode would
-    # get nothing and silently keep the flat rate. That is the
-    # households.csv void-run shape, so it stops the run.
+    # A modelled Scottish unit with no live Scottish postcode cannot be
+    # joined to a council, and zero-filling it would publish a
+    # crime-free unit. At DISTRICT grain there are none. At SECTOR grain
+    # there are four - DG3 9, EH52 1, ML7 9, TD8 9 - and every one of
+    # them holds only TERMINATED postcodes (EH52 1 is absent from the
+    # lookup entirely). They are the same family as the 13
+    # empty-geometry sectors that take their parent district's drought
+    # climatology, and they get the same treatment: fill from the
+    # parent, then renormalise so the total is still conserved.
+    #
+    # A handful is a data quirk; a lot is a stale or mis-keyed lookup,
+    # which is the households.csv void-run shape and must stop the run
+    # rather than be quietly filled.
     orphans = [d for d in scot if d not in pc]
-    if orphans:
+    if len(orphans) > 0.01 * len(scot):
         raise SystemExit(
-            f"{len(orphans)} modelled Scottish units have no live "
-            f"Scottish postcode in ONSPD (first: {orphans[:5]}) - wrong "
-            "geography key, or a stale lookup")
+            f"{len(orphans)} of {len(scot)} modelled Scottish units have no "
+            f"live Scottish postcode in ONSPD (first: {orphans[:5]}) - "
+            "that is too many to be dead postcodes, so it is a wrong "
+            "geography key or a stale lookup")
 
     # Households of district d attributed to council L. Postcodes outside
     # the modelled Scottish set are dropped and each council's count is
@@ -239,7 +255,9 @@ def main():
     share = collections.defaultdict(dict)
     H = collections.Counter()
     for d in scot:
-        counts = pc[d]
+        counts = pc.get(d)
+        if not counts:
+            continue
         tot = sum(counts.values())
         for lad, k in counts.items():
             v = hh[d] * k / tot
@@ -252,11 +270,38 @@ def main():
                          "their housebreakings cannot be placed")
 
     def apportion(counts):
+        """Council counts -> per-unit counts, orphans filled, total kept.
+
+        The fill is the parent's household-weighted rate: siblings
+        sharing the outward code first (a sector's own district), the
+        Scottish mean if the whole outward code is orphaned. Filling adds
+        housebreakings that were not in the source, so everything is
+        rescaled back afterwards and the total is conserved exactly - the
+        property the whole harness rests on, since it is what makes the
+        swap a pure relativity.
+        """
         out = collections.Counter()
         for d, m in share.items():
             for lad, v in m.items():
                 if lad in counts:
                     out[d] += counts[lad] * v / H[lad]
+        if not orphans:
+            return out
+        placed_hh = sum(hh[d] for d in scot if d not in orphans)
+        national = sum(out.values()) / placed_hh
+        by_parent = collections.defaultdict(lambda: [0.0, 0.0])
+        for d in scot:
+            if d in orphans:
+                continue
+            p = by_parent[d.split()[0]]
+            p[0] += out[d]
+            p[1] += hh[d]
+        for d in orphans:
+            n_, h_ = by_parent.get(d.split()[0], [0.0, 0.0])
+            out[d] = hh[d] * (n_ / h_ if h_ > 0 else national)
+        scale = sum(counts.values()) / sum(out.values())
+        for d in out:
+            out[d] *= scale
         return out
 
     one_src = hb_year[YEAR_1]
