@@ -1148,7 +1148,10 @@ districts**, used as the exposure weight throughout.
       to `data/cache/` (gitignored, refetchable). Theft by Housebreaking,
       2024-25: Dwelling **3,661**, Non-dwelling **1,531**, Domestic
       **5,192**, Other **2,189**, Total **7,381**. The model uses the
-      Total.
+      Total. **This workbook is NOT the freshest publication of the same
+      series** — see #37, which carries 2025-26. Treating it as the
+      newest available is what made the period note in LIMITATIONS §5
+      wrong for a few hours.
     - **Crime in England and Wales: Appendix tables, year ending March
       2026 edition, Table A5a** (ONS / Home Office police recorded
       crime, OGL v3.0),
@@ -1166,6 +1169,42 @@ districts**, used as the exposure weight throughout.
     Note the file naming: the year-ending-March-**2025** edition is NOT
     at the analogous URL (404); the 2026 edition carries the full time
     series and is the one to fetch.
+
+37. **statistics.gov.scot `recorded-crime` — the same Scottish series,
+    fresher and by council area (found 2026-09-01).** Free, open, OGL
+    v3.0.
+    `https://statistics.gov.scot/downloads/cube-table?uri=http%3A%2F%2Fstatistics.gov.scot%2Fdata%2Frecorded-crime`
+    returns the whole cube as CSV (~11 MB): 60 crime/offence categories
+    × 32 council areas + Scotland × 1996/1997 onward, Count and rate per
+    10,000 population. Cached at
+    `data/cache/scotland_recorded_crime_by_la.csv` (gitignored).
+    `scripts/fetch_housebreaking.py` reads "Crimes: Group 3:
+    Housebreaking" from it.
+
+    **Two things it gives that #36's workbook does not.**
+
+    - **A fresher year.** The cube carries **2025-26** (6,968
+      housebreakings; 315,357 All Crimes against 299,111 the year
+      before — a complete year), where the Recorded Crime in Scotland
+      2024-25 workbook naturally stops at 2024-25. Month-weighted over
+      the police.uk archive window in #25, the archive-matched Scottish
+      figure is **7,681/yr against the 7,381 the model uses**. The
+      general rule, worth more than this instance: **a statistical
+      agency's flagship workbook and its open-data cube are not the same
+      vintage** — check the cube before concluding a series ends where
+      the bulletin ends.
+    - **Council-area geography.** All 32 councils, and they sum to
+      exactly Table A6's 7,381 for 2024-25 — the same measurement
+      disaggregated, not a different series, and
+      `fetch_housebreaking.py` asserts that tie rather than assuming it.
+      2024-25 spans Shetland 6 to City of Edinburgh 1,306.
+
+    `data/housebreaking.csv` (442 Scottish districts, annual counts on
+    the 2024-25 and three-year bases) is built from this plus the cached
+    ONSPD lookup, apportioning each council's count by the households
+    each district contributes to it. **Not read by the model** — it is
+    priced on `exp/scotland-theft-geography` and shipping it is the
+    owner's decision.
 
 ## Budget: zero, decided 2026-08-31
 

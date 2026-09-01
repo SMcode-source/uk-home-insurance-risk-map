@@ -226,12 +226,45 @@ W1C, WC2N, W1F, WC2E, EC3V up — wealthy Scottish suburbs against London
 commercial cores, exactly the two ends a Scotland-versus-E&W level change
 should move, and a sign nothing else leaked.
 
-**Period is not a confound.** Scottish housebreaking fell 18% between
+**Period IS a confound — corrected 2026-09-01, hours after this section
+was written.** What stood here: Scottish housebreaking fell 18% between
 2023-24 and 2024-25, so a backward multi-year mean would sit well above
 7,381 — but the police.uk archive runs 2023-07 to 2026-06, centred on
-December 2024, and the 2024-25 constant straddles that centre. Fifteen of
-its thirty-six months are later than the newest published Scottish year.
-There is nothing to correct towards.
+December 2024, and the 2024-25 constant straddles that centre; fifteen of
+its thirty-six months are later than the newest published Scottish year,
+so there is nothing to correct towards.
+
+The reasoning was fine. **The premise was wrong**, and the way it was
+wrong is worth keeping: I took "newest published Scottish year" from the
+publication the constant came from — the Recorded Crime in Scotland
+workbook — and never asked whether the same numbers were published
+somewhere fresher. They are. **statistics.gov.scot's `recorded-crime`
+cube carries 2025-26**: 6,968 housebreakings, a complete year (315,357
+All Crimes against 299,111 the year before). Thirty-three of the
+archive's thirty-six months are published, not twenty-one.
+
+| overlap with 2023-07…2026-06 | housebreaking |
+|---|---|
+| 2023-24, Jul–Mar (9 months) | 9,033 × 9/12 = 6,775 |
+| 2024-25 (12 months) | 7,381 |
+| 2025-26 (12 months) | 6,968 |
+| 2026-27, Apr–Jun (3 months) | not yet published |
+
+Month-weighted over the 33 published months: **7,681/yr, 4.1% above the
+constant in use**. Scotland is *under*-stated on period by roughly as
+much as the basis work found it *over*-stated on definition, in the
+opposite direction, so the netted like-for-like over-statement is nearer
+1.03× than 1.07×. It does not change the decision — 7,381 stays, and
+both corrections are inside the noise the matched pair already spans —
+but "there is nothing to correct towards" was a stronger claim than the
+evidence supported, and it was made because one source was treated as
+the source.
+
+The lesson generalises past this peril: **a statistical agency's flagship
+PDF/workbook and its open-data cube are not the same vintage.** Check the
+cube before concluding a series ends where the bulletin ends. Priced in
+`price_scotland_theft_geography.py` as the `level_3yr` variant, so the
+correction is measured rather than merely noted.
 
 **Three process notes.**
 
