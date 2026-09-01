@@ -76,6 +76,10 @@ ROOT = os.path.abspath(os.path.join(HERE, ".."))
 DATA = os.path.join(ROOT, "data")
 CACHE = os.path.join(DATA, "cache")
 OUT = os.path.join(DATA, "housebreaking.csv")
+# The modelled unit set, so a district with no polygon never appears.
+# sector-model swaps this for sectors_risk.geojson - the same two-line
+# seam fetch_households.py, fetch_fires.py and fetch_ct_bands.py carry.
+RISK = os.path.join(DATA, "districts_risk.geojson")
 
 CUBE = os.path.join(CACHE, "scotland_recorded_crime_by_la.csv")
 CUBE_URL = ("https://statistics.gov.scot/downloads/cube-table"
@@ -140,6 +144,17 @@ def housebreaking_by_council():
     return out
 
 
+def postcode_key(pc):
+    """'AB10 1AA' -> the modelled unit's name, or None.
+
+    sector-model returns "OUTWARD D" here instead, the same seam the
+    other fetchers carry. Keeping it in one function keeps that branch's
+    diff to two places rather than scattered through the reader.
+    """
+    out = pc.split()[0] if " " in pc else pc[:-3].strip()
+    return out.upper() or None
+
+
 def scottish_postcodes():
     """-> {outcode: {ladcd: live postcode count}} for Scotland.
 
@@ -173,11 +188,11 @@ def scottish_postcodes():
                 pc = row[pc_i].strip()
                 if not pc:
                     continue
-                out = (pc.split()[0] if " " in pc else pc[:-3].strip()).upper()
-                if out:
-                    n[out][lad] += 1
+                key = postcode_key(pc)
+                if key:
+                    n[key][lad] += 1
                     live += 1
-    print(f"  {live:,} live Scottish postcodes across {len(n)} outcodes",
+    print(f"  {live:,} live Scottish postcodes across {len(n)} units",
           flush=True)
     return n
 
@@ -193,15 +208,14 @@ def main():
     print("  " + ", ".join(f"{y} {sum(hb_year[y].values()):,.0f}"
                            for y in YEARS_3), flush=True)
 
-    print("the model's own districts and households...", flush=True)
-    with open(os.path.join(DATA, "districts_risk.geojson"),
-              encoding="utf-8") as fh:
+    print("the model's own units and households...", flush=True)
+    with open(RISK, encoding="utf-8") as fh:
         feats = [f["properties"] for f in json.load(fh)["features"]]
     names = [f["name"] for f in feats]
     hh = {f["name"]: float(f.get("households", 0.0)) for f in feats}
     country = dict(zip(names, load_country(names)))
     scot = [d for d in names if country[d] == "Scotland"]
-    print(f"  {len(scot)} Scottish districts, "
+    print(f"  {len(scot)} Scottish units, "
           f"{sum(hh[d] for d in scot):,.0f} households", flush=True)
 
     print("postcode lookup...", flush=True)
@@ -213,7 +227,7 @@ def main():
     orphans = [d for d in scot if d not in pc]
     if orphans:
         raise SystemExit(
-            f"{len(orphans)} modelled Scottish districts have no live "
+            f"{len(orphans)} modelled Scottish units have no live "
             f"Scottish postcode in ONSPD (first: {orphans[:5]}) - wrong "
             "geography key, or a stale lookup")
 
@@ -267,7 +281,7 @@ def main():
     hhs = sum(hh[d] for d in scot)
     r1 = {d: one[d] / hh[d] for d in scot if hh[d] > 0}
     lo, hi = min(r1, key=r1.get), max(r1, key=r1.get)
-    print(f"wrote {OUT}: {len(scot)} districts, "
+    print(f"wrote {OUT}: {len(scot)} units, "
           f"{sum(one.values()):,.0f} housebreakings/yr placed ({YEAR_1}), "
           f"{sum(three.values()):,.0f} on the 3-year mean")
     print(f"  flat rate was {sum(one.values()) / hhs:.4%}/yr everywhere; "
