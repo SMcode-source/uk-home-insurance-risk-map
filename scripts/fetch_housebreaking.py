@@ -79,7 +79,7 @@ OUT = os.path.join(DATA, "housebreaking.csv")
 # The modelled unit set, so a district with no polygon never appears.
 # sector-model swaps this for sectors_risk.geojson - the same two-line
 # seam fetch_households.py, fetch_fires.py and fetch_ct_bands.py carry.
-RISK = os.path.join(DATA, "districts_risk.geojson")
+RISK = os.path.join(DATA, "sectors_risk.geojson")
 
 CUBE = os.path.join(CACHE, "scotland_recorded_crime_by_la.csv")
 CUBE_URL = ("https://statistics.gov.scot/downloads/cube-table"
@@ -146,14 +146,21 @@ def housebreaking_by_council():
 
 
 def postcode_key(pc):
-    """'AB10 1AA' -> the modelled unit's name, or None.
+    """'AB10 1AA' -> 'AB10 1', the modelled unit's name, or None.
 
-    sector-model returns "OUTWARD D" here instead, the same seam the
-    other fetchers carry. Keeping it in one function keeps that branch's
-    diff to two places rather than scattered through the reader.
+    The sector-model side of the seam: main returns the outward code
+    alone. The inward code is ALWAYS the last three characters, however
+    the column pads ("YO25 6QP", "S1  1AA", fixed-width pcd7), which is
+    the same rule fetch_households.py, fetch_fires.py and
+    fetch_ct_bands.py carry here. Keeping it in one function keeps this
+    branch's diff to two places rather than scattered through the
+    reader.
     """
-    out = pc.split()[0] if " " in pc else pc[:-3].strip()
-    return out.upper() or None
+    compact = pc.replace(" ", "")
+    if len(compact) < 5:
+        return None
+    out, inward = compact[:-3], compact[-3:]
+    return f"{out.upper()} {inward[0]}"
 
 
 def scottish_postcodes():
