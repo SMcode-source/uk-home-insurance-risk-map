@@ -266,6 +266,29 @@ commit=false` re-rendered everything (run 33461086877) so docs carry
 both grains. Its diffstat and the local one matched at 11 files, which
 is the artifact applied cleanly.
 
+**A second rebuild ran (33461805640) and the output was NOT
+bit-identical** - Gate 2's publish got bit-identity from two rebuilds
+and I expected it here. What moved: `capital*`, `premium_buildings`,
+`premium_contents`, `premium_cc`, `cc_uplift_pct` on 42-76 districts by
+1e-4, and `tvar99_euler` on 2 by 1e-1. Every one is a single unit of
+that field's own written precision - a value on a rounding boundary
+falling the other way. No `el_*` field differs anywhere, `premium` is
+identical in all 2,736 districts, no district changes rating group, and
+exposure-weighted means agree to 6dp. **So the model is reproducible to
+published precision but not bit-for-bit across runners**, most likely
+reduction order under `UKRISK_THREADS=0`, which resolves to the
+runner's CPU count. Not chased - nothing published moves - but do not
+claim bit-identity in a future publish without checking it.
+
+The second rebuild existed only to re-render `__TH_SCOT_*__` at 3dp,
+and it revealed a floor worth knowing: **`districts_risk.geojson`
+writes `th_rate` at 4dp**, so 0.000394 is quantised to 0.0004 before
+`build_site` ever sees it and the Scottish low end cannot render finer
+than 0.04% whatever the format string. The page therefore reads
+"0.040%-0.630%/yr ... a 16x spread" (the spread comes off the same
+quantised column, 15.75 -> "16", so the page is self-consistent), while
+the unquantised model figures quoted above are 0.039%-0.632% and 16.1x.
+
 ## MEASURED 2026-09-01: the Scottish theft basis is asymmetric, and it is worth half a percent
 
 Nothing published changed. `SCOTLAND_HOUSEBREAKING_2024_25` stays at
