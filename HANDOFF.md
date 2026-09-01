@@ -2445,7 +2445,9 @@ The gap I described is real; I described its location wrongly.
 |---|---|---|
 | `main` | published | the product |
 | `sector-model` | permanent, 33 ahead | the same model at postcode-SECTOR grain. **NEVER merges to main** — only `data/districts_risk.geojson` crosses, renamed `data/sectors_risk.geojson`. main merges INTO it, never the reverse. |
-| `exp/subsidence-series` | LIVE, Gate 0 | the temperature-driven subsidence/freeze workstream. Data acquisition and evidence only so far — no model change, premium untouched. |
+| `exp/scotland-theft-geography` | MERGED 2026-09-01 (`59c4be8`), safe to delete | council housebreaking for Scotland, priced then published at both grains. Everything it carried is in main; kept only until someone tidies. |
+
+**Stale rows removed 2026-09-01:** the table still listed `exp/subsidence-series` (Gate 0 of the temperature workstream) long after it was deleted, and never gained a row for `exp/scotland-theft`, the basis measurement, which was deleted on merge. `git ls-remote --heads origin` is the authority; this table is a comment on it. As of this edit origin holds exactly three: `main`, `sector-model` and `exp/scotland-theft-geography`.
 
 **Deleted 2026-08-27 (second tidy):** `exp/theta-ws-measure`, a
 throwaway that existed to price one function and did so — GBP0.65, its
