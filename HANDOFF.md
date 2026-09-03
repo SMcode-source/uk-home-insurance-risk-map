@@ -202,25 +202,45 @@ reasons, and neither block is about money in the usual sense.**
 
 - **Dynamic Coast phase 2 makes Scotland's erosion zero closable.**
   Eleven open NatureScot feature services under ArcGIS org
-  `LM9GyVFsughzHdbO`, including 207,042 transects with per-decade
-  recession distance and rate to 2100 — the same length × recession
-  ingredients `fetch_erosion.py` already allocates from NCERM frontages —
-  and eroded-area polygons for 2050 and 2100. **One structural mismatch,
-  found by querying rather than reading the marketing:** NCERM publishes
-  a *pair*, SMP (defences maintained — the model's headline `er_smp105`)
-  against NFI (defences lapse). Dynamic Coast publishes **one** RCP8.5
-  scenario plus a defence *inventory* with a condition field. There is no
-  Scottish SMP/NFI split to read, so it would have to be inferred, and
-  that is a method decision to disclose rather than a join to perform.
-  My first pass through this called the defences layer "an analogue of
-  NCERM's with/without pair"; querying `ERODETYPE` (which turns out to be
-  `{ErodedArea, Influence, Vicinity}`, a hazard-zone tier, not a scenario
-  pair) showed that was wrong before it was written down as fact.
-  Erosion is **unpriced**, so closing Scotland changes what the map knows,
-  not what it charges — which also means it is a low-risk piece of work.
+  `LM9GyVFsughzHdbO`, plus `DC2_Main_results` (207,042 transects) and
+  `DC2_LES_results`. Erosion is **unpriced**, so closing Scotland changes
+  what the map knows, not what it charges — a low-risk piece of work.
   **Wales has no equivalent**: SMP *policies* only, no projected shoreline
   geometry, so the reachable end state is England + Scotland with Wales
   captioned.
+
+  **Two things I had wrong within the hour, both fixed by reading layer
+  DESCRIPTIONS instead of layer names.** First I called
+  `Artificial_Coastal_Defences` "an analogue of NCERM's with/without
+  pair"; `ERODETYPE`'s distinct values turned out to be
+  `{ErodedArea, Influence, Vicinity}` — a hazard-zone tier (the second is
+  a 10 m landward buffer, the third a further 50 m), not a scenario pair.
+  Then I wrote that Scotland has only one scenario. It has two:
+  `DC2_LES_results` publishes the **RCP2.6 low-emissions** twin of the
+  RCP8.5 branch, at both horizons, openly. ErodedArea totals 79.7 / 32.5
+  km² at 2100 and 17.9 / 12.9 at 2050 — a 2.45× ladder against England's
+  2.18×, so `_hi` and `_lo` have Scottish counterparts and only the
+  *central* 70th-percentile case does not.
+
+  **What is genuinely missing is the MANAGEMENT axis, and the layer
+  description states it outright:** a "'do nothing' coastal management
+  approach" in which "up to 25 m of erosion is permitted at known
+  artificial coastal defences". So Dynamic Coast's single case is *no new
+  intervention with existing defences standing* — much nearer NCERM's SMP
+  than its NFI, but one point where England has two. That matters more
+  than the horizon does: in England `sum(er_smp105)/sum(er_nfi105)` is
+  **0.377** (defences remove nearly two thirds of projected loss) while
+  the 95th/70th climate allowance is only **1.162×**.
+
+  One more reversal worth carrying: **for Dynamic Coast the polygon is
+  the authoritative area, which is the opposite of NCERM.** NCERM's
+  frontage polygons are sometimes broad estuary zones, so DATA_SOURCES
+  #21 takes land lost from length × recession instead. Dynamic Coast's
+  polygons *are* the modelled outcome — between the 2020 and projected
+  MHWS lines, susceptibility- and defence-limited — while its transect
+  `Dist_*` values are the unconstrained projection. They disagree by
+  construction: the transect sums imply a 54 m mean spacing at 2100 and
+  20 m at 2050, and one coast cannot have two spacings.
 - **A first external validation of flood ordering is available.** NRW's
   `NRW_NATIONAL_FLOOD_RISK_SURFACE_WATER_{ECON,PEOPLE,ENVIRO}` and SEPA's
   `NFRA_Flood_Risk_Grid_Latest` (26,614 cells, `aad_score_res` banded)

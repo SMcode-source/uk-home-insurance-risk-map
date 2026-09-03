@@ -1301,27 +1301,63 @@ districts**, used as the exposure weight throughout.
     `Flood_levels_and_High_Emission_Scenario_SLR` — plus the bundled
     `DC2_Main_results` MapServer carrying the same layers.
 
-    Sizes and shapes, queried directly: eroded-area polygons **68,522
-    (2050)** and **40,559 (2100)**, both with
-    `ERODETYPE ∈ {ErodedArea, Influence, Vicinity}`; **207,042 transects**
+    Sizes and shapes, queried directly: 68,522 (2050) and 40,559 (2100)
+    polygons under `ERODETYPE ∈ {ErodedArea, Influence, Vicinity}`, of
+    which the **ErodedArea** tier — the only one that is land actually
+    projected to go — is **46,580** and **24,447**; `Influence` is a 10 m
+    landward buffer and `Vicinity` a further 50 m, so summing the three
+    would triple-count. **207,042 transects**
     (`DC2_RCP8_Transects`) carrying `Hist_Rate`, `Dist_2030`…`Dist_2100`,
-    `Rate_2030`…`Rate_2100`, `Tot_E_2050`, `Tot_E_2100` — i.e. the same
-    length × recession ingredients `fetch_erosion.py` already allocates
-    from NCERM frontages; and **2,162** defence lines
-    (`DC2_Defences_Line`: `Desc_`, `Condition`, `Length_m`).
+    `Rate_2030`…`Rate_2100`, `Tot_E_2050`, `Tot_E_2100`; and **2,162**
+    defence lines (`DC2_Defences_Line`: `Desc_`, `Condition`, `Length_m`).
 
-    **The one structural mismatch, and it is not a detail.** NCERM
-    publishes a *pair* — SMP (defences maintained, the model's headline
-    `er_smp105`) against NFI (no further intervention, the worst case) —
-    at 2055/2105 under three climate allowances. Dynamic Coast publishes
-    **one** scenario, RCP8.5, at 2050/2100. `Artificial_Coastal_Defences`
-    is a defence *inventory* with a condition field, not a defended
-    projection, so the managed/unmanaged split would have to be inferred
-    from geometry rather than read from the source. Closing Scotland
-    therefore forces a choice: carry an unpaired Scottish column, or
-    document a mapping of RCP8.5-2100 onto one of the two English
-    scenarios. Either way it is a **method decision to disclose, not a
-    join**.
+    **Do not rebuild NCERM's length × recession trick here — the polygon
+    is the authoritative measure this time, and that reverses #21.** For
+    NCERM the recession attribute is authoritative and the polygon is not
+    (estuary "frontages" are broad zones). For Dynamic Coast the polygon
+    *is* the modelled outcome — the area between the 2020 and projected
+    MHWS lines, susceptibility- and defence-limited — while the transect
+    `Dist_*` values are the unconstrained projection. They disagree, and
+    by design: 164,371 erosional transects sum to 1,467,665 m of 2100
+    recession, which against 79.748 km² of ErodedArea implies a 54 m mean
+    transect spacing, while the same arithmetic at 2050 implies 20 m. One
+    coast cannot have two spacings; the gap is the susceptibility and
+    25 m defence caps biting harder on the shorter horizon. Take the
+    polygons.
+
+    **Scotland HAS a climate ladder — read the layer descriptions, not
+    the layer names.** The eleven open services are the RCP8.5 branch;
+    `DC2_LES_results` publishes the **RCP2.6 low-emissions** twin
+    (`DC2_RCP2_Future_Erosion_{2050,2100}_Public`), openly and without a
+    token. ErodedArea totals: **79.748 km²** (RCP8.5, 2100),
+    **32.520 km²** (RCP2.6, 2100), **17.914** and **12.871 km²** at 2050.
+    A 2.45× high/low spread at 2100, against 2.18× for England's
+    `er_nfi105_hi / er_nfi105_lo` — the two ladders are comparably wide,
+    and RCP8.5-95th / RCP2.6 map onto the `_hi` / `_lo` allowance columns.
+    What Scotland has **no** equivalent of is England's *central* 70th
+    percentile.
+
+    **The real mismatch is the MANAGEMENT axis.** NCERM publishes a
+    *pair* — SMP (defences maintained, the model's headline `er_smp105`)
+    against NFI (no further intervention) — at 2055/2105. Dynamic Coast
+    publishes **one** management case, and the layer description says
+    exactly what it is: a "'do nothing' coastal management approach"
+    where "shoreline retreat is limited by underlying physical
+    susceptibility (the UPSM of Fitton et al., 2017) and **up to 25 m of
+    erosion is permitted at known artificial coastal defences**". So
+    "do nothing" here means *no new intervention*, with existing defences
+    physically present and capping retreat at 25 m — substantially nearer
+    NCERM's SMP than its NFI, but a single point on an axis England
+    resolves into two. `DC2_Defences_Line` (2,162 structures, `Condition`)
+    and its 25 m inland buffer are the inputs to that cap, published
+    alongside; they are not themselves a defended/undefended pair.
+
+    For scale on what that axis is worth: in England
+    `sum(er_smp105) / sum(er_nfi105)` is **0.377** — defences remove
+    nearly two thirds of projected loss — while the 95th/70th climate
+    allowance is only **1.162×**. The management assumption is by far the
+    bigger of the two, which is why it is the one that has to be
+    disclosed rather than the horizon.
 
     Wales has no such route. The same 4,374-layer capabilities document
     contains `geonode:nrw_shoreline_management_plan_policies` — SMP
