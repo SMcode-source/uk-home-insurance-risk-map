@@ -143,7 +143,9 @@ zeroes.
 Erosion carries a fifth thing the others do not: **two sources on different
 bases**. England is NCERM's defences-maintained case at 2105, Scotland is
 Dynamic Coast's single "do nothing, defences standing" case at 2100 (added
-2026-09-03), and Wales has no published projection at all. `er_head` is the
+2026-09-03), and Wales has no projection of its own — three border
+districts carry a trace only because NCERM's Severn and Dee frontages cross
+into them. `er_head` is the
 column the model scores from and `er_basis` says per district which source it
 came from — so Scotland's figures can never be mistaken for NCERM's, and the
 Scottish popup shows an emissions ladder where the English one shows a

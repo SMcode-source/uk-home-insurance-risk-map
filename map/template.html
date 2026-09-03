@@ -559,8 +559,10 @@ const METRICS = {
     fmt: v => (100 * v).toFixed(2) + '%',
     /* Four states, not two. A zero here means three different things and
        conflating them misleads:
-         - in Wales and Northern Ireland nothing maps it at all — a Welsh
-           clifftop is not "no erosion risk", it is unmeasured;
+         - in Wales nothing maps it, bar the three border districts
+           NCERM's Severn and Dee frontages reach — a Welsh clifftop is
+           not "no erosion risk", it is unmeasured. Northern Ireland is
+           not in the boundary set at all, so it is not a state here;
          - inland, there genuinely is no coastal erosion;
          - on a defended English coast the sea WOULD take land and the
            defences are stopping it, which is the most interesting thing
@@ -574,11 +576,11 @@ const METRICS = {
     paint: bins => ['case', ER_NOT_MAPPED, NO_DATA,
                     ['>', ['get', 'er_head'], 0], bins,
                     ['>', ['get', 'er_nfi105'], 0], DEFENDED, NO_DATA],
-    rows: () => [[NO_DATA, 'No erosion mapped — inland, or Wales / NI'],
+    rows: () => [[NO_DATA, 'No erosion mapped — inland, or Wales'],
                  [DEFENDED, 'Held at zero by planned defences (England)']].concat(
       legendBands(RAMP_ROSE, EROSION_BREAKS, v => (100 * v).toFixed(2) + '%')),
     tip: p => erNotMapped(p)
-      ? 'not mapped — no published projection for Wales or NI'
+      ? 'not mapped — Wales has no published projection'
       : (p.er_basis === 'dynamiccoast'
         ? (100 * p.er_head).toFixed(2) + '% of area by 2100 · Dynamic Coast, '
           + 'no undefended case published'
@@ -618,14 +620,21 @@ function fillExpr(m) {
 const NOT_MAPPED = ['all', ['has', 'country'], ['!=', ['get', 'country'], 'England']];
 
 /* Erosion has its own not-mapped test, because it is the one metric with
-   two sources. England has NCERM, Scotland has Dynamic Coast, and Wales
-   and Northern Ireland have neither - so the England-only NOT_MAPPED
-   above would grey out a country that now has data. */
+   two sources. England has NCERM, Scotland has Dynamic Coast, Wales has
+   neither - so the England-only NOT_MAPPED above would grey out a
+   country that now has data.
+   It is a test on the DATA and not only on the country, because NCERM
+   does not stop cleanly at the border: the Severn and Dee frontages
+   reach NP16, CH5 and NP25, which carry a real figure and must not be
+   captioned "not mapped" or painted grey. Country alone said they were,
+   and did so on the published map before Scotland was ever added. */
 const ER_NOT_MAPPED = ['all', ['has', 'country'],
                        ['!=', ['get', 'country'], 'England'],
-                       ['!=', ['get', 'country'], 'Scotland']];
+                       ['!=', ['get', 'country'], 'Scotland'],
+                       ['==', ['get', 'er_head'], 0],
+                       ['==', ['get', 'er_nfi105'], 0]];
 const erNotMapped = p => p.country && p.country !== 'England'
-  && p.country !== 'Scotland';
+  && p.country !== 'Scotland' && !(p.er_head > 0) && !(p.er_nfi105 > 0);
 
 let current = DEFAULT_METRIC;
 

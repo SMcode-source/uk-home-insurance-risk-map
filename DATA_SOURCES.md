@@ -1447,6 +1447,18 @@ districts**, used as the exposure weight throughout.
     columns the 95th is 1.162× the 70th and the 0th is 0.534× of it, so
     RCP8.5 is much the closer of the two rungs Scotland actually has.
 
+    **Wales is not quite zero, and the map said it was.** Checked while
+    diffing this change: NCERM does not stop at the border. Its Severn
+    and Dee frontages reach **NP16 (0.095% of area), CH5 (0.021%) and
+    NP25 (0.004%)** — three Welsh districts carrying £3.00, £0.60 and
+    £0.10 of notional erosion EL. The erosion layer's not-mapped test was
+    `country != England`, so all three were painted grey and captioned
+    "NCERM covers England only" while holding a real figure. That was
+    already wrong on the published map, before Scotland was added; the
+    test is now on the DATA as well as the country. The Welsh *coast*
+    still has no projection, which is the thing LIMITATIONS §8 row 2 is
+    about.
+
     **Adding Scotland does not move England, and that is checked rather
     than assumed.** `er_score` normalises by the 99.5th percentile of
     `er_head` across all districts, so a big enough Scottish value would
