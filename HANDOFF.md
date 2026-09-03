@@ -79,7 +79,11 @@ damage) completed 2026-08-17. Phase 2 is EPC/VOA exposure realism —
 (council-tax band severity relativities) live 2026-08-27**. **Phase 3
 (the buildings/contents cover split) went live the same day.** Two
 anchor corrections went live 2026-08-25: theft's paid total and the
-escape-of-water freeze share.
+escape-of-water freeze share. **Scottish theft geography went live
+2026-09-01** — 442 districts and 1,077 sectors came off one flat rate
+onto 32 councils' housebreaking, at zero cost to the headline and
++GBP0.46 on the mean Scottish premium (section at the top of this
+file).
 
 **The budget is zero, decided 2026-08-31, and it is a standing rule
 rather than a mood.** Nothing licensed, nothing paid-tier, nothing
@@ -163,6 +167,217 @@ and cost the level nothing. Climate
 uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
+
+## 2026-09-03: availability sweep — which open limitations are actually closable
+
+No model change, no publish. With Scottish theft shipped, the question
+was what to do next, and the honest first step was to stop *assuming*
+which of the ranked limitations have free routes and go and ask the
+services. Four answers, all recorded in DATA_SOURCES #38 with the
+endpoints, and folded back into LIMITATIONS §5, §7 and §8.
+
+**The two top-ranked MATERIAL items are both blocked, for different
+reasons, and neither block is about money in the usual sense.**
+
+- **Surface-water depth outside England does not exist openly.** SEPA's
+  entire public REST catalogue is extent polygons at three likelihoods;
+  its `Secure` and `Utilities` folders return empty service arrays, so
+  there is no gated tier hiding a depth product either. NRW advertises
+  4,374 WMS layers and exactly one has "depth" in the name — peatland
+  peat depth. LIMITATIONS had been asserting this since it was written;
+  it is now checked. 651 districts stay on the flat severity multiplier,
+  which makes this simultaneously **the largest priced coverage gap and
+  the one with no free route**.
+- **EoW by dwelling age is anchor-blocked, not data-blocked.** EPC and
+  CTSOP4.1 give the age stock openly and always did. What does not exist
+  free is any published UK figure for EoW claim *frequency* by age: the
+  ABI's granular claims sit behind a subscription, and the English
+  Housing Survey's damp/leak-by-age tables are stock condition, not
+  claims. Building a relativity from stock condition is precisely the
+  invented correction factor `SPLIT_ANCHORED` exists to prevent. This is
+  the wall Gate 3 hit for burst pipes, hit again from the other side —
+  worth noticing that the same shape of failure has now appeared twice.
+
+**Two things that are open, and are worth more than they first look.**
+
+- **Dynamic Coast phase 2 makes Scotland's erosion zero closable.**
+  Eleven open NatureScot feature services under ArcGIS org
+  `LM9GyVFsughzHdbO`, plus `DC2_Main_results` (207,042 transects) and
+  `DC2_LES_results`. Erosion is **unpriced**, so closing Scotland changes
+  what the map knows, not what it charges — a low-risk piece of work.
+  **Wales has no equivalent**: SMP *policies* only, no projected shoreline
+  geometry, so the reachable end state is England + Scotland with Wales
+  captioned.
+
+  **Two things I had wrong within the hour, both fixed by reading layer
+  DESCRIPTIONS instead of layer names.** First I called
+  `Artificial_Coastal_Defences` "an analogue of NCERM's with/without
+  pair"; `ERODETYPE`'s distinct values turned out to be
+  `{ErodedArea, Influence, Vicinity}` — a hazard-zone tier (the second is
+  a 10 m landward buffer, the third a further 50 m), not a scenario pair.
+  Then I wrote that Scotland has only one scenario. It has two:
+  `DC2_LES_results` publishes the **RCP2.6 low-emissions** twin of the
+  RCP8.5 branch, at both horizons, openly. ErodedArea totals 79.7 / 32.5
+  km² at 2100 and 17.9 / 12.9 at 2050 — a 2.45× ladder against England's
+  2.18×, so `_hi` and `_lo` have Scottish counterparts and only the
+  *central* 70th-percentile case does not.
+
+  **What is genuinely missing is the MANAGEMENT axis, and the layer
+  description states it outright:** a "'do nothing' coastal management
+  approach" in which "up to 25 m of erosion is permitted at known
+  artificial coastal defences". So Dynamic Coast's single case is *no new
+  intervention with existing defences standing* — much nearer NCERM's SMP
+  than its NFI, but one point where England has two. That matters more
+  than the horizon does: in England `sum(er_smp105)/sum(er_nfi105)` is
+  **0.377** (defences remove nearly two thirds of projected loss) while
+  the 95th/70th climate allowance is only **1.162×**.
+
+  One more reversal worth carrying: **for Dynamic Coast the polygon is
+  the authoritative area, which is the opposite of NCERM.** NCERM's
+  frontage polygons are sometimes broad estuary zones, so DATA_SOURCES
+  #21 takes land lost from length × recession instead. Dynamic Coast's
+  polygons *are* the modelled outcome — between the 2020 and projected
+  MHWS lines, susceptibility- and defence-limited — while its transect
+  `Dist_*` values are the unconstrained projection. They disagree by
+  construction: the transect sums imply a 54 m mean spacing at 2100 and
+  20 m at 2050, and one coast cannot have two spacings.
+- **A first external validation of flood ordering is available.** NRW's
+  `NRW_NATIONAL_FLOOD_RISK_SURFACE_WATER_{ECON,PEOPLE,ENVIRO}` and SEPA's
+  `NFRA_Flood_Risk_Grid_Latest` (26,614 cells, `aad_score_res` banded)
+  are consequence / annual-average-damage products. They are **useless as
+  severity multipliers** — AAD already contains frequency, so folding one
+  into an ABI-calibrated frequency double-counts — but ranking districts
+  against them would test the flood *ordering* outside England, and
+  LIMITATIONS §2 records that the model's geography has never been
+  validated against anything. Unpriced, non-invasive, and it answers a
+  standing "never validated" note instead of adding another.
+
+**What this changes about the roadmap.** §8's row 1 and row 2 both moved
+from "candidate source, needs verification" to a verified answer, and two
+of those answers are no. The next piece of buildable work is Scottish
+coastal erosion; the next piece of *cheap* work is the flood-ordering
+validation. Both are the user's call, and neither has started.
+
+## PUBLISHED 2026-09-01: Scottish theft geography, both grains in one push
+
+**Scotland stopped being one flat theft rate.** The user shipped
+`geog_3yr_level` off the priced menu below: council housebreaking from
+the statistics.gov.scot cube, apportioned onto postcode geography by
+household share, on the three published years 2023-24 to 2025-26.
+`scores_real.theft_from_police` reads `data/housebreaking.csv`'s
+`hb_3yr`; `SCOTLAND_HOUSEBREAKING_2024_25` is gone.
+
+Published-to-published, exposure-weighted GBP/policy, districts:
+
+  el_th      22.038757 -> 22.037403  -0.0061%: the level is PINNED by
+                                     calibrate_frequency, so this is
+                                     the geojson's per-district
+                                     rounding under moved weights
+  el_total   164.121733 -> 164.121785  +0.00003%
+  capital    5.526963 -> 5.526963     unchanged to 6dp
+  premium    169.647739 -> 169.648338  +0.06 pence
+  Scotland   172.090689 -> 172.549941  +GBP0.4593
+  E&W        169.400582 -> 169.354778  -GBP0.0458
+  sectors    169.663762                cross-grain drift +0.0094%
+  nesting    median |sector-mean/district - 1| 1.3% (bound 3%), p95 6.9%
+  churn      179 of 2,736 districts change rating group, 126 of them
+             Scottish, 1 by two groups
+  movers     up EH10 +14.0 / EH2 +13.2 / EH9 +13.0 (Edinburgh), down
+             AB31 -7.9 / AB32 -7.7 / AB34 -7.3 (rural Aberdeenshire)
+
+The harness predicted all of this to the penny (Scotland +0.4613, E&W
+-0.0467, churn 179/126/1, the same six movers), which is the paired-run
+design working. **The headline stays GBP169.65 at 2dp.**
+
+What actually changed is the map: Scottish rates run 0.039% to 0.632%/yr
+at district grain and 0.039% to 0.635% at sector grain, a 16x spread
+where every Scottish unit previously carried an identical 0.2947%. It
+remains a 32-value step function - units inside one council still share
+a value - and that is the resolution of the source, not a defect of the
+join. LIMITATIONS section 7 now ranks surface-water depth as the largest
+priced coverage gap in its place.
+
+**The level moved with the WINDOW, not with the definition.** 7,381 ->
+7,794 is the three-year mean, within 1.5% of the 7,681 the police.uk
+archive overlap implies (the period correction recorded in the section
+below). The Total-vs-Domestic basis question stays answered and
+UNCHANGED: correcting it alone would move Scotland four to five times
+too far, because E&W carries a nearly equal and opposite error.
+
+**Two site dependencies did not survive Scotland ceasing to be uniform,
+and neither would have failed loudly.**
+
+- `build_site.py` recovered the override as the most frequent exact
+  rate - legitimate while hundreds of districts shared one value, and
+  silently meaningless afterwards. It now reads the `country` flag and
+  injects min / mean / max / spread as `__TH_SCOT_*__`.
+- `site/methodology.template.html` asserted a single national rate in
+  prose. Rewritten, with statistics.gov.scot linked and the step
+  function stated. Five more places said the same thing in passing
+  (`map/template.html`, README, `fetch_premises.py`'s docstring,
+  `peril_contributions.py`'s coverage column, the methodology page's
+  source table) and all five were swept.
+
+**The generalisable bit: a derived quantity recovered by inference from
+the output is a dependency, and nothing declares it.** The modal-rate
+trick had no import, no call site, no test - only a comment explaining
+why it worked. Grepping `__TH_` found it; grepping `scores_real` would
+not have.
+
+Guards, matching `burglary.csv` and `premises.csv`: the file is
+required (missing = SystemExit), and wrong-grain coverage fails rather
+than letting `.get(n, 0.0)` hand every Scottish unit a rate of zero -
+the void run that would read as cheap Scotland. Test
+`test_scotland_reads_council_housebreaking_and_a_missing_file_is_fatal`
+covers both plus the `hb_3yr`-not-`hb_1yr` choice.
+
+**The sector grain needed the file regenerated, which is the ct_bands
+lesson again**: a model change that adds a name-keyed data file is not
+priced at the other grain until the file exists there. The merge into
+`sector-model` brought a district-keyed `housebreaking.csv`; the two-line
+seam (`RISK` -> `sectors_risk.geojson`, `postcode_key` -> "OUTWARD D")
+plus a regeneration produced 1,077 Scottish sectors conserving 7,381 and
+7,794 exactly. Four sectors (DG3 9, EH52 1, ML7 9, TD8 9) hold only
+terminated postcodes and are in no council at all; they take their
+parent outcode's household rate and the total is renormalised, with the
+script refusing above 1% orphans.
+
+**Both harnesses that measured this now refuse to run.** They patch a
+module constant, `setattr` on a module always succeeds, and without the
+flat baseline they would price the published model against itself and
+print a table of zeros that reads like "no effect". Each raises with a
+pointer to where its answer is recorded instead.
+
+Assembly followed the one-push procedure: `exp/scotland-theft-geography`
+merged INTO `sector-model` plus the sector-keyed file, `sector-model.yml
+skip_fetch=true` built on CI (run 33459977526 -> bot commit 8bef162),
+the output crossed in as `data/sectors_risk.geojson`, and `rebuild.yml
+commit=false` re-rendered everything (run 33461086877) so docs carry
+both grains. Its diffstat and the local one matched at 11 files, which
+is the artifact applied cleanly.
+
+**A second rebuild ran (33461805640) and the output was NOT
+bit-identical** - Gate 2's publish got bit-identity from two rebuilds
+and I expected it here. What moved: `capital*`, `premium_buildings`,
+`premium_contents`, `premium_cc`, `cc_uplift_pct` on 42-76 districts by
+1e-4, and `tvar99_euler` on 2 by 1e-1. Every one is a single unit of
+that field's own written precision - a value on a rounding boundary
+falling the other way. No `el_*` field differs anywhere, `premium` is
+identical in all 2,736 districts, no district changes rating group, and
+exposure-weighted means agree to 6dp. **So the model is reproducible to
+published precision but not bit-for-bit across runners**, most likely
+reduction order under `UKRISK_THREADS=0`, which resolves to the
+runner's CPU count. Not chased - nothing published moves - but do not
+claim bit-identity in a future publish without checking it.
+
+The second rebuild existed only to re-render `__TH_SCOT_*__` at 3dp,
+and it revealed a floor worth knowing: **`districts_risk.geojson`
+writes `th_rate` at 4dp**, so 0.000394 is quantised to 0.0004 before
+`build_site` ever sees it and the Scottish low end cannot render finer
+than 0.04% whatever the format string. The page therefore reads
+"0.040%-0.630%/yr ... a 16x spread" (the spread comes off the same
+quantised column, 15.75 -> "16", so the page is self-consistent), while
+the unquantised model figures quoted above are 0.039%-0.632% and 16.1x.
 
 ## MEASURED 2026-09-01: the Scottish theft basis is asymmetric, and it is worth half a percent
 
@@ -287,11 +502,11 @@ correction is measured rather than merely noted.
    is corrected there; the single scored frame buys determinism here, not
    time.
 
-**What is still open.** The theft *geography* gap — one flat rate across
-442 districts — is untouched and is the materially damaging half.
-LIMITATIONS §7 still ranks it, with Recorded Crime in Scotland by local
-authority (32 councils, apportioned via the cached ONSPD) as the free
-route.
+**What was still open when this was written — and is now CLOSED.** The
+theft *geography* gap (one flat rate across 442 districts) was the
+materially damaging half, with Recorded Crime in Scotland by local
+authority named here as the free route. That route was taken the same
+day: see the PUBLISHED section at the top of this file.
 
 ## Gate 2 MEASURED 2026-08-30: freeze reorders nothing; the SMD curve is a real, different map
 
@@ -2320,7 +2535,9 @@ The gap I described is real; I described its location wrongly.
 |---|---|---|
 | `main` | published | the product |
 | `sector-model` | permanent, 33 ahead | the same model at postcode-SECTOR grain. **NEVER merges to main** — only `data/districts_risk.geojson` crosses, renamed `data/sectors_risk.geojson`. main merges INTO it, never the reverse. |
-| `exp/subsidence-series` | LIVE, Gate 0 | the temperature-driven subsidence/freeze workstream. Data acquisition and evidence only so far — no model change, premium untouched. |
+| `exp/scotland-theft-geography` | MERGED 2026-09-01 (`59c4be8`), safe to delete | council housebreaking for Scotland, priced then published at both grains. Everything it carried is in main; kept only until someone tidies. |
+
+**Stale rows removed 2026-09-01:** the table still listed `exp/subsidence-series` (Gate 0 of the temperature workstream) long after it was deleted, and never gained a row for `exp/scotland-theft`, the basis measurement, which was deleted on merge. `git ls-remote --heads origin` is the authority; this table is a comment on it. As of this edit origin holds exactly three: `main`, `sector-model` and `exp/scotland-theft-geography`.
 
 **Deleted 2026-08-27 (second tidy):** `exp/theta-ws-measure`, a
 throwaway that existed to price one function and did so — GBP0.65, its

@@ -54,8 +54,10 @@ DRIVERS = {
              "area", "GB"),
     "ad":   ("Accidental damage", "Census child-share of population",
              "LSOA census", "GB"),
-    "er":   ("Coastal erosion", "EA NCERM 2024 frontages",
-             "coastal frontage polygons", "England only"),
+    "er":   ("Coastal erosion", "EA NCERM 2024 frontages (England); "
+             "NatureScot Dynamic Coast 2 (Scotland)",
+             "frontage / eroded-area polygons",
+             "England + Scotland, on different bases (er_basis)"),
 }
 
 

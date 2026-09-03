@@ -237,7 +237,11 @@ districts**, used as the exposure weight throughout.
     - `sw_low` from #10 is the depth>0 denominator — same layer, same grid,
       no need to refetch it.
     - England only. NRW and SEPA publish no equivalent depth product, so
-      Wales and Scotland keep a flat surface-water severity.
+      Wales and Scotland keep a flat surface-water severity. **Checked
+      directly 2026-09-03, not assumed** — SEPA's whole public REST
+      catalogue is extent polygons at three likelihoods and its
+      `Secure`/`Utilities` folders are empty; NRW's 4,374 WMS layers
+      contain one "depth" layer and it is peat. See #38(a).
     - **`sw_depth.csv` has a row for every district, zero-filled outside
       England** — so "row exists" is not "has data". A Welsh district has
       real surface water (`sw_low > 0`, from NRW) but all-zero depth
@@ -275,6 +279,10 @@ districts**, used as the exposure weight throughout.
       Shoreline Management Plan (defences maintained as planned); NFI = no
       further intervention (defences lapse). We use the 70th-percentile
       climate-change allowance.
+      **This SMP/NFI pairing is what Scotland's equivalent does not
+      have** — Dynamic Coast publishes one RCP8.5 scenario at 2050/2100
+      and a defence *inventory*, so extending erosion beyond England
+      needs a disclosed method decision rather than a join. See #38(d).
     - **`Ground_Instability_Zone` and `_Recession` are not duplicates**, and
       the second is not a subset of the first. Both carry 80 features with
       byte-identical attributes, which makes them look redundant. The
@@ -1229,6 +1237,223 @@ districts**, used as the exposure weight throughout.
     national total is still conserved exactly. Above 1% orphans the
     script refuses to write.
 
+38. **Availability sweep, 2026-09-03 — what the top-ranked open
+    limitations turn out to cost.** Not a data source: a record of four
+    direct queries against live services, so the next person does not
+    repeat them. Two answers are negative, and a negative that was
+    *checked* is worth more than one that was assumed — LIMITATIONS §3
+    and §5 had been asserting "NRW and SEPA publish no depth product"
+    since they were written.
+
+    **(a) Surface-water DEPTH outside England: does not exist openly.**
+    `https://map.sepa.org.uk/server/rest/services?f=json` lists four
+    folders (`Noise`, `Open`, `Secure`, `Utilities`); **`Secure` and
+    `Utilities` both return an empty `services` array**, so `Open` is the
+    whole public catalogue. Its surface-water products are three
+    likelihood bands —
+    `Surface_Water_and_Small_Watercourses_Flooding_{High,Medium,Low}_Likelihood`
+    plus a `Future_..._Medium_Likelihood` — each one extent polygons, no
+    depth banding. On the Welsh side,
+    `https://datamap.gov.wales/geoserver/ows?service=WMS&request=GetCapabilities`
+    advertises **4,374 layers**, of which exactly **one** has "depth" in
+    its name: `geonode:nrw_ph2_lowland_peatland_peat_depth`. So the 651
+    districts on the flat surface-water severity multiplier stay there.
+    This is now the model's largest priced coverage gap *and* the one
+    with no free route — see LIMITATIONS §7.2 and §8.
+
+    **(b) Adjacent to (a), and a different kind of useful:** NRW publishes
+    `inspire-nrw:NRW_NATIONAL_FLOOD_RISK_SURFACE_WATER_{ECON,PEOPLE,ENVIRO}`
+    and SEPA publishes
+    `Open/NFRA_Flood_Risk_Grid_Latest/MapServer/0` — **26,614 polygon
+    cells** keyed `grid_id`/`pva_id`/`settlement`/`local_authority` with
+    an `aad_score_res` band. These are **consequence / annual-average-
+    damage** products, and that rules them out as severity multipliers:
+    AAD already has frequency inside it, so multiplying one into a
+    frequency this model has calibrated to the ABI double-counts. What
+    they *could* be is an **external validation of flood ordering outside
+    England** — rank the districts by `aad_score_res` and compare — which
+    LIMITATIONS §2 records the model has never had for any peril. Unpriced,
+    non-invasive, and it would answer a standing "never validated" note
+    rather than adding to it.
+
+    **(c) EoW by dwelling age: still no anchor, checked from the other
+    side.** The dead-ends list below already records the 2026-08-17
+    finding that no UK publication quantifies dwelling age → EoW claim
+    frequency. Rechecked 2026-09-03 from the *claims* end rather than the
+    *stock* end: the ABI publishes national aggregates and puts granular
+    claims behind a **subscription** industry-data service, which the zero
+    budget puts permanently out of scope; the English Housing Survey does
+    publish damp and leak incidence by construction age, but that is
+    **stock condition, not claims**, and turning it into a frequency
+    relativity would be exactly the invented correction factor
+    `SPLIT_ANCHORED` exists to stop. EPC/CTSOP4.1 remain open and fine —
+    the missing half was never the geography. This is the same wall Gate 3
+    hit for burst pipes, approached from the opposite direction.
+
+    **(d) Coastal erosion in Scotland: closable. In Wales: not.**
+    Dynamic Coast phase 2 is published as open feature services under
+    NatureScot's ArcGIS Online org **`LM9GyVFsughzHdbO`**
+    (`https://services1.arcgis.com/LM9GyVFsughzHdbO/arcgis/rest/services/`).
+    Eleven `DynamicCoast_*` services — `Future_Erosion_2050_High_Emissions_Scenario`,
+    `Future_Erosion_2100_High_Emissions_Scenario`, `Future_MHWS_for_High_Emissions_Scenario`,
+    `MHWS_Modern`, `MHWS_1890s`, `MHWS_1970s`, `Transects_for_High_Emissions_Scenario`,
+    `Artificial_Coastal_Defences` (+`_Buffer`), `Uncertainty`,
+    `Flood_levels_and_High_Emission_Scenario_SLR` — plus the bundled
+    `DC2_Main_results` MapServer carrying the same layers.
+
+    Sizes and shapes, queried directly: 68,522 (2050) and 40,559 (2100)
+    polygons under `ERODETYPE ∈ {ErodedArea, Influence, Vicinity}`, of
+    which the **ErodedArea** tier — the only one that is land actually
+    projected to go — is **46,580** and **24,447**; `Influence` is a 10 m
+    landward buffer and `Vicinity` a further 50 m, so summing the three
+    would triple-count. **207,042 transects**
+    (`DC2_RCP8_Transects`) carrying `Hist_Rate`, `Dist_2030`…`Dist_2100`,
+    `Rate_2030`…`Rate_2100`, `Tot_E_2050`, `Tot_E_2100`; and **2,162**
+    defence lines (`DC2_Defences_Line`: `Desc_`, `Condition`, `Length_m`).
+
+    **Do not rebuild NCERM's length × recession trick here — the polygon
+    is the authoritative measure this time, and that reverses #21.** For
+    NCERM the recession attribute is authoritative and the polygon is not
+    (estuary "frontages" are broad zones). For Dynamic Coast the polygon
+    *is* the modelled outcome — the area between the 2020 and projected
+    MHWS lines, susceptibility- and defence-limited — while the transect
+    `Dist_*` values are the unconstrained projection. They disagree, and
+    by design: 164,371 erosional transects sum to 1,467,665 m of 2100
+    recession, which against 79.748 km² of ErodedArea implies a 54 m mean
+    transect spacing, while the same arithmetic at 2050 implies 20 m. One
+    coast cannot have two spacings; the gap is the susceptibility and
+    25 m defence caps biting harder on the shorter horizon. Take the
+    polygons.
+
+    **Scotland HAS a climate ladder — read the layer descriptions, not
+    the layer names.** The eleven open services are the RCP8.5 branch;
+    `DC2_LES_results` publishes the **RCP2.6 low-emissions** twin
+    (`DC2_RCP2_Future_Erosion_{2050,2100}_Public`), openly and without a
+    token. ErodedArea totals: **79.748 km²** (RCP8.5, 2100),
+    **32.520 km²** (RCP2.6, 2100), **17.914** and **12.871 km²** at 2050.
+    A 2.45× high/low spread at 2100, against 2.18× for England's
+    `er_nfi105_hi / er_nfi105_lo` — the two ladders are comparably wide,
+    and RCP8.5-95th / RCP2.6 map onto the `_hi` / `_lo` allowance columns.
+    What Scotland has **no** equivalent of is England's *central* 70th
+    percentile.
+
+    **The real mismatch is the MANAGEMENT axis.** NCERM publishes a
+    *pair* — SMP (defences maintained, the model's headline `er_smp105`)
+    against NFI (no further intervention) — at 2055/2105. Dynamic Coast
+    publishes **one** management case, and the layer description says
+    exactly what it is: a "'do nothing' coastal management approach"
+    where "shoreline retreat is limited by underlying physical
+    susceptibility (the UPSM of Fitton et al., 2017) and **up to 25 m of
+    erosion is permitted at known artificial coastal defences**". So
+    "do nothing" here means *no new intervention*, with existing defences
+    physically present and capping retreat at 25 m — substantially nearer
+    NCERM's SMP than its NFI, but a single point on an axis England
+    resolves into two. `DC2_Defences_Line` (2,162 structures, `Condition`)
+    and its 25 m inland buffer are the inputs to that cap, published
+    alongside; they are not themselves a defended/undefended pair.
+
+    For scale on what that axis is worth: in England
+    `sum(er_smp105) / sum(er_nfi105)` is **0.377** — defences remove
+    nearly two thirds of projected loss — while the 95th/70th climate
+    allowance is only **1.162×**. The management assumption is by far the
+    bigger of the two, which is why it is the one that has to be
+    disclosed rather than the horizon.
+
+    Wales has no such route. The same 4,374-layer capabilities document
+    contains `geonode:nrw_shoreline_management_plan_policies` — SMP
+    *policy* lines — and nothing with projected shoreline geometry
+    (`erosion` matches only agricultural/soil layers; `recession` matches
+    nothing). So the reachable end state for the erosion layer is
+    England + Scotland with Wales explicitly captioned, not UK-wide.
+
+    Erosion is **unpriced** (`el_total5`, never in the premium), so
+    closing Scotland changes what the map *knows*, not what it *charges*.
+
+39. **NatureScot Dynamic Coast phase 2 — Scotland's coastal erosion, LIVE
+    since 2026-09-03 (#38(d) is how it was found).** Free, open, OGL.
+    ArcGIS feature services under NatureScot's org `LM9GyVFsughzHdbO`:
+
+        https://services1.arcgis.com/LM9GyVFsughzHdbO/arcgis/rest/services
+
+    `scripts/fetch_erosion_scotland.py` reads four layers and writes
+    `data/erosion_scotland.csv`; `scores_real.erosion_from_ncerm` overlays
+    it onto the English NCERM columns and publishes `er_head` (the column
+    the model scores from) and `er_basis` (which source each district's
+    figure came from).
+
+    | layer | scenario | ErodedArea polygons | km² |
+    |---|---|---|---|
+    | `DynamicCoast_Future_Erosion_2050_High_Emissions_Scenario/0` | RCP8.5-95th, 2050 | 46,580 | 17.914 |
+    | `DynamicCoast_Future_Erosion_2100_High_Emissions_Scenario/0` | RCP8.5-95th, 2100 | 24,447 | 79.748 |
+    | `DC2_LES_results/1` | RCP2.6, 2050 | 56,035 | 12.871 |
+    | `DC2_LES_results/2` | RCP2.6, 2100 | 53,268 | 32.520 |
+
+    179 of Scotland's 442 districts are touched, worst **AB23** at 1.891%
+    of its area by 2100, then KY16, IV31, DD6, EH32. Every polygon fell
+    inside a district: 0.0% strayed seaward, and nothing landed outside
+    Scotland.
+
+    **Five traps, all of them paid for once.**
+
+    - **`ERODETYPE` must be filtered to `ErodedArea`.** `Influence` is a
+      10 m landward buffer and `Vicinity` a further 50 m; the three are
+      nested, so an unfiltered fetch triple-counts. The 2100 layer would
+      read 181 km² instead of 80.
+    - **Rows come back with `geometry: null`** — 3,937 of 59,972 in the
+      RCP2.6 2050 layer, 3,324 of 56,592 at 2100. Not a paging failure:
+      drop them and the total matches the service's own groupBy statistic
+      to five figures. `shapely.area` gives them NaN.
+    - **And a NaN walks straight through a tolerance check**, because
+      every comparison against NaN is False. The first run of the fetch
+      script printed `nan km2 (published 12.871)` and carried on to write
+      a CSV. `not np.isfinite(...)` is now its own guard, before the
+      tolerance test rather than folded into it. Worth generalising: a
+      range check is not a validity check.
+    - **The polygon is authoritative here, the opposite of NCERM (#21).**
+      See #38(d) for the arithmetic — the transect `Dist_*` sums imply two
+      different transect spacings at the two horizons, because they are
+      the projection *before* the susceptibility and defence caps that the
+      polygons already carry.
+    - **`data/erosion_scotland.csv` is name-keyed**, so it is a
+      district-keyed file on `main` and must be regenerated at sector
+      grain on `sector-model` — the `ct_bands.csv` lesson again. Unlike
+      `fetch_housebreaking.py` the script needs **no** branch diff: it
+      keys off `load_districts()`, which the branch already patches.
+      `erosion_from_ncerm` raises if the file matches no area in the frame.
+
+    **The basis differs from England's, and `er_basis` is how that stays
+    visible.** Full comparison in LIMITATIONS §8; the short form is that
+    NCERM publishes SMP/NFI (defences maintained vs abandoned) at
+    2055/2105 under three climate allowances, while Dynamic Coast
+    publishes one management case ("do nothing", existing defences
+    standing, retreat capped at 25 m) at 2050/2100 under two emissions
+    pathways.
+
+    **How much that management difference is worth: 1.88%, measured.**
+    England's SMP/NFI ratio is 0.377, so defences remove nearly two thirds
+    of projected English loss, and a naive read would expect the same
+    order of distortion in Scotland. It is not there. Intersecting the
+    RCP8.5-2100 ErodedArea with the published 25 m inland defence buffer
+    (`DynamicCoast_Artificial_Coastal_Defences_Buffer`, 13.709 km²
+    dissolved) puts **1.502 km² of 79.748 — 1.88%** at a defended
+    frontage. Scotland's eroding coast is essentially undefended where it
+    erodes, so Dynamic Coast's management case and NCERM's SMP are the
+    same basis to within 2% *for Scotland*, and the axis that looked like
+    the expensive one turns out to cost almost nothing here. Measure the
+    thing rather than reasoning from the English analogue.
+
+    The climate axis is the one that is left: Scotland's headline uses
+    RCP8.5-95th against England's 70th percentile. On England's own
+    columns the 95th is 1.162× the 70th and the 0th is 0.534× of it, so
+    RCP8.5 is much the closer of the two rungs Scotland actually has.
+
+    **Adding Scotland does not move England, and that is checked rather
+    than assumed.** `er_score` normalises by the 99.5th percentile of
+    `er_head` across all districts, so a big enough Scottish value would
+    rescale every English score. Scotland's largest, 1.891%, sits below
+    the 14th-largest English figure of 3.848%, the percentile is unchanged
+    at 0.037409, and English scores come back bit-identical.
+
 ## Budget: zero, decided 2026-08-31
 
 **The user has decided this project will not spend money.** That is a
@@ -1276,6 +1501,12 @@ open substitute; every open path was checked (see dead ends below).
   layer publishes extent only). Unblocks: making `SUP_WEIGHT` physical
   instead of a bounded 0.5 prior — see the dose-response runs in the
   project notes.
+- **ABI granular claims by risk characteristic** (subscription industry
+  data service). Unblocks: the escape-of-water dwelling-age relativity,
+  which is anchor-blocked and not data-blocked — EPC and CTSOP4.1 already
+  give the age stock openly at postcode/LSOA grain. Added 2026-09-03
+  after checking the claims end rather than the stock end; the zero
+  budget makes this permanent. See #38(c).
 - ~~MIDAS Open~~ **unblocked and LIVE since 2026-08-10** (#24): the user
   registered, the mirror was fetched and the model's gust component now
   runs on station extremes. Kept here so the pattern is remembered: it
@@ -1293,7 +1524,10 @@ open substitute; every open path was checked (see dead ends below).
   are a different market and peril mix. Without a citable number the
   slice size would be an undocumented knob, so EoW's geography stays
   freeze-only. Revisit only if an insurer publishes age-banded claim
-  rates.
+  rates. **Rechecked 2026-09-03 from the claims side** and the answer is
+  the same: ABI granular claims are subscription-only, and the English
+  Housing Survey's damp/leak-by-age tables are stock condition, not
+  claims. See #38(c).
 - `environment.data.gov.uk/arcgis/rest/...` — EA's old ArcGIS root: gone.
 - Legacy `risk-of-flooding-from-surface-water-extent-*` spatialdata slugs: 404
   (superseded by NaFRA2).

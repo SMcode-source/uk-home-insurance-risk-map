@@ -393,8 +393,10 @@ const REL_MEDIAN = __REL_MEDIAN__;
 const DEFAULT_METRIC = '__DEFAULT_METRIC__';
 
 /* Erosion bins are cut over the COASTAL districts only — quantiles across
-   all 2,700 would put every break at zero. */
-const EROSION_BREAKS = BREAKS.er_smp105;
+   all 2,700 would put every break at zero. Cut over er_head, which is
+   NCERM's SMP-2105 in England and Dynamic Coast's 2100 case in Scotland;
+   er_basis says per district which. */
+const EROSION_BREAKS = BREAKS.er_head;
 
 /* Everything below needs the name index (search, the deep link, the
    arrow walk), so it all lives in one init function called when that
@@ -551,34 +553,42 @@ const METRICS = {
   },
   erosion: {
     label: 'Coastal erosion (blight)',
-    legend: 'Land lost to erosion by 2105, planned defences — NOT insured',
+    legend: 'Land lost to erosion by 2105 (England) / 2100 (Scotland) — NOT insured',
     ramp: RAMP_ROSE, breaks: EROSION_BREAKS,
-    col: 'er_smp105',
+    col: 'er_head',
     fmt: v => (100 * v).toFixed(2) + '%',
     /* Four states, not two. A zero here means three different things and
        conflating them misleads:
-         - outside England, NCERM simply does not map it (Wales, Scotland)
-           — a Welsh clifftop is not "no erosion risk", it is unmeasured;
+         - in Wales and Northern Ireland nothing maps it at all — a Welsh
+           clifftop is not "no erosion risk", it is unmeasured;
          - inland, there genuinely is no coastal erosion;
-         - on a defended coast the sea WOULD take land and the defences are
-           stopping it, which is the most interesting thing here.
-       Blackpool and Eastbourne sit in that last case and would read as
-       "no exposure" on a naive two-way split. */
-    paint: bins => ['case', NOT_MAPPED, NO_DATA,
-                    ['>', ['get', 'er_smp105'], 0], bins,
+         - on a defended English coast the sea WOULD take land and the
+           defences are stopping it, which is the most interesting thing
+           here. Blackpool and Eastbourne sit in that case and would read
+           as "no exposure" on a naive two-way split.
+       Scotland joined the mapped side on 2026-09-03, from Dynamic Coast
+       rather than NCERM. It has no defended/undefended pair, so it can
+       never land in the DEFENDED state — and er_head, not er_smp105, is
+       what decides the colour, or every Scottish district would stay
+       grey while the popup showed a figure. */
+    paint: bins => ['case', ER_NOT_MAPPED, NO_DATA,
+                    ['>', ['get', 'er_head'], 0], bins,
                     ['>', ['get', 'er_nfi105'], 0], DEFENDED, NO_DATA],
-    rows: () => [[NO_DATA, 'No erosion mapped — inland, or outside England'],
-                 [DEFENDED, 'Held at zero by planned defences']].concat(
+    rows: () => [[NO_DATA, 'No erosion mapped — inland, or Wales / NI'],
+                 [DEFENDED, 'Held at zero by planned defences (England)']].concat(
       legendBands(RAMP_ROSE, EROSION_BREAKS, v => (100 * v).toFixed(2) + '%')),
-    tip: p => notMapped(p)
-      ? 'not mapped — NCERM covers England only'
-      : (p.er_smp105 > 0
-        ? (100 * p.er_smp105).toFixed(2) + '% of area by 2105 · '
-          + (100 * p.er_nfi105).toFixed(2) + '% if undefended'
-        : (p.er_nfi105 > 0
-          ? 'fully defended · ' + (100 * p.er_nfi105).toFixed(2)
-            + '% would go if undefended'
-          : 'no coastal erosion exposure')),
+    tip: p => erNotMapped(p)
+      ? 'not mapped — no published projection for Wales or NI'
+      : (p.er_basis === 'dynamiccoast'
+        ? (100 * p.er_head).toFixed(2) + '% of area by 2100 · Dynamic Coast, '
+          + 'no undefended case published'
+        : (p.er_smp105 > 0
+          ? (100 * p.er_smp105).toFixed(2) + '% of area by 2105 · '
+            + (100 * p.er_nfi105).toFixed(2) + '% if undefended'
+          : (p.er_nfi105 > 0
+            ? 'fully defended · ' + (100 * p.er_nfi105).toFixed(2)
+              + '% would go if undefended'
+            : 'no coastal erosion exposure'))),
   },
 };
 
@@ -606,6 +616,16 @@ function fillExpr(m) {
    in the tile, so the has-check is belt and braces rather than a real
    branch - but a missing country must not read as "not England". */
 const NOT_MAPPED = ['all', ['has', 'country'], ['!=', ['get', 'country'], 'England']];
+
+/* Erosion has its own not-mapped test, because it is the one metric with
+   two sources. England has NCERM, Scotland has Dynamic Coast, and Wales
+   and Northern Ireland have neither - so the England-only NOT_MAPPED
+   above would grey out a country that now has data. */
+const ER_NOT_MAPPED = ['all', ['has', 'country'],
+                       ['!=', ['get', 'country'], 'England'],
+                       ['!=', ['get', 'country'], 'Scotland']];
+const erNotMapped = p => p.country && p.country !== 'England'
+  && p.country !== 'Scotland';
 
 let current = DEFAULT_METRIC;
 
@@ -777,13 +797,33 @@ function popupHtml(p) {
    zeroes. */
 function erosionBlock(p) {
   const row = (k, v) => '<tr><td>' + k + '</td><td>' + v + '</td></tr>';
-  if (!(p.er_nfi105 > 0)) return '';
-  const defended = p.er_smp105 === 0;
-  return '<div class="pop-er"><div class="pop-er-hd">' +
+  const hd = '<div class="pop-er"><div class="pop-er-hd">' +
     'Coastal erosion — <strong>not insured</strong></div>' +
     '<div class="pop-note">Gradual erosion is excluded from standard home ' +
     'cover. Shown as blight and valuation exposure; it is not in the ' +
-    'premium above.</div>' +
+    'premium above.</div>';
+
+  /* Scotland comes from Dynamic Coast, which publishes an emissions
+     ladder and no defended/undefended pair — the opposite shape to
+     NCERM. Rendering it through the English rows would print "0.00% if
+     undefended" for a coast with no undefended case published, so it
+     gets its own block and says which source it is. */
+  if (p.er_basis === 'dynamiccoast') {
+    return hd +
+      '<div class="pop-note" style="color:var(--ink-2)">Dynamic Coast ' +
+      '(NatureScot), existing defences standing. No unmanaged scenario is ' +
+      'published for Scotland, so there is no with/without pair here.</div>' +
+      '<table>' +
+      row('Lost by 2050 (RCP8.5)', (100 * p.er_dc50_hi).toFixed(2) + '% of area') +
+      row('Lost by 2100 (RCP8.5)', (100 * p.er_dc100_hi).toFixed(2) + '% of area') +
+      row('Lost by 2100 (RCP2.6)', (100 * p.er_dc100_lo).toFixed(2) + '% of area') +
+      row('Notional E[loss] if covered', fmtGBP(p.el_er) + '/yr') +
+      '</table></div>';
+  }
+
+  if (!(p.er_nfi105 > 0)) return '';
+  const defended = p.er_smp105 === 0;
+  return hd +
     (defended
       ? '<div class="pop-note" style="color:var(--ink-2)">The adopted shoreline plan holds this coast at <strong>no projected loss</strong>. The figures below are what the sea would take if the defences were not maintained.</div>'
       : '') +
