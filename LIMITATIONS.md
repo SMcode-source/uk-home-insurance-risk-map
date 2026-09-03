@@ -201,7 +201,7 @@ Every one of these prints its own count at build time.
 |---|---|---|---|
 | Groundwater | non-England districts get `GW_BACKGROUND = 0.02` | **623 of 2,736 districts** | EA alert areas are England-only. NRW/SEPA publish no equivalent. |
 | Theft, Scotland | housebreaking at **council** resolution (32 areas, three-year mean 7,794/yr → 0.039–0.632%/yr), apportioned by household share | **442 districts, 32 distinct values** | Police Scotland publishes no incident-level data; the cube stops at council area. |
-| Surface-water depth | districts with no mapped depth fall back to multiplier 1.0 | **651 of 2,736** | NRW and SEPA publish no depth product. |
+| Surface-water depth | districts with no mapped depth fall back to multiplier 1.0 | **651 of 2,736** | NRW and SEPA publish no depth product — checked directly against both services 2026-09-03, not assumed (DATA_SOURCES #38). |
 | Coastal erosion | districts outside NCERM score **zero** | **2,384 of 2,736** | NCERM is England-only. |
 | Gridded CSV layers | missing districts take the **national median** | varies, printed per layer | A missing grid reading is not a zero reading. |
 | Geology slivers | districts with no polygon intersection take the nearest polygon | small | Boundary artefacts. |
@@ -331,11 +331,20 @@ Also unanchored, and worth naming:
    Victorian terrace's plumbing from a 2015 new build's. The frost map
    itself is sound — re-aiming its window was tested and rejected on
    measurement (§4) — but the model is blind to the *level* of frost by
-   construction, so a warming winter cannot reach the premium.
+   construction, so a warming winter cannot reach the premium. **The
+   dwelling-age fix is blocked for free (checked 2026-09-03):** EPC gives
+   the age *stock* at postcode grain, but no published UK source gives EoW
+   claim *frequency* by age to anchor it to, and the ABI's granular claims
+   data is subscription-only. See §8 row 1.
 2. **Surface-water depth is England-only** — 651 districts fall back to a
    flat severity multiplier inside flood, which is 12.3% of EL. With
    Scottish theft closed to council resolution below, this is now the
-   largest *priced* coverage gap.
+   largest *priced* coverage gap. **It is also the one there is no free
+   route to closing (verified 2026-09-03):** SEPA's open REST publishes
+   surface-water hazard as `METRIC='Extent'` and nothing else, and NRW's
+   GeoServer has exactly one layer with "depth" in its name and it is peat
+   depth. So the largest priced gap and the largest unclosable gap are now
+   the same item. See §8 and DATA_SOURCES #38.
 3. **Theft's Scottish geography stops at council area.** It was one flat
    rate across all 442 districts until 2026-09-01, when the 32 councils'
    housebreaking counts replaced it (§5), apportioned onto districts by
@@ -387,10 +396,13 @@ trusted.**
 
 | # | limitation | candidate source | merge | confidence |
 |---|---|---|---|---|
-| 1 | EoW flat 69%, no dwelling age | **EPC Open Data** (England & Wales) — ~30m certificates with `CONSTRUCTION_AGE_BAND` (12 bands, pre-1900 → 2012+) and postcode, free and programmatic | postcode → district, share by age band | **High** — confirmed open and granular. Caveat: covers only properties sold/let/built since 2008, so it is *not* a census of stock and is biased toward churn. |
+| 1 | EoW flat 69%, no dwelling age | **EPC Open Data** (England & Wales) — ~30m certificates with `CONSTRUCTION_AGE_BAND` (12 bands, pre-1900 → 2012+) and postcode, free and programmatic | postcode → district, share by age band | **BLOCKED on the ANCHOR, not the data (checked 2026-09-03).** EPC itself is open and granular as described. What does not exist for free is any published UK figure for EoW claim FREQUENCY by dwelling age: the ABI publishes national aggregates and puts granular claims behind its subscription industry-data service (zero budget → permanently out of scope), and the English Housing Survey publishes damp/leak *stock condition* by age, which is not claims. Deriving a relativity from stock condition would be an invented correction factor — the rule below, and `SPLIT_ANCHORED`, forbid it. This is the wall Gate 3 hit for burst pipes, hit again from the other side. |
 | 1 | same, unbiased | **VOA Council Tax stock of properties** — build-period counts, complete stock | LSOA/LA → district | Medium — complete but coarser geography |
 | 1 | Scotland | **Scottish EPC Register** (separate from E&W) | same | Medium — needs checking |
-| 2 | Coastal erosion outside England | **NRW shoreline management / Wales coastal monitoring**; **Dynamic Coast** (Scotland) | frontage → district, matching NCERM's method | Medium — Dynamic Coast is the established Scottish equivalent; needs verification |
+| 2 | Coastal erosion, **Scotland** | **Dynamic Coast** phase 2 (NatureScot, OGL) | transect → district, matching NCERM's length × recession method | **High on the data, with one structural mismatch (verified 2026-09-03).** Eleven open feature services plus `DC2_Main_results`, which carries **207,042 transects** with per-decade recession distance and rate to 2100 — the same length × recession ingredients `fetch_erosion.py` already uses — and eroded-area polygons for 2050 (68,522) and 2100 (40,559). **The mismatch:** Dynamic Coast publishes **one** scenario (RCP8.5 high emissions) at 2050/2100, tiered `ERODETYPE` ∈ {ErodedArea, Influence, Vicinity}. It has **no SMP/NFI pair**, so there is no Scottish equivalent of the defended-vs-unmanaged split the score is built on (`er_smp105` is the headline; `er_nfi105` the worst case). `DC2_Defences_Line` is 2,162 structures with a `Condition` field — defence *inventory*, not a defended scenario — so the distinction would have to be inferred, not read. Closing Scotland therefore means either one unpaired Scottish column, or a documented mapping of RCP8.5-2100 onto one of the two English scenarios. DATA_SOURCES #38. |
+| 2 | Coastal erosion, **Wales** | — | — | **No free route found (verified 2026-09-03).** NRW's GeoServer publishes SMP *policies* (`nrw_shoreline_management_plan_policies`) but no projected-shoreline geometry, so a Welsh erosion extent cannot be built the way NCERM's is. Closing Scotland would take the layer from England-only to England+Scotland and leave Wales explicitly captioned. |
+| 2 | **Surface-water depth outside England** | — | — | **No free route (verified 2026-09-03).** SEPA publishes surface-water hazard at `MAP_TYPE='Hazard'`, `METRIC='Extent'` only, and its `Secure`/`Utilities` REST folders list no services at all; NRW's 4,374 published WMS layers contain one "depth" layer and it is `geonode:nrw_ph2_lowland_peatland_peat_depth`. The England-only claim in §3 and §5 is now checked rather than asserted. |
+| — | *(adjacent, not a fix)* | **NRW `NRW_NATIONAL_FLOOD_RISK_SURFACE_WATER_ECON/PEOPLE/ENVIRO`**; **SEPA `NFRA_Flood_Risk_Grid_Latest`** (26,614 cells, `aad_score_res` banded 1–7) | — | These are *consequence*/annual-average-damage products. They cannot serve as severity multipliers — AAD already contains frequency, so multiplying it into a calibrated frequency double-counts. They are, however, a candidate **external validation of flood ordering** outside England, which §2 records the model has never had. |
 | 2 | Groundwater outside England | **BGS susceptibility to groundwater flooding**; SEPA/NRW flood maps | polygon fractions per district | Medium — BGS product is GB-wide, but is *susceptibility*, not EA's alert-area basis, so the two do not merge cleanly |
 | 3 | Theft, Scotland | **Recorded Crime in Scotland** by local authority | LA → district apportionment by households | **DONE 2026-09-01.** Shipped from the statistics.gov.scot cube (DATA_SOURCES #37), not the workbook — the cube carries all 32 councils and a fresher year. LA is still far coarser than street level, so this improved on one flat rate without matching E&W, exactly as forecast here. |
 | 4 | Accidental damage proxy | EPC/VOA stock type + census tenure | district | Low — no anchor for what AD actually correlates with |

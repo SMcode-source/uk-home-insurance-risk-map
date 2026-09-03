@@ -168,6 +168,76 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## 2026-09-03: availability sweep — which open limitations are actually closable
+
+No model change, no publish. With Scottish theft shipped, the question
+was what to do next, and the honest first step was to stop *assuming*
+which of the ranked limitations have free routes and go and ask the
+services. Four answers, all recorded in DATA_SOURCES #38 with the
+endpoints, and folded back into LIMITATIONS §5, §7 and §8.
+
+**The two top-ranked MATERIAL items are both blocked, for different
+reasons, and neither block is about money in the usual sense.**
+
+- **Surface-water depth outside England does not exist openly.** SEPA's
+  entire public REST catalogue is extent polygons at three likelihoods;
+  its `Secure` and `Utilities` folders return empty service arrays, so
+  there is no gated tier hiding a depth product either. NRW advertises
+  4,374 WMS layers and exactly one has "depth" in the name — peatland
+  peat depth. LIMITATIONS had been asserting this since it was written;
+  it is now checked. 651 districts stay on the flat severity multiplier,
+  which makes this simultaneously **the largest priced coverage gap and
+  the one with no free route**.
+- **EoW by dwelling age is anchor-blocked, not data-blocked.** EPC and
+  CTSOP4.1 give the age stock openly and always did. What does not exist
+  free is any published UK figure for EoW claim *frequency* by age: the
+  ABI's granular claims sit behind a subscription, and the English
+  Housing Survey's damp/leak-by-age tables are stock condition, not
+  claims. Building a relativity from stock condition is precisely the
+  invented correction factor `SPLIT_ANCHORED` exists to prevent. This is
+  the wall Gate 3 hit for burst pipes, hit again from the other side —
+  worth noticing that the same shape of failure has now appeared twice.
+
+**Two things that are open, and are worth more than they first look.**
+
+- **Dynamic Coast phase 2 makes Scotland's erosion zero closable.**
+  Eleven open NatureScot feature services under ArcGIS org
+  `LM9GyVFsughzHdbO`, including 207,042 transects with per-decade
+  recession distance and rate to 2100 — the same length × recession
+  ingredients `fetch_erosion.py` already allocates from NCERM frontages —
+  and eroded-area polygons for 2050 and 2100. **One structural mismatch,
+  found by querying rather than reading the marketing:** NCERM publishes
+  a *pair*, SMP (defences maintained — the model's headline `er_smp105`)
+  against NFI (defences lapse). Dynamic Coast publishes **one** RCP8.5
+  scenario plus a defence *inventory* with a condition field. There is no
+  Scottish SMP/NFI split to read, so it would have to be inferred, and
+  that is a method decision to disclose rather than a join to perform.
+  My first pass through this called the defences layer "an analogue of
+  NCERM's with/without pair"; querying `ERODETYPE` (which turns out to be
+  `{ErodedArea, Influence, Vicinity}`, a hazard-zone tier, not a scenario
+  pair) showed that was wrong before it was written down as fact.
+  Erosion is **unpriced**, so closing Scotland changes what the map knows,
+  not what it charges — which also means it is a low-risk piece of work.
+  **Wales has no equivalent**: SMP *policies* only, no projected shoreline
+  geometry, so the reachable end state is England + Scotland with Wales
+  captioned.
+- **A first external validation of flood ordering is available.** NRW's
+  `NRW_NATIONAL_FLOOD_RISK_SURFACE_WATER_{ECON,PEOPLE,ENVIRO}` and SEPA's
+  `NFRA_Flood_Risk_Grid_Latest` (26,614 cells, `aad_score_res` banded)
+  are consequence / annual-average-damage products. They are **useless as
+  severity multipliers** — AAD already contains frequency, so folding one
+  into an ABI-calibrated frequency double-counts — but ranking districts
+  against them would test the flood *ordering* outside England, and
+  LIMITATIONS §2 records that the model's geography has never been
+  validated against anything. Unpriced, non-invasive, and it answers a
+  standing "never validated" note instead of adding another.
+
+**What this changes about the roadmap.** §8's row 1 and row 2 both moved
+from "candidate source, needs verification" to a verified answer, and two
+of those answers are no. The next piece of buildable work is Scottish
+coastal erosion; the next piece of *cheap* work is the flood-ordering
+validation. Both are the user's call, and neither has started.
+
 ## PUBLISHED 2026-09-01: Scottish theft geography, both grains in one push
 
 **Scotland stopped being one flat theft rate.** The user shipped
