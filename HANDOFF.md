@@ -168,6 +168,105 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## PUBLISHED 2026-09-03: Scotland's coastal erosion, both grains in one push
+
+Closed the zero that LIMITATIONS §5 had been flagging for weeks. NCERM
+stops at the English border, so every Scottish district scored *exactly*
+zero for erosion and a reader could not tell that from a real zero.
+**NatureScot Dynamic Coast phase 2** now fills it: 179 of 442 Scottish
+districts, 235 of 1,077 sectors, 79.748 km² inside the 2100 erosion
+zone, worst AB23 at 1.891% of its area (3.954% for the worst sector —
+the same ground over a smaller denominator).
+
+Merged `01bed1f`, rebuilt and committed `86a6762`, live and verified.
+Fetcher `scripts/fetch_erosion_scotland.py`, source note DATA_SOURCES
+#39, four layers keyed in `data/erosion_scotland.csv`.
+
+**Erosion is unpriced, and the diff PROVED it rather than asserting
+it.** Across all 2,736 districts the maximum absolute change to
+`premium`, `el_total`, `capital`, `premium_buildings`,
+`premium_contents`, `premium_cc` and `tvar99_euler` was **exactly
+0.0**, and no district changed rating group. Every district that moved
+at all was Scottish: `er_score` and `theta_we` on 179, `el_er` on 174,
+`el_total5` on 175. The unpriced line went £2.85 → £3.09 per policy
+(£2.33 → £2.56 at sector grain).
+
+**England is untouched because the normaliser held, and that was
+checked.** `er_score` divides by the 99.5th percentile of `er_head`
+across ALL districts, so a large enough Scottish figure would rescale
+every English score. Scotland's largest, 1.891%, sits below England's
+fourteenth largest at 3.848%; p99.5 is unchanged at 0.037409 and
+English scores came back bit-identical.
+
+**Two sources, published side by side, never blended.** `er_head` is
+the column the model scores from; `er_basis` says per district which
+source produced it (352 ncerm / 179 dynamiccoast / 2,205 none). The
+three axes of difference are in the methodology, ranked. The management
+axis looked like the expensive one — England's SMP/NFI ratio of 0.377
+says defences remove nearly two thirds of projected loss — and
+measurement said otherwise: intersecting the RCP8.5-2100 eroded area
+with the published 25 m defence buffer puts **1.502 km² of 79.748 —
+1.88%** at a defended frontage. Scotland's eroding coast is essentially
+undefended where it erodes. **Measure it; do not reason from the
+English analogue.** What survives is the climate rung (RCP8.5-95th
+against England's 70th), disclosed rather than corrected.
+
+### Three things this publish cost, all of them worth writing down
+
+**1. Wales was never zero, and the LIVE map had been hiding it.**
+Writing the caption "Wales reads zero" sent me to check whether it
+does. It does not: NCERM's Severn and Dee frontages cross into **NP16
+(0.095% of area, £3.00 EL), CH5 (0.021%, £0.60) and NP25 (0.004%,
+£0.10)**. The erosion layer's not-mapped test was `country !=
+'England'`, so all three were painted grey and captioned "NCERM covers
+England only" while holding a real figure — wrong on the published map
+long before any Scottish work. The test is now on the DATA as well as
+the country. **A frontage does not respect a border, so a country
+column cannot decide what is mapped.**
+
+**2. The publish deadlock has a second door.**
+`test_every_published_map_asset_carries_the_columns_its_page_reads`
+already guarded the state where the template runs ahead of the
+committed model output. A publish merge creates the mirror state —
+model output CURRENT, `docs/` shards STALE — and it failed there, in
+`rebuild.yml`'s PRE-FLIGHT, the step gating the run that regenerates
+those shards. Fixed in `df2df20`: skip per grain for columns that
+grain's own committed output carries, and check sector shards against
+`sectors_risk.geojson` rather than borrowing the district column set.
+It re-arms in `pages.yml`, which runs the same test AFTER building and
+gates the deploy.
+
+**3. A bot push does not trigger workflows.** The `tests` run on the
+merge commit went red on its "docs/ is up to date" check — correct, and
+self-healing once the rebuild committed. But the rebuild's bot commit
+used `GITHUB_TOKEN`, so nothing re-ran on it and main sat with a red
+tick against a green tree. Dispatch `tests.yml` manually after a
+`commit=true` rebuild (run 33815942524 did, all green).
+
+### OPEN: the model does not reproduce bit-identically across runners
+
+Not erosion, and found by diffing rather than by anything failing. The
+publish rebuild (33815457628) reproduced every `el_*` column exactly —
+the simulation is deterministic — but its output differs from the
+artifact I merged in the CAPITAL ALLOCATION and what that feeds:
+`tvar99_euler` on 2 districts by 0.1, and through it `capital`,
+`capital_cc`, `premium_cc`, `cc_uplift_pct` and the
+`premium_buildings`/`premium_contents` split on 42–76 districts, all by
+exactly ±0.0001. `premium` itself is unchanged. The same wobble appears
+at sector grain, and it hits English and Welsh units, which Scottish
+erosion cannot touch.
+
+The correlate is runner size: the two runs' copula phases took 3m41s
+and 1m12s, so `N_THREADS = min(6, os.cpu_count())` differed.
+`simulate()` seeds per batch offset (`RNG_SEED + 1000 + start`) and
+combines strictly in batch order precisely to prevent this, and the
+`el_*` columns show that part works. **So the mechanism is NOT
+established** — something downstream of the simulation, in the Euler
+allocation, is order- or width-sensitive. HANDOFF's older
+"deterministic given RNG_SEED" claim was verified on one machine and
+does not hold across runners at 4dp. Worth pinning `UKRISK_THREADS` for
+publish runs once the cause is known.
+
 ## 2026-09-03: availability sweep — which open limitations are actually closable
 
 No model change, no publish. With Scottish theft shipped, the question
