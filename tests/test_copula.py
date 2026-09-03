@@ -1764,7 +1764,8 @@ def test_every_published_map_asset_carries_the_columns_its_page_reads():
                     "rebuild job run this check after building")
 
     seen = {}
-    for grain, min_units in (("districts", 2700), ("sectors", 10000)):
+    for grain, min_units, src in (("districts", 2700, "districts_risk.geojson"),
+                                  ("sectors", 10000, "sectors_risk.geojson")):
         d = os.path.join(root, "docs", "assets", "units", grain)
         assert os.path.isdir(d), f"docs/assets/units/{grain}/ was not built"
         rows = {}
@@ -1775,6 +1776,26 @@ def test_every_published_map_asset_carries_the_columns_its_page_reads():
             f"{grain} shards hold only {len(rows)} units")
         cols = set(next(iter(rows.values())))
         missing = sorted(needed - cols)
+        # The other half of the transition guard above, and the half the
+        # Scotland erosion publish walked straight into. That guard covers
+        # the template running ahead of the MODEL OUTPUT. Here the model
+        # output is already current and the SHARDS are the stale ones -
+        # the state between a publish merge and the rebuild's bot commit,
+        # which is exactly when rebuild.yml's pre-flight runs. Failing
+        # deadlocks it against the run that regenerates docs/.
+        # Skip only for columns this grain's committed model output DOES
+        # carry: anything missing from both is the case above, and a
+        # column the model lacks still hard-fails build_map.rounded_props
+        # at build time. It re-arms where it counts - pages.yml runs this
+        # same test AFTER building, on fresh shards, and gates the deploy.
+        with open(os.path.join(root, "data", src), encoding="utf-8") as fh:
+            grain_cols = set(json.load(fh)["features"][0]["properties"])
+        stale = [c for c in missing if c in grain_cols]
+        if stale:
+            pytest.skip(
+                f"{grain} shards predate the committed model output for "
+                f"{stale} - docs/ has not been rebuilt since those columns "
+                "landed; pages.yml re-runs this on the built tree")
         assert not missing, (
             f"the {grain} shards lack {missing}, which the map template "
             f"reads - the popup renders `undefined` for them")
