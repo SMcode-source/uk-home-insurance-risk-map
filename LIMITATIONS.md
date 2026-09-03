@@ -95,7 +95,7 @@ is outside it:
 | Storm | £15.74 | 9.59% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
 | Accidental damage | £14.65 | 8.93% | census child-share | LSOA | GB |
 | Groundwater | £1.34 | 0.82% | EA alert areas | postcode flag | **England only** |
-| *Coastal erosion* | *£2.85* | *—* | *EA NCERM frontages; NatureScot Dynamic Coast* | *frontage / eroded-area polygons* | ***England + Scotland on two bases (`er_basis`); no Wales; UNPRICED*** |
+| *Coastal erosion* | *£3.09* | *—* | *EA NCERM frontages; NatureScot Dynamic Coast* | *frontage / eroded-area polygons* | ***England + Scotland on two bases (`er_basis`); Welsh coast unmapped; UNPRICED*** |
 
 **Coastal erosion is deliberately outside `el_total`** — "no policy pays
 it" (`build_model.py:1438`). Standard UK home insurance does not cover
@@ -202,7 +202,7 @@ Every one of these prints its own count at build time.
 | Groundwater | non-England districts get `GW_BACKGROUND = 0.02` | **623 of 2,736 districts** | EA alert areas are England-only. NRW/SEPA publish no equivalent. |
 | Theft, Scotland | housebreaking at **council** resolution (32 areas, three-year mean 7,794/yr → 0.039–0.632%/yr), apportioned by household share | **442 districts, 32 distinct values** | Police Scotland publishes no incident-level data; the cube stops at council area. |
 | Surface-water depth | districts with no mapped depth fall back to multiplier 1.0 | **651 of 2,736** | NRW and SEPA publish no depth product — checked directly against both services 2026-09-03, not assumed (DATA_SOURCES #38). |
-| Coastal erosion | districts no projection reaches score **zero** | **2,205 of 2,736** | NCERM is England-only; Dynamic Coast closed Scotland's 442 on 2026-09-03 (179 of them are coastal). Wales and NI have no published projection at all. |
+| Coastal erosion | districts no projection reaches score **zero** | **2,205 of 2,736** | NCERM maps England, and spills onto three Welsh border districts where the Severn and Dee frontages cross (NP16, NP25, CH5); Dynamic Coast closed Scotland's 442 on 2026-09-03 (179 of them coastal). The Welsh coast proper has no published projection at all, and Northern Ireland is outside the GB boundary set. |
 | Gridded CSV layers | missing districts take the **national median** | varies, printed per layer | A missing grid reading is not a zero reading. |
 | Geology slivers | districts with no polygon intersection take the nearest polygon | small | Boundary artefacts. |
 
