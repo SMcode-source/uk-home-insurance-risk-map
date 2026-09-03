@@ -47,7 +47,7 @@ def main():
      gdf["sw_high"], gdf["sw_low"]) = flood_from_agencies(gdf["name"].values)
     gdf["gw_score"], gdf["gw_frac"] = groundwater_from_ea(gdf["name"].values)
     gdf["er_score"], er = erosion_from_ncerm(gdf["name"].values)
-    gdf["er_frac"] = er["er_smp105"]
+    gdf["er_frac"] = er["er_head"]
     gdf["households"] = bm.load_households(gdf["name"].values)
     gdf["sw_sev"], _ = sw_depth_severity(
         gdf["name"].values, gdf["sw_high"].values, gdf["sw_low"].values,

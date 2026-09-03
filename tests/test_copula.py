@@ -358,6 +358,81 @@ def test_erosion_is_not_touched_by_the_abi_frequency_scaling():
     assert scaled == plain
 
 
+def _erosion_fixture(tmp_path):
+    """Minimal data dir for erosion_from_ncerm: two English districts with
+    NCERM rows and one Scottish district with a Dynamic Coast row."""
+    (tmp_path / "erosion.csv").write_text(
+        "name,er_smp55,er_smp105,er_nfi55,er_nfi105,er_smp105_lo,"
+        "er_smp105_hi,er_nfi105_lo,er_nfi105_hi,er_gi,er_smp105_m2,"
+        "er_coastal\n"
+        "HOLD,0.0,0.0,0.01,0.04,0.0,0.0,0.02,0.05,0.0,0.0,1\n"
+        "GONE,0.02,0.06,0.03,0.09,0.03,0.07,0.05,0.10,0.0,600.0,1\n")
+    (tmp_path / "erosion_scotland.csv").write_text(
+        "name,er_dc50_hi,er_dc100_hi,er_dc50_lo,er_dc100_lo,"
+        "er_dc100_hi_m2\n"
+        "SCOT,0.03,0.08,0.02,0.04,800.0\n")
+    return np.array(["HOLD", "GONE", "SCOT", "INLAND"])
+
+
+def test_er_head_takes_ncerm_in_england_and_dynamic_coast_in_scotland(
+        tmp_path, monkeypatch):
+    """The headline erosion column is SMP-2105 where NCERM reaches and
+    Dynamic Coast's RCP8.5-2100 where it does not, and er_basis says which
+    per district - because the two are different measurements and no
+    single number can carry that."""
+    import scores_real as sr
+    monkeypatch.setattr(sr, "DATA", str(tmp_path))
+
+    names = _erosion_fixture(tmp_path)
+    score, out = sr.erosion_from_ncerm(names)
+
+    assert list(out["er_basis"]) == ["ncerm", "ncerm", "dynamiccoast", "none"]
+    # England: er_head is SMP-2105, NOT the bigger NFI figure beside it
+    assert list(out["er_head"][:2]) == [0.0, 0.06]
+    # Scotland: er_head is the Dynamic Coast 2100 high case
+    assert out["er_head"][2] == 0.08
+    # and Scotland has NO NCERM columns - absent, which is why er_basis
+    # exists; a reader summing er_nfi105 nationally must not read this as
+    # "Scotland has no unmanaged erosion"
+    assert out["er_nfi105"][2] == 0.0
+    assert out["er_dc100_hi"][1] == 0.0        # and no DC leakage into England
+    # inland: nothing anywhere
+    assert out["er_head"][3] == 0.0 and score[3] == 0.0
+    # the score is monotone in er_head, so Scotland outranks the English
+    # district whose defences hold it at zero
+    assert score[2] > score[1] > score[0] == 0.0
+
+
+def test_erosion_scotland_wrong_grain_is_fatal_not_silent(tmp_path,
+                                                          monkeypatch):
+    """A district-keyed erosion_scotland.csv on a sector-keyed frame joins
+    nothing, and .get(name, 0.0) would quietly restore Scotland's old zero
+    - a VOID run that looks like 'Scotland has no eroding coast'. It must
+    raise. Same trap as premises.csv and housebreaking.csv before it."""
+    import scores_real as sr
+    monkeypatch.setattr(sr, "DATA", str(tmp_path))
+
+    _erosion_fixture(tmp_path)
+    sectors = np.array(["HOLD 1", "GONE 2", "SCOT 3"])
+    with pytest.raises(SystemExit, match="matched NONE"):
+        sr.erosion_from_ncerm(sectors)
+
+
+def test_erosion_without_the_scottish_file_degrades_to_england_only(
+        tmp_path, monkeypatch):
+    """No erosion_scotland.csv is the pre-2026-09-03 state and must still
+    run: England unchanged, Scotland zero, and nothing claiming otherwise."""
+    import scores_real as sr
+    monkeypatch.setattr(sr, "DATA", str(tmp_path))
+
+    names = _erosion_fixture(tmp_path)
+    (tmp_path / "erosion_scotland.csv").unlink()
+    _, out = sr.erosion_from_ncerm(names)
+
+    assert list(out["er_basis"]) == ["ncerm", "ncerm", "none", "none"]
+    assert out["er_head"][1] == 0.06 and out["er_head"][2] == 0.0
+
+
 # ------------------------------------------------- surface-water depth
 
 def test_depth_multiplier_raises_surface_water_severity():

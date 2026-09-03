@@ -57,7 +57,7 @@ g["country"] = bm.load_country(g["name"].values)
 g["er_score"], er = bm.erosion_from_ncerm(g["name"].values)
 for c, v in er.items():
     g[c] = v
-g["er_frac"] = g["er_smp105"]
+g["er_frac"] = g["er_head"]
 g["households"] = bm.load_households(g["name"].values)
 g["sw_sev"], g["sw_depth_m"] = bm.sw_depth_severity(
     g["name"].values, g["sw_high"].values, g["sw_low"].values,

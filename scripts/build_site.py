@@ -445,10 +445,27 @@ def load_stats():
     # Coastal erosion, computed from the data so the copy cannot drift.
     # "Saved" districts are the striking case: land the sea would take if
     # the defences were left to lapse, held at exactly zero by the adopted
-    # Shoreline Management Plan.
+    # Shoreline Management Plan. That pair is NCERM's and England's only -
+    # Dynamic Coast publishes one management case for Scotland - so the
+    # defence figures stay keyed on the NCERM columns while the headline
+    # ones read er_head, which is whichever source reached the district.
     er_exposed = [p for p in feats if p.get("er_nfi105", 0) > 0]
     er_saved = [p for p in er_exposed if p.get("er_smp105", 0) == 0]
-    er_worst = max(feats, key=lambda p: p.get("er_smp105", 0))
+    er_scot = [p for p in feats if p.get("er_basis") == "dynamiccoast"]
+    er_worst = max(feats, key=lambda p: p.get("er_head", 0))
+    er_scot_worst = (max(er_scot, key=lambda p: p.get("er_dc100_hi", 0))
+                     if er_scot else {"name": "-"})
+    # Absolute areas come from the committed CSV, not from the GeoJSON:
+    # `area` there is a region LABEL, not a number, so km2 cannot be
+    # recovered from the published fractions. Same side channel as
+    # burglary.csv below.
+    er_scot_km2 = {"er_dc100_hi_m2": 0.0, "er_dc100_lo_m2": 0.0}
+    _erp = os.path.join(ROOT, "data", "erosion_scotland.csv")
+    if os.path.exists(_erp):
+        with open(_erp, newline="") as fh:
+            for row in csv.DictReader(fh):
+                for k in er_scot_km2:
+                    er_scot_km2[k] += float(row.get(k) or 0.0)
 
     # Theft, injected from the same committed data the model read.
     # Everything degrades to zeros when the geojson predates the theft
@@ -890,7 +907,17 @@ def load_stats():
         "__EROSION_N__": f"{len(er_exposed):,}",
         "__EROSION_SAVED__": f"{len(er_saved):,}",
         "__EROSION_WORST__": er_worst["name"],
-        "__EROSION_WORST_PCT__": f"{100 * er_worst.get('er_smp105', 0):.0f}",
+        "__EROSION_WORST_PCT__": f"{100 * er_worst.get('er_head', 0):.0f}",
+        # Scotland, Dynamic Coast. Kept as its own set of placeholders
+        # rather than folded into the ones above, because the basis
+        # differs and a single blended figure would hide that.
+        "__EROSION_SCOT_N__": f"{len(er_scot):,}",
+        "__EROSION_SCOT_WORST__": er_scot_worst["name"],
+        "__EROSION_SCOT_WORST_PCT__":
+            f"{100 * er_scot_worst.get('er_dc100_hi', 0):.1f}",
+        "__EROSION_SCOT_KM2__": f"{er_scot_km2['er_dc100_hi_m2'] / 1e6:,.0f}",
+        "__EROSION_SCOT_LADDER_X__": (
+            f"{er_scot_km2['er_dc100_hi_m2'] / max(er_scot_km2['er_dc100_lo_m2'], 1e-9):.1f}"),
         "__N_DISTRICTS__": f"{len(feats):,}",
         "__N_HOUSEHOLDS__": f"{sum(p.get('households', 0) for p in feats) / 1e6:.1f}m",
         "__N_SIM__": f"{ya['n_sim']:,}",
@@ -1439,9 +1466,13 @@ def main():
             "frost_days", "fire_rate", "ad_rate",
             "wind_ms", "gust_rp50", "rain10_days", "precip_mm",
             "tvar99_vine", "tvar99_euler", "uplift_pct",
-            "el_er", "er_score", "er_smp55", "er_smp105", "er_nfi55",
+            "el_er", "er_score", "er_head", "er_basis",
+            "er_smp55", "er_smp105", "er_nfi55",
             "er_nfi105", "er_smp105_lo", "er_smp105_hi", "er_nfi105_lo",
             "er_nfi105_hi", "er_gi",
+            # Scotland: Dynamic Coast, a different basis from NCERM's -
+            # er_basis says which source each row's er_head came from
+            "er_dc50_hi", "er_dc100_hi", "er_dc50_lo", "er_dc100_lo",
             # climate scenario: zero outside England, where the EA
             # publishes no future extents - cc_covered says which
             "cc_covered", "premium_cc", "el_total_cc", "cc_uplift_pct",
