@@ -100,9 +100,11 @@ OUTPUT_COLUMNS = [
     "sw_sev", "sw_depth_m", "th_rate", "frost_days", "eow_rate",
     "sub_drought_mm", "sub_rel",
     "fire_rate", "ad_rate",
-    "er_score", "er_smp55", "er_smp105", "er_nfi55", "er_nfi105",
+    "er_score", "er_head", "er_basis",
+    "er_smp55", "er_smp105", "er_nfi55", "er_nfi105",
     "er_smp105_lo", "er_smp105_hi", "er_nfi105_lo", "er_nfi105_hi",
     "er_gi",
+    "er_dc50_hi", "er_dc100_hi", "er_dc50_lo", "er_dc100_lo",
     "el_sub", "el_wx", "el_fl", "el_gw", "el_th", "el_eow", "el_fire",
     "el_ad",
     "el_er",
@@ -1780,12 +1782,15 @@ def main():
     # "not mapped here" rather than showing a zero that reads as "no risk".
     gdf["country"] = load_country(gdf["name"].values)
 
-    print("scoring coastal erosion from EA NCERM frontages...")
+    print("scoring coastal erosion (NCERM England, Dynamic Coast Scotland)...")
     gdf["er_score"], er = erosion_from_ncerm(gdf["name"].values)
     for col, vals in er.items():
         gdf[col] = vals
-    # the insured-peril calculation uses the SMP (planned defences) case
-    gdf["er_frac"] = gdf["er_smp105"]
+    # er_head is the SMP (planned defences) case in England and the
+    # Dynamic Coast "do nothing, defences standing" case in Scotland; the
+    # two are different bases and er_basis says which is which per
+    # district. See erosion_from_ncerm's docstring.
+    gdf["er_frac"] = gdf["er_head"]
 
     print("loading exposure...")
     gdf["households"] = load_households(gdf["name"].values)
@@ -2021,7 +2026,7 @@ def main():
               "frost_days": 1}
     for col in keep:
         if col in ("name", "area", "country", "geometry", "group", "geol",
-                   "sup_geol"):
+                   "sup_geol", "er_basis"):
             continue
         if col in round1:
             out[col] = out[col].round(round1[col])

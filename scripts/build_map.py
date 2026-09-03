@@ -129,7 +129,7 @@ QUANTILE_METRICS = {
     "premium":     lambda p: True,
     "var995_vine": lambda p: True,
     "capital":     lambda p: True,
-    "er_smp105":   lambda p: p["er_smp105"] > 0,
+    "er_head":     lambda p: p["er_head"] > 0,
 }
 QUANTILE_N = 7
 

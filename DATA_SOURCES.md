@@ -1369,6 +1369,91 @@ districts**, used as the exposure weight throughout.
     Erosion is **unpriced** (`el_total5`, never in the premium), so
     closing Scotland changes what the map *knows*, not what it *charges*.
 
+39. **NatureScot Dynamic Coast phase 2 — Scotland's coastal erosion, LIVE
+    since 2026-09-03 (#38(d) is how it was found).** Free, open, OGL.
+    ArcGIS feature services under NatureScot's org `LM9GyVFsughzHdbO`:
+
+        https://services1.arcgis.com/LM9GyVFsughzHdbO/arcgis/rest/services
+
+    `scripts/fetch_erosion_scotland.py` reads four layers and writes
+    `data/erosion_scotland.csv`; `scores_real.erosion_from_ncerm` overlays
+    it onto the English NCERM columns and publishes `er_head` (the column
+    the model scores from) and `er_basis` (which source each district's
+    figure came from).
+
+    | layer | scenario | ErodedArea polygons | km² |
+    |---|---|---|---|
+    | `DynamicCoast_Future_Erosion_2050_High_Emissions_Scenario/0` | RCP8.5-95th, 2050 | 46,580 | 17.914 |
+    | `DynamicCoast_Future_Erosion_2100_High_Emissions_Scenario/0` | RCP8.5-95th, 2100 | 24,447 | 79.748 |
+    | `DC2_LES_results/1` | RCP2.6, 2050 | 56,035 | 12.871 |
+    | `DC2_LES_results/2` | RCP2.6, 2100 | 53,268 | 32.520 |
+
+    179 of Scotland's 442 districts are touched, worst **AB23** at 1.891%
+    of its area by 2100, then KY16, IV31, DD6, EH32. Every polygon fell
+    inside a district: 0.0% strayed seaward, and nothing landed outside
+    Scotland.
+
+    **Five traps, all of them paid for once.**
+
+    - **`ERODETYPE` must be filtered to `ErodedArea`.** `Influence` is a
+      10 m landward buffer and `Vicinity` a further 50 m; the three are
+      nested, so an unfiltered fetch triple-counts. The 2100 layer would
+      read 181 km² instead of 80.
+    - **Rows come back with `geometry: null`** — 3,937 of 59,972 in the
+      RCP2.6 2050 layer, 3,324 of 56,592 at 2100. Not a paging failure:
+      drop them and the total matches the service's own groupBy statistic
+      to five figures. `shapely.area` gives them NaN.
+    - **And a NaN walks straight through a tolerance check**, because
+      every comparison against NaN is False. The first run of the fetch
+      script printed `nan km2 (published 12.871)` and carried on to write
+      a CSV. `not np.isfinite(...)` is now its own guard, before the
+      tolerance test rather than folded into it. Worth generalising: a
+      range check is not a validity check.
+    - **The polygon is authoritative here, the opposite of NCERM (#21).**
+      See #38(d) for the arithmetic — the transect `Dist_*` sums imply two
+      different transect spacings at the two horizons, because they are
+      the projection *before* the susceptibility and defence caps that the
+      polygons already carry.
+    - **`data/erosion_scotland.csv` is name-keyed**, so it is a
+      district-keyed file on `main` and must be regenerated at sector
+      grain on `sector-model` — the `ct_bands.csv` lesson again. Unlike
+      `fetch_housebreaking.py` the script needs **no** branch diff: it
+      keys off `load_districts()`, which the branch already patches.
+      `erosion_from_ncerm` raises if the file matches no area in the frame.
+
+    **The basis differs from England's, and `er_basis` is how that stays
+    visible.** Full comparison in LIMITATIONS §8; the short form is that
+    NCERM publishes SMP/NFI (defences maintained vs abandoned) at
+    2055/2105 under three climate allowances, while Dynamic Coast
+    publishes one management case ("do nothing", existing defences
+    standing, retreat capped at 25 m) at 2050/2100 under two emissions
+    pathways.
+
+    **How much that management difference is worth: 1.88%, measured.**
+    England's SMP/NFI ratio is 0.377, so defences remove nearly two thirds
+    of projected English loss, and a naive read would expect the same
+    order of distortion in Scotland. It is not there. Intersecting the
+    RCP8.5-2100 ErodedArea with the published 25 m inland defence buffer
+    (`DynamicCoast_Artificial_Coastal_Defences_Buffer`, 13.709 km²
+    dissolved) puts **1.502 km² of 79.748 — 1.88%** at a defended
+    frontage. Scotland's eroding coast is essentially undefended where it
+    erodes, so Dynamic Coast's management case and NCERM's SMP are the
+    same basis to within 2% *for Scotland*, and the axis that looked like
+    the expensive one turns out to cost almost nothing here. Measure the
+    thing rather than reasoning from the English analogue.
+
+    The climate axis is the one that is left: Scotland's headline uses
+    RCP8.5-95th against England's 70th percentile. On England's own
+    columns the 95th is 1.162× the 70th and the 0th is 0.534× of it, so
+    RCP8.5 is much the closer of the two rungs Scotland actually has.
+
+    **Adding Scotland does not move England, and that is checked rather
+    than assumed.** `er_score` normalises by the 99.5th percentile of
+    `er_head` across all districts, so a big enough Scottish value would
+    rescale every English score. Scotland's largest, 1.891%, sits below
+    the 14th-largest English figure of 3.848%, the percentile is unchanged
+    at 0.037409, and English scores come back bit-identical.
+
 ## Budget: zero, decided 2026-08-31
 
 **The user has decided this project will not spend money.** That is a

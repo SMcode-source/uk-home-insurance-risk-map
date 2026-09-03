@@ -792,53 +792,141 @@ def flood_future(names, f_high, f_low, sw_high, sw_low):
 EROSION_HORIZON_YEARS = 80.0     # 2025 -> 2105 epoch
 
 
+# NCERM columns, England. Must stay in step with LAYERS in
+# fetch_erosion.py. The *_lo / *_hi columns are the 0th and
+# 95th-percentile climate allowances on the 2105 epoch; the unsuffixed
+# ones are the 70th (central) case.
+NCERM_COLS = ["er_smp55", "er_smp105", "er_nfi55", "er_nfi105",
+              "er_smp105_lo", "er_smp105_hi", "er_nfi105_lo", "er_nfi105_hi",
+              "er_gi"]
+
+# Dynamic Coast columns, Scotland. Must stay in step with LAYERS in
+# fetch_erosion_scotland.py. _hi is RCP8.5 at the 95th percentile, _lo is
+# RCP2.6; there is no Scottish central case.
+DC_COLS = ["er_dc50_hi", "er_dc100_hi", "er_dc50_lo", "er_dc100_lo"]
+
+
 def erosion_from_ncerm(names):
-    """Per-district coastal-erosion exposure (EA NCERM 2024; England).
+    """Per-district coastal-erosion exposure (England + Scotland).
 
-    Returns (score, dict of fractions). The fractions are the share of
-    district area projected to be lost to erosion by each epoch/scenario -
-    see fetch_erosion.py, which allocates each frontage's length x
-    recession rather than trusting the polygon area.
+    Returns (score, dict of arrays). The fractions are the share of
+    district area projected to be lost to erosion by each epoch/scenario.
 
-    The headline score uses the SMP (adopted Shoreline Management Plan)
-    2105 scenario: that is what is expected to happen given the defences
-    that are actually planned. The NFI (no further intervention) columns
-    are carried alongside as the unmanaged worst case.
+    TWO SOURCES, AND THEY ARE NOT THE SAME MEASUREMENT.
 
-    Districts with no NCERM coverage - inland, and all of Wales, Scotland
-    and Northern Ireland - are zero, not missing: they genuinely have no
-    coastal erosion exposure in this dataset.
+    England takes EA NCERM 2024 (`er_smp*` / `er_nfi*` / `er_gi`), whose
+    land lost comes from each frontage's length x recession rather than
+    from the polygon area - see fetch_erosion.py for why the polygon is
+    not trustworthy there.
+
+    Scotland takes NatureScot's Dynamic Coast phase 2 (`er_dc*`), added
+    2026-09-03, whose polygon IS the land lost - the strip between the
+    2020 and projected MHWS lines, already limited by the UPSM
+    susceptibility model and by a 25 m cap at known artificial defences.
+    See fetch_erosion_scotland.py, and DATA_SOURCES #38(d) for the
+    reversal that catches people out: trust NCERM's attribute and Dynamic
+    Coast's geometry, never the other way round.
+
+    `er_head` is what the model actually scores and prices from, and
+    `er_basis` says per district which source it came from - because the
+    two bases differ in ways no single column can express:
+
+      * MANAGEMENT. NCERM publishes a pair, SMP (defences maintained as
+        planned; the English headline) against NFI (no further
+        intervention). Dynamic Coast publishes one management case, "do
+        nothing" with existing defences standing. There is no Scottish
+        NFI, so `er_nfi*` is genuinely absent in Scotland, not zero-risk.
+      * CLIMATE. England prices the 70th-percentile allowance. Scotland's
+        ladder is RCP2.6 and RCP8.5-95th with no central rung, so the
+        headline takes RCP8.5-95th - the nearer of the two, and by how
+        much is measurable on England's own columns (the 95th is 1.16x
+        the 70th; the 0th is 0.53x of it).
+      * HORIZON. NCERM's epoch is 2105 and Dynamic Coast's is 2100, both
+        annualised over the single EROSION_HORIZON_YEARS. Dynamic Coast
+        also baselines at 2020 rather than 2025, so Scotland's strip is
+        spread over ~5 years more than it accrued in - a ~6% dilution of
+        the Scottish annual rate, left in rather than corrected, because
+        a second horizon constant would buy precision this peril (unpriced,
+        GBP2.85 of EL) does not justify.
+
+    Districts either source does not reach - inland England, all of Wales
+    and Northern Ireland, inland Scotland - are zero, not missing: they
+    genuinely have no projected coastal erosion.
     """
+    n = len(names)
+    cols = NCERM_COLS + DC_COLS
+    out = {c: np.zeros(n) for c in cols}
+    basis = np.array(["none"] * n, dtype=object)
+
     path = os.path.join(DATA, "erosion.csv")
-    # Must stay in step with LAYERS in fetch_erosion.py. The *_lo / *_hi
-    # columns are the 0th and 95th-percentile climate allowances on the
-    # 2105 epoch; the unsuffixed ones are the 70th (central) case.
-    cols = ["er_smp55", "er_smp105", "er_nfi55", "er_nfi105",
-            "er_smp105_lo", "er_smp105_hi", "er_nfi105_lo", "er_nfi105_hi",
-            "er_gi"]
     if not os.path.exists(path):
-        print("  erosion.csv missing -> zero erosion exposure "
+        print("  erosion.csv missing -> zero English erosion exposure "
               "(run scripts/fetch_erosion.py)")
-        z = np.zeros(len(names))
-        return z, {c: z.copy() for c in cols}
+    else:
+        table = {}
+        with open(path, newline="") as fh:
+            rdr = csv.DictReader(fh)
+            missing = [c for c in NCERM_COLS
+                       if c not in (rdr.fieldnames or [])]
+            if missing:
+                print(f"  erosion.csv predates {missing} -> zero "
+                      "(rerun scripts/fetch_erosion.py to add them)")
+            for row in rdr:
+                table[row["name"]] = [float(row.get(c) or 0.0)
+                                      for c in NCERM_COLS]
+        arr = np.array([table.get(nm, [0.0] * len(NCERM_COLS))
+                        for nm in names])
+        for i, c in enumerate(NCERM_COLS):
+            out[c] = arr[:, i]
+        basis[(out["er_nfi105"] > 0) | (out["er_smp105"] > 0)] = "ncerm"
 
-    table = {}
-    with open(path, newline="") as fh:
-        rdr = csv.DictReader(fh)
-        missing = [c for c in cols if c not in (rdr.fieldnames or [])]
-        if missing:
-            print(f"  erosion.csv predates {missing} -> zero "
-                  "(rerun scripts/fetch_erosion.py to add them)")
-        for row in rdr:
-            table[row["name"]] = [float(row.get(c) or 0.0) for c in cols]
-    arr = np.array([table.get(n, [0.0] * len(cols)) for n in names])
-    out = {c: arr[:, i] for i, c in enumerate(cols)}
+    scot_path = os.path.join(DATA, "erosion_scotland.csv")
+    if not os.path.exists(scot_path):
+        print("  erosion_scotland.csv missing -> zero Scottish erosion "
+              "exposure (run scripts/fetch_erosion_scotland.py)")
+    else:
+        table = {}
+        with open(scot_path, newline="") as fh:
+            rdr = csv.DictReader(fh)
+            missing = [c for c in DC_COLS if c not in (rdr.fieldnames or [])]
+            if missing:
+                raise SystemExit(
+                    f"erosion_scotland.csv is missing {missing} - rerun "
+                    "scripts/fetch_erosion_scotland.py (DATA_SOURCES #38)")
+            for row in rdr:
+                table[row["name"]] = [float(row.get(c) or 0.0)
+                                      for c in DC_COLS]
+        arr = np.array([table.get(nm, [0.0] * len(DC_COLS)) for nm in names])
+        for i, c in enumerate(DC_COLS):
+            out[c] = arr[:, i]
+        hit = out["er_dc100_hi"] > 0
+        # A file that joins nothing is the sector-branch trap the theft
+        # work paid for once already: a district-keyed CSV on a
+        # sector-keyed frame silently zeroes a whole country.
+        if table and not hit.any():
+            raise SystemExit(
+                f"erosion_scotland.csv has {len(table)} rows and matched "
+                f"NONE of the {n} areas in this frame - wrong grain? "
+                "Rerun scripts/fetch_erosion_scotland.py on this branch "
+                "(DATA_SOURCES #38)")
+        basis[hit] = "dynamiccoast"
 
-    coastal = int((out["er_nfi105"] > 0).sum())
-    ref = max(np.percentile(out["er_smp105"], 99.5), 1e-9)
-    score = np.clip(np.sqrt(out["er_smp105"] / ref), 0, 1)
-    print(f"  erosion: {coastal}/{len(names)} districts with NCERM exposure; "
-          f"SMP-2105 max {out['er_smp105'].max():.3%} of district area")
+    # The one column the model scores from. England's SMP-2105 and
+    # Scotland's Dynamic Coast 2100 are different bases; er_basis is what
+    # keeps that legible downstream instead of hiding it in one number.
+    out["er_head"] = np.where(basis == "dynamiccoast",
+                              out["er_dc100_hi"], out["er_smp105"])
+    out["er_basis"] = basis
+
+    ref = max(np.percentile(out["er_head"], 99.5), 1e-9)
+    score = np.clip(np.sqrt(out["er_head"] / ref), 0, 1)
+    n_e = int((basis == "ncerm").sum())
+    n_s = int((basis == "dynamiccoast").sum())
+    print(f"  erosion: {n_e} districts from NCERM (England), {n_s} from "
+          f"Dynamic Coast (Scotland) of {n}")
+    print(f"    headline max {out['er_head'].max():.3%} of district area; "
+          f"England SMP-2105 max {out['er_smp105'].max():.3%}, "
+          f"Scotland RCP8.5-2100 max {out['er_dc100_hi'].max():.3%}")
     return score, out
 
 
