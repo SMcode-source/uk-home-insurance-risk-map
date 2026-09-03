@@ -274,7 +274,7 @@
         <tr>
           <td><strong style="color:var(--er)">Erosion</strong> <span class="pill">not insured</span></td>
           <td>EA NCERM National 2024</td>
-          <td>Share of district area projected lost to coastal erosion by 2105</td>
+          <td>Share of district area projected lost to coastal erosion by 2105 (England) or 2100 (Scotland)</td>
           <td class="num">zone ÷ 80 yr</td><td class="num">£235,147</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>
         </tr>
       </table>
@@ -624,7 +624,9 @@
     <h2>Coastal erosion: modelled, not priced</h2>
     <p>The model carries one further peril, <b style="color:var(--er)">coastal erosion</b>, from
     the Environment Agency's <b>NCERM National 2024</b> mapping of ~7,500 stretches of the
-    English coast. It is in the vine, and it is deliberately <b>not in the premium</b>.</p>
+    English coast and, since 3 September 2026, from NatureScot's
+    <a href="https://www.dynamiccoast.com/">Dynamic Coast</a> phase 2 for Scotland. It is in
+    the vine, and it is deliberately <b>not in the premium</b>.</p>
 
     <h3>Why it is excluded from the premium</h3>
     <p>Gradual coastal erosion is not covered by standard UK household policies. Pricing it
@@ -652,13 +654,48 @@
     expect: Hornsea and Withernsea on Holderness lead, then Southwold on the Suffolk
     coast.</p>
 
+    <h3>Scotland: a second source, and not the same measurement</h3>
+    <p>Until 3 September 2026 every Scottish district scored <b>exactly zero</b> here,
+    because NCERM stops at the English border. It now takes
+    <b>Dynamic Coast phase 2</b> instead — NatureScot's FutureCoast projections, open under
+    OGL — which puts <b>80 km²</b> of Scottish land inside the 2100
+    erosion zone across <b>179</b> districts, worst
+    <b>AB23</b> at 1.9% of its area.</p>
+    <p>The two sources are <b>not the same measurement</b>, and the model says so per
+    district in the <code>er_basis</code> column rather than blending them into one number
+    that hides it. Three differences, in descending order of how much they matter:</p>
+    <ul>
+      <li><b>Management.</b> NCERM publishes the pair above — defences maintained against
+      defences abandoned. Dynamic Coast publishes one case: <em>"do nothing"</em> meaning no
+      new intervention, with existing defences standing and capping retreat at 25 m where
+      they exist. That is much nearer NCERM's SMP than its NFI, but it is one point on an
+      axis England resolves into two — so Scotland has <b>no</b> unmanaged worst case here,
+      and its <code>er_nfi</code> columns are empty rather than zero.</li>
+      <li><b>Climate.</b> England is priced on the 70th-percentile allowance. Scotland's
+      ladder is RCP2.6 and RCP8.5 at the 95th percentile, a
+      <b>2.5×</b> spread with no central rung, so the headline takes
+      RCP8.5 — the nearer of the two to England's central case, on England's own numbers.</li>
+      <li><b>Horizon.</b> 2105 in England, 2100 in Scotland, both annualised over the same
+      80 years. Dynamic Coast also baselines at 2020 rather than 2025, which dilutes the
+      Scottish annual rate by about 6%. Left in rather than corrected: a second horizon
+      constant would buy precision an unpriced peril does not justify.</li>
+    </ul>
+    <p><b>Wales still has no projection of its own</b>, and its zero is still not a real
+    one. Three border districts are the exception and not a Welsh source: NCERM's Severn
+    and Dee frontages cross into Chepstow, Monmouth and Deeside, so those three carry a
+    trace figure while the whole Welsh coast proper reads zero. Natural Resources Wales
+    publishes shoreline management plan <em>policies</em> but no projected shoreline
+    geometry, so there is nothing to build a Welsh erosion extent from. Northern Ireland
+    does not arise: the boundary set is GB-only.</p>
+
     <h3>What the numbers assume</h3>
-    <p>A property inside the strip projected to be lost by 2105 is lost within that horizon,
+    <p>A property inside the strip projected to be lost by the horizon is lost within it,
     so the annual hazard is the district's zone fraction spread over 80 years, at a
     sum-insured severity. Two assumptions are worth stating plainly: households are taken as
     spread evenly across the district, when coastal populations in fact cluster towards the
-    shore — so this if anything <em>understates</em> it — and the realistic SMP scenario is
-    the one used for the peril itself.</p>
+    shore — so this if anything <em>understates</em> it — and the realistic scenario is the
+    one used for the peril itself, SMP in England and the single Dynamic Coast case in
+    Scotland.</p>
     <p class="note">Erosion is also absent from the good-vs-bad-years view, and from the
     capital allocation. It is a chronic process, not an event: including it would add a
     near-constant charge to every simulated year and blur exactly the contrast that view
@@ -1223,6 +1260,7 @@
         <tr><td><strong>Environment Agency</strong></td><td>NaFRA2 surface-water <strong>depth</strong> bands &gt;0.2/0.3/0.6/0.9/1.2 m (England)</td><td>Flood severity</td></tr>
         <tr><td><strong>Environment Agency</strong></td><td>Flood-risk postcode data — groundwater alert-area flags</td><td>Groundwater</td></tr>
         <tr><td><strong>Environment Agency</strong></td><td>NCERM National 2024 coastal erosion frontages (England)</td><td>Erosion (not priced)</td></tr>
+        <tr><td><strong>NatureScot</strong></td><td><a href="https://www.dynamiccoast.com/">Dynamic Coast</a> phase 2 FutureCoast erosion areas, RCP8.5-95th and RCP2.6, 2050 and 2100 (Scotland)</td><td>Erosion (not priced)</td></tr>
         <tr><td><strong>OS / Wikipedia derived</strong></td><td>UK postcode district polygons (2,736 districts)</td><td>Geography</td></tr>
         <tr><td><strong>ONS</strong></td><td>Postcode → OA/LSOA best-fit lookup (2.7m rows; the 33% that are terminated postcodes excluded)</td><td rowspan="3">Exposure weighting — 27.3m households</td></tr>
         <tr><td><strong>ONS</strong> (via NOMIS)</td><td>Census 2021 TS041 households by LSOA (England &amp; Wales)</td></tr>
@@ -1307,11 +1345,15 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
       multiplier is renormalised to a national mean of 1.0, so this is an asymmetry in how
       finely severity is differentiated, not in its overall level — but English districts
       are separated on depth and the rest are not.</li>
-      <li><b>Coastal erosion is England-only, and rests on two stated assumptions</b>:
-      households are taken as spread evenly across a district when coastal populations
-      cluster towards the shore, and an 80-year projection is annualised into a flat yearly
-      hazard. It is reported separately from the premium throughout — see
-      <a href="#erosion">coastal erosion</a>.</li>
+      <li><b>Coastal erosion covers England and Scotland on two different bases, and the
+      Welsh coast not at all.</b> England is NCERM's SMP case at 2105; Scotland is Dynamic
+      Coast's single "do nothing, defences standing" case at 2100, so there is no Scottish
+      unmanaged scenario to compare against and no Welsh source — only three border
+      districts English estuary frontages cross into. It rests on two
+      further stated assumptions: households are taken as spread evenly across a district
+      when coastal populations cluster towards the shore, and an 80-year projection is
+      annualised into a flat yearly hazard. It is reported separately from the premium
+      throughout — see <a href="#erosion">coastal erosion</a>.</li>
       <li><b>The 1-in-50 gust is fitted at 191 MIDAS stations</b> (≥20 years' coverage,
       stations above 300&nbsp;m excluded — a summit anemometer measures a climate nobody
       lives in) and interpolated between them, median 15&nbsp;km to the nearest station —
