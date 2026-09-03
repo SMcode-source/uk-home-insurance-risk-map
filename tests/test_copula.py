@@ -2358,3 +2358,112 @@ def test_year_view_claim_count_and_value():
         parts = sum(b[f"claims_{k}_per_100k"]
                     for k in ("sub", "wx", "fl", "gw"))
         assert abs(b["claims_total_per_100k"] - parts) < 0.02
+
+
+def test_analytic_el_check_builds_every_column_the_model_scores(
+        tmp_path, monkeypatch, capsys):
+    """scripts/analytic_el_check.py is the closed-form audit of the
+    simulated expected losses, and NOTHING else runs it - it is not in the
+    build path, so neither CI nor the rebuild workflow touches it.
+
+    It went dead on 2026-08-31, the moment the Gate 2 SMD curve added
+    sub_drought_mm/sub_rel to OUTPUT_COLUMNS, and stayed dead for three
+    days without anyone noticing. This drives the real script end to end
+    with every reader stubbed, so it costs a second instead of the minutes
+    the real fetchers need, and it fails on exactly that rot:
+
+      * a new SCORED column the script does not build (check_scored_columns
+        raises), and
+      * a new marginal_params input it does not build - ct_th and friends
+        are intermediates, absent from OUTPUT_COLUMNS, so
+        check_scored_columns is blind to them and _fields() KeyErrors
+        instead.
+
+    The stubs are the guard's other half: if the script starts calling a
+    reader that is not stubbed here, the real one runs, the test slows to
+    a crawl or fails on missing data, and that is the signal to update it.
+    """
+    import io as _io
+    import json as _json
+    import runpy
+    import geopandas as gpd
+    import shapely.geometry as sgeom
+
+    n = 3
+    names = ["ZZ1", "ZZ2", "ZZ3"]
+    frame = gpd.GeoDataFrame(
+        {"name": names, "area": ["test"] * n,
+         "geometry": [sgeom.box(-1.0 + i, 51.0 + i, -0.9 + i, 51.1 + i)
+                      for i in range(n)]},
+        crs="EPSG:4326")
+
+    # The erosion reader hands main() a dict and the script copies it
+    # wholesale, so the fixture takes its keys from the published contract
+    # rather than from the reader's internals - that way a new er_* column
+    # needs no change here, and this test stays the same file on a branch
+    # that adds one.
+    er = {c: np.zeros(n) for c in bm.OUTPUT_COLUMNS
+          if c.startswith("er_") and c != "er_score"}
+    er["er_smp105"] = np.array([0.02, 0.0, 0.0])
+    if "er_head" in er:
+        er["er_head"] = np.array([0.02, 0.0, 0.0])
+    if "er_basis" in er:
+        er["er_basis"] = np.array(["ncerm", "none", "none"])
+
+    stubs = {
+        "load_districts": lambda: frame.copy(),
+        "subsidence_score": lambda bng: (
+            np.array([0.30, 0.45, 0.60]), np.array(["CLAY"] * n),
+            np.array([0.4, 0.5, 0.6]), np.array(["TILL"] * n)),
+        "weather_from_metoffice": lambda t: (
+            np.array([0.30, 0.40, 0.50]),
+            {"wind": np.full(n, 5.0), "wdr": np.full(n, 900.0),
+             "rain10": np.full(n, 40.0), "precip": np.full(n, 900.0),
+             "gust_rp50": np.full(n, 150.0)}),
+        "flood_from_agencies": lambda nm: (
+            np.array([0.2, 0.4, 0.6]), np.array([0.02, 0.05, 0.09]),
+            np.array([0.05, 0.10, 0.20]), np.array([0.01, 0.02, 0.03]),
+            np.array([0.03, 0.05, 0.08])),
+        "groundwater_from_ea": lambda nm: (
+            np.array([0.1, 0.2, 0.3]), np.array([0.02, 0.05, 0.09])),
+        "load_country": lambda nm: np.array(["England"] * n),
+        "erosion_from_ncerm": lambda nm: (
+            np.array([0.5, 0.0, 0.0]), {k: v.copy() for k, v in er.items()}),
+        "load_households": lambda nm: np.array([400.0, 800.0, 1600.0]),
+        "sw_depth_severity": lambda nm, hi, lo, hh: (
+            np.array([0.9, 1.0, 1.3]), np.array([0.2, 0.4, 0.8])),
+        "theft_from_police": lambda nm, hh: np.array([0.006, 0.008, 0.011]),
+        "frost_from_metoffice": lambda t: np.array([20.0, 45.0, 80.0]),
+        "drought_from_haduk": lambda nm: np.array([90.0, 150.0, 240.0]),
+        "fires_from_mhclg": lambda nm, hh: np.array([0.0010, 0.0012, 0.0015]),
+        "children_from_census": lambda nm, hh: np.array([0.20, 0.28, 0.36]),
+        "ct_value_from_bands": lambda nm: np.array([0.85, 1.00, 1.30]),
+    }
+    for name, fn in stubs.items():
+        assert hasattr(bm, name), f"build_model has no {name} to stub"
+        monkeypatch.setattr(bm, name, fn)
+
+    # calibrate_frequency writes module globals; keep the suite order-free
+    monkeypatch.setattr(bm, "FREQ_SCALE", dict(bm.FREQ_SCALE))
+    monkeypatch.setattr(bm, "ABI_TARGET_FREQ", dict(bm.ABI_TARGET_FREQ))
+    monkeypatch.setattr(bm, "FLOOD_SEV_BLEND", bm.FLOOD_SEV_BLEND)
+
+    out = tmp_path / "districts_risk.geojson"
+    perils = ("sub", "wx", "fl", "gw", "th", "eow", "fire", "ad")
+    with _io.open(out, "w", encoding="utf-8") as fh:
+        _json.dump({"type": "FeatureCollection", "features": [
+            {"type": "Feature", "geometry": None,
+             "properties": dict({"name": nm},
+                                **{f"el_{k}": 1.0 for k in perils})}
+            for nm in names]}, fh)
+    monkeypatch.setattr(bm, "OUT", str(out))
+
+    script = os.path.join(os.path.dirname(__file__), "..", "scripts",
+                          "analytic_el_check.py")
+    runpy.run_path(script, run_name="__main__")
+
+    printed = capsys.readouterr().out
+    assert f"districts scored={n} published={n} matched={n}" in printed
+    assert "TOTAL" in printed, "the comparison table never printed"
+    for k in perils:
+        assert f"\n{k:6}" in printed, f"{k} missing from the audit table"

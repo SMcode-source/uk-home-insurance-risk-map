@@ -436,6 +436,20 @@ police.uk "Burglary" and Recorded Crime in Scotland's "housebreaking". The
 Gate 3 failure was exactly a basis mismatch — three ABI series, two
 disagreeing by a third — and it cost a full gate.
 
+Coastal erosion is now the worked example of doing that merge anyway, and
+of what it takes. NCERM and Dynamic Coast differ on management, climate
+allowance and horizon, and none of those was waved through: the
+management gap was **measured** (1.88% of Scottish projected loss sits at
+a defended frontage, against a 0.377 SMP/NFI ratio in England — so the
+axis that looked expensive is not, *for Scotland*), the climate rung was
+chosen as the nearer of the two Scotland publishes and the distance
+quantified on England's own columns, and the horizon difference was left
+uncorrected and stated rather than patched with a factor. The output
+carries `er_basis` per district so no reader has to take any of that on
+trust. **Two sources on one peril are shippable when the difference is
+measured and published; the rule above is against inventing a factor, not
+against merging.**
+
 ---
 
 ## 9. Rules that must continue to hold
