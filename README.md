@@ -75,6 +75,8 @@ scripts/
   merge_sw_wales.py           folds the 20m Wales re-render into sw_fractions
   fetch_groundwater.py        EA postcode groundwater flags -> district fractions
   fetch_erosion.py            EA NCERM coastal frontages -> erosion.csv (England)
+  fetch_erosion_scotland.py   NatureScot Dynamic Coast eroded areas ->
+                              erosion_scotland.csv (Scotland)
   fetch_countries.py          ONS country boundaries -> country.csv, the
                               coverage mask for every England-only dataset
   fetch_midas.py              mirrors MIDAS Open station wind obs from CEDA
@@ -127,15 +129,26 @@ assets/pmtiles.js             PMTiles 4.3.0 protocol handler
 | 1-in-200 combined loss | 99.5% VaR of the eight-peril annual loss (C-vine + independent theft, escape of water, fire and accidental damage) |
 | Capital charge | The district's Euler share of portfolio tail risk, in £ |
 | Surface-water depth | Mean depth where it floods, from the EA depth bands (England) |
-| Coastal erosion (blight) | Land projected lost by 2105 under the adopted Shoreline Management Plan — **not insured** |
+| Coastal erosion (blight) | Land projected lost by 2105 under the adopted Shoreline Management Plan (England) or by 2100 under Dynamic Coast's RCP8.5 case (Scotland) — **not insured** |
 | Climate repricing | Premium under the EA's future flood scenario vs present day (England) |
 
 The last three layers distinguish **"not mapped" from "measured, and it is
-zero"** — a distinction a single grey would destroy. 87% of districts have no
-NCERM erosion exposure, Wales and Scotland have no depth or climate product at
-all, and on the erosion layer a *defended* coast (Blackpool, Eastbourne) is a
-fourth state again: the sea would take land and the defences are stopping it.
-A plain quantile ramp would also have spent the whole colour scale on zeroes.
+zero"** — a distinction a single grey would destroy. 81% of districts have no
+projected coastal erosion, Wales and Scotland have no depth or climate product
+at all, and on the erosion layer a *defended* coast (Blackpool, Eastbourne) is
+a fourth state again: the sea would take land and the defences are stopping
+it. A plain quantile ramp would also have spent the whole colour scale on
+zeroes.
+
+Erosion carries a fifth thing the others do not: **two sources on different
+bases**. England is NCERM's defences-maintained case at 2105, Scotland is
+Dynamic Coast's single "do nothing, defences standing" case at 2100 (added
+2026-09-03), and Wales has no published projection at all. `er_head` is the
+column the model scores from and `er_basis` says per district which source it
+came from — so Scotland's figures can never be mistaken for NCERM's, and the
+Scottish popup shows an emissions ladder where the English one shows a
+defended/undefended pair. See
+[Coastal erosion: modelled, not priced](#coastal-erosion-modelled-not-priced).
 
 There is deliberately no per-district "copula uplift" layer: at calibrated
 frequencies that difference is inside Monte Carlo noise, so the layer would
