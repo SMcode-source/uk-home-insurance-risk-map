@@ -7,17 +7,29 @@ Carlo anywhere in it. Two things it measures:
   published vs analytic  - simulation error. Should be ~0 for a peril
                            that takes its EL analytically (th/eow/fire/ad
                            do; sub/wx/fl/gw do not - see HANDOFF's
-                           "Model audit 2026-08-18", defect 1).
-  analytic vs ABI        - calibration error. Should be 0.00% for every
-                           peril with a published anchor. Flood is not,
-                           because its severity blend is geometric
-                           (defect 2).
+                           "Model audit 2026-08-18", defect 1). Measured
+                           2026-09-03: within 0.01% everywhere except gw,
+                           which reads -2.41%.
+  analytic vs ABI        - calibration error. 0.00% for every peril with
+                           a published anchor, flood now INCLUDED: defect
+                           2 was closed by 704866b, which re-derives
+                           flood's target frequency from the severity its
+                           own legs blend to. This docstring went on
+                           claiming otherwise until 2026-09-03.
 
 The score assembly below deliberately RE-DERIVES what build_model.main()
 does rather than importing it: an audit that shares code with the thing
 it audits cannot catch a bug in the shared part. check_scored_columns()
 is called as a cheap staleness guard - if main() grows a column, this
 script fails loudly instead of silently checking a different model.
+
+Failing loudly was not enough, because nothing runs this script: it is
+outside the build path, so no CI job and no rebuild step exercises it,
+and it sat dead from 2026-08-31 (when the Gate 2 SMD curve added
+sub_drought_mm/sub_rel) until 2026-09-03 with nobody the wiser.
+test_analytic_el_check_builds_every_column_the_model_scores now drives
+the whole file with stubbed readers in about a second, so the next
+missing column fails in the suite instead of here.
 
     .venv/Scripts/python.exe scripts/analytic_el_check.py
 """
@@ -56,6 +68,15 @@ fmean = np.average(g["frost_days"], weights=g["households"])
 g["eow_rate"] = bm.ABI_TARGET_FREQ["eow"] * (
     (1.0 - bm.EOW_FREEZE_SHARE)
     + bm.EOW_FREEZE_SHARE * g["frost_days"] / fmean)
+# The Gate 2 SMD curve. Re-derived the way main() does rather than
+# pinned at 1.0: sub_rel multiplies subsidence FREQUENCY inside
+# marginal_params, so a neutral placeholder would quietly audit a
+# geology-only model against a published one that carries the drought
+# geography. Normalisation belongs here, where the exposure weights are.
+g["sub_drought_mm"] = bm.drought_from_haduk(g["name"].values)
+dmean = np.average(g["sub_drought_mm"], weights=g["households"])
+g["sub_rel"] = ((1.0 - bm.SUB_DROUGHT_SHARE)
+                + bm.SUB_DROUGHT_SHARE * g["sub_drought_mm"] / dmean)
 fire_raw = bm.fires_from_mhclg(g["name"].values, g["households"].values)
 g["fire_rate"] = bm.ABI_TARGET_FREQ["fire"] * fire_raw / np.average(
     fire_raw, weights=g["households"])
@@ -63,6 +84,16 @@ cs = bm.children_from_census(g["name"].values, g["households"].values)
 g["ad_rate"] = bm.ABI_TARGET_FREQ["ad"] * (
     (1.0 - bm.AD_CHILD_SHARE) + bm.AD_CHILD_SHARE * cs / np.average(
         cs, weights=g["households"]))
+
+# ct_* are NOT in OUTPUT_COLUMNS - they are intermediates - so
+# check_scored_columns cannot guard them, but _fields() requires them
+# and marginal_params scales the four attritional severities by them.
+# Same claim-weighted renormalisation as main(): households x that
+# peril's rate, so each ABI severity level stays pinned.
+ct_rel = bm.ct_value_from_bands(g["name"].values)
+for peril in ("th", "eow", "fire", "ad"):
+    wgt = g["households"].values * g[f"{peril}_rate"].values
+    g[f"ct_{peril}"] = ct_rel / np.average(ct_rel, weights=wgt)
 
 bm.check_scored_columns(g)
 bm.calibrate_frequency(g)
