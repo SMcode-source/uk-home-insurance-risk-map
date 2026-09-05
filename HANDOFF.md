@@ -243,29 +243,102 @@ used `GITHUB_TOKEN`, so nothing re-ran on it and main sat with a red
 tick against a green tree. Dispatch `tests.yml` manually after a
 `commit=true` rebuild (run 33815942524 did, all green).
 
-### OPEN: the model does not reproduce bit-identically across runners
+### RESOLVED 2026-09-05: why the model did not reproduce across runners
 
 Not erosion, and found by diffing rather than by anything failing. The
-publish rebuild (33815457628) reproduced every `el_*` column exactly —
-the simulation is deterministic — but its output differs from the
-artifact I merged in the CAPITAL ALLOCATION and what that feeds:
-`tvar99_euler` on 2 districts by 0.1, and through it `capital`,
-`capital_cc`, `premium_cc`, `cc_uplift_pct` and the
-`premium_buildings`/`premium_contents` split on 42–76 districts, all by
-exactly ±0.0001. `premium` itself is unchanged. The same wobble appears
-at sector grain, and it hits English and Welsh units, which Scottish
-erosion cannot touch.
+publish rebuild (33815457628) reproduced every `el_*` column exactly but
+differed from its parent in `tvar99_euler` on 2 districts by 0.1 and,
+through it, `capital`, `capital_cc`, `premium_cc`, `cc_uplift_pct` and
+the `premium_buildings`/`premium_contents` split on 42-76 districts, all
+by exactly +-0.0001. `premium` itself never moved. The same wobble
+appeared at sector grain and hit English and Welsh units, so Scottish
+erosion could not be the cause.
 
-The correlate is runner size: the two runs' copula phases took 3m41s
-and 1m12s, so `N_THREADS = min(6, os.cpu_count())` differed.
-`simulate()` seeds per batch offset (`RNG_SEED + 1000 + start`) and
-combines strictly in batch order precisely to prevent this, and the
-`el_*` columns show that part works. **So the mechanism is NOT
-established** — something downstream of the simulation, in the Euler
-allocation, is order- or width-sensitive. HANDOFF's older
-"deterministic given RNG_SEED" claim was verified on one machine and
-does not hold across runners at 4dp. Worth pinning `UKRISK_THREADS` for
-publish runs once the cause is known.
+**The mechanism.** `np.argpartition` dispatches to a SIMD-width-specific
+quickselect, and quickselect only promises that the k-th element lands
+in place - the arrangement either side is an artefact of the kernel.
+From BIT-IDENTICAL input the two vector widths available on this laptop
+return the same SET of worst-1% years (`7586a2d3` both) in a DIFFERENT
+ORDER (`a5384d88` vs `b38dd8da`), with 185 of the 200 positions moved.
+`np.argsort` on the same array is unaffected, because a full sort has a
+unique answer and a partition does not. `year_loss` is float32 - it has
+to be, at 219 MB per grain - so `year_loss[:, bad].mean(axis=1)` summed
+200 of its columns in that order with a float32 accumulator, and
+reordering moved the result by ~1 float32 ULP. `capital` is
+`0.06 * max(tvar99_euler - el_total, 0)` published at 4 dp, so ~2% of
+districts crossed a rounding boundary. Every `el_*` column is a float64
+mean over a fixed axis, which is exactly why all fourteen came back
+identical - and why the wobble read as a defect in the Euler allocation
+rather than in the sort feeding it.
+
+The arithmetic corroborates independently: the 53 `capital` crossings
+put the perturbation at 1.07 float32 ULP - one ULP - and carrying the
+two real `bad` orders end to end reproduces the fingerprint, down to
+`tvar99_euler` moving on exactly 2 districts.
+
+**Two suspects eliminated, both of them the obvious ones.** BLAS thread
+count does perturb `port = (expo @ year_loss) / expo_total`, but only at
+1.6e-15 relative, and over 60 trials of +-1 ULP on every element the
+bad-year set AND order were unchanged 60/60 - `port` cannot be the
+trigger. And `UKRISK_THREADS` is irrelevant: `BATCH = 80` is a constant,
+so the per-offset seeding guard already makes the executor immaterial,
+and the two local builds that diverged both ran `UKRISK_THREADS=6`.
+**Pinning `UKRISK_THREADS` would not have fixed this** - `sector-model.yml`
+already pins it to `"0"` and wobbled anyway.
+
+**Confirmed in situ.** Full district builds of identical committed
+inputs, differing only in `NPY_DISABLE_CPU_FEATURES`, reproduced the CI
+fingerprint: the same nine columns, nothing else, same maxima (0.0001 at
+4 dp, 0.10001 at 1 dp).
+
+**The fix**, in the Euler block of `scripts/build_model.py`:
+
+```python
+bad = np.sort(np.argpartition(port, -k)[-k:])
+res["tvar99_euler"] = year_loss[:, bad].mean(axis=1, dtype=np.float64)
+res["tvar99_euler_b"] = year_loss_b[:, bad].mean(axis=1, dtype=np.float64)
+```
+
+Sorting canonicalises the order for every consumer of `bad`; the float64
+accumulator makes the sum order-proof regardless. Either alone suffices,
+so the guard checks both -
+`test_the_capital_allocation_does_not_depend_on_a_partition_kernel` in
+`tests/test_copula.py`, verified to fail on the pre-fix source and to
+fail loudly if numpy ever makes the float32 path order-invariant.
+`year_loss` stays float32; only the accumulator changes.
+
+Two further full builds under the two SIMD settings came out
+**BYTE-IDENTICAL** (`cba4da38`) where the unfixed pair still differ.
+`data/year_analysis.json` was identical across all four throughout - it
+never consumed `bad`.
+
+**What it would move, if published** (same machine, same inputs, code
+the only variable): exposure-weighted `premium` unchanged to 6 dp;
+rating `group`, `premium` and every `el_*` unchanged on all 2,736
+districts. `capital` and its siblings move on 49-89 districts, each by
+exactly its 4 dp quantum. `tvar99_euler` reports 1,607 changes but only
+ONE is real (TR12 217.9 -> 218.0); the other 1,606 are float32
+serialisation noise being cleaned up, `387.79999` becoming `387.8`. The
+published file currently carries 1,607 of 2,736 `tvar99_euler` values
+that are not exactly 1 dp; the fixed build writes 0.
+
+**NOT PUBLISHED.** The fix is on `exp/determinism-argpartition` (c8a3867)
+and nothing on main has moved. Publishing is the user's call.
+
+### OPEN: a local build does not reproduce a CI build at all
+
+Found while measuring the above, and larger than the bug it turned up
+beside. Diffing a local build against main's committed blob shows
+`tvar99_vine` on 581 districts (max 18), `wdr_idx` on 360 (max 10.7),
+plus `precip_mm`, `wind_ms`, `gust_rp50` and `wx_score`. Those are
+input-derived, not simulation-derived: `data/districts_uk.geojson`,
+`data/haduk/`, `data/haduk_district_annual*.csv` and `data/cache/` are
+GITIGNORED, so a local run reads copies CI never sees.
+
+This does not touch anything above - every comparison there holds inputs
+fixed and varies one thing. But it means "I rebuilt it locally and got
+the same numbers" is not a check this repo can currently make, and any
+future claim of that form needs to say which inputs it actually shared.
 
 ## 2026-09-03: availability sweep — which open limitations are actually closable
 
@@ -3644,7 +3717,12 @@ headline.
 **Determinism confirmed, and it caught a provenance slip.** Re-running
 `build_model.py` after the defect-5 print change reproduced
 `data/districts_risk.geojson` BYTE-IDENTICALLY - the build is
-deterministic given RNG_SEED. It also showed `data/year_analysis.json`
+deterministic given RNG_SEED *on one machine*. Read no further than
+that: it was never a cross-machine claim, and it is not true across
+CPUs. See "RESOLVED 2026-09-05: why the model did not reproduce
+across runners" - `np.argpartition` returns the same worst-year set
+in a different ORDER at a different SIMD width, which moved `capital`
+at 4 dp until it was fixed. It also showed `data/year_analysis.json`
 changing, which was not nondeterminism but a mistake: the second-seed
 script restored the geojson from its saved seed-42 copy after the
 seed-43 run, and `build_model.py` writes year_analysis.json too, which
