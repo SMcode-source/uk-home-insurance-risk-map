@@ -28,6 +28,10 @@ on:
         type: choice
         options: [ubuntu-latest, ubuntu-24.04-arm]
         default: ubuntu-latest
+      ostn15:
+        description: "Install the OSTN15 datum grid first (what a laptop that has it does; a model change if adopted - measurement only)"
+        type: boolean
+        default: false
 
 concurrency:
   group: rebuild
@@ -113,6 +117,24 @@ jobs:
       # runs for real instead of skipping on a missing layer.
       - name: Property tests (with geology)
         run: python -m pytest tests -q
+
+      # A runner has no datum grid, so PROJ takes WGS84 to British National
+      # Grid with a Helmert approximation; a laptop that ever downloaded
+      # OSTN15 shifts by up to a few metres instead, the KD-tree picks
+      # different weather neighbours, and that is the WHOLE of the
+      # local-vs-CI gap (HANDOFF 2026-09-05). This input gives the runner
+      # the grid so it can build what the laptop builds. The published
+      # model is the grid-less one, so switching is a model change and
+      # this stays an input, off by default. sha256 pinned as for the
+      # geology: the file is from cdn.proj.org, PROJ's own CDN.
+      - name: Install the OSTN15 datum grid
+        if: ${{ inputs.ostn15 }}
+        run: |
+          dir=$(python -c "from pyproj import datadir; print(datadir.get_user_data_dir())")
+          mkdir -p "$dir"
+          curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif"             https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
+          echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif"             | sha256sum -c
+          python -c "from pyproj.transformer import TransformerGroup as G; print('proj pipeline', G(4326, 27700, always_xy=True).transformers[0].description)"
 
       - name: Rebuild model
         env:

@@ -44,11 +44,17 @@ print(f"numpy {np.__version__}  scipy {scipy.__version__}  shapely {shapely.__ve
 # answer depends on files, not code: with the OSTN15 grid PROJ shifts by
 # up to a few metres; without it, a Helmert approximation. Same version
 # of PROJ, different files, different metres.
-from pyproj import Transformer, datadir, network   # noqa: E402
-t = Transformer.from_crs(4326, 27700, always_xy=True)
+from pyproj import datadir, network                # noqa: E402
+from pyproj.transformer import TransformerGroup     # noqa: E402
+# Transformer.from_crs picks its pipeline lazily and reports
+# "unavailable until proj_trans is called" even afterwards; the group
+# says outright which operation wins here and which ones this machine
+# cannot run for want of a grid file.
+tg = TransformerGroup(4326, 27700, always_xy=True)
 print(f"proj data {datadir.get_data_dir()}  network={network.is_network_enabled()}")
-print(f"proj pipeline {t.description}")
-print(f"proj definition {t.definition}")
+print(f"proj pipeline {tg.transformers[0].description}")
+for op in tg.unavailable_operations:
+    print(f"proj unavailable {op.name}")
 
 gdf = load_districts()
 bng = gdf.to_crs(27700)
