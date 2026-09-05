@@ -258,11 +258,14 @@ the PROJ user directory emptied", which is a real claim.
 
 **5. Hygiene measured, and it moves nothing.** `exp/hygiene` puts the
 same canonical ordering into `tvar()` (`np.sort` after `np.partition`)
-and float64 accumulators on `el_year` and `el_year_b`. Built in the
-CI-equivalent configuration and compared with the published CI build:
-no numeric property changed in any of 2,736 districts, `year_analysis`
-byte-identical to main. Zero output effect; merging it is the user's
-call and there is no reason not to.
+and float64 accumulators on `el_year` and `el_year_b`. Built on the
+laptop (grid-visible) and compared with the laptop's own fix build and
+with the CI `ostn15` build, which are the same bytes: **byte-identical
+to both** (cba4da38). Zero output effect; merging it is the user's
+call and there is no reason not to. For the record, my first
+measurement of this item read a leftover artifact from an earlier
+attempt while the real build was still running; the finished build
+was re-measured and this is that number.
 
 **Lessons this round added.** A validation with rho +0.70 on one
 source and -0.13 on another from the same publisher is worth more than
@@ -500,9 +503,9 @@ thetas and every tail statistic.
 Proof, not inference: with `PROJ_USER_WRITABLE_DIRECTORY=<empty dir>`
 the laptop reproduces the Windows runner's hashes exactly - `targets`
 e64b879125f9ebc8, `targets@1m` eb44bcf7fae83e4a, wind/wdr neighbour
-indices 46d466eb8d6eb13a, gust e33a861fd6bb44c0 - and the hygiene build
-(2026-09-05 second section), run that way, matched the CI build on
-every value. The three runner types (x64, ARM, Windows) agree with each
+indices 46d466eb8d6eb13a, gust e33a861fd6bb44c0 - and, the other way round, the CI build
+WITH the grid (`ostn15` input, 33966869539) is byte-identical to the
+laptop's own build (cba4da38). The three runner types (x64, ARM, Windows) agree with each
 other to the metre and on every neighbour index without the grid.
 
 **Which means the published model is built on the LESS accurate
