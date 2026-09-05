@@ -168,6 +168,50 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## PUBLISHED 2026-09-05: the argpartition fix, both grains in one push
+
+The cross-runner wobble is closed and published. Mechanism, proof and
+the two eliminated suspects are in "RESOLVED 2026-09-05" under the
+erosion section below; this is the publish record.
+
+**Sequence, and why it was this way round.** The sector run needs the
+fixed `build_model.py`, so per the publish-ordering rule the fix went
+into `sector-model` FIRST (252cf8d), `sector-model.yml` ran with
+`skip_fetch` (run 21, bot 1bcaf51), and its output was crossed onto the
+EXP branch, not main (7ca99dc). Then `rebuild.yml` was dispatched
+**on the exp branch** with `commit=true` (run 56, bot e492670) - it
+checks out whatever ref it is dispatched on and `git push`es back to
+it - so main received fix, test, both grains and regenerated docs as a
+single fast-forward push (main -> e492670). The live site never carried
+a mixed pair. `sector-model` re-synced as fb05de9 with the usual OURS
+resolution on `data/districts_risk.geojson`.
+
+**Lesson worth keeping: `rebuild.yml` runs on any ref.** That is what
+makes a one-push publish possible whenever a model change needs a
+district rebuild - build on the branch, cross the sector output there
+too, fast-forward main. Use it every time; the 2026-08-19 mixed-pair
+window and the 2026-09-03 deadlock were both the cost of rebuilding on
+main.
+
+**Deltas, CI against CI, so they are the published truth and not a
+local approximation.** Exposure-weighted premium, `el_total` and
+`capital` unchanged to 4 dp at both grains; rating group unchanged on
+all 2,736 districts and all 10,398 sectors; `premium` and every `el_*`
+untouched. The capital block moves by its 4 dp quantum on 45-87
+districts / 174-348 sectors. `tvar99_euler` steps genuinely on 3
+districts and 6 sectors; 1,591 districts and 5,995 sectors shed float32
+serialisation noise, and the count of values not exactly at 1 dp goes
+1,592 -> 0 and 5,997 -> 0. `data/year_analysis.json` did not change - it
+never consumed `bad`. The docs HTML did not change either: nothing the
+pages inject moved.
+
+**Live and verified** from the published CSVs after `publish site`
+(33964841059) and `tests` (33964840838) both went green: 2,736 districts
+and 10,398 sectors; CB11 `capital` 5.2857 and YO51 `tvar99_euler` 257.5
+match the committed blobs; live exposure-weighted premium 169.6483,
+unchanged; `tvar99_euler` values not exactly at 1 dp on the live site
+1,592 -> 0 (districts) and 5,997 -> 0 (sectors); AB10 1 premium 156.7.
+
 ## PUBLISHED 2026-09-03: Scotland's coastal erosion, both grains in one push
 
 Closed the zero that LIMITATIONS §5 had been flagging for weeks. NCERM
@@ -322,8 +366,8 @@ serialisation noise being cleaned up, `387.79999` becoming `387.8`. The
 published file currently carries 1,607 of 2,736 `tvar99_euler` values
 that are not exactly 1 dp; the fixed build writes 0.
 
-**NOT PUBLISHED.** The fix is on `exp/determinism-argpartition` (c8a3867)
-and nothing on main has moved. Publishing is the user's call.
+**PUBLISHED the same day** - see "PUBLISHED 2026-09-05: the argpartition
+fix" above for the sequence and the CI-against-CI deltas.
 
 ### OPEN: a local build does not reproduce a CI build at all
 
