@@ -29,9 +29,9 @@ on:
         options: [ubuntu-latest, ubuntu-24.04-arm]
         default: ubuntu-latest
       ostn15:
-        description: "Install the OSTN15 datum grid first (what a laptop that has it does; a model change if adopted - measurement only)"
+        description: "Transform with the OSTN15 datum grid (the published model since 2026-09-05; off = the Helmert approximation, for measurement only)"
         type: boolean
-        default: false
+        default: true
 
 concurrency:
   group: rebuild
@@ -122,11 +122,14 @@ jobs:
       # Grid with a Helmert approximation; a laptop that ever downloaded
       # OSTN15 shifts by up to a few metres instead, the KD-tree picks
       # different weather neighbours, and that is the WHOLE of the
-      # local-vs-CI gap (HANDOFF 2026-09-05). This input gives the runner
-      # the grid so it can build what the laptop builds. The published
-      # model is the grid-less one, so switching is a model change and
-      # this stays an input, off by default. sha256 pinned as for the
-      # geology: the file is from cdn.proj.org, PROJ's own CDN.
+      # local-vs-CI gap (HANDOFF 2026-09-05). This step gives the runner
+      # the grid. It was measured first (run 33966869539: headline
+      # +0.0002, 19 premiums by up to 0.8, no rating group) and adopted
+      # the same day, so the published model is the OSTN15 one and the
+      # input exists to build the Helmert approximation for comparison.
+      # sector-model.yml carries the same step: the two grains must use
+      # the same transform. sha256 pinned as for the geology: the file
+      # is from cdn.proj.org, PROJ's own CDN.
       - name: Install the OSTN15 datum grid
         if: ${{ inputs.ostn15 }}
         run: |

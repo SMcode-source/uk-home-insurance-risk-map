@@ -473,6 +473,12 @@ against merging.**
 
 ## 9. Rules that must continue to hold
 
+- **Both grains transform WGS84 to British National Grid with the
+  OSTN15 grid** (DATA_SOURCES #40), installed by both workflows before
+  the build. A build without it is the Helmert approximation and differs
+  on ~360 districts' wind neighbours; a laptop with the grid in its
+  PROJ user directory reproduces CI byte-for-byte, one without does not.
+
 - No model parameter ships without a published anchor.
 - Placeholders never ship as anchors (`SPLIT_ANCHORED` is the guard).
 - The portfolio buildings share is a bound, never a headline estimate.

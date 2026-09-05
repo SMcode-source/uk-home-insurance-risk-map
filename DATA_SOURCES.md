@@ -1479,6 +1479,32 @@ districts**, used as the exposure weight throughout.
     the 14th-largest English figure of 3.848%, the percentile is unchanged
     at 0.037409, and English scores come back bit-identical.
 
+40. **OSTN15 datum grid (`uk_os_OSTN15_NTv2_OSGBtoETRS.tif`) — how
+    WGS84 becomes British National Grid, LIVE at both grains since
+    2026-09-05.** Ordnance Survey's OSTN15 transformation, as converted
+    and distributed by the PROJ project at `https://cdn.proj.org/`
+    (README there: 2-Clause BSD for the converted grids; the source
+    transformation is published free of charge by OS). Installed by
+    `rebuild.yml` and `sector-model.yml` into PROJ's user data directory
+    before the build, sha256
+    `5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa`,
+    so that `gdf.to_crs(27700)` uses "Inverse of OSGB36 to WGS 84 (9)"
+    rather than the Helmert approximation a bare runner falls back to.
+    Free; no registration.
+
+    **Why it is a data source and not an environment detail:** it moves
+    the model. The district representative points that the weather
+    KD-tree queries shift by up to a few metres, ~360 districts pick a
+    different wind/direction/gust neighbour, and the headline premium
+    moves by 0.0002 with 19 published premiums moving by up to 0.8
+    (HANDOFF 2026-09-05). It was the entire reason a laptop build and a
+    CI build disagreed for a month. **Scope:** the model build only.
+    The fetched hazard CSVs (`flood_fractions.csv`, `sw_fractions.csv`,
+    `sw_depth.csv`, `erosion.csv`) also transform coordinates when they
+    are made and were NOT refetched for this change; they were produced
+    on laptops over time with whichever grid those laptops had, which
+    is the honest description of every committed hazard table.
+
 ## Budget: zero, decided 2026-08-31
 
 **The user has decided this project will not spend money.** That is a
