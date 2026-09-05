@@ -40,6 +40,16 @@ print(f"numpy {np.__version__}  scipy {scipy.__version__}  shapely {shapely.__ve
       f"(GEOS {shapely.geos_version_string})  pyproj {pyproj.__version__} "
       f"(PROJ {pyproj.proj_version_str})")
 
+# The transform WGS84 -> British National Grid is the one step whose
+# answer depends on files, not code: with the OSTN15 grid PROJ shifts by
+# up to a few metres; without it, a Helmert approximation. Same version
+# of PROJ, different files, different metres.
+from pyproj import Transformer, datadir, network   # noqa: E402
+t = Transformer.from_crs(4326, 27700, always_xy=True)
+print(f"proj data {datadir.get_data_dir()}  network={network.is_network_enabled()}")
+print(f"proj pipeline {t.description}")
+print(f"proj definition {t.definition}")
+
 gdf = load_districts()
 bng = gdf.to_crs(27700)
 pts = bng.geometry.representative_point()
