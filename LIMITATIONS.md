@@ -54,7 +54,19 @@ frequency to its ABI figure, and the hazard scores decide only the
 *relative* ordering of districts. This has a consequence worth stating
 plainly: **the model's district ordering has never been validated against
 actual claims, because no such data is published.** It is validated
-against physics and against the national level, and that is all.
+against physics and against the national level, and - since 2026-09-05,
+for flood only, outside England only - against two independent
+consequence products the model never read: SEPA's NFRA AAD grid and
+NRW's people-at-risk layers (`scripts/validate_flood_ordering.py`,
+`data/flood_validation.csv`). The result is split. In Wales the
+model's ordering agrees with NRW's for sea (Spearman +0.70 against
+`f_high`) and surface water (+0.57 against `sw_high`) and disagrees for
+rivers (-0.13): `f_high` is the fraction of district AREA inside the
+extent, and in valley geography a sliver of floodplain carries most of
+the housing (CF42 is NRW's 7th of 195 and the model's 168th). Area
+share is standing in for household share, and for fluvial flooding it
+is a poor proxy. Scotland is inconclusive (both sides area-based, rho
+-0.08 to +0.14). See §7 and HANDOFF 2026-09-05.
 
 The scalings applied to reach the ABI level are large:
 
@@ -369,7 +381,14 @@ Also unanchored, and worth naming:
 
 **METHODOLOGICAL — affect confidence, not the current numbers**
 
-6. **No claims-based validation of geography is possible** (§2).
+6. **No claims-based validation of geography is possible** (§2). The
+   first non-claims validation (2026-09-05, flood, Wales and Scotland)
+   found that **the flood fractions are AREA shares, and for river
+   flooding in valley geography area share is a poor proxy for the
+   share of households** (Wales river: Spearman -0.13 against NRW's
+   people at risk; sea +0.70, surface water +0.57). Household-weighted
+   fractions are a free route in Wales (NRW people-at-risk) and an open
+   availability question in England and Scotland.
 7. **Subsidence geology is 1:625,000** — regional scale, not property
    scale, against a peril that varies house by house with foundation
    depth and tree proximity.
@@ -453,6 +472,12 @@ against merging.**
 ---
 
 ## 9. Rules that must continue to hold
+
+- **Both grains transform WGS84 to British National Grid with the
+  OSTN15 grid** (DATA_SOURCES #40), installed by both workflows before
+  the build. A build without it is the Helmert approximation and differs
+  on ~360 districts' wind neighbours; a laptop with the grid in its
+  PROJ user directory reproduces CI byte-for-byte, one without does not.
 
 - No model parameter ships without a published anchor.
 - Placeholders never ship as anchors (`SPLIT_ANCHORED` is the guard).

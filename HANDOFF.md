@@ -168,6 +168,156 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## 2026-09-05 (second): five things the determinism work made possible
+
+No model change, no publish. The user said "let's do all of these" to
+the list that fell out of the argpartition fix; this is what each one
+measured. Tooling landed on main (74c2066 and the commit carrying this
+section); the two candidate model changes are measured and left for
+the user.
+
+**1. The local-vs-CI gap is closed as a question.** It was the OSTN15
+datum grid on the laptop and nothing else - see the RESOLVED block
+under the erosion section for the proof and the recipe. The accurate
+transform is now buildable on CI (`rebuild.yml` input `ostn15`);
+adopting it is a model change. OSTN15 delta, CI against CI:
+the run
+(33966869539, grid sha256 verified, pipeline "Inverse of OSGB36 to WGS
+84 (9)") produced **byte-for-byte the laptop's own grid-visible build**
+(cba4da38), which closes reproducibility in both directions. Against
+the published build: exposure-weighted premium 169.6483 -> 169.6485,
+`el_total` 164.1218 -> 164.1216, `capital` unchanged at 4 dp; rating
+group unchanged on all 2,736 districts. `premium` (1 dp) moves on 19
+districts, max 0.8 (TS7 179.1 -> 178.3); `el_total` on 27; the
+unrounded `premium_cc` on 2,600 districts by up to 0.79; `wdr_idx` on
+360 (max 10.7, L5 549.8 -> 539.1) and every tail statistic downstream
+of it; `year_analysis.json` moves in 14 values (buckets, exceedance).
+It is a model change of the smallest kind - a more accurate
+coordinate transform reseating the wind neighbours of a few hundred
+districts - and it is not published. To adopt it: default `ostn15` to
+true in `rebuild.yml`, add the same step to `sector-model.yml`, and
+publish both grains in one push under the ordering rule; to keep the
+Helmert build, say so in LIMITATIONS. The user's decision.
+
+**2. `rebuild.yml` has a `verify` input** that fails the run unless
+the rebuild reproduces the committed `data/districts_risk.geojson` and
+`data/year_analysis.json` byte-for-byte, and a `runner` input. The
+three nondeterminism findings in this file were all found by diffing by
+hand; this makes the next one a red light.
+
+**3. The model's first external validation: flood ORDERING in Wales
+and Scotland, against products the model never read.**
+`scripts/validate_flood_ordering.py` fetches SEPA's NFRA Flood Risk
+Grid (26,614 cells, residential AAD band 1..7) and NRW's National
+Flood Risk Assessment PEOPLE layers (2,207 communities each for river,
+sea and surface water, people at low/medium/high risk), allocates them
+onto districts by area share, and rank-correlates against the model
+(`data/flood_validation.csv`, 637 districts). Spearman, external
+measure vs the model's matching component:
+
+| country | external (per household) | vs | rho | n |
+|---|---|---|---|---|
+| Wales | people at risk, sea | `f_high` | **+0.70** | 195 |
+| Wales | people at risk, surface water | `sw_high` | **+0.57** | 195 |
+| Wales | people at risk, river | `f_high` | **-0.13** | 195 |
+| Wales | people at risk, all sources | `el_fl` | +0.17 | 195 |
+| Scotland | AAD band, area-weighted | `el_fl` | -0.08 | 442 |
+| Scotland | area in AAD band >= 5 | `el_fl` | +0.14 | 442 |
+
+**The Welsh result is the finding.** Where the hazard is coastal or
+pluvial the model's ordering and NRW's agree well. Where it is
+fluvial they do not, and the largest disagreements say why: CF42
+(Treorchy, Rhondda) is NRW's 7th-highest of 195 by people at risk per
+household and the model's 28th-LOWEST; SA72/SA73 (Pembroke) are the
+model's top-ten and NRW's bottom-ten. `f_high` is the **fraction of
+district AREA** inside the extent (fetch_flood.py, line 22). In valley
+geography the floodplain is a sliver of the district and carries most
+of the housing; on an estuary the extent is broad and largely empty.
+Area share is a proxy for household share, and for river flooding in
+Wales it is a poor one. This is now LIMITATIONS §2 and §7; the free
+route to a household-weighted fraction (NRW's own people-at-risk in
+Wales; whether the EA publishes properties-at-risk per community for
+England is the next availability question) is an `exp/` candidate, not
+something done here.
+
+**The Scottish result is inconclusive rather than bad.** SEPA's grid
+covers 7.1% of Scottish district area, its band is a residential AAD
+per cell, and both sides of the comparison there are area-based; the
+worst disagreements are city centres (EH8, AB16) that SEPA rates high -
+surface-water-dominated AAD in dense housing - and island districts
+(PA41, PA73, ZE3) the model rates high for the flat Scottish severity
+multiplier on a large extent share. It says the same thing as Wales
+less clearly, and it is the first number of any kind the model's
+Scottish flood ordering has been held against.
+
+**4. Cross-architecture determinism holds.** `rebuild.yml` with
+`runner=ubuntu-24.04-arm` and `verify=true` (33966216904): the ARM
+build reproduced the committed model output byte-for-byte. The
+determinism claim is now "x64 and ARM Linux runners, and a laptop with
+the PROJ user directory emptied", which is a real claim.
+
+**5. Hygiene measured, and it moves nothing.** `exp/hygiene` puts the
+same canonical ordering into `tvar()` (`np.sort` after `np.partition`)
+and float64 accumulators on `el_year` and `el_year_b`. Built on the
+laptop (grid-visible) and compared with the laptop's own fix build and
+with the CI `ostn15` build, which are the same bytes: **byte-identical
+to both** (cba4da38). Zero output effect; merging it is the user's
+call and there is no reason not to. For the record, my first
+measurement of this item read a leftover artifact from an earlier
+attempt while the real build was still running; the finished build
+was re-measured and this is that number.
+
+**Lessons this round added.** A validation with rho +0.70 on one
+source and -0.13 on another from the same publisher is worth more than
+one aggregate number: the split is where the model learns something.
+And an attribution written before the probe ran (the gitignored-inputs
+one) cost nothing but was wrong; the record now says so where it was
+wrong, not only where it is corrected.
+
+## PUBLISHED 2026-09-05: the argpartition fix, both grains in one push
+
+The cross-runner wobble is closed and published. Mechanism, proof and
+the two eliminated suspects are in "RESOLVED 2026-09-05" under the
+erosion section below; this is the publish record.
+
+**Sequence, and why it was this way round.** The sector run needs the
+fixed `build_model.py`, so per the publish-ordering rule the fix went
+into `sector-model` FIRST (252cf8d), `sector-model.yml` ran with
+`skip_fetch` (run 21, bot 1bcaf51), and its output was crossed onto the
+EXP branch, not main (7ca99dc). Then `rebuild.yml` was dispatched
+**on the exp branch** with `commit=true` (run 56, bot e492670) - it
+checks out whatever ref it is dispatched on and `git push`es back to
+it - so main received fix, test, both grains and regenerated docs as a
+single fast-forward push (main -> e492670). The live site never carried
+a mixed pair. `sector-model` re-synced as fb05de9 with the usual OURS
+resolution on `data/districts_risk.geojson`.
+
+**Lesson worth keeping: `rebuild.yml` runs on any ref.** That is what
+makes a one-push publish possible whenever a model change needs a
+district rebuild - build on the branch, cross the sector output there
+too, fast-forward main. Use it every time; the 2026-08-19 mixed-pair
+window and the 2026-09-03 deadlock were both the cost of rebuilding on
+main.
+
+**Deltas, CI against CI, so they are the published truth and not a
+local approximation.** Exposure-weighted premium, `el_total` and
+`capital` unchanged to 4 dp at both grains; rating group unchanged on
+all 2,736 districts and all 10,398 sectors; `premium` and every `el_*`
+untouched. The capital block moves by its 4 dp quantum on 45-87
+districts / 174-348 sectors. `tvar99_euler` steps genuinely on 3
+districts and 6 sectors; 1,591 districts and 5,995 sectors shed float32
+serialisation noise, and the count of values not exactly at 1 dp goes
+1,592 -> 0 and 5,997 -> 0. `data/year_analysis.json` did not change - it
+never consumed `bad`. The docs HTML did not change either: nothing the
+pages inject moved.
+
+**Live and verified** from the published CSVs after `publish site`
+(33964841059) and `tests` (33964840838) both went green: 2,736 districts
+and 10,398 sectors; CB11 `capital` 5.2857 and YO51 `tvar99_euler` 257.5
+match the committed blobs; live exposure-weighted premium 169.6483,
+unchanged; `tvar99_euler` values not exactly at 1 dp on the live site
+1,592 -> 0 (districts) and 5,997 -> 0 (sectors); AB10 1 premium 156.7.
+
 ## PUBLISHED 2026-09-03: Scotland's coastal erosion, both grains in one push
 
 Closed the zero that LIMITATIONS §5 had been flagging for weeks. NCERM
@@ -322,23 +472,51 @@ serialisation noise being cleaned up, `387.79999` becoming `387.8`. The
 published file currently carries 1,607 of 2,736 `tvar99_euler` values
 that are not exactly 1 dp; the fixed build writes 0.
 
-**NOT PUBLISHED.** The fix is on `exp/determinism-argpartition` (c8a3867)
-and nothing on main has moved. Publishing is the user's call.
+**PUBLISHED the same day** - see "PUBLISHED 2026-09-05: the argpartition
+fix" above for the sequence and the CI-against-CI deltas.
 
-### OPEN: a local build does not reproduce a CI build at all
+### RESOLVED 2026-09-05: a local build does not reproduce a CI build, and it is one file
 
 Found while measuring the above, and larger than the bug it turned up
 beside. Diffing a local build against main's committed blob shows
 `tvar99_vine` on 581 districts (max 18), `wdr_idx` on 360 (max 10.7),
-plus `precip_mm`, `wind_ms`, `gust_rp50` and `wx_score`. Those are
-input-derived, not simulation-derived: `data/districts_uk.geojson`,
-`data/haduk/`, `data/haduk_district_annual*.csv` and `data/cache/` are
-GITIGNORED, so a local run reads copies CI never sees.
+plus `precip_mm`, `wind_ms`, `gust_rp50` and `wx_score`.
 
-This does not touch anything above - every comparison there holds inputs
-fixed and varies one thing. But it means "I rebuilt it locally and got
-the same numbers" is not a check this repo can currently make, and any
-future claim of that form needs to say which inputs it actually shared.
+**My first attribution was wrong and stood in this file for a few
+hours: I wrote that the gitignored inputs (boundaries, HadUK, caches)
+were the cause.** They are not. `scripts/probe_platform.py` hashes every
+build-time input and intermediate on a runner and on the laptop, and
+the boundary clone (660f1d1), the BGS layers (sha match), Python
+(3.13.5) and every grid value are identical. What differs is
+**`targets` - the representative points of the districts in British
+National Grid - by metres.** The laptop's PROJ user directory
+(`C:\Users\sapta\AppData\Local\proj`) holds
+`uk_os_OSTN15_NTv2_OSGBtoETRS.tif`, the Ordnance Survey datum grid,
+downloaded on 2026-08-29 by some earlier PROJ networking. A runner has
+no grid, so PROJ takes WGS84 to EPSG:27700 with the Helmert
+approximation ("OSGB36 to WGS 84 (9)" on the laptop, the ballpark
+operation on CI). Metres are enough for `cKDTree(...).query(targets,
+k=4)` to pick different weather neighbours for wind, direction and gust
+on a few hundred districts, and `wdr_idx` carries that into the copula
+thetas and every tail statistic.
+
+Proof, not inference: with `PROJ_USER_WRITABLE_DIRECTORY=<empty dir>`
+the laptop reproduces the Windows runner's hashes exactly - `targets`
+e64b879125f9ebc8, `targets@1m` eb44bcf7fae83e4a, wind/wdr neighbour
+indices 46d466eb8d6eb13a, gust e33a861fd6bb44c0 - and, the other way round, the CI build
+WITH the grid (`ostn15` input, 33966869539) is byte-identical to the
+laptop's own build (cba4da38). The three runner types (x64, ARM, Windows) agree with each
+other to the metre and on every neighbour index without the grid.
+
+**Which means the published model is built on the LESS accurate
+transform.** That is a fact to disclose, not a bug to fix quietly:
+switching CI to OSTN15 moves the wind neighbours of ~360 districts and
+is a model change. `rebuild.yml` now has an `ostn15` input that installs
+the grid from cdn.proj.org (sha256-pinned, free) so the accurate
+transform can be built on CI and measured; the delta is recorded in the
+2026-09-05 (second) section and the decision is the user's. Until then
+the recipe for "I rebuilt it locally and got the same numbers" is:
+point `PROJ_USER_WRITABLE_DIRECTORY` at an empty directory, and say so.
 
 ## 2026-09-03: availability sweep — which open limitations are actually closable
 

@@ -1138,7 +1138,11 @@ def simulate(district_df):
         # (clustering pushes losses beyond the quantile), TVaR is - so
         # premiums and the uplift layer use TVaR.
         k = max(int(a.shape[1] * (1 - q)), 1)
-        return np.partition(a, -k, axis=1)[:, -k:].mean(axis=1)
+        # np.partition returns the k worst in kernel-dependent order (see
+        # the Euler block); sort them so the mean sums in one canonical
+        # order on every CPU. float64 here, so this is hygiene rather
+        # than a fix - the old order-dependence was ~1e-16.
+        return np.sort(np.partition(a, -k, axis=1)[:, -k:], axis=1).mean(axis=1)
 
     # portfolio year-level accumulators (per simulated year, summed over
     # districts) — used for the good-year / bad-year analysis.
@@ -1592,7 +1596,7 @@ def simulate(district_df):
     # was never wanted in a published number.
     bad = np.sort(np.argpartition(port, -k)[-k:])
     res["tvar99_euler"] = year_loss[:, bad].mean(axis=1, dtype=np.float64)
-    res["el_year"] = year_loss.mean(axis=1)
+    res["el_year"] = year_loss.mean(axis=1, dtype=np.float64)
     # The cover split uses the SAME bad years. That is the point: an
     # insurer holds capital against the whole portfolio, so both covers
     # must be allocated conditional on the portfolio's worst years, not
@@ -1600,7 +1604,7 @@ def simulate(district_df):
     # to the combined one exactly.
     res["tvar99_euler_b"] = year_loss_b[:, bad].mean(
         axis=1, dtype=np.float64)
-    res["el_year_b"] = year_loss_b.mean(axis=1)
+    res["el_year_b"] = year_loss_b.mean(axis=1, dtype=np.float64)
     port_tvar = float(port[bad].mean())
     standalone = float(np.average(res["tvar99_vine"], weights=expo))
     print(f"  portfolio TVaR99 {port_tvar:,.0f} /policy (systemic-conditional); "

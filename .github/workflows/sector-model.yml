@@ -185,6 +185,19 @@ jobs:
           SUMS
           python -u scripts/fetch_bgs.py --verify
 
+      # Same datum grid as rebuild.yml, so both grains transform WGS84
+      # to British National Grid the same way (the published model uses
+      # OSTN15 since 2026-09-05; a runner without it falls back to the
+      # Helmert approximation and the sector grain would silently differ
+      # from the district grain). sha256 pinned; cdn.proj.org.
+      - name: Install the OSTN15 datum grid
+        run: |
+          dir=$(python -c "from pyproj import datadir; print(datadir.get_user_data_dir())")
+          mkdir -p "$dir"
+          curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif"             https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
+          echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif"             | sha256sum -c
+          python -c "from pyproj.transformer import TransformerGroup as G; print('proj pipeline', G(4326, 27700, always_xy=True).transformers[0].description)"
+
       - name: Build the sector model
         env:
           UKRISK_THREADS: "0"

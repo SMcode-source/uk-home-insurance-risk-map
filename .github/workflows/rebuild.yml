@@ -19,6 +19,19 @@ on:
       threads:
         description: "Worker threads (0 = auto, capped at 6)"
         default: "0"
+      verify:
+        description: "Fail unless the rebuild reproduces the committed model output byte-for-byte"
+        type: boolean
+        default: false
+      runner:
+        description: "Runner (ubuntu-24.04-arm is a different ISA: a real cross-architecture check)"
+        type: choice
+        options: [ubuntu-latest, ubuntu-24.04-arm]
+        default: ubuntu-latest
+      ostn15:
+        description: "Transform with the OSTN15 datum grid (the published model since 2026-09-05; off = the Helmert approximation, for measurement only)"
+        type: boolean
+        default: true
 
 concurrency:
   group: rebuild
@@ -27,7 +40,7 @@ concurrency:
 jobs:
   rebuild:
     name: full model rebuild
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     # Two 20,000-year simulations (present-day + climate). Generous ceiling
     # so a slow runner fails loudly rather than being killed at the default.
     timeout-minutes: 240
@@ -105,6 +118,27 @@ jobs:
       - name: Property tests (with geology)
         run: python -m pytest tests -q
 
+      # A runner has no datum grid, so PROJ takes WGS84 to British National
+      # Grid with a Helmert approximation; a laptop that ever downloaded
+      # OSTN15 shifts by up to a few metres instead, the KD-tree picks
+      # different weather neighbours, and that is the WHOLE of the
+      # local-vs-CI gap (HANDOFF 2026-09-05). This step gives the runner
+      # the grid. It was measured first (run 33966869539: headline
+      # +0.0002, 19 premiums by up to 0.8, no rating group) and adopted
+      # the same day, so the published model is the OSTN15 one and the
+      # input exists to build the Helmert approximation for comparison.
+      # sector-model.yml carries the same step: the two grains must use
+      # the same transform. sha256 pinned as for the geology: the file
+      # is from cdn.proj.org, PROJ's own CDN.
+      - name: Install the OSTN15 datum grid
+        if: ${{ inputs.ostn15 }}
+        run: |
+          dir=$(python -c "from pyproj import datadir; print(datadir.get_user_data_dir())")
+          mkdir -p "$dir"
+          curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif"             https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
+          echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif"             | sha256sum -c
+          python -c "from pyproj.transformer import TransformerGroup as G; print('proj pipeline', G(4326, 27700, always_xy=True).transformers[0].description)"
+
       - name: Rebuild model
         env:
           UKRISK_THREADS: ${{ inputs.threads }}
@@ -134,6 +168,23 @@ jobs:
 
       - name: Show what changed
         run: git --no-pager diff --stat
+
+      # Reproducibility as a red light, not something noticed by diffing.
+      # Three nondeterminism findings in HANDOFF (the seed-swap slip, the
+      # runner wobble, the partition order) were all found by hand; this
+      # step turns that whole class into a failed run. Model artifacts
+      # only: docs/ carries the same numbers but is not the thing being
+      # asked about.
+      - name: Verify the model reproduced the committed output
+        if: ${{ inputs.verify }}
+        run: |
+          if git diff --quiet -- data/districts_risk.geojson data/year_analysis.json; then
+            echo "reproduced byte-for-byte on ${{ inputs.runner || 'ubuntu-latest' }}"
+          else
+            git --no-pager diff --stat -- data/districts_risk.geojson data/year_analysis.json
+            echo "::error::the rebuild did not reproduce the committed model output"
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
