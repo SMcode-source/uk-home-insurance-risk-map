@@ -1,0 +1,28 @@
+name: platform probe
+
+# Hashes every stage of the weather interpolation on a chosen runner so
+# it can be compared with the same script run on a laptop. No model
+# build, no geology; a few minutes. See scripts/probe_platform.py.
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: "Runner to probe"
+        type: choice
+        options: [ubuntu-latest, ubuntu-24.04-arm, windows-latest]
+        default: ubuntu-latest
+
+jobs:
+  probe:
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Clone postcode-district boundaries
+        run: git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data/uk-postcode-polygons
+      - run: python -u scripts/probe_platform.py

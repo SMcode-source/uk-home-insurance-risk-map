@@ -19,6 +19,15 @@ on:
       threads:
         description: "Worker threads (0 = auto, capped at 6)"
         default: "0"
+      verify:
+        description: "Fail unless the rebuild reproduces the committed model output byte-for-byte"
+        type: boolean
+        default: false
+      runner:
+        description: "Runner (ubuntu-24.04-arm is a different ISA: a real cross-architecture check)"
+        type: choice
+        options: [ubuntu-latest, ubuntu-24.04-arm]
+        default: ubuntu-latest
 
 concurrency:
   group: rebuild
@@ -27,7 +36,7 @@ concurrency:
 jobs:
   rebuild:
     name: full model rebuild
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     # Two 20,000-year simulations (present-day + climate). Generous ceiling
     # so a slow runner fails loudly rather than being killed at the default.
     timeout-minutes: 240
@@ -134,6 +143,23 @@ jobs:
 
       - name: Show what changed
         run: git --no-pager diff --stat
+
+      # Reproducibility as a red light, not something noticed by diffing.
+      # Three nondeterminism findings in HANDOFF (the seed-swap slip, the
+      # runner wobble, the partition order) were all found by hand; this
+      # step turns that whole class into a failed run. Model artifacts
+      # only: docs/ carries the same numbers but is not the thing being
+      # asked about.
+      - name: Verify the model reproduced the committed output
+        if: ${{ inputs.verify }}
+        run: |
+          if git diff --quiet -- data/districts_risk.geojson data/year_analysis.json; then
+            echo "reproduced byte-for-byte on ${{ inputs.runner || 'ubuntu-latest' }}"
+          else
+            git --no-pager diff --stat -- data/districts_risk.geojson data/year_analysis.json
+            echo "::error::the rebuild did not reproduce the committed model output"
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
