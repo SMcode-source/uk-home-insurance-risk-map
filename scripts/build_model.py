@@ -1573,15 +1573,33 @@ def simulate(district_df):
     # systemic draws - which is what makes the result reproducible.
     port = (expo @ year_loss) / expo_total
     k = max(int(N_SIM * 0.01), 1)
-    bad = np.argpartition(port, -k)[-k:]
-    res["tvar99_euler"] = year_loss[:, bad].mean(axis=1)
+    # Sorted, and summed in float64, because neither is free here.
+    # np.argpartition dispatches to a SIMD-width-specific quickselect,
+    # and quickselect only promises that the k-th element lands in
+    # place - the arrangement either side is an artefact of the kernel.
+    # So two machines with different vector widths return the same SET
+    # of worst years in a DIFFERENT ORDER from bit-identical input
+    # (measured on this portfolio: 185 of the 200 positions moved).
+    # `year_loss` is float32 - it has to be, at 219 MB per grain - so
+    # summing 200 of its columns in a different order with a float32
+    # accumulator shifted tvar99_euler by ~1 float32 ULP, enough to
+    # move `capital` at its published 4 dp in ~2% of districts. That is
+    # the whole of the cross-runner wobble: every el_* column is a
+    # float64 mean and never moved, which is why it looked like the
+    # allocation rather than the sort. Sorting makes the order
+    # canonical for every consumer of `bad`; dtype=float64 makes the
+    # sum order-proof regardless, and drops 7e-7 of relative error that
+    # was never wanted in a published number.
+    bad = np.sort(np.argpartition(port, -k)[-k:])
+    res["tvar99_euler"] = year_loss[:, bad].mean(axis=1, dtype=np.float64)
     res["el_year"] = year_loss.mean(axis=1)
     # The cover split uses the SAME bad years. That is the point: an
     # insurer holds capital against the whole portfolio, so both covers
     # must be allocated conditional on the portfolio's worst years, not
     # on their own. Euler additivity then makes the two allocations sum
     # to the combined one exactly.
-    res["tvar99_euler_b"] = year_loss_b[:, bad].mean(axis=1)
+    res["tvar99_euler_b"] = year_loss_b[:, bad].mean(
+        axis=1, dtype=np.float64)
     res["el_year_b"] = year_loss_b.mean(axis=1)
     port_tvar = float(port[bad].mean())
     standalone = float(np.average(res["tvar99_vine"], weights=expo))

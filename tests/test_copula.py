@@ -2488,3 +2488,56 @@ def test_analytic_el_check_builds_every_column_the_model_scores(
     assert "TOTAL" in printed, "the comparison table never printed"
     for k in perils:
         assert f"\n{k:6}" in printed, f"{k} missing from the audit table"
+
+
+def test_the_capital_allocation_does_not_depend_on_a_partition_kernel():
+    """`bad` is a set, but np.argpartition hands it back as a sequence.
+
+    np.argpartition dispatches to a SIMD-width-specific quickselect,
+    and quickselect only promises that the k-th element lands in place.
+    So two CPUs return the same worst-1% years in a different ORDER from
+    bit-identical input - measured on the real portfolio, 185 of the 200
+    positions moved between this machine's two vector widths.
+
+    That was invisible until it wasn't: `year_loss` is float32, so
+    summing 200 of its columns in a different order with a float32
+    accumulator shifted tvar99_euler by ~1 float32 ULP, which moved
+    `capital` at its published 4 dp in ~2% of districts and made two
+    GitHub runners disagree about published output. Every el_* column is
+    a float64 mean over a fixed axis, so none of them moved - which is
+    exactly why the wobble read as a defect in the Euler allocation.
+
+    This guards both halves of the fix, because either alone is enough
+    to break the coupling and a later edit could plausibly drop one.
+    """
+    # Whitespace-insensitive: the second of these is wrapped over two
+    # lines in the source, and reflowing it must not break the guard.
+    src = "".join(open(bm.__file__, encoding="utf-8").read().split())
+    assert "bad=np.sort(np.argpartition(port,-k)[-k:])" in src, (
+        "the worst-year indices are no longer sorted, so the tail sum "
+        "again depends on which quickselect kernel the CPU dispatched")
+    for mat in ("year_loss", "year_loss_b"):
+        assert f"{mat}[:,bad].mean(axis=1,dtype=np.float64)" in src, (
+            f"{mat} is summed without a float64 accumulator, so its "
+            "result depends on the order of `bad`")
+
+    # And the property those two lines exist to guarantee.
+    rng = np.random.default_rng(SEED)
+    n_sim, k = 20_000, 200
+    year_loss = rng.gamma(1.5, 120.0, (600, n_sim)).astype(np.float32)
+    idx = rng.choice(n_sim, k, replace=False)
+    shuffled = rng.permutation(idx)
+
+    fixed_a = year_loss[:, np.sort(idx)].mean(axis=1, dtype=np.float64)
+    fixed_b = year_loss[:, np.sort(shuffled)].mean(axis=1, dtype=np.float64)
+    assert np.array_equal(fixed_a, fixed_b), (
+        "sorting plus a float64 accumulator must be exactly reorder-proof")
+
+    # The defect it replaced, asserted so this guard explains itself and
+    # fails loudly if numpy ever makes the float32 path order-invariant.
+    naive_a = year_loss[:, idx].mean(axis=1)
+    naive_b = year_loss[:, shuffled].mean(axis=1)
+    assert not np.array_equal(naive_a, naive_b), (
+        "a float32 accumulator no longer cares about summation order - "
+        "the reason for this guard has changed, so re-read it before "
+        "trusting it")
