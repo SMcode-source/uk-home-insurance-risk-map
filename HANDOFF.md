@@ -168,6 +168,94 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-06 (second): SURFACE WATER by postcode share, both grains - not published
+
+The user asked for "the same for surface water" after the river/sea
+publish. Measured at both grains; publishing is the user's decision.
+Branches `exp/sw-households` (district: 2aeb429 script + fractions,
+101f6be validation) and `exp/sw-households-sector` (sector: bd4b97b +
+bot run 27 `70bee70`). Baselines are the builds published earlier
+today (district 08a13bc5, sector run 26).
+
+**Method.** `scripts/fetch_sw_postcodes.py` samples the SAME masks
+`fetch_surface_water.py` rasterises (EA rofsw category colours at
+13 m/px, NRW FRAW at 20 m, SEPA likelihood MapServers at 20 m) at
+every ONSPD unit-postcode centroid, in two stages: `--flags REGION`
+writes per-postcode flags (the slow part: 239 England tiles, 83 Wales,
+96 Scotland, ~10-15 minutes per region on this laptop because there
+is no pixel-to-polygon work), then the default run aggregates the
+flags to whichever grain the checkout loads, with the hierarchical
+shrinkage of the river/sea script. One sampling serves both grains.
+`--climate` does the EA `rofsw_cc01` edition so the future shares the
+denominator (the lesson of this morning). Shares of postcodes in the
+>=1% AEP band: England 8.9%, Wales 2.9%, Scotland 8.8% (SEPA's
+"medium" is 1-in-200).
+
+**The depth product stays on area, deliberately.** `sw_depth.csv` is
+the share of AREA exceeding 0.2/0.3/0.6/0.9/1.2 m, and
+`sw_depth_severity` turns it into a depth distribution CONDITIONAL on
+being inside the envelope by dividing against `sw_high`/`sw_low`.
+Dividing area-share depth by postcode-share envelope corrupts the
+conditional (`_band_shares` would clamp the shallow band to zero
+wherever postcode share < area depth share). So the previous files are
+kept as `sw_fractions_area[_cc].csv` and the severity reads its
+envelope from there; the postcode share is the frequency denominator
+only. Frequency from where the homes are; depth, given a home is in
+the water, from the water. Sampling the five depth layers at postcodes
+would be the consistent next step (five more requests per tile).
+
+**Evidence.** Fraction level, Wales, before any model run: `sw_high`
+vs NRW surface-water people at risk per household, area +0.573,
+postcode share **+0.720**; `sw_low` +0.468 -> +0.609. Model level on
+the new district build (validation re-run, committed): `sw_high` vs
+NRW surface-water people +0.57 -> **+0.72**; all-source people vs
+`el_fl` 0.59 -> 0.59 (surface water is ~a fifth of flood cost, the
+river/sea change dominates); Scotland SEPA AAD-high vs `el_fl` +0.22
+-> +0.17 (SEPA's index is all-source and area-based; inconclusive
+both times). Area vs postcode share agree at Spearman 0.68 (high) /
+0.72 (low) across the 2,736 districts - a smaller re-ordering than
+river/sea (which was the point: surface water was the healthier one).
+
+**Deltas, both grains, against this morning's publish.**
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.7313 -> 169.7479 (+0.017) | 169.7505 -> 169.7520 (+0.002) |
+| rating group changed | 473 (235 up, 238 down) | 1,840 (977 up, 863 down) |
+| `premium` moved | 2,656 | 10,184 |
+| hh-weighted \|d premium\| p50 / p90 / p99 | 1.1 / 3.5 / 7.8 | 1.3 / 4.1 / 10.4 |
+| \|d premium\| > 20 | 0 (17 over 10) | 98 sectors, 0.1% of households (360 over 10) |
+| largest rise | FK12 (Alva) 194 -> 214, `sw_high` 0.15 -> 0.51 | L37 2 (Formby) 160 -> 192, 0.11 -> 0.71 |
+| largest fall | HP19 (Aylesbury) 204 -> 187, 0.21 -> 0.05 | BL8 9 (Bury) 241 -> 126, 0.95 -> 0.06 |
+| by country, hh-weighted mean d | England +0.14, Wales -0.67, Scotland -0.76 | - |
+| climate repricing over covered units | +6.2% -> +6.4% | +6.2% -> +6.4% |
+
+Movers: Thames-estuary Tilbury/Stanford-le-Hope/Purfleet/Chadwell
+(RM18, SS17, RM19, RM16) rise 15-20 with half to two-thirds of their
+homes in the >=1% AEP zone against a quarter to a third of their area;
+Aylesbury, King's Cross (N1C), Fleet Street (EC4A), Aberfeldy (PH17)
+and Anglesey's LL66 fall 9-17 where the mapped water is on land with
+few homes. At the sector grain the same "9"-suffix pattern as river/sea
+appears: BL8 9, ME1 9, IP17 9, TQ6 6 and RH14 4 carried `sw_high`
+0.77-1.00 by area with under a tenth of their postcodes in the zone,
+and fall 65-115. The level does not move (calibration re-pins), the
+geography moves modestly, and the movers read as corrections.
+
+**What publishing would need.** (1) `sector-model.yml`'s surface-water
+job: `fetch_onspd.py`, then `fetch_sw_postcodes.py --flags` for the
+three regions, then the aggregation (one job, ~45 minutes; the old
+area fetch had a 300-minute budget); `rebuild.yml` needs nothing.
+(2) The ordering rule with the interim-pair step: this change moves
+1,840 sector groups, so the pre-flight nesting guard will see a mixed
+pair again. (3) README §3, the methodology table row ("share of
+district area inside surface-water zones" becomes postcodes),
+LIMITATIONS §2/§7 (the "still area share" sentences), DATA_SOURCES #41
+amended to cover surface water and the depth conditional, and the
+`fetch_surface_water.py` docstring marked superseded for the fractions
+and kept as the mask source. (4) `sw_fractions_area[_cc].csv` become
+committed model inputs at both grains, which they already are on the
+two exp branches. NOT done here: none of that.
+
 ## PUBLISHED 2026-09-06: flood fractions by POSTCODE share, both grains, one push
 
 The user's decision ("adopt it - publish both grains"), on the MEASURED
