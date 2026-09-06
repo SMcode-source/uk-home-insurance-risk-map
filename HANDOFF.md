@@ -168,6 +168,197 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-06 (second): SURFACE WATER by postcode share, both grains - not published
+
+The user asked for "the same for surface water" after the river/sea
+publish. Measured at both grains; publishing is the user's decision.
+Branches `exp/sw-households` (district: 2aeb429 script + fractions,
+101f6be validation) and `exp/sw-households-sector` (sector: bd4b97b +
+bot run 27 `70bee70`). Baselines are the builds published earlier
+today (district 08a13bc5, sector run 26).
+
+**Method.** `scripts/fetch_sw_postcodes.py` samples the SAME masks
+`fetch_surface_water.py` rasterises (EA rofsw category colours at
+13 m/px, NRW FRAW at 20 m, SEPA likelihood MapServers at 20 m) at
+every ONSPD unit-postcode centroid, in two stages: `--flags REGION`
+writes per-postcode flags (the slow part: 239 England tiles, 83 Wales,
+96 Scotland, ~10-15 minutes per region on this laptop because there
+is no pixel-to-polygon work), then the default run aggregates the
+flags to whichever grain the checkout loads, with the hierarchical
+shrinkage of the river/sea script. One sampling serves both grains.
+`--climate` does the EA `rofsw_cc01` edition so the future shares the
+denominator (the lesson of this morning). Shares of postcodes in the
+>=1% AEP band: England 8.9%, Wales 2.9%, Scotland 8.8% (SEPA's
+"medium" is 1-in-200).
+
+**The depth product stays on area, deliberately.** `sw_depth.csv` is
+the share of AREA exceeding 0.2/0.3/0.6/0.9/1.2 m, and
+`sw_depth_severity` turns it into a depth distribution CONDITIONAL on
+being inside the envelope by dividing against `sw_high`/`sw_low`.
+Dividing area-share depth by postcode-share envelope corrupts the
+conditional (`_band_shares` would clamp the shallow band to zero
+wherever postcode share < area depth share). So the previous files are
+kept as `sw_fractions_area[_cc].csv` and the severity reads its
+envelope from there; the postcode share is the frequency denominator
+only. Frequency from where the homes are; depth, given a home is in
+the water, from the water. Sampling the five depth layers at postcodes
+would be the consistent next step (five more requests per tile).
+
+**Evidence.** Fraction level, Wales, before any model run: `sw_high`
+vs NRW surface-water people at risk per household, area +0.573,
+postcode share **+0.720**; `sw_low` +0.468 -> +0.609. Model level on
+the new district build (validation re-run, committed): `sw_high` vs
+NRW surface-water people +0.57 -> **+0.72**; all-source people vs
+`el_fl` 0.59 -> 0.59 (surface water is ~a fifth of flood cost, the
+river/sea change dominates); Scotland SEPA AAD-high vs `el_fl` +0.22
+-> +0.17 (SEPA's index is all-source and area-based; inconclusive
+both times). Area vs postcode share agree at Spearman 0.68 (high) /
+0.72 (low) across the 2,736 districts - a smaller re-ordering than
+river/sea (which was the point: surface water was the healthier one).
+
+**Deltas, both grains, against this morning's publish.**
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.7313 -> 169.7479 (+0.017) | 169.7505 -> 169.7520 (+0.002) |
+| rating group changed | 473 (235 up, 238 down) | 1,840 (977 up, 863 down) |
+| `premium` moved | 2,656 | 10,184 |
+| hh-weighted \|d premium\| p50 / p90 / p99 | 1.1 / 3.5 / 7.8 | 1.3 / 4.1 / 10.4 |
+| \|d premium\| > 20 | 0 (17 over 10) | 98 sectors, 0.1% of households (360 over 10) |
+| largest rise | FK12 (Alva) 194 -> 214, `sw_high` 0.15 -> 0.51 | L37 2 (Formby) 160 -> 192, 0.11 -> 0.71 |
+| largest fall | HP19 (Aylesbury) 204 -> 187, 0.21 -> 0.05 | BL8 9 (Bury) 241 -> 126, 0.95 -> 0.06 |
+| by country, hh-weighted mean d | England +0.14, Wales -0.67, Scotland -0.76 | - |
+| climate repricing over covered units | +6.2% -> +6.4% | +6.2% -> +6.4% |
+
+Movers: Thames-estuary Tilbury/Stanford-le-Hope/Purfleet/Chadwell
+(RM18, SS17, RM19, RM16) rise 15-20 with half to two-thirds of their
+homes in the >=1% AEP zone against a quarter to a third of their area;
+Aylesbury, King's Cross (N1C), Fleet Street (EC4A), Aberfeldy (PH17)
+and Anglesey's LL66 fall 9-17 where the mapped water is on land with
+few homes. At the sector grain the same "9"-suffix pattern as river/sea
+appears: BL8 9, ME1 9, IP17 9, TQ6 6 and RH14 4 carried `sw_high`
+0.77-1.00 by area with under a tenth of their postcodes in the zone,
+and fall 65-115. The level does not move (calibration re-pins), the
+geography moves modestly, and the movers read as corrections.
+
+**What publishing would need.** (1) `sector-model.yml`'s surface-water
+job: `fetch_onspd.py`, then `fetch_sw_postcodes.py --flags` for the
+three regions, then the aggregation (one job, ~45 minutes; the old
+area fetch had a 300-minute budget); `rebuild.yml` needs nothing.
+(2) The ordering rule with the interim-pair step: this change moves
+1,840 sector groups, so the pre-flight nesting guard will see a mixed
+pair again. (3) README §3, the methodology table row ("share of
+district area inside surface-water zones" becomes postcodes),
+LIMITATIONS §2/§7 (the "still area share" sentences), DATA_SOURCES #41
+amended to cover surface water and the depth conditional, and the
+`fetch_surface_water.py` docstring marked superseded for the fractions
+and kept as the mask source. (4) `sw_fractions_area[_cc].csv` become
+committed model inputs at both grains, which they already are on the
+two exp branches. NOT done here: none of that.
+
+## PUBLISHED 2026-09-06: flood fractions by POSTCODE share, both grains, one push
+
+The user's decision ("adopt it - publish both grains"), on the MEASURED
+record below. Main fast-forwarded to `exp/flood-households` in one push
+(merge 8090949; district output = bot run 61 `29b9a83`; sector output =
+sector-model run 26 `da7f845`, crossed as `data/sectors_risk.geojson`,
+blob `13538faa`). `sector-model` re-synced with main afterwards
+(`48722d0`, sector build kept OURS).
+
+**Live verification:** `docs/assets/uk_district_risk.csv` 2,736 rows, exposure-weighted premium 169.7313 (HU1 325.9 with `f_high` 0.965, LA4 165.0 / 0.063, EC4V 252.7 / 0.086, TS7 175.4); `uk_sector_risk.csv` 10,398 rows, 169.7505 (HU1 4 246.7 / 0.967, RH8 8 164.6 / 0.041, PH44 4 175.2 / 0.146, ME12 9 188.7). Both fetched with cache bypassed after `publish site` run 34030200466 succeeded.
+
+**What went live, against the OSTN15 publish of 2026-09-05.**
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.6485 -> **169.7313** (+0.083) | 169.6636 -> **169.7505** (+0.087) |
+| exposure-weighted `el_total` | 164.1216 -> 164.2052 | 164.1354 -> 164.2202 |
+| exposure-weighted `capital` | 5.5270 -> 5.5268 | 5.5279 -> 5.5298 |
+| rating group changed | 1,271 | 4,574 |
+| `premium` moved | 2,721 | 10,342 |
+| hh-weighted \|d premium\| p50 / p90 / p99 | 4.2 / 15.0 / 41.3 (measured; final within 0.1) | 4.4 / 18.0 / 51.0 |
+| largest rise | HU1 217.7 -> 325.9 | HU1 4 105.7 -> 246.7 |
+| largest fall | LA4 -73.4 | RH8 8 275.6 -> 164.6 |
+| climate repricing over covered units | +3.7% -> **+6.2%** (2,087) | +4.0% -> **+6.2%** (8,730) |
+
+Against the MEASURED builds the final ones differ only where the two
+fixes below bite: district 8 rating groups and 542 premiums nudged
+(max W1J -7.5, the London districts leaving the median); sector 171
+with \|d\| > 1, max PH44 4 (312.5 in the measured run, 175.2 live,
+published 171.9: the hierarchical prior doing what it was added to do).
+
+**Three things the publish found that the measurement had not.**
+
+1. **The climate edition was still an area share, and the climate run
+   substitutes it for the present-day fraction.** `flood_future()` puts
+   `flood_fractions_cc.csv` in place of `f_high`/`f_low`; an area-share
+   future against a postcode-share present would have had 506 covered
+   districts with a LOWER future than present and reported Hull's flood
+   risk falling under climate change. `fetch_flood_postcodes.py
+   --climate` now samples the EA `_CCP1` layers at the same English
+   postcodes (England only, England-only priors). On the shared
+   denominator the share of homes in the 1-in-100/200 band grows +87.7%
+   over covered districts (was +37.7% by area: the future extent grows
+   into settled ground, not marsh), 9 districts (0.4%) shrink by more
+   than 1pp (was 52; worst HU12 -25.5pp, was -11.2pp), and the climate
+   repricing headline goes from +3.7% to +6.2% at the district grain
+   (LA4 Morecambe +8% -> +81%: 6% of its postcodes in the band today,
+   85% in the future extent). README and the methodology page
+   recomputed; the site's figures are injected, not typed.
+2. **59 central-London districts were at the national median in the
+   measured build.** The postcode AREA is the leading letters of the
+   outward code, and both the first cut of the script and
+   `fetch_onspd.py` took every letter, so EC1A, SW1A, W1B, WC1A, E1W
+   and N1C had "areas" of their own (ECA...) that never matched as a
+   parent. The fetch log said "59 left to the median fallback" and
+   nobody read it. Fixed in both scripts (`area_of`), local ONSPD file
+   patched, the 59 now carry real fractions (EC4V 0.086, E1W 1 sector
+   0.444 -> 0.111 by postcode share). The measured deltas shown before
+   the decision were wrong for those 59 by up to 7.5 on the premium.
+3. **The pre-flight mixed-pair guard fired, correctly.** `rebuild.yml`
+   runs the property tests BEFORE it rebuilds, so on the exp branch it
+   saw the new sector output against the published district output:
+   median disagreement 3.05% against the 3% bound, a mixed pair by
+   construction. The laptop's measured district build (CI-equivalent
+   since OSTN15) went in as an interim pair (`996b063`, exp branch only)
+   and the rebuild replaced it in the next commit. For any change that
+   moves the geography, the ordering rule now has a fourth step: commit
+   a consistent interim district output before dispatching the rebuild,
+   or the guard will refuse the build it exists to protect.
+
+**Also in this publish.** `sector-model.yml`'s flood job runs
+`fetch_onspd.py` then `fetch_flood_postcodes.py` (one ~6-minute pass;
+this run used `skip_fetch=true` on the committed files, so ONSPD has
+still never been fetched from a runner - the first live sector fetch
+will tell). LIMITATIONS §2/§7, DATA_SOURCES #41, README §2 and the
+methodology table say what the fraction now is; `fetch_flood.py` is
+marked superseded for river/sea and kept as the mask source. Surface
+water (`sw_fractions.csv`) is STILL an area share: the obvious next
+candidate, with the healthier validation (+0.57) and a 300-minute
+fetch that the postcode method would cut to minutes.
+
+**And one more, after the push.** The `tests` workflow failed once on
+main: its "published site is up to date" check found `docs/` stale,
+because the methodology-template wording fix (`2d687c4`) landed AFTER
+the CI rebuild that had built `docs/`. Running `build_site.py` on the
+laptop is NOT the fix - the map pages wrap generated files under
+`map/` that only a model build refreshes, so a laptop `docs/` regresses
+the map wording to whatever that machine last built. `rebuild.yml` on
+main (`commit=true`, bot run 62, `7ba5aa9`) reproduced the model
+exactly and committed the four changed lines of `docs/methodology.html`.
+Rule: a template edit after the rebuild needs another `rebuild.yml`, or
+goes in before it.
+
+**Lessons, for the running list.** (a) When a fetch prints a fallback
+count, read it: 59 was in the log before the measurement was shown.
+(b) A denominator change has to reach every file that shares the
+column - the climate edition was a second consumer of `f_high` and the
+measurement never looked at `premium_cc`. (c) The guards work: the
+nesting test refused a build with a mixed pair on disk, which is
+exactly the failure it was written for, at the cost of one extra
+commit. (d) ONSPD is not just a weight now, it is the denominator of
+the largest peril; DATA_SOURCES #41 is its record.
+
 ## MEASURED 2026-09-06: flood fractions by POSTCODE share, not area share - the largest candidate since Gate 2
 
 Not published. The user's decision. Branches `exp/flood-households`
