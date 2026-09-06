@@ -168,6 +168,109 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## PUBLISHED 2026-09-06: flood fractions by POSTCODE share, both grains, one push
+
+The user's decision ("adopt it - publish both grains"), on the MEASURED
+record below. Main fast-forwarded to `exp/flood-households` in one push
+(merge 8090949; district output = bot run 61 `29b9a83`; sector output =
+sector-model run 26 `da7f845`, crossed as `data/sectors_risk.geojson`,
+blob `13538faa`). `sector-model` re-synced with main afterwards
+(`48722d0`, sector build kept OURS).
+
+**Live verification:** `docs/assets/uk_district_risk.csv` 2,736 rows, exposure-weighted premium 169.7313 (HU1 325.9 with `f_high` 0.965, LA4 165.0 / 0.063, EC4V 252.7 / 0.086, TS7 175.4); `uk_sector_risk.csv` 10,398 rows, 169.7505 (HU1 4 246.7 / 0.967, RH8 8 164.6 / 0.041, PH44 4 175.2 / 0.146, ME12 9 188.7). Both fetched with cache bypassed after `publish site` run 34030200466 succeeded.
+
+**What went live, against the OSTN15 publish of 2026-09-05.**
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.6485 -> **169.7313** (+0.083) | 169.6636 -> **169.7505** (+0.087) |
+| exposure-weighted `el_total` | 164.1216 -> 164.2052 | 164.1354 -> 164.2202 |
+| exposure-weighted `capital` | 5.5270 -> 5.5268 | 5.5279 -> 5.5298 |
+| rating group changed | 1,271 | 4,574 |
+| `premium` moved | 2,721 | 10,342 |
+| hh-weighted \|d premium\| p50 / p90 / p99 | 4.2 / 15.0 / 41.3 (measured; final within 0.1) | 4.4 / 18.0 / 51.0 |
+| largest rise | HU1 217.7 -> 325.9 | HU1 4 105.7 -> 246.7 |
+| largest fall | LA4 -73.4 | RH8 8 275.6 -> 164.6 |
+| climate repricing over covered units | +3.7% -> **+6.2%** (2,087) | +4.0% -> **+6.2%** (8,730) |
+
+Against the MEASURED builds the final ones differ only where the two
+fixes below bite: district 8 rating groups and 542 premiums nudged
+(max W1J -7.5, the London districts leaving the median); sector 171
+with \|d\| > 1, max PH44 4 (312.5 in the measured run, 175.2 live,
+published 171.9: the hierarchical prior doing what it was added to do).
+
+**Three things the publish found that the measurement had not.**
+
+1. **The climate edition was still an area share, and the climate run
+   substitutes it for the present-day fraction.** `flood_future()` puts
+   `flood_fractions_cc.csv` in place of `f_high`/`f_low`; an area-share
+   future against a postcode-share present would have had 506 covered
+   districts with a LOWER future than present and reported Hull's flood
+   risk falling under climate change. `fetch_flood_postcodes.py
+   --climate` now samples the EA `_CCP1` layers at the same English
+   postcodes (England only, England-only priors). On the shared
+   denominator the share of homes in the 1-in-100/200 band grows +87.7%
+   over covered districts (was +37.7% by area: the future extent grows
+   into settled ground, not marsh), 9 districts (0.4%) shrink by more
+   than 1pp (was 52; worst HU12 -25.5pp, was -11.2pp), and the climate
+   repricing headline goes from +3.7% to +6.2% at the district grain
+   (LA4 Morecambe +8% -> +81%: 6% of its postcodes in the band today,
+   85% in the future extent). README and the methodology page
+   recomputed; the site's figures are injected, not typed.
+2. **59 central-London districts were at the national median in the
+   measured build.** The postcode AREA is the leading letters of the
+   outward code, and both the first cut of the script and
+   `fetch_onspd.py` took every letter, so EC1A, SW1A, W1B, WC1A, E1W
+   and N1C had "areas" of their own (ECA...) that never matched as a
+   parent. The fetch log said "59 left to the median fallback" and
+   nobody read it. Fixed in both scripts (`area_of`), local ONSPD file
+   patched, the 59 now carry real fractions (EC4V 0.086, E1W 1 sector
+   0.444 -> 0.111 by postcode share). The measured deltas shown before
+   the decision were wrong for those 59 by up to 7.5 on the premium.
+3. **The pre-flight mixed-pair guard fired, correctly.** `rebuild.yml`
+   runs the property tests BEFORE it rebuilds, so on the exp branch it
+   saw the new sector output against the published district output:
+   median disagreement 3.05% against the 3% bound, a mixed pair by
+   construction. The laptop's measured district build (CI-equivalent
+   since OSTN15) went in as an interim pair (`996b063`, exp branch only)
+   and the rebuild replaced it in the next commit. For any change that
+   moves the geography, the ordering rule now has a fourth step: commit
+   a consistent interim district output before dispatching the rebuild,
+   or the guard will refuse the build it exists to protect.
+
+**Also in this publish.** `sector-model.yml`'s flood job runs
+`fetch_onspd.py` then `fetch_flood_postcodes.py` (one ~6-minute pass;
+this run used `skip_fetch=true` on the committed files, so ONSPD has
+still never been fetched from a runner - the first live sector fetch
+will tell). LIMITATIONS §2/§7, DATA_SOURCES #41, README §2 and the
+methodology table say what the fraction now is; `fetch_flood.py` is
+marked superseded for river/sea and kept as the mask source. Surface
+water (`sw_fractions.csv`) is STILL an area share: the obvious next
+candidate, with the healthier validation (+0.57) and a 300-minute
+fetch that the postcode method would cut to minutes.
+
+**And one more, after the push.** The `tests` workflow failed once on
+main: its "published site is up to date" check found `docs/` stale,
+because the methodology-template wording fix (`2d687c4`) landed AFTER
+the CI rebuild that had built `docs/`. Running `build_site.py` on the
+laptop is NOT the fix - the map pages wrap generated files under
+`map/` that only a model build refreshes, so a laptop `docs/` regresses
+the map wording to whatever that machine last built. `rebuild.yml` on
+main (`commit=true`, bot run 62, `7ba5aa9`) reproduced the model
+exactly and committed the four changed lines of `docs/methodology.html`.
+Rule: a template edit after the rebuild needs another `rebuild.yml`, or
+goes in before it.
+
+**Lessons, for the running list.** (a) When a fetch prints a fallback
+count, read it: 59 was in the log before the measurement was shown.
+(b) A denominator change has to reach every file that shares the
+column - the climate edition was a second consumer of `f_high` and the
+measurement never looked at `premium_cc`. (c) The guards work: the
+nesting test refused a build with a mixed pair on disk, which is
+exactly the failure it was written for, at the cost of one extra
+commit. (d) ONSPD is not just a weight now, it is the denominator of
+the largest peril; DATA_SOURCES #41 is its record.
+
 ## MEASURED 2026-09-06: flood fractions by POSTCODE share, not area share - the largest candidate since Gate 2
 
 Not published. The user's decision. Branches `exp/flood-households`

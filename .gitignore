@@ -89,3 +89,7 @@ docs/assets/tiles/
 docs/assets/units/
 docs/assets/districts_index.json
 docs/assets/sectors_index.json
+
+# per-postcode surface-water flags, the intermediate of fetch_sw_postcodes.py (~20 MB England)
+data/sw_flags_*.csv
+data/sw_flags_*.csv.partial

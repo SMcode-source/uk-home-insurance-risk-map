@@ -647,6 +647,26 @@ def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
 
     env_hi = np.asarray(sw_high, dtype=float)
     env_lo = np.asarray(sw_low, dtype=float)
+    # The depth fractions are shares of AREA, so the envelope they are
+    # conditioned on must be the area share too. Since the postcode-share
+    # fractions (fetch_sw_postcodes.py) took over sw_high / sw_low, the
+    # area-share file is kept alongside as sw_fractions_area[_cc].csv;
+    # where it exists it supplies the envelope here, per district, and
+    # the caller's values (frequency's denominator) are left alone.
+    area_name = "sw_fractions_area_cc.csv" if climate else "sw_fractions_area.csv"
+    area_path = os.path.join(DATA, area_name)
+    if os.path.exists(area_path):
+        env_hi, env_lo = env_hi.copy(), env_lo.copy()
+        with open(area_path, newline="") as fh:
+            area_env = {row["name"]: (float(row["sw_high"]), float(row["sw_low"]))
+                        for row in csv.DictReader(fh)}
+        hit = 0
+        for i, n in enumerate(names):
+            if n in area_env:
+                env_hi[i], env_lo[i] = area_env[n]
+                hit += 1
+        print(f"  sw depth: envelope from {area_name} for {hit}/{len(names)} "
+              "districts (area share, matching the depth bands)")
     # the two bands are disjoint: the fringe is the envelope minus the
     # high-likelihood zone, in extent and in depth alike
     b_hi = _band_shares(env_hi, frac_hi)
