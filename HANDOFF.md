@@ -168,6 +168,67 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## PUBLISHED 2026-09-05 (third): OSTN15 at both grains, hygiene merged, one push
+
+The user's decision on the two items left open below: "merge the
+hygiene branch and adopt OSTN15 - publish both grains". Both grains
+now transform WGS84 to British National Grid with the Ordnance Survey
+OSTN15 grid instead of the Helmert approximation a bare runner falls
+back to. Main went from e92b04b to 2b7a073 in a single fast-forward
+push; the live site never carried a mixed pair.
+
+**Sequence, the same shape as the argpartition publish.** `exp/ostn15`
+from main, `exp/hygiene` merged in (88b3dcb), `rebuild.yml` defaulted
+`ostn15` on and `sector-model.yml` given the identical install step so
+the two grains cannot transform differently (e137a0c, with DATA_SOURCES
+#40 and LIMITATIONS §9). Per the ordering rule the sector run needs
+the merged code, so `exp/ostn15` went into `sector-model` first
+(9b4697e, no conflict on the sector build this time), `sector-model.yml`
+ran with `skip_fetch` (run 22, bot 3cb778f, pipeline "Inverse of OSGB36
+to WGS 84 (9)", grid sha256 OK), and its output crossed onto the EXP
+branch as `data/sectors_risk.geojson` (f31624b; blob-to-blob identical
+to the bot's, which matters because `git show` and a CRLF checkout
+disagree on the working-copy hash). Then `rebuild.yml` on `exp/ostn15`
+with `commit=true` (run 59, bot 2b7a073). Its district output is
+**byte-identical to this morning's measurement run** (cba4da38), so
+what was published is exactly what was measured. Fast-forward main,
+`publish site` 33969724715 and `tests` 33969724710 green, `sector-model`
+re-synced as 24d9a3c with OURS on the sector build.
+
+**Deltas, CI against CI.**
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.6483 -> 169.6485 | 169.6638 -> 169.6636 |
+| exposure-weighted `el_total` | 164.1218 -> 164.1216 | 164.1354 -> 164.1354 |
+| exposure-weighted `capital` | 5.5270 (unchanged) | 5.5279 (unchanged) |
+| rating group changed | 0 | 6 |
+| `premium` (1 dp) moved | 19, max 0.8 (TS7 179.1 -> 178.3) | 484, max 0.9 (ME12 9 176.5 -> 177.4) |
+| `el_total` moved | 27, max 0.8 | 398, max 0.8 |
+| `wdr_idx` moved | 360, max 10.7 | - |
+
+The sector grain moves more than the district grain, as it should:
+a sector is small enough that a few metres reseats its nearest
+weather cell more often. Six sector rating groups is the whole of the
+visible change on the maps. `year_analysis.json` moved in 14 values
+at the district grain.
+
+**Live and verified** from the published CSVs after the deploy: 2,736
+districts and 10,398 sectors; live exposure-weighted premium 169.6485
+(districts) and 169.6636 (sectors); TS7 `premium` 178.3, `capital`
+5.9386, `tvar99_euler` 271.3; ME12 9 `premium` 177.4; CB11 `capital`
+5.2857 and YO51 `tvar99_euler` 257.6 unchanged from the argpartition
+publish, as the delta said they would be.
+
+**What this closes and what it does not.** Reproducibility is now
+whole: CI reproduces the laptop and the laptop reproduces CI, with the
+grid the shared fact. The `ostn15` input stays so the Helmert build
+can be made for comparison. NOT done: the fetched hazard tables were
+not refetched with the grid (DATA_SOURCES #40, scope paragraph) - a
+5-hour sector fetch for a change that would be metres on area
+fractions, and the tables' provenance is already "whichever grid the
+laptop had". The hygiene merge changed no byte of output, as measured.
+
 ## 2026-09-05 (second): five things the determinism work made possible
 
 No model change, no publish. The user said "let's do all of these" to
@@ -180,7 +241,8 @@ the user.
 datum grid on the laptop and nothing else - see the RESOLVED block
 under the erosion section for the proof and the recipe. The accurate
 transform is now buildable on CI (`rebuild.yml` input `ostn15`);
-adopting it is a model change. OSTN15 delta, CI against CI:
+adopting it is a model change - **adopted and PUBLISHED the same
+day, see the (third) section above.** OSTN15 delta, CI against CI:
 the run
 (33966869539, grid sha256 verified, pipeline "Inverse of OSGB36 to WGS
 84 (9)") produced **byte-for-byte the laptop's own grid-visible build**
@@ -261,8 +323,8 @@ same canonical ordering into `tvar()` (`np.sort` after `np.partition`)
 and float64 accumulators on `el_year` and `el_year_b`. Built on the
 laptop (grid-visible) and compared with the laptop's own fix build and
 with the CI `ostn15` build, which are the same bytes: **byte-identical
-to both** (cba4da38). Zero output effect; merging it is the user's
-call and there is no reason not to. For the record, my first
+to both** (cba4da38). Zero output effect; **merged into main with
+the OSTN15 publish** (third section above). For the record, my first
 measurement of this item read a leftover artifact from an earlier
 attempt while the real build was still running; the finished build
 was re-measured and this is that number.
@@ -508,8 +570,10 @@ WITH the grid (`ostn15` input, 33966869539) is byte-identical to the
 laptop's own build (cba4da38). The three runner types (x64, ARM, Windows) agree with each
 other to the metre and on every neighbour index without the grid.
 
-**Which means the published model is built on the LESS accurate
-transform.** That is a fact to disclose, not a bug to fix quietly:
+**Which meant the published model was built on the LESS accurate
+transform** (until the (third) 2026-09-05 publish, when the user
+adopted OSTN15 at both grains). That was a fact to disclose, not a bug
+to fix quietly:
 switching CI to OSTN15 moves the wind neighbours of ~360 districts and
 is a model change. `rebuild.yml` now has an `ostn15` input that installs
 the grid from cdn.proj.org (sha256-pinned, free) so the accurate

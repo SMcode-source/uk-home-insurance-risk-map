@@ -83,6 +83,7 @@ Usage:
 import argparse
 import csv
 import io
+import itertools
 import os
 import sys
 import time
@@ -130,7 +131,10 @@ def split_postcode(pcds):
     out, _, inw = pcds.strip().upper().partition(" ")
     if not out or not inw:
         return None
-    area = "".join(c for c in out if c.isalpha())
+    # The area is the LEADING letters only: EC for EC1A, SW for SW1A, E
+    # for E1W. Taking every letter gave the 59 letter-suffixed central
+    # London districts areas of their own ("ECA") until 2026-09-06.
+    area = "".join(itertools.takewhile(str.isalpha, out))
     if not area:
         return None
     return area, out, f"{out} {inw[0]}"

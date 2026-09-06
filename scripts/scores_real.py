@@ -772,9 +772,11 @@ def flood_future(names, f_high, f_low, sw_high, sw_low):
     #
     # It deliberately says NOTHING about present vs future, and must not be
     # "corrected" into np.maximum(future, present). The future is a separate
-    # EA model run, not an uplift of the present one, and 52 of the 2,087
-    # covered districts (2.5%) genuinely see the 1-in-100/200 band shrink,
-    # worst -11.2pp. Clamping that away would silently rewrite them and
+    # EA model run, not an uplift of the present one, and 9 of the 2,087
+    # covered districts (0.4%) genuinely see their share of homes in the
+    # 1-in-100/200 band shrink by more than 1pp, worst -25.5pp at HU12
+    # (by area share, before 2026-09-06: 52 districts, worst -11.2pp).
+    # Clamping that away would silently rewrite them and
     # delete the finding README states under "Rivers/sea is not a strict
     # uplift" - while leaving the +37.7% national growth looking unchanged,
     # so nothing would appear to break.

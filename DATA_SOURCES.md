@@ -1505,6 +1505,52 @@ districts**, used as the exposure weight throughout.
     on laptops over time with whichever grid those laptops had, which
     is the honest description of every committed hazard table.
 
+41. **ONS Postcode Directory (ONSPD) unit-postcode centroids as the
+    flood DENOMINATOR - river/sea flood fractions by postcode share,
+    LIVE at both grains since 2026-09-06.** The ONSPD extract that
+    `scripts/fetch_onspd.py` already downloads (ONS Open Geography
+    portal, OGL v3, ~250 MB, `data/postcode_centroids.csv`; large-user
+    postcodes excluded, live small-user units only) is read by
+    `scripts/fetch_flood_postcodes.py`, which samples the EA / NRW /
+    SEPA extents the model already used - the WMS masks `fetch_flood.py`
+    rasterises at 100 m and the SEPA FeatureServer polygons - at every
+    live unit-postcode centroid in Great Britain (1,675,166) and writes
+    each district's or sector's share of postcodes inside the high band
+    and inside the envelope as `f_high` / `f_low`. Before 2026-09-06
+    those were the share of the unit's AREA. Free; no registration.
+
+    **Why:** the first external validation (HANDOFF 2026-09-05) put the
+    model's Welsh river ordering at Spearman -0.13 against NRW's people
+    at risk per household, because valley towns keep their housing on a
+    sliver of floodplain. The same extents by postcode share: rivers
+    +0.53 and all sources +0.59 at the model level (sea +0.19, mostly
+    ties where no home is in the zone). The headline moves +0.08 at both
+    grains and the geography moves a great deal: Hull +£69 to +£108,
+    Morecambe, Sheerness, Dundee, Heswall and Speke -£64 to -£73, and a
+    handful of tiny "9"-suffix sectors that had `f_high = 1.0` by area
+    with no live postcode fall by ~£105 to their district's share.
+
+    **Thin units:** a unit with two live postcodes can only be 0, 1/2
+    or 1, so each unit's share is the beta-binomial posterior mean with
+    its parent's share as the prior at a weight of `K_PRIOR = 20`
+    postcodes (~300 addresses): sector toward district, district toward
+    postcode area, and the district prior itself shrunk toward the area.
+    76 districts and 412 sectors have fewer than 20 postcodes; the 816
+    sectors with no live postcode in this vintage (0.46% of households)
+    take their district's share. **Climate edition:** `--climate`
+    samples the EA `_CCP1` layers at the same English postcodes so that
+    `flood_fractions_cc.csv` shares the denominator; the climate run
+    substitutes one for the other, so an area-share future against a
+    postcode-share present would have reported Hull's flood risk falling
+    under climate change. **Still area share:** surface water
+    (`sw_fractions.csv`, a separate 300-minute fetch). One six-minute
+    pass serves both grains because each postcode row carries its
+    district and its sector. **What the postcode is not:** a home. A
+    unit postcode is ~15 addresses represented by one centroid, so a
+    postcode straddling the extent boundary counts wholly in or wholly
+    out; the address-level answer needs AddressBase, which is licensed
+    and out of scope.
+
 ## Budget: zero, decided 2026-08-31
 
 **The user has decided this project will not spend money.** That is a

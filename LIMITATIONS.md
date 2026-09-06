@@ -61,12 +61,21 @@ NRW's people-at-risk layers (`scripts/validate_flood_ordering.py`,
 `data/flood_validation.csv`). The result is split. In Wales the
 model's ordering agrees with NRW's for sea (Spearman +0.70 against
 `f_high`) and surface water (+0.57 against `sw_high`) and disagrees for
-rivers (-0.13): `f_high` is the fraction of district AREA inside the
-extent, and in valley geography a sliver of floodplain carries most of
-the housing (CF42 is NRW's 7th of 195 and the model's 168th). Area
-share is standing in for household share, and for fluvial flooding it
-is a poor proxy. Scotland is inconclusive (both sides area-based, rho
--0.08 to +0.14). See §7 and HANDOFF 2026-09-05.
+rivers (-0.13), measured on the model as it then stood: `f_high` was
+the fraction of district AREA inside the extent, and in valley
+geography a sliver of floodplain carries most of the housing (CF42 was
+NRW's 7th of 195 and the model's 168th). Area share was standing in
+for household share, and for fluvial flooding it is a poor proxy.
+**Since 2026-09-06 the river/sea fractions are the share of a unit's
+live unit POSTCODES inside the same extents**
+(`scripts/fetch_flood_postcodes.py`, DATA_SOURCES #41), and the same
+validation re-run on that build gives rivers +0.53, all sources +0.59
+and sea +0.19 (mostly ties: area share gave every coastal district a
+little sea risk from its shoreline strip, which happened to track NRW's
+coastal ordering; postcode share gives zero where no home is in the
+zone). Scotland went from +0.14 to +0.22 and stays inconclusive (SEPA's
+side is area-based). Surface water is still an area share (+0.57 as
+measured). See §7 and HANDOFF 2026-09-05 and 2026-09-06.
 
 The scalings applied to reach the ABI level are large:
 
@@ -383,12 +392,16 @@ Also unanchored, and worth naming:
 
 6. **No claims-based validation of geography is possible** (§2). The
    first non-claims validation (2026-09-05, flood, Wales and Scotland)
-   found that **the flood fractions are AREA shares, and for river
-   flooding in valley geography area share is a poor proxy for the
-   share of households** (Wales river: Spearman -0.13 against NRW's
-   people at risk; sea +0.70, surface water +0.57). Household-weighted
-   fractions are a free route in Wales (NRW people-at-risk) and an open
-   availability question in England and Scotland.
+   found that the river/sea flood fractions were AREA shares, and for
+   river flooding in valley geography area share is a poor proxy for
+   the share of households (Wales river: Spearman -0.13 against NRW's
+   people at risk; sea +0.70, surface water +0.57). **Fixed for rivers
+   and sea on 2026-09-06**: the fractions are now the share of each
+   unit's live unit postcodes inside the same extents (rivers +0.53,
+   all sources +0.59 on the re-run). **Still open:** surface water
+   (`sw_fractions.csv`) is an area share, the postcode is a proxy for
+   the home (~15 addresses per unit postcode, centroid not footprint),
+   and the validation itself is a ranking check outside England only.
 7. **Subsidence geology is 1:625,000** — regional scale, not property
    scale, against a peril that varies house by house with foundation
    depth and tree proximity.
