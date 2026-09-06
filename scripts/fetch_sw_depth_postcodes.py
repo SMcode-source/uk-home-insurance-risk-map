@@ -151,6 +151,34 @@ def stage_aggregate(climate):
                          "flags - a part is missing")
     for c in COLS:
         pc[c] = pc[c].astype(bool)
+    # Two physical constraints the per-pixel colour decode does not
+    # guarantee at mask edges (antialiasing, ~2-4% of flagged postcodes):
+    # a point deeper than 0.6 m is deeper than 0.3 m, and a point with a
+    # depth is inside the envelope the frequency uses. Enforce both, with
+    # the envelope from the SAME sampling (fetch_sw_postcodes.py --flags),
+    # so the conditional the severity forms is a share of the same set.
+    env_path = os.path.join(DATA, f"sw_flags_england{suffix}.csv")
+    if not os.path.exists(env_path):
+        raise SystemExit(f"{env_path} missing - run fetch_sw_postcodes.py --flags "
+                         "england" + (" --climate" if climate else "") + " first")
+    env = pd.read_csv(env_path)
+    pc = pc.merge(env, on="postcode", how="left")
+    if pc["in_high"].isna().any():
+        raise SystemExit("envelope flags do not cover every postcode")
+    pc["in_high"] = pc["in_high"].astype(bool)
+    pc["in_low"] = pc["in_low"].astype(bool) | pc["in_high"]
+    before = {c: int(pc[c].sum()) for c in COLS}
+    for k in KEYS:
+        pc[f"{k}_low"] |= pc[f"{k}_high"]
+    for deep, shallow in zip(reversed(KEYS), reversed(KEYS[:-1])):
+        for b in ("high", "low"):
+            pc[f"{shallow}_{b}"] |= pc[f"{deep}_{b}"]
+    for k in KEYS:
+        pc[f"{k}_high"] &= pc["in_high"]
+        pc[f"{k}_low"] &= pc["in_low"]
+    nested = sum(int(pc[c].sum()) - before[c] for c in COLS)
+    print(f"nesting/envelope enforced: net {nested:+,} flags across the "
+          f"{len(COLS)} bands", flush=True)
     print(f"{len(files)} flag files, {len(pc):,} postcodes; "
           + ", ".join(f"{c} {pc[c].mean():.3%}" for c in COLS), flush=True)
 
@@ -166,10 +194,17 @@ def stage_aggregate(climate):
         pa = area.reindex(dist.index.map(area_of)).set_index(dist.index)
         prior = pd.DataFrame({c: (dist[c] + K_PRIOR * pa[c]) / (dist["n"] + K_PRIOR)
                               for c in COLS})
-    rows, thin, outside = [], 0, 0
+    # Coverage comes from the country boundary (data/country.csv), as in
+    # sw_depth_severity: a Scottish district in a postcode area that
+    # straddles the border (DG16 Gretna has five English postcodes) must
+    # not inherit the area's England-only prior. Units outside England
+    # are zero-filled exactly as fetch_sw_depth.py wrote them.
+    country = pd.read_csv(os.path.join(DATA, "country.csv")).set_index("name")["country"]
+    env_file = pd.read_csv(os.path.join(DATA, f"sw_fractions{suffix}.csv")).set_index("name")
+    rows, thin, outside, clipped = [], 0, 0, 0
     for n in names:
         p = n.split(" ")[0] if grain == "sector" else area_of(n)
-        if p not in prior.index:
+        if country.get(n.split(" ")[0], "") != "England" or p not in prior.index:
             outside += 1                     # Wales / Scotland: zero-filled
             rows.append([n] + [0.0] * len(COLS))
             continue
@@ -183,6 +218,16 @@ def stage_aggregate(climate):
         else:
             thin += 1
             vals = pr
+        # A thin unit's envelope was shrunk toward a GB-wide area prior
+        # and its depth toward an England-only one, so after shrinkage a
+        # band can overshoot the envelope by a little (max 0.015 seen):
+        # clip to the envelope the severity will condition on.
+        if n in env_file.index:
+            cap = np.array([env_file.loc[n, "sw_high"] if c.endswith("_high")
+                            else env_file.loc[n, "sw_low"] for c in COLS])
+            if (vals > cap + 1e-12).any():
+                clipped += 1
+                vals = np.minimum(vals, cap)
         rows.append([n] + vals.tolist())
     out = pd.DataFrame(rows, columns=["name"] + COLS)
     out["basis"] = "postcode"
@@ -196,7 +241,7 @@ def stage_aggregate(climate):
     out.to_csv(path, index=False, float_format="%.6f")
     print(f"wrote {path}: {len(out)} {grain}s ({thin} with fewer than {K_PRIOR} "
           f"postcodes, shrunk toward their parent; {outside} outside England, "
-          "zero-filled)", flush=True)
+          f"zero-filled; {clipped} clipped to their envelope)", flush=True)
 
 
 def main():
