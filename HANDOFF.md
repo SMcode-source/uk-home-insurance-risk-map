@@ -168,6 +168,117 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## PUBLISHED 2026-09-06 (second publish): SURFACE WATER and SUBSIDENCE by postcode share, both grains, one push
+
+The user's decision ("keep going publish outstanding") on the two
+MEASURED records below, taken together. Main fast-forwarded to
+`exp/households` in one push (`d959e39` = rebuild run 63 on the exp
+branch; district output blob `068149d9`, byte-identical to the laptop
+interim build; sector output = sector-model run 30 `1840c8b` on
+`exp/households-sector`, crossed as `data/sectors_risk.geojson`, blob
+`d37fbc37`). `sector-model` fast-forwarded to the sector exp branch and
+re-synced with main afterwards (`69716eb`, sector build kept OURS).
+Baselines are this morning's river/sea publish (district `08a13bc5`,
+sector run 26).
+
+**Live verification:** `docs/assets/uk_district_risk.csv` 2,736 rows,
+exposure-weighted premium 169.7478 (PO7 201.3 with `sub_score` 0.881,
+SS3 170.4 / 0.557 and `sup_frac` 0.971, SS17 219.0 with `sw_high`
+0.501, FK12 216.6 / 0.505, HU1 336.5); `uk_sector_risk.csv` 10,398
+rows, 169.7525 (BL8 9 122.3 with `sw_high` 0.059, SN10 4 185.1 /
+`sub_score` 0.814, RG6 9 160.9, L37 2 186.6 / `sw_high` 0.708, HU1 4
+265.3). Fetched with cache bypassed after `publish site` run
+34055857396 and `tests` run 34055857395 both succeeded.
+
+**What went live, against this morning's publish.**
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.7313 -> **169.7478** (+0.016) | 169.7505 -> **169.7525** (+0.002) |
+| exposure-weighted `el_total` | 164.2052 -> 164.2222 | 164.2202 -> 164.2224 |
+| rating group changed | 658 (330 up, 328 down) | 2,440 (1,285 up, 1,155 down) |
+| `premium` moved | 2,710 | 10,230 |
+| hh-weighted \|d premium\| p50 / p90 / p99 | 1.8 / 5.7 / 15.5 | 1.8 / 6.1 / 16.6 |
+| \|d premium\| > 10 / > 20 | 87 / 8 (3.2% / 0.3% of households) | 693 / 187 (3.7% / 0.6%) |
+| largest rises | PO7 +31, SS17 +26, SN10 +26, OX11 +25, BA13 +23, FK12 +23 | SN10 4 +39, RG6 9 +36, BA13 3 +36, BB2 9 +35, W3 3 +34 |
+| largest falls | SS3 -27, SN26 -24, N1C -18, BH6 -17, HP17 -17, CB7 -16 | BL8 9 -119, RH14 4 -91, ME1 9 -85, IP17 9 -73, TQ6 6 -68 |
+| by country, hh-weighted mean d | England +0.06, Wales -0.35, Scotland -0.15 | England +0.01, Wales +0.41, Scotland -0.30 |
+| climate repricing over 2,087 covered districts | +6.2% -> **+6.5%** | |
+| grain nesting, new pair (median) | 0.75% | |
+| Wales `sw_high` vs NRW surface-water people at risk | +0.57 -> **+0.72** (re-run, `flood_validation.csv` unchanged from the sw build) | |
+
+The two changes add almost linearly (658 groups against 402 + 473 with
+overlap; 2,440 against 1,346 + 1,840). The movers are the union of the
+two MEASURED records: the clay towns under chalk downs (PO7, SN10,
+BA13, OX11) and the Thames-estuary surface-water districts (SS17, RM18)
+up; the drift-covered estuary towns (SS3, BH6) and the "9"-suffix
+sectors that carried `sw_high` or `sub_score` at the ceiling by area
+(BL8 9, ME1 9, RH14 4, BR8 9) down. Hull HU1 rises a further +10.6 to
+336.5 because a quarter of its postcodes are in the surface-water
+>=1% band against a tenth of its area.
+
+**What changed in the repo.** `scripts/fetch_sw_postcodes.py` and
+`scripts/score_subsidence_postcodes.py` (new); `scores_real`
+`subsidence_score` reads `data/subsidence_postcodes.csv` and
+`sw_depth_severity` takes its envelope from `sw_fractions_area[_cc].csv`;
+`sector-model.yml`'s surface-water job is `fetch_onspd.py` + `--flags`
+per region + the aggregation (120-minute budget, was 300), the climate
+job likewise with `--climate`, and the model job regenerates the
+subsidence table on a full fetch and commits it; `rebuild.yml` records
+the table as a committed derived CSV. README §1/§3 and the climate
+paragraph (surface-water zone share +35.4% by postcode, was +28.8% by
+area, recomputed by `build_site.climate_band_stats`; the example
+districts re-read), LIMITATIONS §2 and §7.6/7.7, DATA_SOURCES #41
+extended to both, the methodology table and prose, the map popup
+methodology, and the docstrings of `subsidence_from_bgs`,
+`superficial_from_bgs`, `sw_depth_severity` and `fetch_surface_water.py`
+(superseded for the fractions, kept as the mask source and the
+area-share measurement the depth conditional needs). Data at both
+grains: `sw_fractions[_cc].csv` (postcode share),
+`sw_fractions_area[_cc].csv` (area, for depth),
+`subsidence_postcodes.csv`, `flood_validation.csv`; `sw_flags_*.csv`
+gitignored. Tests: 73 passed, 1 skipped locally without the browser
+suite; the full suite passed in `rebuild.yml` pre-flight and in
+`tests` on main.
+
+**Four things the publish found.**
+
+1. **Push everything, then dispatch.** The first sector run (29) was
+   dispatched, and three more commits were pushed to the branch while
+   it ran; its bot commit would have been based on the old tip and its
+   push refused as non-fast-forward. Cancelled and re-dispatched from
+   the new tip (run 30). The rule: a `sector-model.yml` or
+   `rebuild.yml` dispatch is the LAST thing that touches its branch
+   until the bot has pushed.
+2. **The `sector-model` branch carries its own `sector-model.yml`**
+   (the ct-bands note and `data/ct_bands.csv` in the commit list), so
+   every workflow edit merged into it conflicts on that file. Expect
+   it; resolve by keeping both lists.
+3. **Exact-text edits through shell quoting ate a backslash twice.**
+   The resolution of that conflict was written through a bash heredoc
+   into python and lost the line continuation (the two `git add` lines
+   ran together, still valid shell); the fix through `python -c` in
+   double quotes wrote a literal `\n` (NOT valid: `git add ... n`),
+   and was committed and pushed before it was read back (`5feb62d`).
+   The Edit tool got it right. Files that carry backslashes or quotes
+   get edited with a tool that takes the text verbatim, and a
+   workflow edit gets `cat -A` before it is pushed.
+4. **`merge | tail` let a failed merge fall through to the push and the
+   dispatch** - the pipe's exit code is `tail`'s. Same rule as pytest:
+   never let a pipe stand in for the exit code of the thing that
+   matters.
+
+**Not tested on a runner:** the rewritten surface-water job and the
+subsidence step of `sector-model.yml` ran under `skip_fetch=true` on
+the committed sector-grain tables, as the flood job did this morning.
+The commands are the ones the laptop ran; the YAML is not exercised
+until the next full sector fetch. The first full run will tell.
+
+**Worktrees done:** `.worktrees/hygiene` (`exp/households`),
+`.worktrees/flood-hh` (`exp/sw-households`, its uncommitted laptop
+build is superseded), `.worktrees/flood-hh-sector`
+(`exp/households-sector`). All merged; branches on origin.
+
 ## MEASURED 2026-09-06 (third): SUBSIDENCE GEOLOGY at the unit postcodes, both grains - not published
 
 "Keep going, what is next" after the surface-water measurement. Same
