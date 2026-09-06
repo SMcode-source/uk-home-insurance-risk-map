@@ -168,6 +168,96 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-06: flood fractions by POSTCODE share, not area share - the largest candidate since Gate 2
+
+Not published. The user's decision. Branches `exp/flood-households`
+(district: 5f4698a, script + fractions) and
+`exp/flood-households-sector` (sector: 489ef02 + bot runs 24/25 on CI).
+
+**Why.** The 2026-09-05 validation found the model's Welsh river
+ordering at Spearman -0.13 against NRW's people at risk per household
+because `f_high`/`f_low` are the share of a unit's AREA inside the
+extent, and valley towns keep their housing on a sliver of floodplain.
+`scripts/fetch_flood_postcodes.py` samples the SAME EA/NRW/SEPA extents
+(the WMS masks and SEPA vectors fetch_flood.py uses) at every live
+small-user unit-postcode centroid from ONSPD (1,675,166 in GB) and
+takes the share of a unit's postcodes inside. One six-minute pass
+serves both grains, because each postcode row carries its district and
+its sector - no five-hour sector fetch.
+
+**Fraction-level evidence, Wales, before any model run** (Spearman
+against NRW people at risk per household, 195 districts): area
+`f_high` vs rivers -0.13, postcode share +0.42; area `f_low` vs rivers
+-0.06, postcode +0.58; postcode `f_low` vs river+sea +0.75 (area
++0.38). CF42 (Treorchy) goes from the model's 7th-LOWEST by area to
+166th of 195 by postcode share; NRW has it 165th.
+
+**Model-level evidence, the validation re-run on the new district
+build** (`el_fl` against NRW): all sources +0.17 -> **+0.59**; rivers
+-0.07 -> **+0.53**; sea +0.69 -> +0.19 (largely ties: area gave every
+coastal district a little sea risk from its shoreline strip, which
+tracked NRW's coastal ordering; postcode share gives zero when no home
+is in the zone); Scotland, area in SEPA AAD band >= 5, +0.14 -> +0.22.
+
+**Thin units, and the one modelling choice.** A unit with two live
+postcodes can only be 0, 1/2 or 1. 76 districts and 412 sectors have
+fewer than 20 postcodes (0.04% and 0.27% of households); unshrunk, 359
+of those sectors landed on exactly 0 or 1 and PH44 (one postcode) went
++143 on its premium. So each unit's share is the beta-binomial
+posterior mean with its parent's share as the prior and a prior weight
+of `K_PRIOR = 20` postcodes (~300 addresses): sector -> district,
+district -> postcode area, and the district prior is itself shrunk
+toward the area so a sector in a one-postcode district does not
+inherit a one-postcode prior. With hundreds of postcodes the prior is
+a rounding error. The 816 sectors with no live postcode in this ONSPD
+vintage (0.46% of households) take their district's share. The
+hierarchical prior was added after the sector CI run: it changes 96
+sectors by more than 0.01 and 6 by more than 0.1, so the sector delta
+below is representative to that extent and a publish run would
+regenerate it exactly.
+
+**Deltas, both grains, against the published OSTN15 build** (district:
+laptop, grid-visible, now CI-equivalent; sector: CI run 25, bot on the
+exp sector branch).
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.6485 -> 169.7320 (+0.08) | 169.6636 -> 169.7501 (+0.09) |
+| exposure-weighted `el_total` | 164.1216 -> 164.2052 | 164.1354 -> 164.2199 |
+| exposure-weighted `capital` | 5.5270 -> 5.5268 | 5.5279 -> 5.5297 |
+| rating group changed | 1,275 (679 up, 596 down; 365 by >1 step) | 4,573 |
+| `premium` moved | 2,719 | 10,343 |
+| household-weighted \|d premium\| p50 / p90 / p99 | 4.2 / 15.0 / 41.3 | 4.4 / 18.0 / 51.0 |
+| \|d premium\| > 20 | 224 districts, 6.0% of households | 1,102 sectors, 8.3% |
+| largest rise | HU1 217.7 -> 325.8 (`f_high` 0.45 -> 0.97) | HU1 4 105.7 -> 252 |
+| largest fall | LA4 -73.4 (`f_high` 0.72 -> 0.06) | RH8 8 -111 (area 1.00 -> 0.04) |
+| by country, hh-weighted mean d premium | England +0.33, Wales +0.09, Scotland -2.22 | - |
+
+The level barely moves - `calibrate_frequency` re-pins flood to the
+ABI figure - and the geography moves a great deal, which is what a
+denominator change should do. The movers are the argument: Hull's
+HU1/HU3/HU4/HU13 rise 69-108 with nearly every home inside the defended
+1-in-100 zone; Morecambe (LA4), Sheerness (ME11), Dundee (DD1),
+Heswall (CH60) and Liverpool's Speke and Garston (L24, L19) fall 64-73
+with broad estuary, mudflat and dock extents that hold few homes. At
+the sector grain the published model was carrying `f_high = 1.0` for a
+number of "9"-suffix sectors (RH8 8, HD9 9, SA8 9, NP15 9: tiny
+polygons drawn wholly inside an extent) that have no live small-user
+postcode at all; they fall by ~105 to their district's share. Scotland
+falls on average because SEPA's likelihood polygons are broad over
+sparsely housed straths and the postcode share is lower than the area
+share almost everywhere there.
+
+**What would be needed to publish.** (1) `sector-model.yml`'s flood job
+and `rebuild.yml` run `fetch_onspd.py` then `fetch_flood_postcodes.py`
+instead of `fetch_flood.py` - ONSPD is a free ~250 MB download from the
+ONS geoportal that has never been fetched from a runner; (2) the
+ordering rule as usual; (3) LIMITATIONS §2/§3/§7 rewritten for the
+new denominator, DATA_SOURCES entry for ONSPD-as-weight; (4) surface
+water is STILL an area share (`sw_fractions.csv`, a separate 300-minute
+fetch) and would be the obvious follow-up, though its validation was
+the healthier one (+0.57). NOT done here: none of that.
+
 ## PUBLISHED 2026-09-05 (third): OSTN15 at both grains, hygiene merged, one push
 
 The user's decision on the two items left open below: "merge the
