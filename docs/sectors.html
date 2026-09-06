@@ -300,7 +300,7 @@ page</a>.</p>
   <p><b>Perils &mdash; real open data.</b> The <b>subsidence score</b> is BGS 625k bedrock
   geology classified for shrink&ndash;swell susceptibility (London Clay/Thames Group,
   Gault, Oxford &amp; Kimmeridge Clays, Mercia Mudstone&hellip;; pre-Mesozoic mudstones
-  down-weighted), area-weighted over each district. The <b>weather score</b> blends
+  down-weighted), read at each unit postcode and averaged over the district. The <b>weather score</b> blends
   Met Office grids interpolated to each district: winter mean wind speed (5&nbsp;km),
   the annual wind-driven rain index for SW-facing walls (5&nbsp;km), annual count of
   &ge;10&nbsp;mm rain days and annual precipitation (HadUK-Grid observations 1991&ndash;2020).</p>
@@ -468,7 +468,7 @@ const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
    works while "the loaded features" means all of them. Under vector
    tiles it means the viewport's, so the scale (and the legend printed
    from it) would shift as you panned. Fixed nationally, once. */
-const BREAKS = {"premium":[132.1,145.5,157.7,171,186.8,214.2],"var995_vine":[4896.1,5398.2,5882.2,6442.1,7193.4,8602.8],"capital":[4.2238,4.7136,5.1498,5.6056,6.1795,7.059],"er_head":[0.0005,0.0016,0.0038,0.0074,0.0123,0.0206]};
+const BREAKS = {"premium":[131.7,145.1,157.7,170.5,186.5,213.9],"var995_vine":[4879.5,5385.4,5861.4,6427.5,7174.2,8577],"capital":[4.2176,4.711,5.1397,5.6089,6.1721,7.0414],"er_head":[0.0005,0.0016,0.0038,0.0074,0.0123,0.0206]};
 /* Household-weighted median premium across the whole country - the
    anchor the relative-risk page divides by. Weighted by households, not
    by unit, so a sparse rural district counts as its people, not as one
