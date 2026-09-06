@@ -169,12 +169,18 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
      for shrink–swell susceptibility (London Clay/Thames Group 1.0, Gault/Weald/
      Oxford/Kimmeridge/Ampthill Clays 0.9, … Mercia Mudstone 0.45; generic
      mudstone keywords down-weighted ×0.3 for pre-Mesozoic indurated rocks), then
-     **area-weighted onto each district** by polygon intersection in British
-     National Grid. This mirrors how BGS GeoSure's shrink–swell layer is derived.
+     **read at every live unit postcode** (ONSPD centroids, point-in-polygon in
+     British National Grid) and averaged over each district's postcodes, shrunk
+     toward the postcode area under 20 postcodes
+     (`scripts/score_subsidence_postcodes.py`; postcode share since 2026-09-06 —
+     area-weighted by polygon intersection before, which read a district whose
+     clay lies under fields and whose homes stand on gravel terraces as clay).
+     This mirrors how BGS GeoSure's shrink–swell layer is derived.
      The **625k superficial map** (`--superficial`) is then blended in as a
      modifier, because shrink–swell happens in the soil shallow foundations bear
      on and drift covers ~58% of GB: `sub = (1 − W·cover)·bedrock + W·cover·drift`
-     with **W = 0.5**. Its 14 deposits are enumerated explicitly rather than
+     with **W = 0.5**, where `cover` is the share of the district's postcodes on
+     a classified deposit (57% of households; 50% by area). Its 14 deposits are enumerated explicitly rather than
      keyword-matched (lacustrine clay 0.75, clay-with-flints 0.70, brickearth
      0.60, alluvium 0.50, till 0.45, granular deposits 0.05), so an unrecognised
      one raises instead of defaulting. **Peat is excluded** — it subsides by
@@ -234,13 +240,20 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    with the High/Medium/Low category colours decoded per pixel), **NRW** FRAW
    surface water for Wales (20 m/px; see `merge_sw_wales.py`), **SEPA**
    surface-water likelihood maps for Scotland (20 m/px, `layers=show:<id>`
-   because the sublayers are default-hidden). `sw_high` (≥1% AEP) adds ~1%/yr
+   because the sublayers are default-hidden). The masks are sampled at every
+   live unit-postcode centroid (`scripts/fetch_sw_postcodes.py`), so `sw_high` /
+   `sw_low` are the share of a district's postcodes in the ≥1% AEP band and in
+   the whole envelope, shrunk toward the postcode area under 20 postcodes
+   (postcode share since 2026-09-06; area share before). `sw_high` adds ~1%/yr
    claim frequency at full coverage; surface-water severity is modelled cheaper
    (median ~£15k vs ~£30k river/sea) via a probability-weighted lognormal mix.
    - **Depth-conditioned severity** (`scripts/fetch_sw_depth.py`). The same EA
      WMS carries five nested depth layers (>0.2/0.3/0.6/0.9/1.2 m). Their
      differences give, for each district, the depth distribution *within* its
-     flooded area, which is turned into an expected-damage relativity using
+     flooded area (taken against the area-share envelope, kept as
+     `sw_fractions_area.csv`, because the depth layers are area measurements;
+     the postcode share is the frequency denominator only), which is turned
+     into an expected-damage relativity using
      the usual UK depth–damage shape (damage climbs steeply through the first
      half-metre as water passes floor level and reaches sockets, then flattens
      once the ground floor is written off). The multiplier is **renormalised
@@ -571,13 +584,13 @@ Stated plainly, four limits:
 The direction of travel is not subtle. Averaged over England's districts, the share
 of a district's homes (unit postcodes) inside the 1-in-100/200 river/sea zone grows
 **+87.7%** (by area it was +37.7%: the future extent grows into settled land, not
-just marsh) and the share of area inside the surface-water ≥1% AEP zone
-**+28.8%**. Low-lying coast and estuary carry the fluvial/tidal side — TA9 on the
+just marsh) and the share of homes inside the surface-water ≥1% AEP zone
+**+35.4%** (by area it was +28.8%). Low-lying coast and estuary carry the fluvial/tidal side — TA9 on the
 Somerset Levels goes from 6% to **91%** of its postcodes, PE21 (Boston) 12% → 79%,
 TS2 (Teesside) 15% → 71%, DN32 (Grimsby) 5% → 95%, LA4 (Morecambe) 6% → 85% —
 while surface water concentrates on dense urban drainage:
-EC4R 8% → 27%, SW8 (Nine Elms) 16% → 32%, RM9 (Dagenham) 37% → 53%, E8
-(Hackney) 36% → 52%.
+SW8 (Nine Elms) 14% → 33%, N1C (King's Cross) 10% → 26%, E8 (Hackney)
+32% → 48%, RM9 (Dagenham) 38% → 52%.
 
 ## Coastal erosion: modelled, not priced
 

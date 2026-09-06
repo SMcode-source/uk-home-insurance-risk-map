@@ -74,8 +74,10 @@ and sea +0.19 (mostly ties: area share gave every coastal district a
 little sea risk from its shoreline strip, which happened to track NRW's
 coastal ordering; postcode share gives zero where no home is in the
 zone). Scotland went from +0.14 to +0.22 and stays inconclusive (SEPA's
-side is area-based). Surface water is still an area share (+0.57 as
-measured). See §7 and HANDOFF 2026-09-05 and 2026-09-06.
+side is area-based). Surface water moved to postcode share the same
+day (`scripts/fetch_sw_postcodes.py`): +0.57 -> +0.72
+against NRW's surface-water people at risk. See §7 and HANDOFF
+2026-09-05 and 2026-09-06.
 
 The scalings applied to reach the ABI level are large:
 
@@ -398,13 +400,21 @@ Also unanchored, and worth naming:
    people at risk; sea +0.70, surface water +0.57). **Fixed for rivers
    and sea on 2026-09-06**: the fractions are now the share of each
    unit's live unit postcodes inside the same extents (rivers +0.53,
-   all sources +0.59 on the re-run). **Still open:** surface water
-   (`sw_fractions.csv`) is an area share, the postcode is a proxy for
+   all sources +0.59 on the re-run). Surface water followed the same
+   day (+0.57 -> +0.72), and the subsidence geology is
+   read at the unit postcodes since 2026-09-06 too (§7.7). **Still
+   open:** the postcode is a proxy for
    the home (~15 addresses per unit postcode, centroid not footprint),
    and the validation itself is a ranking check outside England only.
 7. **Subsidence geology is 1:625,000** — regional scale, not property
    scale, against a peril that varies house by house with foundation
-   depth and tree proximity.
+   depth and tree proximity. Since 2026-09-06 it is read at each unit
+   postcode rather than area-weighted over the district polygon
+   (`scripts/score_subsidence_postcodes.py`): that moves who carries
+   the clay (Waterlooville and Devizes up, Shoeburyness and Windsor
+   down; drift cover 50% -> 57% of households) but not the scale of the
+   map, and unlike the flood change it has no external ordering to be
+   validated against.
 8. **Hargreaves-Samani PET overestimates UK evapotranspiration** by about
    a third (668–697 mm modelled against a true 450–550). A known weakness
    of the method in humid maritime climates. The bias does **not** cancel
