@@ -65,6 +65,20 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+      # fetch_onspd.py reprojects ONSPD lat/long to British National Grid
+      # and refuses to run without the OSTN15 grid (a Helmert fallback
+      # would put every centroid ~1.75 m off the model's own transform).
+      # Same step and hash as the model job below. Found by the first
+      # full fetch after the postcode-share publish (run 34056186038):
+      # both jobs died here in 5 seconds, before touching any service.
+      - name: Install the OSTN15 datum grid
+        run: |
+          dir=$(python -c "from pyproj import datadir; print(datadir.get_user_data_dir())")
+          mkdir -p "$dir"
+          curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" \
+            https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
+          echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" \
+            | sha256sum -c
       - run: python -u scripts/fetch_onspd.py
       - run: python -u scripts/fetch_flood_postcodes.py
       - uses: actions/upload-artifact@v4
@@ -90,6 +104,20 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+      # fetch_onspd.py reprojects ONSPD lat/long to British National Grid
+      # and refuses to run without the OSTN15 grid (a Helmert fallback
+      # would put every centroid ~1.75 m off the model's own transform).
+      # Same step and hash as the model job below. Found by the first
+      # full fetch after the postcode-share publish (run 34056186038):
+      # both jobs died here in 5 seconds, before touching any service.
+      - name: Install the OSTN15 datum grid
+        run: |
+          dir=$(python -c "from pyproj import datadir; print(datadir.get_user_data_dir())")
+          mkdir -p "$dir"
+          curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" \
+            https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
+          echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" \
+            | sha256sum -c
       - run: python -u scripts/fetch_onspd.py
       - run: python -u scripts/fetch_sw_postcodes.py --flags england
       - run: python -u scripts/fetch_sw_postcodes.py --flags wales
@@ -129,6 +157,20 @@ jobs:
       # future shares the present-day denominator; the area-share
       # climate envelope for the depth conditional stays committed as
       # sw_fractions_area_cc.csv.
+      # fetch_onspd.py reprojects ONSPD lat/long to British National Grid
+      # and refuses to run without the OSTN15 grid (a Helmert fallback
+      # would put every centroid ~1.75 m off the model's own transform).
+      # Same step and hash as the model job below. Found by the first
+      # full fetch after the postcode-share publish (run 34056186038):
+      # both jobs died here in 5 seconds, before touching any service.
+      - name: Install the OSTN15 datum grid
+        run: |
+          dir=$(python -c "from pyproj import datadir; print(datadir.get_user_data_dir())")
+          mkdir -p "$dir"
+          curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" \
+            https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
+          echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" \
+            | sha256sum -c
       - run: python -u scripts/fetch_onspd.py
       - run: python -u scripts/fetch_sw_postcodes.py --flags england --climate
       - run: python -u scripts/fetch_sw_postcodes.py --climate
@@ -190,16 +232,6 @@ jobs:
           SUMS
           python -u scripts/fetch_bgs.py --verify
 
-      # The subsidence geology is read at the unit postcodes since
-      # 2026-09-06 (score_subsidence_postcodes.py, ~3 minutes): the
-      # table is a committed model input like the flood fractions and
-      # is regenerated here whenever the hazard data is refetched.
-      - name: Subsidence geology at the unit postcodes
-        if: ${{ !inputs.skip_fetch && !inputs.climate }}
-        run: |
-          python -u scripts/fetch_onspd.py
-          python -u scripts/score_subsidence_postcodes.py
-
       # Same datum grid as rebuild.yml, so both grains transform WGS84
       # to British National Grid the same way (the published model uses
       # OSTN15 since 2026-09-05; a runner without it falls back to the
@@ -212,6 +244,18 @@ jobs:
           curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif"             https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
           echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif"             | sha256sum -c
           python -c "from pyproj.transformer import TransformerGroup as G; print('proj pipeline', G(4326, 27700, always_xy=True).transformers[0].description)"
+
+      # The subsidence geology is read at the unit postcodes since
+      # 2026-09-06 (score_subsidence_postcodes.py, ~3 minutes): the
+      # table is a committed model input like the flood fractions and
+      # is regenerated here whenever the hazard data is refetched.
+      # After the OSTN15 step: it transforms the BGS layers to British
+      # National Grid and must use the model's own transform.
+      - name: Subsidence geology at the unit postcodes
+        if: ${{ !inputs.skip_fetch && !inputs.climate }}
+        run: |
+          python -u scripts/fetch_onspd.py
+          python -u scripts/score_subsidence_postcodes.py
 
       - name: Build the sector model
         env:
