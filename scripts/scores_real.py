@@ -679,10 +679,12 @@ def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
 
     keys = [k for k, _, _ in DEPTH_BANDS if k]
     table = {}
+    basis = "area"
     with open(path, newline="") as fh:
         for row in csv.DictReader(fh):
             table[row["name"]] = ([float(row[f"{k}_high"]) for k in keys],
                                   [float(row[f"{k}_low"]) for k in keys])
+            basis = row.get("basis", "area")
     blank = ([0.0] * len(keys), [0.0] * len(keys))
     frac_hi = np.array([table.get(n, blank)[0] for n in names])
     frac_lo = np.array([table.get(n, blank)[1] for n in names])
@@ -695,9 +697,15 @@ def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
     # area-share file is kept alongside as sw_fractions_area[_cc].csv;
     # where it exists it supplies the envelope here, per district, and
     # the caller's values (frequency's denominator) are left alone.
+    # A table written by fetch_sw_depth_postcodes.py carries basis =
+    # "postcode": its bands are shares of the unit's postcodes, and the
+    # envelope to condition on is the caller's postcode share as it is.
     area_name = "sw_fractions_area_cc.csv" if climate else "sw_fractions_area.csv"
     area_path = os.path.join(DATA, area_name)
-    if os.path.exists(area_path):
+    if basis == "postcode":
+        print(f"  sw depth: {fname} is by postcode share; envelope is the "
+              "caller's postcode-share sw_high / sw_low")
+    elif os.path.exists(area_path):
         env_hi, env_lo = env_hi.copy(), env_lo.copy()
         with open(area_path, newline="") as fh:
             area_env = {row["name"]: (float(row["sw_high"]), float(row["sw_low"]))
