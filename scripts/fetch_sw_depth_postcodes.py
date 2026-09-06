@@ -204,7 +204,10 @@ def stage_aggregate(climate):
     rows, thin, outside, clipped = [], 0, 0, 0
     for n in names:
         p = n.split(" ")[0] if grain == "sector" else area_of(n)
-        if country.get(n.split(" ")[0], "") != "England" or p not in prior.index:
+        # country.csv is keyed by the checkout's own grain (sector names on
+        # the sector branch), so look the unit up before its district
+        unit_country = country.get(n, country.get(n.split(" ")[0], ""))
+        if unit_country != "England" or p not in prior.index:
             outside += 1                     # Wales / Scotland: zero-filled
             rows.append([n] + [0.0] * len(COLS))
             continue
