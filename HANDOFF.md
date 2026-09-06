@@ -168,6 +168,97 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-06 (third): SUBSIDENCE GEOLOGY at the unit postcodes, both grains - not published
+
+"Keep going, what is next" after the surface-water measurement. Same
+programme, third denominator: the subsidence score was still
+AREA-weighted over each unit's polygon (`subsidence_from_bgs`,
+`superficial_from_bgs`), so a district whose clay lies under fields and
+whose houses stand on gravel terraces read as clay. No fetch needed: the
+two BGS 625k GeoJSONs and the ONSPD centroids are already inputs.
+Branches `exp/sub-households` (district, bdd2407; laptop build output
+in `.worktrees/hygiene`, NOT committed) and `exp/sub-households-sector`
+(sector, 2e88abe + bot run 28 `6f772bf`). Baselines are the postcode-share
+publish (district 08a13bc5, sector run 26). Publishing is the user's
+decision.
+
+**Method.** `scripts/score_subsidence_postcodes.py` classifies the SAME
+layers with the SAME tables (`classify_susceptibility`, `SUP_SUSCEP`,
+`SUP_EXCLUDED`) at every live small-user unit postcode (STRtree
+point-in-polygon; 5,239 coastal postcodes outside every bedrock polygon
+take the nearest, `all_matches=False` because three of them tie), then
+aggregates bedrock susceptibility, superficial cover and superficial
+susceptibility to the checkout's grain with the hierarchical
+beta-binomial shrinkage of the flood scripts (K_PRIOR = 20). The popup
+formations become the bedrock under the most postcodes among clay
+formations and the drift under the most postcodes. Writes
+`data/subsidence_postcodes.csv`; `scores_real.subsidence_score` reads it
+when present and keeps the area-weighted reading for any unit it does
+not carry (NG90 1-7, the Boots non-geographic sectors, are the only
+ones). `combine_subsidence` and the ABI calibration are untouched:
+only which units carry the clay moves. ~3 minutes per grain.
+
+**What moved before any model run.** Superficial cover 50.1% -> 56.7%
+of households (homes cluster on drift: river terraces, alluvium,
+brickearth); the bedrock/superficial mix therefore shifts toward drift.
+District `sub_score` old vs new Spearman 0.948, |d| p50 0.021 / p99
+0.189; 159 popup formations change. Sector 0.957.
+
+**Deltas, both grains, against the publish of this morning.**
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.7313 -> 169.7313 (-0.0001) | 169.7505 -> 169.7503 (-0.0002) |
+| rating group changed | 402 (202 up, 200 down) | 1,346 (669 up, 677 down) |
+| `premium` moved | 2,622 | 9,850 |
+| hh-weighted \|d premium\| p50 / p90 / p99 | 0.8 / 4.2 / 13.8 | 0.6 / 4.0 / 13.4 |
+| \|d premium\| > 10 / > 20 | 61 / 5 (2.4% of households over 10) | 301 / 61 (0.3% of households over 20) |
+| largest rise | PO7 Waterlooville 170 -> 197, `sub_score` 0.54 -> 0.88 | RG6 9 125 -> 164 (249 hh) |
+| largest fall | SS3 Shoeburyness 198 -> 167, 0.91 -> 0.56, cover 0.27 -> 0.97 | BR8 9 167 -> 131 (160 hh) |
+| by country, hh-weighted mean d | England -0.08, Wales +0.32, Scotland +0.61 | - |
+| grain nesting, new pair (median) | 0.77% | |
+
+Movers read as the geology: Waterlooville (PO7), Devizes (SN10),
+Westbury (BA13), Didcot (OX11), Bishop's Waltham (SO32) and Wantage
+(OX12) rise 17-27 because the town sits on the London Clay or the Gault
+while the downs and the Plain that fill the polygon are chalk;
+Shoeburyness (SS3), Windsor (SL4), Burnham-on-Crouch (CM0), Southbourne
+(BH6), Southend (SS1) and Biggleswade (SG18) fall 15-30 because 70-98% of
+their homes are on mapped terrace, alluvium or brickearth, not on the
+clay the polygon is mostly made of. The clay belt as a whole is
+unchanged (England hh-weighted mean -0.08; the calibration re-pins the
+level; `el_sub` 19.807 -> 19.805 hh-weighted). At the sector grain the
+"9"-suffix pattern appears a third time: BR8 9, RM15 9, WD23 9, SW17 1,
+N14 9 carried `sub_score` 1.000 with cover 0.000 by area (a tiny polygon
+entirely on one clay outcrop) and now sit at 0.60-0.67 with the district
+prior and their real drift cover.
+
+**No external validation exists for this one.** The flood change had
+NRW's people-at-risk to test against; subsidence has the ABI level
+(which the calibration pins, so it cannot move) and no free
+claims-by-district series. The evidence is (a) the movers' geology is
+checkable against the BGS viewer town by town and reads right in every
+case looked at, (b) the level and the national ranking are stable
+(Spearman 0.95), and (c) the same denominator argument that validated
++0.17 -> +0.59 for river flooding. That is weaker than the flood case
+and the record should say so.
+
+**What publishing would need.** (1) `sector-model.yml` and
+`rebuild.yml`: run `fetch_onspd.py` (already in the sector flood job)
+and `score_subsidence_postcodes.py` after `fetch_bgs.py`, or commit the
+table as a model input at both grains (it is 2,736 / 10,392 rows; both
+exp branches already commit it). (2) The ordering rule with the
+interim-pair step (1,346 sector groups move; the guard will fire).
+(3) README §3, the methodology subsidence rows ("area-weighted" ->
+postcodes), LIMITATIONS §3 (the BGS 625k paragraph), DATA_SOURCES #41
+extended to subsidence, the docstrings of `subsidence_from_bgs` /
+`superficial_from_bgs` marked superseded-when-table-present. NOT done
+here: none of that.
+
+**Remaining area-share inputs after this one:** surface-water DEPTH
+(`sw_depth.csv`, by design for now) and coastal erosion frontage
+shares. Each is smaller than the three measured today.
+
 ## MEASURED 2026-09-06 (second): SURFACE WATER by postcode share, both grains - not published
 
 The user asked for "the same for surface water" after the river/sea
