@@ -8,7 +8,10 @@ name: rebuild model
 # CSVs) or refetched here (boundaries + the two BGS geology layers, which
 # are gitignored as large and refetchable). data/ea_postcode_risk.csv is a
 # manual download and is NOT needed: the derived data/gw_fractions.csv is
-# committed.
+# committed. So is data/subsidence_postcodes.csv (the BGS geology read at
+# the unit postcodes since 2026-09-06): regenerate it from a laptop with
+# scripts/score_subsidence_postcodes.py after fetch_bgs.py and
+# fetch_onspd.py, as sector-model.yml does on a full fetch.
 on:
   workflow_dispatch:
     inputs:

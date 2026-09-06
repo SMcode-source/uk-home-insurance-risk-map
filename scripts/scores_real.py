@@ -1,7 +1,10 @@
 """Real-data peril scores.
 
 Subsidence: BGS 625k bedrock geology (OGL) classified for shrink-swell
-susceptibility per formation, area-weighted onto each postcode district.
+susceptibility per formation, read at each live unit postcode and averaged
+over the district (data/subsidence_postcodes.csv from
+score_subsidence_postcodes.py, since 2026-09-06; area-weighted by polygon
+intersection when the table is absent).
 The formation ranking follows the BGS shrink-swell (GeoSure) literature:
 Palaeogene/Cretaceous/Jurassic over-consolidated clays rank highest.
 
@@ -81,6 +84,11 @@ def subsidence_from_bgs(districts_bng: gpd.GeoDataFrame):
 
     districts_bng: GeoDataFrame in EPSG:27700.
     Returns (score array in [0,1], dominant formation name array).
+
+    SUPERSEDED for the published model on 2026-09-06: subsidence_score()
+    reads data/subsidence_postcodes.csv (the same classification at every
+    unit postcode, score_subsidence_postcodes.py) and keeps this
+    area-weighted reading only for units the table does not carry.
     """
     geo = gpd.read_file(os.path.join(DATA, "bgs_625k_bedrock.geojson"))
     geo = geo.set_crs(4326, allow_override=True).to_crs(27700)
@@ -174,6 +182,10 @@ def superficial_from_bgs(districts_bng: gpd.GeoDataFrame):
     Returns (score, cover_fraction, dominant_deposit). `cover_fraction`
     counts only CLASSIFIED deposits - peat and unmapped drift are excluded,
     so those areas fall through to bedrock instead of being scored.
+
+    SUPERSEDED for the published model on 2026-09-06 in the same way as
+    subsidence_from_bgs(): the table carries cover and susceptibility by
+    postcode share (drift cover 50% -> 57% of households).
 
     Missing layer -> zero cover, which makes combine_subsidence() a no-op
     and leaves the bedrock score exactly as it was.
@@ -635,6 +647,12 @@ def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
     it into one envelope-wide average dilutes exactly the signal being
     measured. The residual 1-in-1000 fringe is shallower and claims five
     times less often, so it is weighted accordingly.
+
+    The envelope the conditional is taken against is the AREA-share one
+    (data/sw_fractions_area[_cc].csv), not the postcode-share sw_high /
+    sw_low the frequency uses since 2026-09-06: the depth layers are area
+    measurements and dividing them by a postcode-share envelope corrupts
+    the conditional.
 
     England only - NRW and SEPA publish no equivalent depth product, so
     Welsh and Scottish districts (and any English district with no mapped

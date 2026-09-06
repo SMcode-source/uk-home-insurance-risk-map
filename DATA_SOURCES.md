@@ -1506,8 +1506,9 @@ districts**, used as the exposure weight throughout.
     is the honest description of every committed hazard table.
 
 41. **ONS Postcode Directory (ONSPD) unit-postcode centroids as the
-    flood DENOMINATOR - river/sea flood fractions by postcode share,
-    LIVE at both grains since 2026-09-06.** The ONSPD extract that
+    hazard DENOMINATOR - river/sea and surface-water flood fractions
+    and the subsidence geology by postcode share, LIVE at both grains
+    since 2026-09-06.** The ONSPD extract that
     `scripts/fetch_onspd.py` already downloads (ONS Open Geography
     portal, OGL v3, ~250 MB, `data/postcode_centroids.csv`; large-user
     postcodes excluded, live small-user units only) is read by
@@ -1542,10 +1543,37 @@ districts**, used as the exposure weight throughout.
     `flood_fractions_cc.csv` shares the denominator; the climate run
     substitutes one for the other, so an area-share future against a
     postcode-share present would have reported Hull's flood risk falling
-    under climate change. **Still area share:** surface water
-    (`sw_fractions.csv`, a separate 300-minute fetch). One six-minute
-    pass serves both grains because each postcode row carries its
-    district and its sector. **What the postcode is not:** a home. A
+    under climate change. One six-minute pass serves both grains
+    because each postcode row carries its district and its sector.
+
+    **Surface water, the same day:** `scripts/fetch_sw_postcodes.py
+    --flags REGION` samples the surface-water masks
+    `fetch_surface_water.py` rasterises (EA rofsw category colours at
+    13 m/px, NRW FRAW at 20 m, SEPA likelihood MapServers at 20 m) at
+    the same centroids, ~10-15 minutes per region, and the default run
+    aggregates the flags to the grain with the same shrinkage;
+    `--climate` does the EA `rofsw_cc01` edition. Wales `sw_high`
+    against NRW's surface-water people at risk: +0.57 by area,
+    +0.72 by postcode share. The depth product
+    (`sw_depth.csv`, #7) stays an AREA measurement and its conditional
+    is taken against the area-share envelope kept as
+    `sw_fractions_area[_cc].csv`: dividing area-share depth by a
+    postcode-share envelope corrupts the conditional. Frequency from
+    where the homes are; depth, given a home is in the water, from the
+    water.
+
+    **Subsidence, the same day:** `scripts/score_subsidence_postcodes.py`
+    classifies the BGS 625k bedrock and superficial layers (#2) at the
+    same centroids with the same susceptibility tables and writes
+    `data/subsidence_postcodes.csv` (bedrock susceptibility, drift cover
+    and drift susceptibility per unit, same shrinkage), which
+    `scores_real.subsidence_score` reads in place of the area-weighted
+    polygon intersection. Drift cover goes from 50% to 57% of
+    households, the headline does not move, 402 districts and 1,346
+    sectors change rating group (Waterlooville +£27, Shoeburyness
+    -£30), and there is no external ordering to validate it against:
+    the evidence is the town-by-town geology and the same denominator
+    argument. **What the postcode is not:** a home. A
     unit postcode is ~15 addresses represented by one centroid, so a
     postcode straddling the extent boundary counts wholly in or wholly
     out; the address-level answer needs AddressBase, which is licensed

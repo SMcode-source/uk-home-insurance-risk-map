@@ -16,6 +16,15 @@ existing data/sw_fractions.csv for regions not re-run)
 
 Output: data/sw_fractions.csv (name, sw_high, sw_low), area fractions,
 sw_low includes sw_high.
+
+SUPERSEDED for the model's surface-water fractions on 2026-09-06 by
+fetch_sw_postcodes.py, which samples the SAME masks (masks_for_tile,
+REGIONS) at every unit-postcode centroid and writes the share of
+postcodes instead of the share of area. This module stays as the mask
+source and as the AREA-share measurement the depth conditional needs
+(data/sw_fractions_area.csv); running it directly would overwrite the
+committed postcode-share file with area shares - copy the output to
+sw_fractions_area.csv instead.
 """
 
 import csv

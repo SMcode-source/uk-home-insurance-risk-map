@@ -71,9 +71,18 @@ jobs:
         with: { name: sector-flood, path: data/flood_fractions.csv, retention-days: 14 }
 
   surface-water:
+    # by POSTCODE share since 2026-09-06 (fetch_sw_postcodes.py): the
+    # same masks fetch_surface_water.py rasterises, sampled at every
+    # ONSPD unit-postcode centroid (~10-15 minutes per region, no
+    # pixel-to-polygon work; the area fetch took up to 300 minutes),
+    # then aggregated to this checkout's grain. A dropped tile writes a
+    # .partial file and the aggregation refuses it. The depth conditional
+    # keeps the committed AREA-share envelope (sw_fractions_area.csv);
+    # refresh that with fetch_surface_water.py from a laptop if the
+    # extents change.
     if: ${{ !inputs.skip_fetch && !inputs.climate }}
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -81,7 +90,11 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - run: python -u scripts/fetch_surface_water.py
+      - run: python -u scripts/fetch_onspd.py
+      - run: python -u scripts/fetch_sw_postcodes.py --flags england
+      - run: python -u scripts/fetch_sw_postcodes.py --flags wales
+      - run: python -u scripts/fetch_sw_postcodes.py --flags scotland
+      - run: python -u scripts/fetch_sw_postcodes.py
       - uses: actions/upload-artifact@v4
         with: { name: sector-sw, path: data/sw_fractions.csv, retention-days: 14 }
 
@@ -112,7 +125,13 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - run: python -u scripts/fetch_surface_water.py --climate
+      # England only (the EA rofsw_cc01 edition), by postcode share so the
+      # future shares the present-day denominator; the area-share
+      # climate envelope for the depth conditional stays committed as
+      # sw_fractions_area_cc.csv.
+      - run: python -u scripts/fetch_onspd.py
+      - run: python -u scripts/fetch_sw_postcodes.py --flags england --climate
+      - run: python -u scripts/fetch_sw_postcodes.py --climate
       - uses: actions/upload-artifact@v4
         with: { name: sector-sw-cc, path: data/sw_fractions_cc.csv, retention-days: 14 }
 
@@ -171,6 +190,16 @@ jobs:
           SUMS
           python -u scripts/fetch_bgs.py --verify
 
+      # The subsidence geology is read at the unit postcodes since
+      # 2026-09-06 (score_subsidence_postcodes.py, ~3 minutes): the
+      # table is a committed model input like the flood fractions and
+      # is regenerated here whenever the hazard data is refetched.
+      - name: Subsidence geology at the unit postcodes
+        if: ${{ !inputs.skip_fetch && !inputs.climate }}
+        run: |
+          python -u scripts/fetch_onspd.py
+          python -u scripts/score_subsidence_postcodes.py
+
       # Same datum grid as rebuild.yml, so both grains transform WGS84
       # to British National Grid the same way (the published model uses
       # OSTN15 since 2026-09-05; a runner without it falls back to the
@@ -210,6 +239,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/erosion.csv data/flood_fractions.csv \
                   data/sw_fractions.csv data/sw_depth.csv \
+                  data/subsidence_postcodes.csv \
                   data/districts_risk.geojson data/year_analysis.json
           if git diff --cached --quiet; then
             echo "nothing new to commit"

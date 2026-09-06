@@ -210,7 +210,7 @@ __NAV__
         <tr>
           <td><strong style="color:var(--sub)">Subsidence</strong></td>
           <td>BGS Geology 625k bedrock</td>
-          <td>Shrink–swell susceptibility of each formation, area-weighted over the district</td>
+          <td>Shrink–swell susceptibility of the formation under each unit postcode, averaged over the district's postcodes</td>
           <td class="num">to 3.0%/yr</td><td class="num">£__SEV_SUB__</td><td class="num">__PCT_SUB__%</td><td class="num">__BLD_SUB__%</td><td class="num">__CNT_SUB__%</td>
         </tr>
         <tr>
@@ -222,7 +222,7 @@ __NAV__
         <tr>
           <td><strong style="color:var(--fl)">Flood</strong></td>
           <td>EA NaFRA2, NRW FRAW, SEPA</td>
-          <td>Share of unit postcodes inside river/sea flood zones; share of district area inside surface-water zones</td>
+          <td>Share of unit postcodes inside river/sea flood zones and inside surface-water zones</td>
           <td class="num">from zone share</td><td class="num">£__SEV_FL_RS__ / £__SEV_FL_SW__</td><td class="num">__PCT_FL__%</td><td class="num">__BLD_FL__%<sup>†</sup></td><td class="num">__CNT_FL__%<sup>†</sup></td>
         </tr>
         <tr>
@@ -285,9 +285,11 @@ __NAV__
     susceptibility — London Clay and the Thames Group at the top, then the Gault, Weald,
     Oxford, Kimmeridge and Ampthill Clays, down through Mercia Mudstone — and pre-Mesozoic
     mudstones are down-weighted because they are indurated and low-plasticity. Each
-    district's score is the <b>area-weighted</b> susceptibility of the formations beneath it,
-    computed by polygon intersection in British National Grid. This mirrors how BGS's own
-    GeoSure shrink–swell layer is derived, using only the open 625k mapping.</p>
+    district's score is the susceptibility of the formation <b>under each of its unit
+    postcodes</b>, averaged over the postcodes (point-in-polygon in British National Grid;
+    area-weighted by polygon intersection before 2026-09-06, which read a district whose
+    clay lies under fields and whose homes stand on gravel terraces as clay). This mirrors
+    how BGS's own GeoSure shrink–swell layer is derived, using only the open 625k mapping.</p>
     <p>Bedrock is not the whole story, though: shrink–swell happens in the soil shallow
     foundations actually bear on, and over about <b>58% of Great Britain</b> that is
     <b>superficial deposits</b> lying on top. The 625k superficial map is blended in as a
