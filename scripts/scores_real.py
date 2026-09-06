@@ -253,6 +253,30 @@ def subsidence_score(districts_bng: gpd.GeoDataFrame):
     """
     bedrock, geol = subsidence_from_bgs(districts_bng)
     sup, cover, sup_geol = superficial_from_bgs(districts_bng)
+    # Where score_subsidence_postcodes.py has run, the geology is read at
+    # the unit's live unit postcodes instead of area-weighted over its
+    # polygon: the same BGS layers and the same susceptibility tables,
+    # weighted by where the homes are. Units the table does not carry
+    # keep the area-weighted reading above.
+    path = os.path.join(DATA, "subsidence_postcodes.csv")
+    if os.path.exists(path):
+        table = {}
+        with open(path, newline="") as fh:
+            for row in csv.DictReader(fh):
+                table[row["name"]] = row
+        hit = 0
+        for i, n in enumerate(districts_bng["name"].values):
+            r = table.get(n)
+            if r is None:
+                continue
+            bedrock[i] = float(r["bedrock"])
+            sup[i] = float(r["sup_score"])
+            cover[i] = float(r["sup_cover"])
+            geol[i] = r["geol"]
+            sup_geol[i] = r["sup_geol"]
+            hit += 1
+        print(f"  subsidence: geology at unit postcodes for {hit}/{len(bedrock)} "
+              f"units (subsidence_postcodes.csv); area-weighted for the rest")
     return combine_subsidence(bedrock, sup, cover), geol, cover, sup_geol
 
 
