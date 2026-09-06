@@ -406,6 +406,13 @@ Also unanchored, and worth naming:
    open:** the postcode is a proxy for
    the home (~15 addresses per unit postcode, centroid not footprint),
    and the validation itself is a ranking check outside England only.
+   Weighting each postcode by its LSOA's households per postcode (the
+   split `households.csv` already uses) was measured on 2026-09-07 and
+   bounded: rank correlation 0.99 with the unweighted shares, 4%
+   relative at the median unit and 11% at the 90th percentile,
+   confined to city-centre LSOAs that mix offices with homes, which is
+   where an equal split within the LSOA is itself least reliable. Not
+   applied.
 7. **Subsidence geology is 1:625,000** — regional scale, not property
    scale, against a peril that varies house by house with foundation
    depth and tree proximity. Since 2026-09-06 it is read at each unit

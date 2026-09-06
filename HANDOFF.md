@@ -168,6 +168,37 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-07: household-weighting the unit postcodes - parked, too small
+
+The postcode-share denominators count every live unit postcode once.
+The obvious refinement is to weight each by the households behind it,
+and the project already has such a weight: `fetch_households.py`
+shares each LSOA's Census 2021 households equally among the LSOA's
+live postcodes (Scotland has no data-zone join and is equal per
+postcode already). ONSPD carries `lsoa21cd`, so no new fetch. Measured
+on the laptop's England flag files (scratchpad `weigh_postcodes.py`,
+E&W, 1,518,234 postcodes, mean 16.3 households per postcode, p10 8 /
+p90 25) before writing any pipeline code:
+
+| raw share, unweighted -> weighted | district (2,099 E&W) | sector (7,775) |
+|---|---|---|
+| sw_high: Spearman; hh-weighted mean \|d\|; relative \|d\| p50 / p90 | 0.989; 0.4 pp; 4% / 11% | 0.992; 0.5 pp; 4% / 15% |
+| sw_low | 0.992; 0.7 pp; 3% / 9% | 0.993; 0.8 pp; 3% / 10% |
+| depth >0.3 m (high) | 0.985; 0.14 pp; 7% / 20% | 0.991; 0.17 pp; 8% / 24% |
+
+The within-unit spread of the weight is small (coefficient of
+variation 0.28 by district, 0.23 by sector) because LSOAs are built to
+similar sizes, so the weighting only bites where an LSOA mixes offices
+with homes: the movers are W1B, EC2M, EC4V, M2, L1, TW6 (Heathrow),
+BS1 5, LS2 8 - city centres, where the equal-split-within-LSOA
+assumption is itself weakest. An order of magnitude below the
+area-to-postcode changes (Spearman 0.45-0.7 against 0.99 here), and
+it would refine the proxy exactly where the proxy is least reliable.
+Parked; LIMITATIONS §7.6 carries the bound. Coastal erosion is the
+one input still on an area basis and stays there on purpose: NCERM's
+recession strips are metres to tens of metres wide, far below the
+spacing of unit-postcode centroids, and the line is unpriced.
+
 ## MEASURED 2026-09-07: SURFACE-WATER DEPTH by postcode share, both grains - not published
 
 "Keep going" after the second publish. The last area-share input in
