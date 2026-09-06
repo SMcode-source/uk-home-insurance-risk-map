@@ -33,9 +33,18 @@ and columns as fetch_flood.py, same meaning of high/low, different
 denominator:
 
     data/flood_fractions.csv   name, f_high, f_low
+
+--climate: England only, the EA's climate-change edition of the same
+extents (the _CCP1 layers, exactly as fetch_flood.py --climate), sampled
+at the same English postcodes and shrunk with England-only priors, to
+data/flood_fractions_cc.csv. The present-day and climate fractions
+must share a denominator: flood_future() substitutes one for the other,
+and an area-share future against a postcode-share present would report
+Hull's flood risk FALLING under climate change.
 """
 import json
 import os
+import re
 import sys
 import time
 import urllib.parse
@@ -54,6 +63,21 @@ DATA = "data"
 CENTROIDS = os.path.join(DATA, "postcode_centroids.csv")
 OUT = os.path.join(DATA, "flood_fractions.csv")
 K_PRIOR = 20        # postcodes of prior weight; see main()
+AREA_RE = re.compile(r"[A-Z]+")
+
+
+def area_of(district):
+    """Postcode area of a district or sector name: its leading letters."""
+    return AREA_RE.match(district).group(0)
+
+
+CLIMATE = "--climate" in sys.argv[1:]
+if CLIMATE:
+    for band in ff.REGIONS["england"]["bands"].values():
+        for i, (mode, url, layer, cql) in enumerate(band):
+            band[i] = (mode, url.replace("-present-day/", "-climate-change/"),
+                       layer + "_CCP1", cql)
+    OUT = os.path.join(DATA, "flood_fractions_cc.csv")
 
 
 def raster_region(name, pc, x, y, in_high, in_low):
@@ -141,15 +165,27 @@ def main():
     if not os.path.exists(CENTROIDS):
         raise SystemExit(f"{CENTROIDS} missing - run scripts/fetch_onspd.py first")
     pc = pd.read_csv(CENTROIDS)
-    pc = pc[pc["country"].isin(["England", "Wales", "Scotland"])].reset_index(drop=True)
-    print(f"GB unit postcodes: {len(pc):,}", flush=True)
+    countries = ["England"] if CLIMATE else ["England", "Wales", "Scotland"]
+    pc = pc[pc["country"].isin(countries)].reset_index(drop=True)
+    # The postcode AREA is the leading letters of the outward code: EC for
+    # EC1A, SW for SW1A, E for E1W. Derived here from the district rather
+    # than read from the file, because the first cut of this script (and
+    # fetch_onspd.py before 2026-09-06) took "all the letters" and gave the
+    # 59 central-London districts with a letter suffix areas of their own
+    # ("ECA"), which then never matched as a parent: those 59 districts
+    # fell to the national median in the measured build.
+    pc["area"] = pc["district"].map(area_of)
+    print(("CLIMATE-CHANGE edition (England only) -> " + OUT) if CLIMATE
+          else "present-day edition -> " + OUT, flush=True)
+    print(f"unit postcodes: {len(pc):,}", flush=True)
     x = pc["easting"].values.astype(float)
     y = pc["northing"].values.astype(float)
     in_high = np.zeros(len(pc), dtype=bool)
     in_low = np.zeros(len(pc), dtype=bool)
 
-    raster_region("wales", pc, x, y, in_high, in_low)
-    vector_scotland(pc, x, y, in_high, in_low)
+    if not CLIMATE:
+        raster_region("wales", pc, x, y, in_high, in_low)
+        vector_scotland(pc, x, y, in_high, in_low)
     raster_region("england", pc, x, y, in_high, in_low)
     if ff.FAILED:
         raise SystemExit(f"{len(ff.FAILED)} tiles failed - refusing to write "
@@ -184,13 +220,13 @@ def main():
         dist = pc.groupby("district").agg(n=("in_high", "size"),
                                           h=("in_high", "sum"),
                                           l=("in_low", "sum"))
-        pa = area.reindex(dist.index.str.rstrip("0123456789")).set_index(dist.index)
+        pa = area.reindex(dist.index.map(area_of)).set_index(dist.index)
         prior = pd.DataFrame({
             "f_high": (dist["h"] + K_PRIOR * pa["f_high"]) / (dist["n"] + K_PRIOR),
             "f_low": (dist["l"] + K_PRIOR * pa["f_low"]) / (dist["n"] + K_PRIOR)})
     rows, thin, missing = [], 0, 0
     for n in names:
-        p = n.split(" ")[0] if grain == "sector" else n.rstrip("0123456789")
+        p = n.split(" ")[0] if grain == "sector" else area_of(n)
         if p not in prior.index:
             missing += 1
             continue

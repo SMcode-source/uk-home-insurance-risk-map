@@ -21,6 +21,13 @@ Usage: fetch_flood.py [region ...]   e.g. `fetch_flood.py wales scotland`
 
 Output: data/flood_fractions.csv  (name, f_high, f_low) where f_* is the
 fraction of district area inside the extent (f_low includes f_high).
+
+SUPERSEDED for the model's river/sea fractions on 2026-09-06 by
+fetch_flood_postcodes.py, which samples the SAME masks (fetch_mask,
+REGIONS, the SEPA services) at every unit-postcode centroid and writes
+the share of postcodes instead of the share of area. This module stays
+as the mask source and the area-share measurement; running it directly
+would overwrite the committed postcode-share file with area shares.
 """
 
 import csv

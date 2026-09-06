@@ -217,13 +217,17 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
      up, sheltered Welsh valleys down — at an unchanged national level.
      Score = 0.30·wind + 0.25·WDR + 0.20·gust₅₀ + 0.15·rain days +
      0.10·precipitation, each normalised 5th–95th percentile.
-2. **Flood — rivers & sea** (`scripts/fetch_flood.py`). Official flood-extent
-   maps rasterised at 100 m via WMS/ArcGIS tiles and counted per district:
+2. **Flood — rivers & sea** (`scripts/fetch_flood_postcodes.py`, masks from
+   `scripts/fetch_flood.py`). Official flood-extent maps rasterised at 100 m
+   via WMS/ArcGIS tiles and sampled at every live unit-postcode centroid:
    **EA** NaFRA2 present-day *defended* extents for England (high band = rivers
    1in100 / sea 1in200; low envelope = 1in1000), **NRW** FRAW for Wales, **SEPA**
    river + coastal maps for Scotland (via FeatureServer vector queries — their
-   map services have a 1:85k scale limit). Each district gets `f_high` / `f_low`
-   area fractions, which drive flood claim frequency directly (~1.5%/yr inside
+   map services have a 1:85k scale limit). Each district gets `f_high` / `f_low`:
+   the share of its unit postcodes (ONSPD centroids) inside each band, shrunk
+   toward its postcode area when it has fewer than 20 postcodes (postcode share
+   since 2026-09-06; area share before, which put valley towns at the wrong end
+   of the ranking). These drive flood claim frequency directly (~1.5%/yr inside
    the high band, ~0.3%/yr in the rest of the envelope, 0.05%/yr background).
 3. **Flood — surface water** (`scripts/fetch_surface_water.py`). **EA** NaFRA2
    RoFSW for England (WMS at 13 m/px — the layer only draws below 1:50,000 —
@@ -554,8 +558,10 @@ Stated plainly, four limits:
 - **Rivers/sea is not a strict uplift.** The future layer is a separate model run, so
   it does not simply contain the present one. On a Humber test tile at 13 m/px,
   **19.7%** of today's *pixels* fall outside the future extent; across England at
-  district level the effect is much smaller but real — **52 districts (2.5%)** see the
-  1-in-100/200 band shrink, worst −11.2pp. Surface water behaves far more like a true
+  district level the effect is much smaller but real — **9 districts (0.4%)** see the
+  share of homes in the 1-in-100/200 band shrink by more than 1pp, worst −25.5pp at
+  HU12 (Hedon, east of Hull; by area it was 52 districts and −11.2pp, because the
+  future extent retreats from settled ground there). Surface water behaves far more like a true
   uplift: only **5 districts (0.2%)** decrease, worst −1.2pp. So the surface-water half
   reads as a genuine climate delta and the rivers/sea half as a scenario swap.
 - **England only.** Neither NRW nor SEPA publishes an equivalent, so Wales and Scotland
@@ -563,11 +569,13 @@ Stated plainly, four limits:
   average would dilute it with two countries that cannot move.
 
 The direction of travel is not subtle. Averaged over England's districts, the share
-of a district inside the 1-in-100/200 river/sea zone grows **+37.7%** and inside the
-surface-water ≥1% AEP zone **+28.8%**. Low-lying coast and
-estuary carry the fluvial/tidal side — TA9 on the Somerset Levels goes from 10% to
-**90%** of district area, PE21 (Boston) 13% → 82%, TS2 (Teesside) 20% → 85%, DN32
-(Grimsby) 4% → 80% — while surface water concentrates on dense urban drainage:
+of a district's homes (unit postcodes) inside the 1-in-100/200 river/sea zone grows
+**+87.7%** (by area it was +37.7%: the future extent grows into settled land, not
+just marsh) and the share of area inside the surface-water ≥1% AEP zone
+**+28.8%**. Low-lying coast and estuary carry the fluvial/tidal side — TA9 on the
+Somerset Levels goes from 6% to **91%** of its postcodes, PE21 (Boston) 12% → 79%,
+TS2 (Teesside) 15% → 71%, DN32 (Grimsby) 5% → 95%, LA4 (Morecambe) 6% → 85% —
+while surface water concentrates on dense urban drainage:
 EC4R 8% → 27%, SW8 (Nine Elms) 16% → 32%, RM9 (Dagenham) 37% → 53%, E8
 (Hackney) 36% → 52%.
 
