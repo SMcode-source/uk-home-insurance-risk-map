@@ -358,7 +358,10 @@ Also unanchored, and worth naming:
    other 69% is spatially flat. Nothing in the model distinguishes a
    Victorian terrace's plumbing from a 2015 new build's. The frost map
    itself is sound — re-aiming its window was tested and rejected on
-   measurement (§4) — but the model is blind to the *level* of frost by
+   measurement (§4), as was the drought leg's identical window on
+   2026-09-10 (`measure_smd_era.py`: the level has moved +14% for the
+   recent decade and cancels exactly, the map stays inside a
+   same-climate control at every candidate window) — but the model is blind to the *level* of frost by
    construction, so a warming winter cannot reach the premium. **The
    dwelling-age fix is blocked for free (checked 2026-09-03):** EPC gives
    the age *stock* at postcode grain, but no published UK source gives EoW

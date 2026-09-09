@@ -168,6 +168,61 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-10: the DROUGHT re-aim question, closed - do not re-aim
+
+An asymmetry nobody had noticed. On 2026-08-31 `measure_frost_era.py`
+asked whether the freeze leg's 1991-2020 climatology should be aimed at
+a more recent window, and answered no on a careful standard: the level
+cancels exactly (`eow_rate` divides frost by its own exposure-weighted
+mean) and every candidate window moved the SHAPE of the map by less than
+a same-climate control does. **The identical question was never put to
+the other temperature-driven leg**, even though subsidence is priced
+through the same construction
+
+    sub_rel = (1 - SUB_DROUGHT_SHARE) + SUB_DROUGHT_SHARE * cwd_yr / wmean(cwd_yr)
+
+on a climatology built from the same window, and even though the drought
+integral trends UPWARD - the direction that raises the peril, not the one
+that lowers it. `scripts/measure_smd_era.py` puts the question, reusing
+the frost script's controls verbatim so the two legs are judged by one
+standard.
+
+**The level has moved, and more than frost's did.** National
+household-weighted `cwd_yr`, 1960-2025: **+0.93 mm/yr, p = 0.036**,
++3.6% of the mean per decade. Against the published 1991-2020 mean of
+260.2 mm: 1961-1990 is -5.2%, 1996-2025 +2.2%, 2006-2025 +3.9%, and
+**2016-2025 is +14.0%**. A fourteen percent shift in a driver of a
+peril is the kind of number that looks like it must matter.
+
+**It cannot matter, and the shape has not moved.** The division by the
+exposure-weighted mean removes the level exactly, so only the map can
+price - and the map is inside its own noise floor at every candidate:
+
+| window vs 1991-2020 | Spearman | \|d rel\| p95 | control at that sample | verdict |
+|---|---|---|---|---|
+| 1961-1990 (n=30) | +0.9929 | 0.231 | 0.244 (n=15) | inside |
+| 1996-2025 (n=30) | +0.9994 | 0.043 | 0.244 (n=15) | inside |
+| 2006-2025 (n=20) | +0.9981 | 0.068 | 0.244 (n=15) | inside |
+| 2016-2025 (n=10) | +0.9947 | 0.105 | 0.211 (n=10) | inside |
+
+The controls - odd vs even years of 1991-2020, the two 15-year halves,
+two disjoint 10-year windows - hold the climate fixed and vary only the
+sample, and they move the relativity map by 0.185 to 0.244 at the 95th
+percentile. Every re-aimed window moves it less than that. The largest
+effect any candidate has on the multiplier the model actually uses is
+`|d sub_rel| max 0.055` for the recent-20-year window, against 0.145 to
+0.189 for the controls.
+
+**Verdict: do not re-aim, on the same standard the freeze leg was held
+to.** The drought leg's window is now a checked decision rather than an
+inherited default, and the asymmetry between the two temperature legs is
+closed. The script is a measurement tool; it is not a model input and
+changes nothing that builds.
+
+This came out of the weather-forecasting question below: asking what
+could be known about next year's weather led to asking whether the model
+is even aimed at the right past.
+
 ## MEASURED 2026-09-07: household-weighting the unit postcodes - parked, too small
 
 The postcode-share denominators count every live unit postcode once.
