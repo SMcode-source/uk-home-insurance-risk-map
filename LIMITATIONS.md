@@ -362,7 +362,11 @@ Also unanchored, and worth naming:
    2026-09-10 (`measure_smd_era.py`: the level has moved +14% for the
    recent decade and cancels exactly, the map stays inside a
    same-climate control at every candidate window) — but the model is blind to the *level* of frost by
-   construction, so a warming winter cannot reach the premium. **The
+   construction, so a warming winter cannot reach the premium. Replacing
+   the climatology with a year-ahead *forecast* is not an option either,
+   and that is now measured rather than assumed (2026-09-12): no free
+   source reaches a year, and the two indices have no year-to-year memory
+   (lag-1 +0.10 and +0.03, neither significant). **The
    dwelling-age fix is blocked for free (checked 2026-09-03):** EPC gives
    the age *stock* at postcode grain, but no published UK source gives EoW
    claim *frequency* by age to anchor it to, and the ABI's granular claims

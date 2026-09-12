@@ -62,6 +62,7 @@ docs/                         the published website (GitHub Pages source)
   methodology.html            full methodology write-up
 site/                         page templates + shared stylesheet for docs/
 tests/test_copula.py          property tests for the copula machinery
+tests/test_spectral.py        guards on the shallow-water dynamical core
 .github/workflows/tests.yml   CI: tests + site rebuild + docs/ freshness
 data/                         downloaded + derived data (see DATA_SOURCES.md)
 scripts/
@@ -110,6 +111,9 @@ scripts/
   dependence_check.py         does the copula actually matter? -> dependence.json
   check_*.py                  small sanity-check helpers (calibration, geojson,
                               surface water, year buckets)
+  nwp/                        shallow-water model on the sphere; measures how
+                              far ahead weather is forecastable (not in the
+                              pipeline - evidence only, see HANDOFF 2026-09-12)
 map/template.html             map page (MapLibre GL, linked at build time)
 analysis/template.html        good/bad-years page (hand-rolled SVG charts)
 assets/maplibre-gl.{js,css}   MapLibre GL JS 5.6.1, linked from the map pages

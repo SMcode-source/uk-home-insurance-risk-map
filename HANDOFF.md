@@ -168,6 +168,56 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-12: how far ahead is the weather forecastable? Three ways, same answer
+
+The question was whether the model could be fed a one-year weather
+forecast instead of a climatology. It cannot. Three independent
+measurements, none of them an appeal to authority.
+
+**1. No free source forecasts a year.** The longest is Open-Meteo's
+seasonal (NOAA CFSv2, 50 members): **hard cap 217 days**. Its own
+ensemble spread reaches the 1991-2020 climatological spread by about
+**two to four weeks** (spread ratio 0.19 on day 0, ~1.0 from day 15-30
+on), averaged over London/Manchester/Edinburgh/Cardiff, for both
+temperature and rainfall. Past that lead it is climatology wearing a
+timestamp. Endpoint-by-endpoint sweep in DATA_SOURCES #42.
+
+**2. The two indices the model actually consumes have no year-to-year
+memory.** Detrended lag-1 autocorrelation over 66 years: `cwd_yr_mm`
+**+0.103** (p=0.41), `frost_days` **+0.027** (p=0.83). A 36-year
+walk-forward agrees: persistence is **31% and 24% WORSE** than
+climatology; only the trend helps, and only on frost (**+14.7%**).
+So the best available one-year forecast of the model's own inputs is
+climatology plus a trend - which is what it already uses.
+
+**3. The equations themselves, integrated here.** `scripts/nwp/` is a
+real shallow-water model on the rotating sphere (the Navier-Stokes
+equations after hydrostatic balance and one constant-density layer),
+spectral, vorticity-divergence form, initialised from NCEP reanalysis.
+Twin runs from starting states that differ by less than the wind is
+observable measure the error doubling time: **5.6 d at T42, 4.2 d at
+T63** - *faster* with resolution, the classic result. Saturation (two
+unrelated January days) is **17.6 m/s**. One year is ~62 doublings, so
+a useful one-year forecast needs the initial wind known to ~1e-18 m/s.
+It is not a data problem.
+
+**What this settles.** The 20,000-year copula simulation is not a
+second-best substitute for a forecast; at a one-year lead it is the
+*only* correct product. A deterministic year-ahead weather input would
+be a false precision, and the model does not have one.
+
+**The solver is guarded, not trusted.** `tests/test_spectral.py` (12
+tests, ~20 s) asserts identities, not pictures: basis orthonormality
+under the Gauss quadrature actually used, exact round-trips, the
+analytic vorticity of solid-body rotation, Williamson case 2 holding
+steady, and case 6 conserving mass/energy while enstrophy *falls* into
+the filter. Independent check: a height field built from observed
+winds alone via the linear balance equation correlates **0.9983** with
+the separately observed 500 hPa height.
+
+**Not in the pipeline.** Nothing here feeds the published model. It is
+evidence for a decision, kept because the decision will be asked again.
+
 ## MEASURED 2026-09-10: the DROUGHT re-aim question, closed - do not re-aim
 
 An asymmetry nobody had noticed. On 2026-08-31 `measure_frost_era.py`
