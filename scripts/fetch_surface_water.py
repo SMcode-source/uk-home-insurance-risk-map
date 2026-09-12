@@ -11,8 +11,13 @@
              likelihood MapServers at 20 m/px. Their sublayers are
              default-hidden, so exports pass layers=show:<id>.
 
-Usage: fetch_surface_water.py [region ...]   (default: all; merges into
-existing data/sw_fractions.csv for regions not re-run)
+Usage: fetch_surface_water.py [region ...]   (default: all three)
+
+There is NO partial merge. The number written for a unit is a sum over
+every region that paints it, the regions overlap at the borders, and a
+sum cannot be un-summed - so re-running one region against an existing
+file is refused rather than guessed at. Fetch all three, or --out to a
+fresh file. See _refuse_partial_merge for what each guess cost.
 
 Output: data/sw_fractions.csv (name, sw_high, sw_low), area fractions,
 sw_low includes sw_high.
@@ -162,25 +167,39 @@ def masks_for_tile(region, bbox):
     return out
 
 
-# Which country each region measures. The merge needs this: a region that
-# is being re-run must contribute its NEW value only, and the unit's
-# country is what says whether a given region will write it.
-REGION_COUNTRY = {"england": "England", "wales": "Wales",
-                  "scotland": "Scotland"}
+def _refuse_partial_merge(selected, out):
+    """A per-unit sum cannot be un-summed, so a partial re-run cannot merge.
 
+    The value written for a unit is the sum of every region that paints
+    it, and the regions OVERLAP at the borders: TD12 straddles the Tweed,
+    so it carries an EA contribution and a SEPA one; SY10 and SY15 carry
+    an EA contribution although `data/country.csv` calls them Wales.
 
-def _in_regions(names, selected):
-    """Boolean mask: will one of `selected` measure this unit?"""
-    path = os.path.join("data", "country.csv")
-    with open(path, newline="", encoding="utf-8") as fh:
-        country = {r["name"]: r["country"] for r in csv.DictReader(fh)}
-    missing = [nm for nm in names if nm not in country]
-    if missing:
-        raise SystemExit(
-            f"{len(missing)} units are absent from {path} "
-            f"({missing[:5]}) - refusing to merge on a partial mapping")
-    want = {REGION_COUNTRY[r] for r in selected}
-    return np.array([country[nm] in want for nm in names])
+    Both ways of merging a partial re-run are therefore wrong, and both
+    were measured on 2026-09-12:
+
+      - seed every unit from the old file and add the new value on top,
+        and the re-run region is counted twice. 77% of district values
+        rose, mean sw_low 0.156 -> 0.285.
+      - keep the old value only for units the re-run cannot measure,
+        keyed on country.csv, and the border breaks the key both ways.
+        England-labelled TD12 lost its Scottish half (0.11754 ->
+        0.05845) and CH4 its Welsh part; Wales- and Scotland-labelled
+        border units kept an old value that was ENTIRELY English and
+        then had England added again, so 22 districts and 32 sectors
+        came back exactly doubled (SY10 0.05269 -> 0.10538).
+
+    There is no third way while one number per unit is all that is
+    stored. So refuse, and say what to do instead.
+    """
+    raise SystemExit(
+        f"refusing to merge {selected} into the existing {out}.\n"
+        f"The value in that file is a SUM over regions, and the regions\n"
+        f"overlap at the borders, so the contribution of {selected} cannot\n"
+        f"be removed from it before the new one is added. Either fetch\n"
+        f"every region (pass no region argument), or pass --out to write a\n"
+        f"fresh file, or pass --no-merge to accept zeros outside "
+        f"{selected}.")
 
 
 def main():
@@ -198,11 +217,18 @@ def main():
         REGIONS["england"]["service"] = EA_SW_CC
         if OUT == os.path.join("data", "sw_fractions.csv"):
             OUT = os.path.join("data", "sw_fractions_cc.csv")
-        args = [a for a in args if a != "--climate"] or ["england"]
+        args = ["england", "--no-merge"]
         print(f"CLIMATE-CHANGE edition (England) -> {OUT}", flush=True)
+    # The climate edition has ONE source, so there is nothing to merge with:
+    # the non-England rows of a climate file are the handful of border units
+    # the EA layer paints across the line (6 Scottish and 16 Welsh districts),
+    # and they come from this fetch, not from a previous one.
     no_merge = "--no-merge" in args
     selected = [a for a in args if a in REGIONS] or list(REGIONS)
     print(f"regions: {selected} -> {OUT}", flush=True)
+
+    if not no_merge and os.path.exists(OUT) and len(selected) < len(REGIONS):
+        _refuse_partial_merge(selected, OUT)
 
     print("loading districts...", flush=True)
     gdf = load_districts().to_crs(27700)
@@ -211,26 +237,6 @@ def main():
     n = len(gdf)
     area = shapely.area(gdf.geometry.values)
     frac = {"high": np.zeros(n), "low": np.zeros(n)}
-
-    if not no_merge and os.path.exists(OUT) and len(selected) < len(REGIONS):
-        with open(OUT, newline="") as fh:
-            old = {r["name"]: (float(r["sw_high"]), float(r["sw_low"]))
-                   for r in csv.DictReader(fh)}
-        # Carry the old value ONLY for units the selected regions are not
-        # about to measure. Seeding every unit and then adding the fetched
-        # value on top double-counts the region being re-run, which is
-        # invisible in the CSV and was: re-running england against a file
-        # that already held england drove 77% of district values up by a
-        # median of 0.08 share, some to 1.0 (2026-09-12, caught by reading
-        # the artifact before it committed). The old code only ever ran on
-        # a file whose selected rows were still zero.
-        keep = ~_in_regions(names, selected)
-        frac["high"] += np.where(
-            keep, [old.get(nm, (0, 0))[0] for nm in names], 0.0)
-        frac["low"] += np.where(
-            keep, [old.get(nm, (0, 0))[1] for nm in names], 0.0)
-        print(f"merged existing CSV for {int(keep.sum())} of {n} units "
-              f"outside {selected}", flush=True)
 
     for rname in selected:
         region = REGIONS[rname]

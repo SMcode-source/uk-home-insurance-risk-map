@@ -126,6 +126,20 @@ def test_sw_refetch_commits_and_pairs_every_table_it_fetches():
                         "sw_fractions_area.csv", "sw_fractions_area_cc.csv"}, \
         f"a depth table and its envelope must be refetched together: {produced}"
 
+    # The envelope is a SUM over every service that paints a unit, and
+    # they overlap at the border, so a single-region refetch cannot
+    # repair a border unit whichever way it merges - both ways were
+    # measured wrong on 2026-09-12. Fetch all three.
+    for job in wf["jobs"].values():
+        for step in job.get("steps", []):
+            run = step.get("run") or ""
+            if "fetch_surface_water.py" not in run or "--climate" in run:
+                continue
+            named = [r for r in ("england", "wales", "scotland") if r in run]
+            assert not named, (
+                f"sw-refetch fetches only {named} into the area envelope; a "
+                f"partial region cannot be merged into a per-unit sum")
+
     steps = wf["jobs"]["collect"]["steps"]
     commit = next(s for s in steps if "git add" in (s.get("run") or ""))
     for f in produced:
