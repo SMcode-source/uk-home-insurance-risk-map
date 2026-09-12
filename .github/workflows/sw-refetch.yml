@@ -33,6 +33,10 @@ on:
         description: "Commit the refreshed tables back to this branch"
         type: boolean
         default: false
+      accept_large:
+        description: "Commit even if a table moved more than a refetch of an unchanged product can explain (look at the numbers FIRST)"
+        type: boolean
+        default: false
 
 concurrency:
   group: sw-refetch-${{ github.ref }}
@@ -211,7 +215,7 @@ jobs:
       # the run if it moved more than a datum shift can explain.
       - name: Refuse a refetch that moved too much
         run: |
-          python -u scripts/check_refetch_delta.py data/sw_depth.csv data/sw_depth_cc.csv data/sw_fractions_area.csv data/sw_fractions_area_cc.csv
+          python -u scripts/check_refetch_delta.py data/sw_depth.csv data/sw_depth_cc.csv data/sw_fractions_area.csv data/sw_fractions_area_cc.csv ${{ inputs.accept_large && '--accept-large' || '' }}
 
       - uses: actions/upload-artifact@v4
         with:

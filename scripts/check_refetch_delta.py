@@ -125,11 +125,14 @@ def check(path):
     moved = float((d > EPS).mean())
     lvl = []
     for j, col in enumerate(new_cols):
-        m_old = a[:, j].mean()
+        m_old, m_new = a[:, j].mean(), b[:, j].mean()
         if m_old > 1e-9:
-            lvl.append((abs(b[:, j].mean() - m_old) / m_old, col,
-                        m_old, b[:, j].mean()))
-    worst = max(lvl) if lvl else (0.0, "-", 0.0, 0.0)
+            # rank on the magnitude, REPORT the signed move - printing
+            # "0.08205 -> 0.08140 (+0.80%)" for a fall is how a reader
+            # ends up arguing with the arrow instead of the number
+            lvl.append((abs(m_new - m_old) / m_old, col, m_old, m_new,
+                        (m_new - m_old) / m_old))
+    worst = max(lvl) if lvl else (0.0, "-", 0.0, 0.0, 0.0)
 
     with np.errstate(divide="ignore", invalid="ignore"):
         ratio = np.where(a > RATIO_FLOOR, b / np.where(a > 0, a, 1), np.nan)
@@ -140,7 +143,7 @@ def check(path):
     head = (f"{name}: {len(shared)} units, {100 * moved:.2f}% of values "
             f"moved > {EPS}, max |delta| {d.max():.5f}; worst column level "
             f"{worst[1]} {worst[2]:.5f} -> {worst[3]:.5f} "
-            f"({100 * worst[0]:+.2f}%)")
+            f"({100 * worst[4]:+.2f}%)")
     units = sorted({shared[i] for i, _ in hit})
     if len(units) > MAX_RATIO_UNITS:
         ex = "; ".join(f"{shared[i]} {new_cols[j]} {a[i, j]:.5f} -> "
