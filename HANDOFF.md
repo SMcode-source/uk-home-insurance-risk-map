@@ -168,6 +168,33 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## FOUND 2026-09-12: the new input guard fires on the SECTOR branch - stale depth table
+
+Syncing main into `sector-model` carried `tests/test_inputs.py` across
+for the first time, and it failed there immediately. Worth recording
+because the guard was written on the district grain, where it passes.
+
+`data/sw_depth.csv` at sector grain is from 2026-08-17. The area-share
+envelope it is conditioned on, `data/sw_fractions_area.csv`, was rebuilt
+2026-09-06 on the current (OSTN15, full-resolution) geometry. They no
+longer agree: **99 of 20,796 sector-band rows have a deepest-band share
+above the envelope** (46 high, 53 low), 38 of them by more than 0.5 pp,
+worst SE8 9 by 14.7 pp and SW17 1 by 10.9 pp. On districts the same
+check finds 4 rows, worst 0.29 pp - rounding between two rasterisations,
+which is what the 0.005 tolerance was written for.
+
+**Why it matters.** `_band_shares` raises the envelope to the band
+(`np.maximum.accumulate`), so an overshooting sector has its whole
+surface-water occupancy pushed into the deepest band - the maximum
+severity multiplier, on evidence that does not support it. It is 0.5%
+of sector rows, so it cannot move the headline, but those sectors are
+individually overstated on the LIVE sector map.
+
+**Fix, not yet done:** rebuild `sw_depth.csv` at sector grain against
+the current geometry (`fetch_sw_depth.py`, CI), then republish the
+sector build. Not started - it is a rebuild, so it is the user's call.
+Nothing about the district grain is affected.
+
 ## MEASURED 2026-09-12: how far ahead is the weather forecastable? Three ways, same answer
 
 The question was whether the model could be fed a one-year weather
