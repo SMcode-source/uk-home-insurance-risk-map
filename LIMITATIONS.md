@@ -358,8 +358,15 @@ Also unanchored, and worth naming:
    other 69% is spatially flat. Nothing in the model distinguishes a
    Victorian terrace's plumbing from a 2015 new build's. The frost map
    itself is sound — re-aiming its window was tested and rejected on
-   measurement (§4) — but the model is blind to the *level* of frost by
-   construction, so a warming winter cannot reach the premium. **The
+   measurement (§4), as was the drought leg's identical window on
+   2026-09-10 (`measure_smd_era.py`: the level has moved +14% for the
+   recent decade and cancels exactly, the map stays inside a
+   same-climate control at every candidate window) — but the model is blind to the *level* of frost by
+   construction, so a warming winter cannot reach the premium. Replacing
+   the climatology with a year-ahead *forecast* is not an option either,
+   and that is now measured rather than assumed (2026-09-12): no free
+   source reaches a year, and the two indices have no year-to-year memory
+   (lag-1 +0.10 and +0.03, neither significant). **The
    dwelling-age fix is blocked for free (checked 2026-09-03):** EPC gives
    the age *stock* at postcode grain, but no published UK source gives EoW
    claim *frequency* by age to anchor it to, and the ABI's granular claims
@@ -406,6 +413,13 @@ Also unanchored, and worth naming:
    open:** the postcode is a proxy for
    the home (~15 addresses per unit postcode, centroid not footprint),
    and the validation itself is a ranking check outside England only.
+   Weighting each postcode by its LSOA's households per postcode (the
+   split `households.csv` already uses) was measured on 2026-09-07 and
+   bounded: rank correlation 0.99 with the unweighted shares, 4%
+   relative at the median unit and 11% at the 90th percentile,
+   confined to city-centre LSOAs that mix offices with homes, which is
+   where an equal split within the LSOA is itself least reliable. Not
+   applied.
 7. **Subsidence geology is 1:625,000** — regional scale, not property
    scale, against a peril that varies house by house with foundation
    depth and tree proximity. Since 2026-09-06 it is read at each unit

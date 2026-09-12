@@ -168,6 +168,263 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-12: how far ahead is the weather forecastable? Three ways, same answer
+
+The question was whether the model could be fed a one-year weather
+forecast instead of a climatology. It cannot. Three independent
+measurements, none of them an appeal to authority.
+
+**1. No free source forecasts a year.** The longest is Open-Meteo's
+seasonal (NOAA CFSv2, 50 members): **hard cap 217 days**. Its own
+ensemble spread reaches the 1991-2020 climatological spread by about
+**two to four weeks** (spread ratio 0.19 on day 0, ~1.0 from day 15-30
+on), averaged over London/Manchester/Edinburgh/Cardiff, for both
+temperature and rainfall. Past that lead it is climatology wearing a
+timestamp. Endpoint-by-endpoint sweep in DATA_SOURCES #42.
+
+**2. The two indices the model actually consumes have no year-to-year
+memory.** Detrended lag-1 autocorrelation over 66 years: `cwd_yr_mm`
+**+0.103** (p=0.41), `frost_days` **+0.027** (p=0.83). A 36-year
+walk-forward agrees: persistence is **31% and 24% WORSE** than
+climatology; only the trend helps, and only on frost (**+14.7%**).
+So the best available one-year forecast of the model's own inputs is
+climatology plus a trend - which is what it already uses.
+
+**3. The equations themselves, integrated here.** `scripts/nwp/` is a
+real shallow-water model on the rotating sphere (the Navier-Stokes
+equations after hydrostatic balance and one constant-density layer),
+spectral, vorticity-divergence form, initialised from NCEP reanalysis.
+Twin runs from starting states that differ by less than the wind is
+observable measure the error doubling time: **5.6 d at T42, 4.2 d at
+T63** - *faster* with resolution, the classic result. Saturation (two
+unrelated January days) is **17.6 m/s**. One year is ~62 doublings, so
+a useful one-year forecast needs the initial wind known to ~1e-18 m/s.
+It is not a data problem.
+
+**What this settles.** The 20,000-year copula simulation is not a
+second-best substitute for a forecast; at a one-year lead it is the
+*only* correct product. A deterministic year-ahead weather input would
+be a false precision, and the model does not have one.
+
+**The solver is guarded, not trusted.** `tests/test_spectral.py` (12
+tests, ~20 s) asserts identities, not pictures: basis orthonormality
+under the Gauss quadrature actually used, exact round-trips, the
+analytic vorticity of solid-body rotation, Williamson case 2 holding
+steady, and case 6 conserving mass/energy while enstrophy *falls* into
+the filter. Independent check: a height field built from observed
+winds alone via the linear balance equation correlates **0.9983** with
+the separately observed 500 hPa height.
+
+**Not in the pipeline.** Nothing here feeds the published model. It is
+evidence for a decision, kept because the decision will be asked again.
+
+## MEASURED 2026-09-10: the DROUGHT re-aim question, closed - do not re-aim
+
+An asymmetry nobody had noticed. On 2026-08-31 `measure_frost_era.py`
+asked whether the freeze leg's 1991-2020 climatology should be aimed at
+a more recent window, and answered no on a careful standard: the level
+cancels exactly (`eow_rate` divides frost by its own exposure-weighted
+mean) and every candidate window moved the SHAPE of the map by less than
+a same-climate control does. **The identical question was never put to
+the other temperature-driven leg**, even though subsidence is priced
+through the same construction
+
+    sub_rel = (1 - SUB_DROUGHT_SHARE) + SUB_DROUGHT_SHARE * cwd_yr / wmean(cwd_yr)
+
+on a climatology built from the same window, and even though the drought
+integral trends UPWARD - the direction that raises the peril, not the one
+that lowers it. `scripts/measure_smd_era.py` puts the question, reusing
+the frost script's controls verbatim so the two legs are judged by one
+standard.
+
+**The level has moved, and more than frost's did.** National
+household-weighted `cwd_yr`, 1960-2025: **+0.93 mm/yr, p = 0.036**,
++3.6% of the mean per decade. Against the published 1991-2020 mean of
+260.2 mm: 1961-1990 is -5.2%, 1996-2025 +2.2%, 2006-2025 +3.9%, and
+**2016-2025 is +14.0%**. A fourteen percent shift in a driver of a
+peril is the kind of number that looks like it must matter.
+
+**It cannot matter, and the shape has not moved.** The division by the
+exposure-weighted mean removes the level exactly, so only the map can
+price - and the map is inside its own noise floor at every candidate:
+
+| window vs 1991-2020 | Spearman | \|d rel\| p95 | control at that sample | verdict |
+|---|---|---|---|---|
+| 1961-1990 (n=30) | +0.9929 | 0.231 | 0.244 (n=15) | inside |
+| 1996-2025 (n=30) | +0.9994 | 0.043 | 0.244 (n=15) | inside |
+| 2006-2025 (n=20) | +0.9981 | 0.068 | 0.244 (n=15) | inside |
+| 2016-2025 (n=10) | +0.9947 | 0.105 | 0.211 (n=10) | inside |
+
+The controls - odd vs even years of 1991-2020, the two 15-year halves,
+two disjoint 10-year windows - hold the climate fixed and vary only the
+sample, and they move the relativity map by 0.185 to 0.244 at the 95th
+percentile. Every re-aimed window moves it less than that. The largest
+effect any candidate has on the multiplier the model actually uses is
+`|d sub_rel| max 0.055` for the recent-20-year window, against 0.145 to
+0.189 for the controls.
+
+**Verdict: do not re-aim, on the same standard the freeze leg was held
+to.** The drought leg's window is now a checked decision rather than an
+inherited default, and the asymmetry between the two temperature legs is
+closed. The script is a measurement tool; it is not a model input and
+changes nothing that builds.
+
+This came out of the weather-forecasting question below: asking what
+could be known about next year's weather led to asking whether the model
+is even aimed at the right past.
+
+## MEASURED 2026-09-07: household-weighting the unit postcodes - parked, too small
+
+The postcode-share denominators count every live unit postcode once.
+The obvious refinement is to weight each by the households behind it,
+and the project already has such a weight: `fetch_households.py`
+shares each LSOA's Census 2021 households equally among the LSOA's
+live postcodes (Scotland has no data-zone join and is equal per
+postcode already). ONSPD carries `lsoa21cd`, so no new fetch. Measured
+on the laptop's England flag files (scratchpad `weigh_postcodes.py`,
+E&W, 1,518,234 postcodes, mean 16.3 households per postcode, p10 8 /
+p90 25) before writing any pipeline code:
+
+| raw share, unweighted -> weighted | district (2,099 E&W) | sector (7,775) |
+|---|---|---|
+| sw_high: Spearman; hh-weighted mean \|d\|; relative \|d\| p50 / p90 | 0.989; 0.4 pp; 4% / 11% | 0.992; 0.5 pp; 4% / 15% |
+| sw_low | 0.992; 0.7 pp; 3% / 9% | 0.993; 0.8 pp; 3% / 10% |
+| depth >0.3 m (high) | 0.985; 0.14 pp; 7% / 20% | 0.991; 0.17 pp; 8% / 24% |
+
+The within-unit spread of the weight is small (coefficient of
+variation 0.28 by district, 0.23 by sector) because LSOAs are built to
+similar sizes, so the weighting only bites where an LSOA mixes offices
+with homes: the movers are W1B, EC2M, EC4V, M2, L1, TW6 (Heathrow),
+BS1 5, LS2 8 - city centres, where the equal-split-within-LSOA
+assumption is itself weakest. An order of magnitude below the
+area-to-postcode changes (Spearman 0.45-0.7 against 0.99 here), and
+it would refine the proxy exactly where the proxy is least reliable.
+Parked; LIMITATIONS §7.6 carries the bound. Coastal erosion is the
+one input still on an area basis and stays there on purpose: NCERM's
+recession strips are metres to tens of metres wide, far below the
+spacing of unit-postcode centroids, and the line is unpriced.
+
+## MEASURED 2026-09-07: SURFACE-WATER DEPTH by postcode share, both grains - not published
+
+"Keep going" after the second publish. The last area-share input in
+the surface-water peril: the depth bands (`sw_depth[_cc].csv`) were
+still the share of AREA deeper than 0.2/0.3/0.6/0.9/1.2 m, and the
+severity conditioned them on the area-share envelope kept as
+`sw_fractions_area[_cc].csv` - consistent, but two denominators for one
+peril. Branches `exp/sw-depth-households` (district: d02ce8b script +
+severity hook, dba6508 / e7faf1b aggregation fixes, dcf7e8e tables;
+laptop build in `.worktrees/hygiene`, not committed) and
+`exp/sw-depth-households-sector` (sector: 8cd44c4 tables + bot run 34
+`e335416`). Baselines are the second publish (district `068149d9`,
+sector run 30). Publishing is the user's decision.
+
+**Method.** `scripts/fetch_sw_depth_postcodes.py` samples the five EA
+`rofsw_<d>_depth` layers `fetch_sw_depth.py` rasterises (13 m/px,
+category colours) at every live English unit postcode, two stages as
+the other postcode scripts (`--flags [--climate]`, then aggregate;
+239 tiles x 5 layers, ~50 minutes per edition on the laptop with the
+CI fetch competing), and writes `sw_depth[_cc].csv` in the old layout
+plus `basis = postcode`. `sw_depth_severity` reads the basis and, for a
+postcode table, conditions on the caller's postcode-share `sw_high` /
+`sw_low` instead of the area file. Three things the aggregation has to
+enforce that the pixel decode does not: (1) nesting per postcode (2-4%
+of flagged postcodes were "deeper than 0.6 m but not 0.3 m" at
+antialiased edges: a deeper flag now implies the shallower ones);
+(2) containment in the envelope from the SAME sampling
+(`sw_flags_england[_cc].csv`, now required); (3) coverage by
+`data/country.csv`, not by postcode area - DG16 Gretna's five English
+postcodes had given the whole DG area an England-only prior and every
+Dumfries district a 0.2 depth band, and on the sector checkout the
+district-keyed lookup zero-filled all 10,398 sectors (sector run 33
+was cancelled on that; run 34 is the real one). Result: 0 nesting
+violations, 0 above the envelope, 637 districts / 1,652 sectors
+outside England zero-filled, 0 clipped.
+
+**The finding, before any model run: where the homes are, the water is
+shallower.** Share of the >=1% band deeper than each threshold,
+hh-weighted over English districts, area -> postcode: 0.2 m 0.391 ->
+0.386; 0.3 m 0.222 -> 0.176; 0.6 m 0.067 -> 0.032; 0.9 m 0.028 ->
+0.012; 1.2 m 0.014 -> 0.006. The deep water in a district's
+surface-water envelope is disproportionately where nobody lives
+(hollows, car parks, fields). The conditional ORDERING correlates only
+0.48 / 0.43 / 0.36 (Spearman, 0.2 / 0.3 / 0.6 m) with the area version,
+so the severity multiplier re-shapes a great deal even though it is
+renormalised to a mean of 1.0 (range 0.74..2.28, mean depth
+0.11..0.95 m).
+
+**Deltas, both grains, against the second publish.**
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.7478 -> 169.7457 (-0.002) | 169.7525 -> 169.7488 (-0.004) |
+| rating group changed | 98 (49 up, 49 down) | 468 (233 up, 235 down) |
+| `premium` moved | 2,139 (1,915 English; 224 elsewhere via the calibration) | 8,939 |
+| hh-weighted \|d premium\| p50 / p90 / p99 | 0.2 / 1.0 / 2.6 | 0.3 / 1.2 / 3.3 |
+| \|d premium\| > 5 / > 10 | 8 / 1 (0.2% of households over 5) | 93 / 19 (0.4%) |
+| largest rise | M90 +6.1, N8 (Hornsey) +6.1, SW1P +5.6 (depth at the homes 0.49 -> 0.67 m) | BB2 9 +26, BD1 9 +20, LE16 0 +20 |
+| largest fall | IP33 (Bury St Edmunds) -10.4 (0.63 -> 0.25 m), RM18 -9.3 (0.26 -> 0.13), RM9 -5.3 | RM20 2 -15, IP33 2 -14, RM18 7 -14 |
+| climate `premium_cc` (exposure-weighted) | 179.137 -> 179.166 | |
+| grain nesting, new pair (median) | 0.74% | |
+
+Smallest of the four denominator changes, as expected: severity is
+renormalised, England only, and surface water is a fifth of flood
+cost. The movers read right: Bury St Edmunds and the Thames-estuary
+towns (Tilbury, Dagenham, Stanford-le-Hope) carried deep area water on
+low ground the homes are not on; inner London and the Pennine towns
+(Blackburn BB2 9, Bradford BD1 9) have their homes in the deeper part
+of the mapped water. No external validation exists for depth-at-homes;
+the evidence is the direction (homes on the higher ground of the
+floodplain is the expected sign), the nesting, and consistency of
+denominator.
+
+**What publishing would need.** `sector-model.yml`'s depth job:
+`fetch_onspd.py` + OSTN15 + `fetch_sw_postcodes.py --flags england` (the
+envelope) + `fetch_sw_depth_postcodes.py --flags` + aggregate, and the
+same for the climate job; the interim-pair step (468 sector groups
+move); README §3 depth bullet, DATA_SOURCES #7/#41, the
+`fetch_sw_depth.py` docstring marked superseded, `sw_depth_area[_cc].csv`
+committed as the kept area tables; and `sw_fractions_area[_cc].csv`
+become redundant to the model (kept for the record or dropped). NOT
+done here. `tests/test_inputs.py` (main and both exp branches) guards
+the nesting, the envelope and the coverage of the depth tables at
+whichever grain the checkout carries. Writing it found that the
+PUBLISHED area tables overshoot their own envelope in three City
+districts (EC4M by 0.29 pp, EC4N, EC3V) - two rasterisations of the
+same water - which `_band_shares` already absorbs by raising the
+envelope to the band; the guard tolerates 0.5 pp on an area basis and
+nothing on a postcode basis, which is sampled once.
+
+## VERIFIED 2026-09-07: a full runner fetch reproduces the published sector build exactly
+
+The caveat from the second publish ("the rewritten surface-water job
+and the subsidence step are untested on a runner") is closed.
+`sector-model.yml` was dispatched with `skip_fetch=false` on a
+throwaway branch (`exp/sector-fetch-test`, from `sector-model` 69716eb)
+so a bot commit could change nothing published. The first attempt
+(run 34056186038) failed in the flood AND surface-water jobs within
+five seconds: `fetch_onspd.py` refuses to run without the OSTN15 grid
+and only the model job installed it - so this morning's flood job had
+never worked on a runner either. Fixed on main (`764d5e6`: the grid
+step in every job that runs `fetch_onspd.py`, and the model job's
+subsidence step moved after its own grid install because
+`score_subsidence_postcodes.py` transforms the BGS layers too) and
+guarded by `tests/test_workflows.py` (`7387417`: every job that runs
+fetch_onspd / score_subsidence_postcodes / build_model has the grid
+step before it; the commit list is complete; no literal `\n`).
+
+Run 34056312941 then succeeded end to end: erosion 14 min, flood 14
+min (ONSPD fetched from a runner for the first time, 85 MB),
+surface-water 40 min (England 8.948% in the >=1% band, Wales 2.859%,
+Scotland 8.780% - the laptop's numbers), depth 75 min, model with the
+subsidence step and the commit-back (`7687a8e`, run 32). Against the
+laptop-fetched inputs on `sector-model`: `flood_fractions.csv`,
+`sw_fractions.csv`, `subsidence_postcodes.csv`, `erosion.csv` and
+`sw_depth.csv` differ in NO value (line endings only), and the sector
+output differs in no column and no geometry from run 30; the
+exposure-weighted premium is 169.7525 in both and 0 rating groups move.
+The first time a grain has been reproduced from nothing but the
+workflow. The throwaway branch stays on origin as the record of run 32.
+
 ## PUBLISHED 2026-09-06 (second publish): SURFACE WATER and SUBSIDENCE by postcode share, both grains, one push
 
 The user's decision ("keep going publish outstanding") on the two
