@@ -224,9 +224,24 @@ spectral, vorticity-divergence form, initialised from NCEP reanalysis.
 Twin runs from starting states that differ by less than the wind is
 observable measure the error doubling time: **5.6 d at T42, 4.2 d at
 T63** - *faster* with resolution, the classic result. Saturation (two
-unrelated January days) is **17.6 m/s**. One year is ~62 doublings, so
-a useful one-year forecast needs the initial wind known to ~1e-18 m/s.
-It is not a data problem.
+unrelated January days) is **17.6 m/s**.
+
+**The doubling time is not one number, and the conclusion does not need
+it to be.** A 20-day sweep over four starting amplitudes gives 6.6 d
+(0.001 m/s), 6.8 d (0.01), 9.1 d (0.1) and 15.6 d (1.0): growth slows
+as the error grows, which is Lorenz's own result and the reason a
+single figure is always window-dependent. Take the *slowest* measured
+growth, 15.6 d, and a year is still 23 doublings - the initial wind
+would have to be known to **8e-7 m/s**, against the ~1 m/s it is
+actually observed to. At the fastest, 4.7 d, the requirement is 5e-23.
+The whole measured range rules a year out by six to twenty-three orders
+of magnitude, so it is not a data problem and no sharpening of the
+number changes the answer.
+
+**It is physics, not the integrator.** Halving the timestep (600 s ->
+300 s, T42, 12 days) moves the mean doubling time from 5.5754 d to
+5.5750 d and the final error by 0.04%. Mass is conserved to 2e-16,
+energy to 4e-4, and enstrophy falls 6% into the filter as it must.
 
 **What this settles.** The 20,000-year copula simulation is not a
 second-best substitute for a forecast; at a one-year lead it is the
