@@ -27,6 +27,18 @@ Each argument is a path whose committed version is read from git (HEAD)
 and compared against the file on disk. A genuinely revised upstream
 product WILL trip this, and that is the point: --accept-large turns it
 into a warning once a human has looked at the numbers it printed.
+
+Be clear about the limit. The SECOND merge attempt of the same day was
+narrower - 22 districts and 32 sectors, the border units a region paints
+across the line - and the rate and level gates both passed it; only the
+ratio gate below caught it, and only on the climate tables where the
+whole old value had come from the doubled region. The present-day side
+of the same fault, England-labelled TD12 losing the Scottish half of
+itself (0.11754 -> 0.05845), is NOT caught here by anything: one unit at
+a factor of two is indistinguishable from a sliver gaining a pixel. It
+is prevented at source instead - fetch_surface_water.py no longer merges
+at all. A control that catches a class is worth more than one that
+catches an instance, and this file catches only the wide instances.
 """
 
 import os
@@ -44,6 +56,24 @@ EPS = 0.01
 MAX_MOVED = 0.01
 # nor may the mean level of any column shift by more than this, relative
 MAX_LEVEL = 0.02
+
+# A merge fault does not have to be widespread to be fatal. The second
+# attempt of 2026-09-12 doubled exactly 22 districts and 32 sectors - the
+# border units a region paints across the line - which is 0.37% of values
+# and sails under MAX_MOVED. What those units have in common is a RATIO:
+# a merge that adds a region twice multiplies by exactly 2.
+#
+# A ratio of 2 is not by itself proof, and pretending otherwise would
+# make this guard flaky. At sector grain a sliver holds a handful of
+# painted pixels, and two of them really can become four: measured on
+# this same refetch, HP6 9's d03 band went 0.01720 -> 0.03440 and IP7 9's
+# d02_high 0.17247 -> 0.08624, both one pixel, both innocent. What is not
+# innocent is SEVERAL units landing on the same factor at once - six
+# districts and twelve sectors did, and no pixel does that. So the ratio
+# fails the run only once more than MAX_RATIO_UNITS units share it.
+RATIO_FLOOR = 0.01      # below 1% of a unit, a doubling can be two pixels
+RATIO_TOL = 0.02        # how close to exactly 2x or 0.5x counts as landing
+MAX_RATIO_UNITS = 3     # one or two is a sliver; more is arithmetic
 
 
 def _read(text):
@@ -101,11 +131,29 @@ def check(path):
                         m_old, b[:, j].mean()))
     worst = max(lvl) if lvl else (0.0, "-", 0.0, 0.0)
 
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio = np.where(a > RATIO_FLOOR, b / np.where(a > 0, a, 1), np.nan)
+    doubled = np.abs(ratio - 2.0) < RATIO_TOL
+    halved = np.abs(ratio - 0.5) < RATIO_TOL
+    hit = np.argwhere(doubled | halved)
+
     head = (f"{name}: {len(shared)} units, {100 * moved:.2f}% of values "
             f"moved > {EPS}, max |delta| {d.max():.5f}; worst column level "
             f"{worst[1]} {worst[2]:.5f} -> {worst[3]:.5f} "
             f"({100 * worst[0]:+.2f}%)")
-    ok = moved <= MAX_MOVED and worst[0] <= MAX_LEVEL
+    units = sorted({shared[i] for i, _ in hit})
+    if len(units) > MAX_RATIO_UNITS:
+        ex = "; ".join(f"{shared[i]} {new_cols[j]} {a[i, j]:.5f} -> "
+                       f"{b[i, j]:.5f}" for i, j in hit[:3])
+        head += (f"\n        {len(units)} units landed on exactly 2x or 0.5x "
+                 f"({len(hit)} values) - a pixel cannot do that to this many "
+                 f"at once, a merge can: {ex}")
+    elif units:
+        head += (f"\n        (note: {len(units)} unit(s) at exactly 2x or "
+                 f"0.5x, too few to be a merge - in a small polygon that "
+                 f"is one pixel: {', '.join(units)})")
+    ok = (moved <= MAX_MOVED and worst[0] <= MAX_LEVEL
+          and len(units) <= MAX_RATIO_UNITS)
     return ok, head
 
 

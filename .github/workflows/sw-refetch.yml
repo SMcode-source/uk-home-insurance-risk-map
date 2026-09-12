@@ -122,11 +122,18 @@ jobs:
           mkdir -p "$dir"
           curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
           echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" | sha256sum -c
+      # ALL THREE regions, not england alone. The envelope is a sum over
+      # every service that paints a unit, and they overlap at the border:
+      # TD12 straddles the Tweed and carries an EA contribution and a SEPA
+      # one, SY10 carries an EA contribution although country.csv calls it
+      # Wales. An England-only refetch cannot repair such a unit, whichever
+      # way it merges - measured both ways on 2026-09-12, see
+      # fetch_surface_water._refuse_partial_merge. Wales and Scotland cost
+      # about 670 extra requests against England's 2,750.
+      #
       # --out keeps the postcode-share sw_fractions.csv - the frequency
-      # denominator since 2026-09-06 - completely untouched, and merges
-      # into the existing area file so the Welsh and Scottish rows (no
-      # depth product there) survive an England-only refetch.
-      - run: python -u scripts/fetch_surface_water.py england --out data/sw_fractions_area.csv
+      # denominator since 2026-09-06 - completely untouched.
+      - run: python -u scripts/fetch_surface_water.py --out data/sw_fractions_area.csv
       - uses: actions/upload-artifact@v4
         with: { name: sw-area, path: data/sw_fractions_area.csv*, retention-days: 14 }
 
