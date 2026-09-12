@@ -13,7 +13,9 @@ These tests read the workflow files as data and assert the ordering
 that the scripts require, so the mistake is caught by `tests.yml` on
 the push that makes it, not by the next full fetch weeks later.
 """
+import glob
 import os
+import re
 
 import pytest
 import yaml
@@ -21,12 +23,33 @@ import yaml
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 WORKFLOWS = os.path.join(ROOT, ".github", "workflows")
 
-# Scripts that transform WGS84 to British National Grid and must see the
-# same OSTN15 grid the model build uses (HANDOFF 2026-09-05: the grid was
-# the whole of the local-vs-CI gap).
-NEEDS_OSTN15 = ("fetch_onspd.py", "score_subsidence_postcodes.py",
-                "build_model.py")
 OSTN15_STEP = "Install the OSTN15 datum grid"
+
+# Workflows that produce COMMITTED model inputs or outputs. Anything they
+# rasterise or sample has to see the same transform the build does; the
+# measurement-only workflows are deliberately out of scope.
+BUILD_WORKFLOWS = ["sector-model.yml", "rebuild.yml", "sw-refetch.yml"]
+
+# Which scripts need the grid is DERIVED, not listed. The hand-written
+# list missed fetch_sw_depth.py for six weeks, and the district depth
+# bands were rasterised against polygons 2-7 m from the model's own -
+# up to 0.54 of a 13 m pixel (HANDOFF 2026-09-12). A list only guards
+# what someone remembered to put in it.
+TRANSFORM_CALL = re.compile(r"to_crs\(\s*(?:27700|[\"']EPSG:27700[\"'])"
+                            r"|from_epsg\(\s*27700\s*\)")
+
+
+def _transforming_scripts():
+    out = set()
+    for path in glob.glob(os.path.join(ROOT, "scripts", "*.py")):
+        with open(path, encoding="utf-8") as fh:
+            if TRANSFORM_CALL.search(fh.read()):
+                out.add(os.path.basename(path))
+    assert "build_model.py" in out, "the detector stopped detecting"
+    return out
+
+
+NEEDS_OSTN15 = sorted(_transforming_scripts())
 
 
 def _load(name):
@@ -41,7 +64,7 @@ def _steps_running(job, script):
             yield i, step
 
 
-@pytest.mark.parametrize("workflow", ["sector-model.yml", "rebuild.yml"])
+@pytest.mark.parametrize("workflow", BUILD_WORKFLOWS)
 def test_every_job_installs_ostn15_before_it_transforms(workflow):
     wf = _load(workflow)
     for job_name, job in wf["jobs"].items():
@@ -79,3 +102,36 @@ def test_sector_model_commits_every_regenerated_input():
         assert f in commit, f"{f} is regenerated but not committed"
     # and the continuation lines are real continuations, not a literal \n
     assert "\\n" not in commit
+
+
+def test_sw_refetch_commits_and_pairs_every_table_it_fetches():
+    """The depth bands and the envelope they are conditioned on are two
+    rasterisations of the same tile grid. Fetching one without the other
+    is what makes the pair unreadable, so every table a job produces must
+    be committed by the same run - and the guard must run first."""
+    wf = _load("sw-refetch.yml")
+    produced = set()
+    for job in wf["jobs"].values():
+        for step in job.get("steps", []):
+            run = step.get("run") or ""
+            for f in ("sw_depth.csv", "sw_depth_cc.csv",
+                      "sw_fractions_area.csv", "sw_fractions_area_cc.csv"):
+                if f"--out data/{f}" in run:
+                    produced.add(f)
+            if "fetch_sw_depth.py --climate" in run:
+                produced.add("sw_depth_cc.csv")
+            elif "fetch_sw_depth.py" in run:
+                produced.add("sw_depth.csv")
+    assert produced == {"sw_depth.csv", "sw_depth_cc.csv",
+                        "sw_fractions_area.csv", "sw_fractions_area_cc.csv"}, \
+        f"a depth table and its envelope must be refetched together: {produced}"
+
+    steps = wf["jobs"]["collect"]["steps"]
+    commit = next(s for s in steps if "git add" in (s.get("run") or ""))
+    for f in produced:
+        assert f"data/{f}" in commit["run"], f"{f} is fetched but not committed"
+    assert "\\n" not in commit["run"]
+
+    guard = next(i for i, s in enumerate(steps)
+                 if "pytest" in (s.get("run") or ""))
+    assert guard < steps.index(commit), "the guard must run before the commit"
