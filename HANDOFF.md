@@ -168,32 +168,69 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
-## FOUND 2026-09-12: the new input guard fires on the SECTOR branch - stale depth table
+## RETRACTED 2026-09-12: "stale sector depth table" - it was not stale, and I did not check before writing it
 
-Syncing main into `sector-model` carried `tests/test_inputs.py` across
-for the first time, and it failed there immediately. Worth recording
-because the guard was written on the district grain, where it passes.
+Earlier the same day I recorded that `tests/test_inputs.py`, arriving on
+`sector-model` for the first time, had caught a stale depth table:
+`sw_depth.csv` from 2026-08-17 against an envelope "rebuilt 2026-09-06 on
+the current geometry". The user asked for the fix and a republish. **The
+finding was wrong and no republish is warranted.** Every claim in it is
+answered below by something I could have run before writing it.
 
-`data/sw_depth.csv` at sector grain is from 2026-08-17. The area-share
-envelope it is conditioned on, `data/sw_fractions_area.csv`, was rebuilt
-2026-09-06 on the current (OSTN15, full-resolution) geometry. They no
-longer agree: **99 of 20,796 sector-band rows have a deepest-band share
-above the envelope** (46 high, 53 low), 38 of them by more than 0.5 pp,
-worst SE8 9 by 14.7 pp and SW17 1 by 10.9 pp. On districts the same
-check finds 4 rows, worst 0.29 pp - rounding between two rasterisations,
-which is what the 0.005 tolerance was written for.
+**The two tables come from the same fetch.** `sw_fractions_area.csv` is
+not a rebuild at all - `fetch_sw_postcodes.py` *copies* the pre-existing
+area-share file aside before overwriting it, so its 2026-09-06 date is
+the copy, not a measurement. Its bytes are identical to
+`sw_fractions.csv` as committed in `453cef2`, "Sector model: cloud fetch
++ build (run 8)" - the same run that wrote `sw_depth.csv`. I compared
+mtimes and stopped.
 
-**Why it matters.** `_band_shares` raises the envelope to the band
-(`np.maximum.accumulate`), so an overshooting sector has its whole
-surface-water occupancy pushed into the deepest band - the maximum
-severity multiplier, on evidence that does not support it. It is 0.5%
-of sector rows, so it cannot move the headline, but those sectors are
-individually overstated on the LIVE sector map.
+**The geometry never moved either.** `data/sectors_gb.gpkg` is committed
+on this branch and has been written exactly once, in `d5dc7f2`. OSTN15
+changed postcode centroids, not the sector polygons, so the depth
+rasterisation, its envelope and the live build all use one geography.
 
-**Fix, not yet done:** rebuild `sw_depth.csv` at sector grain against
-the current geometry (`fetch_sw_depth.py`, CI), then republish the
-sector build. Not started - it is a rebuild, so it is the user's call.
-Nothing about the district grain is affected.
+**What the overshoot actually is:** the same two-rasterisation artefact
+already documented for districts. The five depth layers and the extent
+layer are separate 13 m/px renderings, and the same absolute edge error
+is a bigger share of a smaller polygon. Districts: 0 rows past half a
+point out of 5,472, largest 0.29 pp. Sectors: 38 out of 20,796, largest
+14.7 pp. Rare at both grains, which is the signature of rounding rather
+than of a mismatched pair.
+
+**And the consequence was overstated in the wrong direction.** I wrote
+that the affected sectors are "individually overstated". Re-running
+`sw_depth_severity` against a variant that caps each depth fraction at
+its envelope moves the exposure-weighted mean multiplier by nothing
+(1.000000 either way, it is renormalised) and moves individual sectors
+**both ways**: BR8 9 1.493 -> 1.000, but SE3 3 2.044 -> 2.215. The
+largest move is 0.49 on a 160-household sector; the next five are 0.23
+or less, on 75-250 households. Capping is not obviously more correct
+than what the model does - raising the envelope to the band is the
+*gentler* of the two, since capping shifts relatively more weight into
+the deep bands.
+
+**Also checked, also a non-issue:** the `depth`, `depth-climate` and
+`erosion` jobs of `sector-model.yml` run scripts that call `.to_crs(27700)`
+with no OSTN15 step, which `tests/test_workflows.py` does not catch
+because its list of transforming scripts is hand-written. It is harmless
+here: `load_districts()` reads a 27700 file and returns 4326, so
+`fetch_sw_depth.py` round-trips back to the source CRS with one pipeline
+and the grid cancels - measured at 4e-9 relative area and a 0.000000 m
+corner shift. Worth knowing before someone "fixes" it; worth fixing only
+if one of those scripts ever stops round-tripping.
+
+**What changed as a result.** `tests/test_inputs.py` now guards the
+overshoot RATE (under 1% of rows) with a ceiling on any single row,
+instead of one absolute tolerance that could only ever be right at one
+grain. Nothing was rebuilt and nothing was republished.
+
+**The lesson, which is the only reason this entry is long.** Two file
+mtimes are not provenance. `git log` on both files would have taken
+fifteen seconds and would have stopped the claim being written, the
+commit being pushed, and the user being asked to authorise five hours of
+CI to fix a table that was already correct. This is the eighth entry in
+the list of claims of mine that measurement later contradicted.
 
 ## MEASURED 2026-09-12: how far ahead is the weather forecastable? Three ways, same answer
 
