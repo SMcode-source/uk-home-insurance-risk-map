@@ -106,6 +106,40 @@ def test_depth_bands_nest_and_sit_inside_the_envelope(suffix):
             f"disagree by")
 
 
+@pytest.mark.parametrize("name", ["sw_fractions.csv", "sw_fractions_cc.csv",
+                                  "sw_fractions_area.csv",
+                                  "sw_fractions_area_cc.csv"])
+def test_surface_water_fractions_are_shares(name):
+    """sw_high and sw_low are fractions of a unit, so they live in [0, 1]
+    and the >=1% band nests inside the full envelope.
+
+    This is the cheap half of the lesson, and it is worth being exact
+    about what it does NOT do. On 2026-09-12 fetch_surface_water.py's
+    merge double-counted a re-run region: 77% of district values rose,
+    median +0.08, mean sw_low 0.156 -> 0.285, nineteen units pinned at
+    1.0. This test passes on that file - doubling a small share leaves a
+    share, and the depth guard above is a CEILING, so a too-large
+    envelope only makes it pass more easily. What catches it is
+    scripts/check_refetch_delta.py, which compares a refetch against the
+    table it replaces. Keep both: this one is the shape, that one is the
+    size.
+    """
+    frac, _ = _read(name)
+    bad_range, bad_nest = [], []
+    for unit, r in frac.items():
+        hi, lo = float(r["sw_high"]), float(r["sw_low"])
+        if not (0.0 <= hi <= 1.0 and 0.0 <= lo <= 1.0):
+            bad_range.append((unit, hi, lo))
+        if hi > lo + TOL:
+            bad_nest.append((unit, hi, lo))
+    assert not bad_range, (
+        f"{len(bad_range)} units are not shares of themselves in {name}: "
+        f"{bad_range[:5]}")
+    assert not bad_nest, (
+        f"{len(bad_nest)} units have sw_high above sw_low in {name} - the "
+        f">=1% band cannot be wider than the whole envelope: {bad_nest[:5]}")
+
+
 @pytest.mark.parametrize("suffix", ["", "_cc"])
 def test_depth_by_postcode_is_zero_outside_england(suffix):
     depth, _ = _read(f"sw_depth{suffix}.csv")

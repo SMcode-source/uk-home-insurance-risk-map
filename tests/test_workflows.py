@@ -135,3 +135,18 @@ def test_sw_refetch_commits_and_pairs_every_table_it_fetches():
     guard = next(i for i, s in enumerate(steps)
                  if "pytest" in (s.get("run") or ""))
     assert guard < steps.index(commit), "the guard must run before the commit"
+
+    # tests/test_inputs.py checks the SHAPE of a table (shares, nesting,
+    # a ceiling); it cannot know how big a refetch should be, and it
+    # passed on the doubled file of 2026-09-12. The size check compares
+    # each table against the one it replaces, so it has to see all four.
+    size = next((i for i, s in enumerate(steps)
+                 if "check_refetch_delta.py" in (s.get("run") or "")), None)
+    assert size is not None, (
+        "collect must run scripts/check_refetch_delta.py - the shape guard "
+        "passes on a table that is twice the truth")
+    assert size < steps.index(commit), (
+        "the size check must run before the commit, not after it")
+    for f in produced:
+        assert f"data/{f}" in steps[size]["run"], (
+            f"{f} is fetched but not size-checked against its predecessor")
