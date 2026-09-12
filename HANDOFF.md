@@ -208,6 +208,40 @@ grepping `scripts/` for `to_crs(27700)`, instead of the hand-written list
 that had missed `fetch_sw_depth.py` since it was written. Adding a script
 that transforms, without the grid step, is now a red `tests.yml`.
 
+**The first attempt at that refetch produced a table twice the truth.**
+`fetch_surface_water.py`'s merge seeded every unit from the existing CSV
+and then added the freshly fetched value on top, so re-running `england`
+against a file that already held England double-counted it. It had never
+been wrong before because it had only ever run on a file whose selected
+rows were still zero. The output looks exactly like a fraction table -
+right row count, every value in [0, 1], `sw_high` still inside `sw_low` -
+and **every guard in `tests/test_inputs.py` passes on it**, including the
+new shares check; the depth-envelope guard is a CEILING, so an oversized
+envelope makes it pass *more* easily. Measured on the artifacts of runs
+34713778297 and 34713779880: 77.4% of district and 82.7% of sector values
+moved, all upward, median +0.076 / +0.094, mean `sw_low` 0.15557 ->
+0.28464, nineteen units pinned at 1.0. Both runs were cancelled at 48
+minutes, before `collect`; `origin/main` stayed at `b11ca78` and
+`origin/sector-model` at `cf34168`.
+
+It was caught because the user had asked to see the deltas before the
+push. That is not a control, so `eccd532` added one: the merge now keys
+on `data/country.csv` rather than on which rows happen to be nonzero,
+and `scripts/check_refetch_delta.py` compares each refetched table
+against the version it replaces and fails the run if more than 1% of
+values moved past 0.01 or any column's mean level moved 2%. The expected
+move is the datum shift, ~1e-5 of a fraction, so those thresholds are
+generous by three orders of magnitude and still catch a doubling (76.33%
+moved, level +82.96%, exit 1). `sw-refetch.yml` runs it in `collect`
+before the commit step; `tests/test_workflows.py` asserts that ordering
+and that every table the workflow fetches is one it size-checks.
+
+**The lesson worth keeping:** a shape guard cannot catch a size error.
+Every identity in `test_inputs.py` is a statement about one file on its
+own, and a doubled file satisfies all of them. Refetching an unchanged
+product is the one situation where you know what the answer should be -
+the old one - so compare against it.
+
 ## RETRACTED 2026-09-12: "stale sector depth table" - it was not stale, and I did not check before writing it
 
 Earlier the same day I recorded that `tests/test_inputs.py`, arriving on
