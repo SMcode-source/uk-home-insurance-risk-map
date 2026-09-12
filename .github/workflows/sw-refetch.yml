@@ -197,6 +197,15 @@ jobs:
       - name: Guard the refreshed tables
         run: python -m pytest tests/test_inputs.py -q
 
+      # The identities above are a CEILING and a shape; they do not know
+      # how big a refetch should be. The merge bug of 2026-09-12 produced
+      # a file that passed every one of them and was twice the truth.
+      # This compares each table against the one it replaces and stops
+      # the run if it moved more than a datum shift can explain.
+      - name: Refuse a refetch that moved too much
+        run: |
+          python -u scripts/check_refetch_delta.py data/sw_depth.csv data/sw_depth_cc.csv data/sw_fractions_area.csv data/sw_fractions_area_cc.csv
+
       - uses: actions/upload-artifact@v4
         with:
           name: sw-refetch-tables

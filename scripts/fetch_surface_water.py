@@ -162,6 +162,27 @@ def masks_for_tile(region, bbox):
     return out
 
 
+# Which country each region measures. The merge needs this: a region that
+# is being re-run must contribute its NEW value only, and the unit's
+# country is what says whether a given region will write it.
+REGION_COUNTRY = {"england": "England", "wales": "Wales",
+                  "scotland": "Scotland"}
+
+
+def _in_regions(names, selected):
+    """Boolean mask: will one of `selected` measure this unit?"""
+    path = os.path.join("data", "country.csv")
+    with open(path, newline="", encoding="utf-8") as fh:
+        country = {r["name"]: r["country"] for r in csv.DictReader(fh)}
+    missing = [nm for nm in names if nm not in country]
+    if missing:
+        raise SystemExit(
+            f"{len(missing)} units are absent from {path} "
+            f"({missing[:5]}) - refusing to merge on a partial mapping")
+    want = {REGION_COUNTRY[r] for r in selected}
+    return np.array([country[nm] in want for nm in names])
+
+
 def main():
     global OUT, EA_SW_LAYER
     args = sys.argv[1:]
@@ -195,9 +216,21 @@ def main():
         with open(OUT, newline="") as fh:
             old = {r["name"]: (float(r["sw_high"]), float(r["sw_low"]))
                    for r in csv.DictReader(fh)}
-        frac["high"] += np.array([old.get(nm, (0, 0))[0] for nm in names])
-        frac["low"] += np.array([old.get(nm, (0, 0))[1] for nm in names])
-        print("merged existing CSV", flush=True)
+        # Carry the old value ONLY for units the selected regions are not
+        # about to measure. Seeding every unit and then adding the fetched
+        # value on top double-counts the region being re-run, which is
+        # invisible in the CSV and was: re-running england against a file
+        # that already held england drove 77% of district values up by a
+        # median of 0.08 share, some to 1.0 (2026-09-12, caught by reading
+        # the artifact before it committed). The old code only ever ran on
+        # a file whose selected rows were still zero.
+        keep = ~_in_regions(names, selected)
+        frac["high"] += np.where(
+            keep, [old.get(nm, (0, 0))[0] for nm in names], 0.0)
+        frac["low"] += np.where(
+            keep, [old.get(nm, (0, 0))[1] for nm in names], 0.0)
+        print(f"merged existing CSV for {int(keep.sum())} of {n} units "
+              f"outside {selected}", flush=True)
 
     for rname in selected:
         region = REGIONS[rname]
