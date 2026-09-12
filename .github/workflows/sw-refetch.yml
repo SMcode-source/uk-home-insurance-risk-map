@@ -1,0 +1,222 @@
+name: surface water refetch
+
+# Refetches the EA surface-water DEPTH bands and the AREA-share envelope
+# they are conditioned on, for whichever grain the dispatched ref builds:
+# districts on main, postcode sectors on sector-model. Both files come
+# from the same rasterisation of the same tile grid, so they have to be
+# refetched together or the pair stops meaning anything - which is exactly
+# the question that sent a whole session sideways on 2026-09-12.
+#
+# Why this exists at all, given the EA product has not changed (run
+# 34056312941 reproduced the committed sector table byte-for-byte on
+# 2026-09-06): the fetch jobs never had the OSTN15 datum grid. The
+# district polygons are 4326 source data, so fetch_sw_depth.py's
+# .to_crs(27700) is a ONE-WAY transform with nothing to cancel it, and
+# without the grid PROJ falls back to the Helmert approximation - 2 to 7
+# metres away, up to 0.54 of a 13 m pixel. The model build has used OSTN15
+# since 2026-09-05. So the depth bands have been rasterised against
+# polygons the model does not use. This workflow fetches them on the
+# model's own transform.
+#
+# Roughly 75 minutes per depth job (2,750 WMS requests: 550 tiles x 5
+# depth layers) and about a quarter of that for an extent job. The four
+# run in parallel, so the wall clock is one depth job.
+
+on:
+  workflow_dispatch:
+    inputs:
+      climate:
+        description: "Also refetch the climate-change edition (sw_depth_cc, sw_fractions_area_cc)"
+        type: boolean
+        default: true
+      commit:
+        description: "Commit the refreshed tables back to this branch"
+        type: boolean
+        default: false
+
+concurrency:
+  group: sw-refetch-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  depth:
+    name: depth bands
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Boundaries for whichever grain this ref builds
+        run: |
+          if [ -f data/sectors_gb.gpkg ]; then
+            echo "sector grain: the geometry is committed on this branch"
+          else
+            git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data/uk-postcode-polygons
+          fi
+      - name: Install the OSTN15 datum grid
+        run: |
+          dir=$(python -c "from pyproj import datadir; print(datadir.get_user_data_dir())")
+          mkdir -p "$dir"
+          curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
+          echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" | sha256sum -c
+          python -c "from pyproj.transformer import TransformerGroup as G; print('proj pipeline', G(4326, 27700, always_xy=True).transformers[0].description)"
+      - run: python -u scripts/fetch_sw_depth.py
+      - uses: actions/upload-artifact@v4
+        with: { name: sw-depth, path: data/sw_depth.csv*, retention-days: 14 }
+
+  depth-climate:
+    name: depth bands (climate)
+    if: ${{ inputs.climate }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Boundaries for whichever grain this ref builds
+        run: |
+          if [ -f data/sectors_gb.gpkg ]; then
+            echo "sector grain: the geometry is committed on this branch"
+          else
+            git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data/uk-postcode-polygons
+          fi
+      - name: Install the OSTN15 datum grid
+        run: |
+          dir=$(python -c "from pyproj import datadir; print(datadir.get_user_data_dir())")
+          mkdir -p "$dir"
+          curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
+          echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" | sha256sum -c
+          python -c "from pyproj.transformer import TransformerGroup as G; print('proj pipeline', G(4326, 27700, always_xy=True).transformers[0].description)"
+      - run: python -u scripts/fetch_sw_depth.py --climate
+      - uses: actions/upload-artifact@v4
+        with: { name: sw-depth-cc, path: data/sw_depth_cc.csv*, retention-days: 14 }
+
+  extent:
+    name: area-share envelope
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Boundaries for whichever grain this ref builds
+        run: |
+          if [ -f data/sectors_gb.gpkg ]; then
+            echo "sector grain: the geometry is committed on this branch"
+          else
+            git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data/uk-postcode-polygons
+          fi
+      - name: Install the OSTN15 datum grid
+        run: |
+          dir=$(python -c "from pyproj import datadir; print(datadir.get_user_data_dir())")
+          mkdir -p "$dir"
+          curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
+          echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" | sha256sum -c
+      # --out keeps the postcode-share sw_fractions.csv - the frequency
+      # denominator since 2026-09-06 - completely untouched, and merges
+      # into the existing area file so the Welsh and Scottish rows (no
+      # depth product there) survive an England-only refetch.
+      - run: python -u scripts/fetch_surface_water.py england --out data/sw_fractions_area.csv
+      - uses: actions/upload-artifact@v4
+        with: { name: sw-area, path: data/sw_fractions_area.csv*, retention-days: 14 }
+
+  extent-climate:
+    name: area-share envelope (climate)
+    if: ${{ inputs.climate }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Boundaries for whichever grain this ref builds
+        run: |
+          if [ -f data/sectors_gb.gpkg ]; then
+            echo "sector grain: the geometry is committed on this branch"
+          else
+            git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data/uk-postcode-polygons
+          fi
+      - name: Install the OSTN15 datum grid
+        run: |
+          dir=$(python -c "from pyproj import datadir; print(datadir.get_user_data_dir())")
+          mkdir -p "$dir"
+          curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
+          echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" | sha256sum -c
+      - run: python -u scripts/fetch_surface_water.py --climate --out data/sw_fractions_area_cc.csv
+      - uses: actions/upload-artifact@v4
+        with: { name: sw-area-cc, path: data/sw_fractions_area_cc.csv*, retention-days: 14 }
+
+  collect:
+    name: check and commit
+    needs: [depth, depth-climate, extent, extent-climate]
+    if: ${{ always() && !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+      - uses: actions/download-artifact@v4
+        with:
+          path: data
+          merge-multiple: true
+
+      # fetch_sw_depth.py and fetch_surface_water.py both write a .partial
+      # rather than the real filename when a tile could not be fetched,
+      # because a dropped tile reads downstream as "no water here" and
+      # nothing can tell the difference. Refuse the run rather than commit
+      # a table that is quietly missing a county.
+      - name: Reject an incomplete fetch
+        run: |
+          if ls data/*.partial 2>/dev/null; then
+            echo "::error::a surface-water fetch fell short (.partial) - refusing to commit"
+            exit 1
+          fi
+
+      - name: Show what moved
+        run: |
+          git --no-pager diff --stat -- data/sw_depth.csv data/sw_depth_cc.csv data/sw_fractions_area.csv data/sw_fractions_area_cc.csv
+
+      - name: Guard the refreshed tables
+        run: python -m pytest tests/test_inputs.py -q
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sw-refetch-tables
+          path: |
+            data/sw_depth.csv
+            data/sw_depth_cc.csv
+            data/sw_fractions_area.csv
+            data/sw_fractions_area_cc.csv
+          retention-days: 14
+
+      - name: Commit the refreshed tables to this branch
+        if: ${{ inputs.commit }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/sw_depth.csv data/sw_depth_cc.csv \
+                  data/sw_fractions_area.csv data/sw_fractions_area_cc.csv
+          if git diff --cached --quiet; then
+            echo "nothing new to commit - the refetch reproduced the committed tables"
+          else
+            git commit -m "Surface water: depth bands and area envelope refetched on the OSTN15 transform (run ${{ github.run_number }})"
+            git push origin HEAD
+          fi

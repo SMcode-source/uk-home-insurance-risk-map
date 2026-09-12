@@ -168,6 +168,46 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## 2026-09-12: the depth tables were rasterised on the wrong transform - refetching all four
+
+Chasing the retraction above to the bottom turned up a real defect, one
+grain deeper than the one I invented.
+
+**The EA product has not changed.** Run 34056312941 refetched the sector
+depth bands on 2026-09-06 in 75 minutes and its artifact is byte-for-byte
+the committed 2026-08-17 table. Downloaded and diffed, not inferred.
+
+**But the fetch jobs never had the OSTN15 grid.** `fetch_sw_depth.py`
+calls `load_districts().to_crs(27700)`. On `sector-model` that is a round
+trip - the source file is already 27700, so the transform cancels
+(measured: 4e-9 relative area, 0.000000 m corner shift). **On main it is
+one-way**: the district polygons are 4326 GeoJSON, nothing cancels, and
+without the grid PROJ falls back to the Helmert approximation. Measured
+across eight British points that is **2.0 to 7.1 m, up to 0.54 of a 13 m
+pixel**. The model build has used OSTN15 since 2026-09-05. So the district
+depth bands have been counted against polygons the model does not use.
+
+**Size of it.** Refetching on this laptop (which has the grid) against the
+committed tables: tens of pixels per district - OX9 d03_low by 13.4 px out
+of 411,598, about 1e-5 of the fraction. Invisible at district grain. At
+sector grain the same absolute shift is a whole pixel in the slivers, and
+a pixel is 4.5% of TW8 1 (22 pixels in total). Every large sector delta
+I checked was exactly one pixel.
+
+**What changed.** `sw-refetch.yml` refetches the depth bands AND the
+area-share envelope they are conditioned on - the two are rasterisations
+of the same tile grid and are meaningless apart - for whichever grain the
+dispatched ref builds, with the grid installed. `fetch_surface_water.py
+--out` leaves the postcode-share frequency file untouched. Four jobs in
+parallel, so one depth job of wall clock. The same step was added to
+sector-model.yml's `erosion`, `depth` and `depth-climate` jobs.
+
+**And the guard no longer relies on anyone remembering.**
+`tests/test_workflows.py` now DERIVES the list of transforming scripts by
+grepping `scripts/` for `to_crs(27700)`, instead of the hand-written list
+that had missed `fetch_sw_depth.py` since it was written. Adding a script
+that transforms, without the grid step, is now a red `tests.yml`.
+
 ## RETRACTED 2026-09-12: "stale sector depth table" - it was not stale, and I did not check before writing it
 
 Earlier the same day I recorded that `tests/test_inputs.py`, arriving on
