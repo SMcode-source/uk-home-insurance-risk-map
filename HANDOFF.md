@@ -168,6 +168,68 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## PUBLISHED 2026-09-13: surface water refetched on OSTN15 at both grains - correct, and worth nothing
+
+The refetch of the previous section landed. Main `d82360f`, sector-model
+`0e0ff3f` (sector run 35 = `67c7015`), one push, both grains, live
+verified byte-for-byte against the committed assets.
+
+**The priced answer is nothing.**
+
+| | live | rebuilt | move |
+|---|---|---|---|
+| districts | 169.7478 | 169.7480 | +0.0002 |
+| sectors   | 169.7525 | 169.7525 | 0.0000 |
+
+Rating-group churn: 2 of 2,736 districts, 0 of 10,398 sectors, none by
+two groups. Both district flips are a decile-boundary tie - KA2 4->5 and
+RG5 5->4, both GBP158.40 before and after. Two units sitting exactly on
+the cut, jittered across it by a sub-pixel input change.
+
+So this workstream bought correctness, not price. Worth saying plainly
+because the *inputs* moved a great deal more than the output did:
+
+- **District depth bands** were rasterised against polygons 2-7 m from
+  the model's own (up to 0.54 of a 13 m pixel) for six weeks. Fixed;
+  max move 0.0046 share, tens of pixels in the City, 49% of values
+  touched. Prices to nothing because depth-band severity is a small
+  term.
+- **The Welsh area envelope was 8.8% too high** and had been for as long
+  as it has existed. Fixed; prices to GBP0.00, because that envelope
+  only CONDITIONS the depth bands and surface-water-depth-by-postcode
+  was never a priced frequency. It was wrong; it was not wrong anywhere
+  that reaches a premium.
+
+**How the Welsh error was caught, because the method is the reusable
+part.** The size guard refused the run - 2.32% of values moved past
+0.01, level -0.80%. Looking at why, split by country, showed England
+(max 0.0051) and Scotland (max 0.0009) reproducing and Wales alone
+moving. Two things then settled it without a single new fetch:
+
+1. The sector run hit NRW **at the same moment with the same code** and
+   reproduced its committed Welsh values exactly (0.5% of values, max
+   0.0011). So NRW had not revised anything, and the district file was
+   the odd one out rather than the service.
+2. Rolling that sector measurement up to district level - area-weighted,
+   and **independent of the district polygons** - landed on the
+   REFETCHED district values, not the committed ones. Mean
+   |district - sectors| 0.00658 -> 0.00002, median ratio 1.088 -> 1.000.
+   LL25 0.20971 -> 0.16980 against a roll-up of 0.16978; CF41 0.14167 ->
+   0.10899 against 0.10899.
+
+The two grains disagreed on Wales before this and agree after it. **When
+two grains measure the same thing from different geometry, one can audit
+the other for free** - no new fetch, no external dataset. That is the
+cheapest validation this project has found, and it should be reached for
+before anything more elaborate.
+
+**A guard that fires is not a guard that failed.** The refusal cost a
+75-minute fetch to act on, so `sw-refetch.yml` gained an `accept_large`
+input: a move a human has looked at and justified can now be committed
+by re-running `collect` alone. `check_refetch_delta.py` also prints the
+level shift SIGNED - it reported a fall as `(+0.80%)`, which is how a
+reader ends up arguing with the arrow instead of the number.
+
 ## 2026-09-12: the depth tables were rasterised on the wrong transform - refetching all four
 
 Chasing the retraction above to the bottom turned up a real defect, one
