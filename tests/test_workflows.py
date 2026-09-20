@@ -104,41 +104,66 @@ def test_sector_model_commits_every_regenerated_input():
     assert "\\n" not in commit
 
 
+def _sw_tables_produced(job):
+    """The tables an aggregation step of `job` writes, by the script and
+    flags it runs. A --flags step writes a gitignored intermediate and
+    produces nothing committable."""
+    produced = set()
+    for step in job.get("steps", []):
+        run = step.get("run") or ""
+        for script, stem in (("fetch_sw_postcodes.py", "sw_fractions"),
+                             ("fetch_sw_depth_postcodes.py", "sw_depth")):
+            if script not in run or "--flags" in run:
+                continue
+            produced.add(f"{stem}_cc.csv" if "--climate" in run
+                         else f"{stem}.csv")
+    return produced
+
+
 def test_sw_refetch_commits_and_pairs_every_table_it_fetches():
     """The depth bands and the envelope they are conditioned on are two
-    rasterisations of the same tile grid. Fetching one without the other
-    is what makes the pair unreadable, so every table a job produces must
-    be committed by the same run - and the guard must run first."""
+    samplings of the same postcode centroids. Fetching one without the
+    other is what makes the pair unreadable, so every table a job
+    produces must be committed by the same run - and the guard first.
+
+    Both products moved to postcode share (frequency 2026-09-06, the
+    depth conditional 2026-09-20), so the area-share pair this workflow
+    used to refetch - fetch_sw_depth.py and fetch_surface_water.py --out
+    sw_fractions_area - is superseded and must not come back here: a
+    depth table written by fetch_sw_depth.py would put the model back on
+    the area basis while every shape guard passed."""
     wf = _load("sw-refetch.yml")
     produced = set()
     for job in wf["jobs"].values():
+        produced |= _sw_tables_produced(job)
         for step in job.get("steps", []):
             run = step.get("run") or ""
-            for f in ("sw_depth.csv", "sw_depth_cc.csv",
-                      "sw_fractions_area.csv", "sw_fractions_area_cc.csv"):
-                if f"--out data/{f}" in run:
-                    produced.add(f)
-            if "fetch_sw_depth.py --climate" in run:
-                produced.add("sw_depth_cc.csv")
-            elif "fetch_sw_depth.py" in run:
-                produced.add("sw_depth.csv")
-    assert produced == {"sw_depth.csv", "sw_depth_cc.csv",
-                        "sw_fractions_area.csv", "sw_fractions_area_cc.csv"}, \
+            assert "fetch_sw_depth.py" not in run, (
+                "sw-refetch runs the superseded AREA-share depth fetch; "
+                "the model reads sw_depth.csv on the postcode basis")
+            assert "sw_fractions_area" not in run, (
+                "sw-refetch writes an area envelope no longer read by "
+                "scores_real.sw_depth_severity")
+    assert produced == {"sw_fractions.csv", "sw_fractions_cc.csv",
+                        "sw_depth.csv", "sw_depth_cc.csv"}, \
         f"a depth table and its envelope must be refetched together: {produced}"
 
-    # The envelope is a SUM over every service that paints a unit, and
-    # they overlap at the border, so a single-region refetch cannot
-    # repair a border unit whichever way it merges - both ways were
-    # measured wrong on 2026-09-12. Fetch all three.
+    # A postcode's envelope is whichever service paints it, and the three
+    # overlap at the border, so a single-region refetch cannot repair a
+    # border unit whichever way it merges - both ways were measured wrong
+    # on 2026-09-12. The present-day fractions need all three.
     for job in wf["jobs"].values():
+        if "sw_fractions.csv" not in _sw_tables_produced(job):
+            continue
+        fetched = set()
         for step in job.get("steps", []):
             run = step.get("run") or ""
-            if "fetch_surface_water.py" not in run or "--climate" in run:
+            if "fetch_sw_postcodes.py --flags" not in run:
                 continue
-            named = [r for r in ("england", "wales", "scotland") if r in run]
-            assert not named, (
-                f"sw-refetch fetches only {named} into the area envelope; a "
-                f"partial region cannot be merged into a per-unit sum")
+            fetched |= {r for r in ("england", "wales", "scotland") if r in run}
+        assert fetched == {"england", "wales", "scotland"}, (
+            f"sw-refetch fetches only {sorted(fetched)} into the present-day "
+            f"fractions; a missing region reads downstream as no water")
 
     steps = wf["jobs"]["collect"]["steps"]
     commit = next(s for s in steps if "git add" in (s.get("run") or ""))
@@ -164,3 +189,27 @@ def test_sw_refetch_commits_and_pairs_every_table_it_fetches():
     for f in produced:
         assert f"data/{f}" in steps[size]["run"], (
             f"{f} is fetched but not size-checked against its predecessor")
+
+
+@pytest.mark.parametrize("workflow", ["sw-refetch.yml", "sector-model.yml"])
+def test_depth_is_sampled_in_the_job_that_fetched_its_envelope(workflow):
+    """fetch_sw_depth_postcodes.py's aggregation reads two files the
+    frequency stage produces: data/sw_flags_england[_cc].csv, the
+    per-postcode envelope it enforces against, and the sw_fractions
+    table it clips a shrunken thin unit to. The flags are gitignored
+    (~20 MB) and are never uploaded as an artifact, so a depth job
+    running in parallel would find neither on a fresh runner and fall
+    back to the committed pair - conditioning a new depth measurement on
+    an old envelope, with every shape guard passing. The two stages must
+    therefore share a job, in that order."""
+    wf = _load(workflow)
+    seen = False
+    for job_name, job in wf["jobs"].items():
+        flags_at = [i for i, s in enumerate(job.get("steps", []))
+                    if "fetch_sw_postcodes.py --flags" in (s.get("run") or "")]
+        for i, _ in _steps_running(job, "fetch_sw_depth_postcodes.py"):
+            seen = True
+            assert flags_at and flags_at[0] < i, (
+                f"{workflow} job '{job_name}' samples depth at step {i} "
+                f"without fetching the envelope flags before it")
+    assert seen, f"{workflow} no longer samples depth at all"

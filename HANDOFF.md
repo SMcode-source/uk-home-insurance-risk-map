@@ -168,6 +168,123 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## PUBLISHING 2026-09-20: surface-water DEPTH by postcode share, both grains
+
+The user's decision, on the measurement of 2026-09-07 re-baselined onto
+the OSTN15 publish (section below, numbers reproduced almost exactly).
+The peril now has ONE denominator: `fetch_sw_depth_postcodes.py` samples
+the five EA depth layers at the same unit-postcode centroids the
+frequency uses, and `sw_depth_severity` conditions on the same
+postcode-share `sw_high`/`sw_low`. `sw_fractions_area[_cc].csv` stop
+being model input; `sw_depth_area[_cc].csv` keep the last area tables.
+
+Priced, both grains, against the published model:
+
+| | districts (2,736) | sectors (10,398) |
+|---|---|---|
+| hh-weighted premium | 169.7480 -> 169.7457 (-0.0024) | 169.7525 -> 169.7488 (-0.0037) |
+| rating group changed | 98 (4.0% of households) | 468 (3.8%) |
+| moved >= 2 groups | 0 | 2 |
+| largest falls | IP33 -10.4, RM18 -9.3, RM9 -5.3 | RM20 2 -14.5, IP33 2 -14.2, RM18 7 -14.0 |
+| largest rises | M90 +6.1, N8 +6.1, SW1P +5.6 | BB2 9 +25.7, BD1 9 +20.4, LE16 0 +19.6 |
+
+**What else went in with it, and why it is not optional.** Three files
+would otherwise have quietly put the model back on the area basis:
+
+1. `sector-model.yml`'s `depth` and `depth-climate` jobs are GONE, and
+   the two depth stages now run inside `surface-water` and
+   `surface-water-climate`. Not tidiness: the depth aggregation reads
+   `data/sw_flags_england[_cc].csv`, which the frequency stage writes,
+   which is gitignored (~20 MB) and is never uploaded as an artifact.
+   A parallel job finds it absent on a fresh runner and falls back to
+   the committed envelope - new depth conditioned on an old denominator,
+   with every shape guard passing.
+   `tests/test_workflows.py::test_depth_is_sampled_in_the_job_that_fetched_its_envelope`
+   now asserts the ordering for both workflows.
+2. `sw-refetch.yml` refetched exactly the two products this change
+   supersedes. Dispatched as it stood, it would have overwritten a
+   postcode-basis `sw_depth.csv` with an area-basis one. It is
+   repointed at `fetch_sw_postcodes.py` + `fetch_sw_depth_postcodes.py`
+   and is now the grain-agnostic refresher for all four live tables;
+   the test refuses `fetch_sw_depth.py` and `sw_fractions_area`
+   appearing in it again. **Its own path is untested on a runner** -
+   the steps mirror sector-model.yml's, which have run.
+3. `fetch_sw_depth.py`'s docstring says it is superseded and what
+   running it would do.
+
+Also: README's quick-start was still telling a reader to run
+`fetch_flood.py` and `fetch_surface_water.py` for the fraction tables,
+which have been superseded since 2026-09-06 - fixed in the same pass.
+
+**No external validation of depth-at-homes exists** (NRW/SEPA publish no
+depth product at all, DATA_SOURCES #38a). The evidence is the shared
+denominator, the nesting, and the direction: homes sit on the higher
+ground of a floodplain, so Bury St Edmunds and the Thames-estuary towns
+fall and inner London and the Pennine mill towns rise. That is an
+argument, not a measurement, and it is the weakest link in this change.
+
+## PUBLISHED 2026-09-13: surface water refetched on OSTN15 at both grains - correct, and worth nothing
+
+The refetch of the previous section landed. Main `d82360f`, sector-model
+`0e0ff3f` (sector run 35 = `67c7015`), one push, both grains, live
+verified byte-for-byte against the committed assets.
+
+**The priced answer is nothing.**
+
+| | live | rebuilt | move |
+|---|---|---|---|
+| districts | 169.7478 | 169.7480 | +0.0002 |
+| sectors   | 169.7525 | 169.7525 | 0.0000 |
+
+Rating-group churn: 2 of 2,736 districts, 0 of 10,398 sectors, none by
+two groups. Both district flips are a decile-boundary tie - KA2 4->5 and
+RG5 5->4, both GBP158.40 before and after. Two units sitting exactly on
+the cut, jittered across it by a sub-pixel input change.
+
+So this workstream bought correctness, not price. Worth saying plainly
+because the *inputs* moved a great deal more than the output did:
+
+- **District depth bands** were rasterised against polygons 2-7 m from
+  the model's own (up to 0.54 of a 13 m pixel) for six weeks. Fixed;
+  max move 0.0046 share, tens of pixels in the City, 49% of values
+  touched. Prices to nothing because depth-band severity is a small
+  term.
+- **The Welsh area envelope was 8.8% too high** and had been for as long
+  as it has existed. Fixed; prices to GBP0.00, because that envelope
+  only CONDITIONS the depth bands and surface-water-depth-by-postcode
+  was never a priced frequency. It was wrong; it was not wrong anywhere
+  that reaches a premium.
+
+**How the Welsh error was caught, because the method is the reusable
+part.** The size guard refused the run - 2.32% of values moved past
+0.01, level -0.80%. Looking at why, split by country, showed England
+(max 0.0051) and Scotland (max 0.0009) reproducing and Wales alone
+moving. Two things then settled it without a single new fetch:
+
+1. The sector run hit NRW **at the same moment with the same code** and
+   reproduced its committed Welsh values exactly (0.5% of values, max
+   0.0011). So NRW had not revised anything, and the district file was
+   the odd one out rather than the service.
+2. Rolling that sector measurement up to district level - area-weighted,
+   and **independent of the district polygons** - landed on the
+   REFETCHED district values, not the committed ones. Mean
+   |district - sectors| 0.00658 -> 0.00002, median ratio 1.088 -> 1.000.
+   LL25 0.20971 -> 0.16980 against a roll-up of 0.16978; CF41 0.14167 ->
+   0.10899 against 0.10899.
+
+The two grains disagreed on Wales before this and agree after it. **When
+two grains measure the same thing from different geometry, one can audit
+the other for free** - no new fetch, no external dataset. That is the
+cheapest validation this project has found, and it should be reached for
+before anything more elaborate.
+
+**A guard that fires is not a guard that failed.** The refusal cost a
+75-minute fetch to act on, so `sw-refetch.yml` gained an `accept_large`
+input: a move a human has looked at and justified can now be committed
+by re-running `collect` alone. `check_refetch_delta.py` also prints the
+level shift SIGNED - it reported a fall as `(+0.80%)`, which is how a
+reader ends up arguing with the arrow instead of the number.
+
 ## 2026-09-12: the depth tables were rasterised on the wrong transform - refetching all four
 
 Chasing the retraction above to the bottom turned up a real defect, one

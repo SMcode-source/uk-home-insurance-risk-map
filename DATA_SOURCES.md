@@ -27,7 +27,7 @@ dates: 2026-07-29/30; 2026-08-01 for sources 20–21; 2026-08-08/09 for 23–24.
 | 17 | Postcode → OA / LSOA / MSOA / LAD best-fit lookup (Aug 2023) | ONS Open Geography Portal | `scripts/fetch_households.py` | 2.6m postcodes → census small areas (22 MB zip, cached) |
 | 18 | Census 2021 TS041 "Number of households" by LSOA | ONS via NOMIS | `scripts/fetch_households.py` | England & Wales household counts (35,672 LSOAs, 24.78m households) |
 | 19 | Scotland's Census 2022 household total | National Records of Scotland | manual (constant in `fetch_households.py`) | 2,509,300 households, apportioned across Scottish postcodes |
-| 20 | Surface-water flood **depth** bands (NaFRA2 RoFSW, >0.2/0.3/0.6/0.9/1.2 m) | Environment Agency | `scripts/fetch_sw_depth.py` | `data/sw_depth.csv` (derived; England only) |
+| 20 | Surface-water flood **depth** bands (NaFRA2 RoFSW, >0.2/0.3/0.6/0.9/1.2 m) | Environment Agency | `scripts/fetch_sw_depth_postcodes.py` (area basis: `fetch_sw_depth.py`, superseded) | `data/sw_depth.csv` (derived; England only) |
 | 21 | National Coastal Erosion Risk Mapping (NCERM) National 2024 | Environment Agency | `scripts/fetch_erosion.py` | `data/erosion.csv` (derived; England only) |
 | 22 | Countries (December 2025) UK BGC boundaries | ONS Open Geography Portal | `scripts/fetch_countries.py` | `data/country.csv` — the coverage mask for every England-only dataset |
 | 23 | Code-Point Open (GB unit-postcode centroids) | Ordnance Survey (OS OpenData) | `scripts/fetch_codepoint.py` | `data/cache/codepoint_open.zip` → `data/sectors_gb.gpkg` via `derive_sectors.py` (derived sector polygons; **not a model input**) |
@@ -236,6 +236,25 @@ districts**, used as the exposure weight throughout.
       base pass.
     - `sw_low` from #10 is the depth>0 denominator — same layer, same grid,
       no need to refetch it.
+    - **Sampled at unit-postcode centroids since 2026-09-20**
+      (`scripts/fetch_sw_depth_postcodes.py`; the area rasterisation
+      below is `scripts/fetch_sw_depth.py`, kept and superseded). Same
+      five layers, same colour decode, read at the ~1.6 M ONSPD points
+      of #41 instead of over a polygon's area, then shrunk toward the
+      parent district/postcode area under `K_PRIOR` postcodes. The
+      reason is a denominator, not a resolution: the frequency moved to
+      postcode share on 2026-09-06, and until this change the severity
+      divided an area-share depth by an area-share envelope kept as
+      `sw_fractions_area[_cc].csv` — consistent internally, but two
+      denominators for one peril, and a depth distribution over the
+      *water* rather than over the *homes in it*. Those two are not the
+      same: people build on the higher ground of a floodplain. The two
+      physical constraints the per-pixel decode does not guarantee at
+      mask edges (a point deeper than 0.6 m is deeper than 0.3 m; a
+      point with a depth is inside the envelope) are enforced at
+      aggregation from the *same* sampling, so the conditional is a
+      share of one set. `sw_fractions_area[_cc].csv` are no longer read
+      by the model; `sw_depth_area[_cc].csv` keep the last area tables.
     - England only. NRW and SEPA publish no equivalent depth product, so
       Wales and Scotland keep a flat surface-water severity. **Checked
       directly 2026-09-03, not assumed** — SEPA's whole public REST
@@ -1554,13 +1573,22 @@ districts**, used as the exposure weight throughout.
     aggregates the flags to the grain with the same shrinkage;
     `--climate` does the EA `rofsw_cc01` edition. Wales `sw_high`
     against NRW's surface-water people at risk: +0.57 by area,
-    +0.72 by postcode share. The depth product
-    (`sw_depth.csv`, #7) stays an AREA measurement and its conditional
-    is taken against the area-share envelope kept as
-    `sw_fractions_area[_cc].csv`: dividing area-share depth by a
-    postcode-share envelope corrupts the conditional. Frequency from
-    where the homes are; depth, given a home is in the water, from the
-    water.
+    +0.72 by postcode share. The depth product (`sw_depth.csv`, #20)
+    stayed an AREA measurement for two weeks, with its conditional taken
+    against the area-share envelope kept as
+    `sw_fractions_area[_cc].csv`, because dividing area-share depth by a
+    postcode-share envelope corrupts the conditional. **Closed
+    2026-09-20** (`fetch_sw_depth_postcodes.py`): the five depth layers
+    are sampled at the same centroids and conditioned on the same
+    postcode-share `sw_high`/`sw_low`, so the peril has one denominator
+    — frequency from where the homes are, and depth from the water those
+    homes are standing in. Priced small, as expected of a renormalised
+    England-only severity: 98 districts and 468 sectors change rating
+    group, the headline moves -0.002 / -0.004. No external validation of
+    depth-at-homes exists; the evidence is the shared denominator, the
+    nesting, and the direction (homes on the higher ground of a
+    floodplain — Bury St Edmunds and the Thames-estuary towns fall,
+    inner London and the Pennine mill towns rise).
 
     **Subsidence, the same day:** `scripts/score_subsidence_postcodes.py`
     classifies the BGS 625k bedrock and superficial layers (#2) at the

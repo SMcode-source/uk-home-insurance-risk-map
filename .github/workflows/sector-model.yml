@@ -116,13 +116,20 @@ jobs:
     # ONSPD unit-postcode centroid (~10-15 minutes per region, no
     # pixel-to-polygon work; the area fetch took up to 300 minutes),
     # then aggregated to this checkout's grain. A dropped tile writes a
-    # .partial file and the aggregation refuses it. The depth conditional
-    # keeps the committed AREA-share envelope (sw_fractions_area.csv);
-    # refresh that with fetch_surface_water.py from a laptop if the
-    # extents change.
+    # .partial file and the aggregation refuses it.
+    #
+    # The DEPTH bands run in this same job, and have to. Since
+    # 2026-09-20 they are sampled at the same centroids
+    # (fetch_sw_depth_postcodes.py), and their aggregation reads BOTH
+    # data/sw_flags_england.csv - the per-postcode envelope this job
+    # fetches, gitignored, never an artifact - and the sw_fractions.csv
+    # it writes. A parallel job would find neither and fall back to the
+    # committed table, silently conditioning new depth on an old
+    # envelope. One job, in order, is the only arrangement that cannot
+    # do that.
     if: ${{ !inputs.skip_fetch && !inputs.climate }}
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -151,27 +158,11 @@ jobs:
       - run: python -u scripts/fetch_sw_postcodes.py
       - uses: actions/upload-artifact@v4
         with: { name: sector-sw, path: data/sw_fractions.csv, retention-days: 14 }
-
-  depth:
-    if: ${{ !inputs.skip_fetch && !inputs.climate }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 300
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.13", cache: pip }
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      # The depth bands are rasterised against these polygons, so they
-      # must be the polygons the build uses. See sw-refetch.yml.
-      - name: Install the OSTN15 datum grid
-        run: |
-          dir=$(python -c "from pyproj import datadir; print(datadir.get_user_data_dir())")
-          mkdir -p "$dir"
-          curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
-          echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" | sha256sum -c
-      - run: python -u scripts/fetch_sw_depth.py
+      # Five depth layers over the England tiles that hold postcodes,
+      # then the same shrinkage and the same country mask. England only,
+      # as everything about depth is; the rest is zero-filled.
+      - run: python -u scripts/fetch_sw_depth_postcodes.py --flags
+      - run: python -u scripts/fetch_sw_depth_postcodes.py
       - uses: actions/upload-artifact@v4
         with: { name: sector-depth, path: data/sw_depth.csv, retention-days: 14 }
 
@@ -188,9 +179,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       # England only (the EA rofsw_cc01 edition), by postcode share so the
-      # future shares the present-day denominator; the area-share
-      # climate envelope for the depth conditional stays committed as
-      # sw_fractions_area_cc.csv.
+      # future shares the present-day denominator. The climate depth
+      # bands follow in this same job for the reason the present-day
+      # job gives: their aggregation reads sw_flags_england_cc.csv and
+      # the sw_fractions_cc.csv written here.
       # fetch_onspd.py reprojects ONSPD lat/long to British National Grid
       # and refuses to run without the OSTN15 grid (a Helmert fallback
       # would put every centroid ~1.75 m off the model's own transform).
@@ -210,34 +202,16 @@ jobs:
       - run: python -u scripts/fetch_sw_postcodes.py --climate
       - uses: actions/upload-artifact@v4
         with: { name: sector-sw-cc, path: data/sw_fractions_cc.csv, retention-days: 14 }
-
-  depth-climate:
-    name: depth bands (climate)
-    if: ${{ inputs.climate }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 330
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: "3.13", cache: pip }
-      - run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - name: Install the OSTN15 datum grid
-        run: |
-          dir=$(python -c "from pyproj import datadir; print(datadir.get_user_data_dir())")
-          mkdir -p "$dir"
-          curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
-          echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" | sha256sum -c
-      - run: python -u scripts/fetch_sw_depth.py --climate
+      - run: python -u scripts/fetch_sw_depth_postcodes.py --flags --climate
+      - run: python -u scripts/fetch_sw_depth_postcodes.py --climate
       - uses: actions/upload-artifact@v4
         with: { name: sector-depth-cc, path: data/sw_depth_cc.csv, retention-days: 14 }
 
   model:
     # needs: every fetch job, but tolerate the paths where some are
-    # skipped (skip_fetch, or the climate-only pass)
-    needs: [erosion, flood, surface-water, depth,
-            surface-water-climate, depth-climate]
+    # skipped (skip_fetch, or the climate-only pass). Depth lives inside
+    # the two surface-water jobs since 2026-09-20.
+    needs: [erosion, flood, surface-water, surface-water-climate]
     if: ${{ always() && !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 240

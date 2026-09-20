@@ -248,8 +248,12 @@ Their materiality differs sharply, though, and the distinction matters:
 - **Groundwater IS priced** (0.82% of EL), so its England-only basis and
   flat 0.02 background do reach the premium — but at that weight the
   effect is small.
-- **Surface-water depth was the materially damaging one left**: it sits
-  inside flood (12.27%). Scottish theft sat beside it inside theft
+- **Surface-water depth outside England is the materially damaging one
+  left**: it sits inside flood (12.27%), and there is no free route to
+  it (§2 of the ranked table). Its *basis* inside England was closed on
+  2026-09-20 — the bands are read at the homes, on the frequency's own
+  denominator — which is a different limitation from the coverage one
+  and does nothing for the 651 districts. Scottish theft sat beside it inside theft
   (13.43%) until 2026-09-01, when the flat national rate was replaced by
   council geography (§7); what remains there is a 32-value step
   function, not a single value.
@@ -408,8 +412,11 @@ Also unanchored, and worth naming:
    and sea on 2026-09-06**: the fractions are now the share of each
    unit's live unit postcodes inside the same extents (rivers +0.53,
    all sources +0.59 on the re-run). Surface water followed the same
-   day (+0.57 -> +0.72), and the subsidence geology is
-   read at the unit postcodes since 2026-09-06 too (§7.7). **Still
+   day (+0.57 -> +0.72), the subsidence geology is
+   read at the unit postcodes since 2026-09-06 too (§7.7), and the
+   surface-water DEPTH conditional followed on 2026-09-20, so the peril
+   no longer carries two denominators — though depth-at-homes has no
+   external ordering to be validated against at all. **Still
    open:** the postcode is a proxy for
    the home (~15 addresses per unit postcode, centroid not footprint),
    and the validation itself is a ranking check outside England only.
