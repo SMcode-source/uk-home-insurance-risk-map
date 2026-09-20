@@ -468,13 +468,13 @@ const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
    works while "the loaded features" means all of them. Under vector
    tiles it means the viewport's, so the scale (and the legend printed
    from it) would shift as you panned. Fixed nationally, once. */
-const BREAKS = {"premium":[131.7,145.1,157.7,170.5,186.5,213.9],"var995_vine":[4879.5,5385.4,5861.4,6427.5,7174.2,8577],"capital":[4.2176,4.711,5.1397,5.6089,6.1721,7.0414],"er_head":[0.0005,0.0016,0.0038,0.0074,0.0123,0.0206]};
+const BREAKS = {"premium":[131.5,145,157.6,170.4,186.6,214],"var995_vine":[4878.9,5383.6,5862.2,6427,7170.5,8577],"capital":[4.2134,4.7099,5.1415,5.6037,6.1775,7.0467],"er_head":[0.0005,0.0016,0.0038,0.0074,0.0123,0.0206]};
 /* Household-weighted median premium across the whole country - the
    anchor the relative-risk page divides by. Weighted by households, not
    by unit, so a sparse rural district counts as its people, not as one
    vote; and a median, not a mean, so the skewed top of the premium
    distribution cannot drag everyone else's ratio. */
-const REL_MEDIAN = 162;
+const REL_MEDIAN = 163;
 const DEFAULT_METRIC = 'group';
 
 /* Erosion bins are cut over the COASTAL districts only — quantiles across
@@ -595,7 +595,7 @@ const METRICS = {
   },
   sw_depth: {
     label: 'Surface-water depth (m)',
-    legend: 'Mean surface-water depth where it floods (EA depth bands, England)',
+    legend: 'Mean surface-water depth at the homes that flood (EA depth bands sampled at unit postcodes, England)',
     ramp: RAMP_DEPTH, breaks: [0.15, 0.22, 0.30, 0.40, 0.55, 0.75],
     col: 'sw_depth_m',
     fmt: v => v.toFixed(2) + ' m',
