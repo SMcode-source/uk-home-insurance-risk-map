@@ -1579,6 +1579,43 @@ districts**, used as the exposure weight throughout.
     out; the address-level answer needs AddressBase, which is licensed
     and out of scope.
 
+42. **Availability sweep, 2026-09-10 — weather, climate and FORECAST
+    data.** Every endpoint below was hit on 2026-09-10; the status is
+    what came back, not what the docs claim
+    (`scripts/nwp/forecast_horizon.py`).
+
+    **Free, no key, used here:**
+
+    - **Open-Meteo Seasonal** `seasonal-api.open-meteo.com/v1/seasonal`
+      — NOAA CFSv2, 50 members. **Hard cap 217 days**, so the longest
+      free forecast does not reach a year. *Trap:* only `daily`
+      variables are validated; an unknown `six_hourly` one returns 200
+      with no data block at all.
+    - **Open-Meteo Archive (ERA5)** `archive-api.open-meteo.com/v1/archive`
+      — 1940 to now, daily. Used for the 1991-2020 climatology the
+      seasonal ensemble is judged against.
+    - **NCEP/NCAR Reanalysis 1** over OPeNDAP at
+      `psl.noaa.gov/thredds/dodsC/Datasets/ncep.reanalysis/` — global
+      2.5 degree, 4x daily, 1948 to now, public domain. Initial
+      conditions for the shallow-water model. *Trap:* `netCDF4`'s
+      bundled libcurl fails on this machine's TLS chain, so
+      `fetch_initial.py` parses the `.ascii` DODS response over urllib.
+
+    **Free, reachable, not used:** NOAA NOMADS GFS (needs cfgrib);
+    IRI/NMME (same horizon, same conclusion); NOAA CPC outlooks (US
+    geography); **Copernicus CDS** (catalogue reads without a key,
+    retrieval needs a free registration — free-but-gated, so open under
+    the budget rule; SEAS5 stops at seven months); Met Office DataHub
+    (registration, tier not checked).
+
+    **Not reachable here:** **ECMWF Open Data** — `CERTIFICATE_VERIFY_FAILED,
+    self-signed certificate in chain`. TLS interception on this machine,
+    not an ECMWF fault; it would have to run on CI.
+
+    **What the sweep established.** No free source forecasts a year, and
+    the ones that reach months carry no information at those leads for
+    this model — see HANDOFF 2026-09-12.
+
 ## Budget: zero, decided 2026-08-31
 
 **The user has decided this project will not spend money.** That is a
