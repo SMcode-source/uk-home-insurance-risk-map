@@ -71,8 +71,10 @@ scripts/
                               incl. air-frost days for escape of water
   fetch_flood.py              river/sea flood extents -> per-district fractions
   fetch_surface_water.py      surface-water extents -> per-district fractions
-  fetch_sw_depth.py           EA surface-water depth bands -> sw_depth.csv
-                              (England; checkpoints per column, resumable)
+  fetch_sw_depth_postcodes.py EA surface-water depth bands at unit-postcode
+                              centroids -> sw_depth.csv (England)
+  fetch_sw_depth.py           the same bands as an AREA share (superseded as
+                              model input 2026-09-20; kept for the record)
   merge_sw_wales.py           folds the 20m Wales re-render into sw_fractions
   fetch_groundwater.py        EA postcode groundwater flags -> district fractions
   fetch_erosion.py            EA NCERM coastal frontages -> erosion.csv (England)
@@ -132,7 +134,7 @@ assets/pmtiles.js             PMTiles 4.3.0 protocol handler
 | Groundwater risk score | EA groundwater alert-area coverage (0–1) |
 | 1-in-200 combined loss | 99.5% VaR of the eight-peril annual loss (C-vine + independent theft, escape of water, fire and accidental damage) |
 | Capital charge | The district's Euler share of portfolio tail risk, in £ |
-| Surface-water depth | Mean depth where it floods, from the EA depth bands (England) |
+| Surface-water depth | Mean depth at the homes that flood, from the EA depth bands sampled at unit-postcode centroids (England) |
 | Coastal erosion (blight) | Land projected lost by 2105 under the adopted Shoreline Management Plan (England) or by 2100 under Dynamic Coast's RCP8.5 case (Scotland) — **not insured** |
 | Climate repricing | Premium under the EA's future flood scenario vs present day (England) |
 
@@ -251,13 +253,19 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    (postcode share since 2026-09-06; area share before). `sw_high` adds ~1%/yr
    claim frequency at full coverage; surface-water severity is modelled cheaper
    (median ~£15k vs ~£30k river/sea) via a probability-weighted lognormal mix.
-   - **Depth-conditioned severity** (`scripts/fetch_sw_depth.py`). The same EA
-     WMS carries five nested depth layers (>0.2/0.3/0.6/0.9/1.2 m). Their
-     differences give, for each district, the depth distribution *within* its
-     flooded area (taken against the area-share envelope, kept as
-     `sw_fractions_area.csv`, because the depth layers are area measurements;
-     the postcode share is the frequency denominator only), which is turned
-     into an expected-damage relativity using
+   - **Depth-conditioned severity** (`scripts/fetch_sw_depth_postcodes.py`).
+     The same EA WMS carries five nested depth layers
+     (>0.2/0.3/0.6/0.9/1.2 m), sampled at the same unit-postcode centroids.
+     Their differences give, for each district, the depth distribution
+     *within the water its homes are standing in* — conditioned on the same
+     postcode-share `sw_high` / `sw_low` the frequency uses, so the peril has
+     one denominator (postcode share since 2026-09-20; the depth distribution
+     was taken over the flooded *area* before, against a second envelope kept
+     as `sw_fractions_area.csv`). People build on the higher ground of a
+     floodplain, so the water under the homes is not the water's average:
+     moving the denominator moved 98 districts a rating group, Bury St Edmunds
+     and the Thames-estuary towns down, inner London and the Pennine mill
+     towns up. It is turned into an expected-damage relativity using
      the usual UK depth–damage shape (damage climbs steeply through the first
      half-metre as water passes floor level and reaches sockets, then flattens
      once the ground floor is written off). The multiplier is **renormalised
@@ -745,20 +753,28 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 
 .venv/Scripts/python scripts/fetch_bgs.py            # BGS 625k bedrock -> data/bgs_625k_bedrock.geojson (~32MB)
 .venv/Scripts/python scripts/fetch_metoffice.py      # Met Office grids -> data/metoffice/*.csv
-.venv/Scripts/python scripts/fetch_flood.py          # river/sea flood -> data/flood_fractions.csv (~20 min)
-.venv/Scripts/python scripts/fetch_surface_water.py  # surface water -> data/sw_fractions.csv (~60-90 min)
-.venv/Scripts/python -u scripts/fetch_sw_depth.py    # SW depth bands -> data/sw_depth.csv (~40 min, England;
-                                                     # checkpoints per column, so rerun without --restart to resume)
+# The three flood fraction products are POSTCODE shares (river/sea and surface
+# water since 2026-09-06, the depth conditional since 2026-09-20): the same EA /
+# NRW / SEPA masks, sampled at ONSPD unit-postcode centroids instead of measured
+# over a polygon's area. fetch_onspd.py writes the centroids and needs OSTN15.
+# The area fetchers below them still work and are how the masks were validated,
+# but their output is no longer model input - see DATA_SOURCES #41.
+.venv/Scripts/python -u scripts/fetch_onspd.py             # -> data/postcode_centroids.csv
+.venv/Scripts/python -u scripts/fetch_flood_postcodes.py   # river/sea -> data/flood_fractions.csv (~6 min)
+.venv/Scripts/python -u scripts/fetch_sw_postcodes.py --flags england   # and --flags wales, --flags scotland
+.venv/Scripts/python -u scripts/fetch_sw_postcodes.py      # surface water -> data/sw_fractions.csv
+.venv/Scripts/python -u scripts/fetch_sw_depth_postcodes.py --flags     # five depth layers, England (~1 h)
+.venv/Scripts/python -u scripts/fetch_sw_depth_postcodes.py             # -> data/sw_depth.csv
 .venv/Scripts/python scripts/fetch_erosion.py        # NCERM coastal erosion -> data/erosion.csv (~3 min, England)
 .venv/Scripts/python scripts/fetch_countries.py      # ONS country boundaries -> data/country.csv (~1 min).
                                                      # Run this BEFORE build_model: it is the coverage mask that
                                                      # stops the England-only layers being read as GB-wide.
 # Climate-change scenario (optional; without these the repricing view is simply absent):
-.venv/Scripts/python -u scripts/fetch_flood.py --climate          # -> data/flood_fractions_cc.csv (~10 min)
-.venv/Scripts/python -u scripts/fetch_surface_water.py --climate  # -> data/sw_fractions_cc.csv (~45 min)
-.venv/Scripts/python -u scripts/fetch_sw_depth.py --climate       # -> data/sw_depth_cc.csv (45 min on a quiet
-                                                     # network; took 3.7 h here, riding out 8 connection drops
-                                                     # while sharing the machine. Resumable, so interrupt freely.)
+.venv/Scripts/python -u scripts/fetch_flood_postcodes.py --climate  # -> data/flood_fractions_cc.csv
+.venv/Scripts/python -u scripts/fetch_sw_postcodes.py --flags england --climate
+.venv/Scripts/python -u scripts/fetch_sw_postcodes.py --climate   # -> data/sw_fractions_cc.csv
+.venv/Scripts/python -u scripts/fetch_sw_depth_postcodes.py --flags --climate
+.venv/Scripts/python -u scripts/fetch_sw_depth_postcodes.py --climate  # -> data/sw_depth_cc.csv
 # download Postcodes_Risk_Assessment_All.csv (see DATA_SOURCES.md #13) to data/ea_postcode_risk.csv, then:
 .venv/Scripts/python scripts/fetch_groundwater.py    # groundwater flags -> data/gw_fractions.csv
 # Gusts - data/gusts.csv is MIDAS station extremes (since 2026-08-10). To
@@ -818,9 +834,11 @@ Two notes on running it:
   `fetch_history.py` are resumable; if they start returning HTTP 429, rerun the
   next day. The weather score folds gusts in automatically once ≥60 grid points
   exist and falls back cleanly below that.
-- `fetch_sw_depth.py` writes a checkpoint to `data/cache/` after every tile
-  column, so a machine that sleeps mid-run costs you one column, not the whole
-  fetch — rerun it plain to resume, or pass `--restart` to start over. Both new
+- `fetch_sw_depth.py` (the superseded area fetch) writes a checkpoint to
+  `data/cache/` after every tile column, so a machine that sleeps mid-run costs
+  you one column, not the whole fetch — rerun it plain to resume, or pass
+  `--restart` to start over. `fetch_sw_depth_postcodes.py`, which writes the
+  table the model reads, splits instead with `--part i/n`. Both
   fetchers degrade gracefully: if `sw_depth.csv` is missing the model falls back
   to a flat surface-water severity, and if `erosion.csv` is missing the erosion
   peril is simply zero everywhere.

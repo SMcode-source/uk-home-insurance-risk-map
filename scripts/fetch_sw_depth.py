@@ -1,5 +1,19 @@
 """Fetch EA surface-water DEPTH bands per postcode district (England).
 
+SUPERSEDED as model input on 2026-09-20 by fetch_sw_depth_postcodes.py,
+which samples these same five layers at unit-postcode centroids. What
+changed is the denominator, not the product: the frequency moved to
+postcode share on 2026-09-06, so an area-share depth had to be divided
+by a second, area-share envelope (sw_fractions_area[_cc].csv), which
+gave one peril two denominators and measured the depth of the WATER
+rather than the depth at the HOMES in it. Running this script writes
+data/sw_depth.csv and would put the model back on the area basis;
+tests/test_workflows.py refuses it in sw-refetch.yml for that reason.
+Kept because it is how the layers were validated, because it is the
+only area-basis reading of them, and because the per-pixel decode below
+is what fetch_sw_depth_postcodes.py samples with. Write elsewhere with
+care; the last area tables are committed as sw_depth_area[_cc].csv.
+
 The NaFRA2 "risk of flooding from surface water" WMS carries, alongside the
 headline `rofsw` extent, five nested depth layers:
 
