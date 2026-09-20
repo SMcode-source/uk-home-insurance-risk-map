@@ -168,10 +168,23 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
-## PUBLISHING 2026-09-20: surface-water DEPTH by postcode share, both grains
+## PUBLISHED 2026-09-20: surface-water DEPTH by postcode share, both grains
 
 The user's decision, on the measurement of 2026-09-07 re-baselined onto
 the OSTN15 publish (section below, numbers reproduced almost exactly).
+Main fast-forwarded to `exp/publish-depth-postcode` in one push
+(`dade8dd`; district output = bot run 66, sector output = sector-model
+run 36 `17f87d3` crossed as `data/sectors_risk.geojson`). `sector-model`
+re-synced afterwards (`a6f70b6`, sector build and sector-grain depth
+tables kept OURS). **Live verified** with the cache bypassed after
+`pages` run 35538855901: `uk_district_risk.csv` and
+`uk_sector_risk.csv` are byte-identical to the committed assets,
+2,736 rows at 169.7457 and 10,398 at 169.7488, IP33 152.5 at 0.25 m
+(0.63 m by area), BD1 9 330.7 at 0.55 m.
+
+The CI rebuild reproduced the laptop's measured district build with
+**zero** districts differing on premium - the OSTN15 adoption of
+2026-09-05 continues to hold local == CI.
 The peril now has ONE denominator: `fetch_sw_depth_postcodes.py` samples
 the five EA depth layers at the same unit-postcode centroids the
 frequency uses, and `sw_depth_severity` conditions on the same
