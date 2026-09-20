@@ -168,6 +168,478 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## PUBLISHED 2026-09-13: surface water refetched on OSTN15 at both grains - correct, and worth nothing
+
+The refetch of the previous section landed. Main `d82360f`, sector-model
+`0e0ff3f` (sector run 35 = `67c7015`), one push, both grains, live
+verified byte-for-byte against the committed assets.
+
+**The priced answer is nothing.**
+
+| | live | rebuilt | move |
+|---|---|---|---|
+| districts | 169.7478 | 169.7480 | +0.0002 |
+| sectors   | 169.7525 | 169.7525 | 0.0000 |
+
+Rating-group churn: 2 of 2,736 districts, 0 of 10,398 sectors, none by
+two groups. Both district flips are a decile-boundary tie - KA2 4->5 and
+RG5 5->4, both GBP158.40 before and after. Two units sitting exactly on
+the cut, jittered across it by a sub-pixel input change.
+
+So this workstream bought correctness, not price. Worth saying plainly
+because the *inputs* moved a great deal more than the output did:
+
+- **District depth bands** were rasterised against polygons 2-7 m from
+  the model's own (up to 0.54 of a 13 m pixel) for six weeks. Fixed;
+  max move 0.0046 share, tens of pixels in the City, 49% of values
+  touched. Prices to nothing because depth-band severity is a small
+  term.
+- **The Welsh area envelope was 8.8% too high** and had been for as long
+  as it has existed. Fixed; prices to GBP0.00, because that envelope
+  only CONDITIONS the depth bands and surface-water-depth-by-postcode
+  was never a priced frequency. It was wrong; it was not wrong anywhere
+  that reaches a premium.
+
+**How the Welsh error was caught, because the method is the reusable
+part.** The size guard refused the run - 2.32% of values moved past
+0.01, level -0.80%. Looking at why, split by country, showed England
+(max 0.0051) and Scotland (max 0.0009) reproducing and Wales alone
+moving. Two things then settled it without a single new fetch:
+
+1. The sector run hit NRW **at the same moment with the same code** and
+   reproduced its committed Welsh values exactly (0.5% of values, max
+   0.0011). So NRW had not revised anything, and the district file was
+   the odd one out rather than the service.
+2. Rolling that sector measurement up to district level - area-weighted,
+   and **independent of the district polygons** - landed on the
+   REFETCHED district values, not the committed ones. Mean
+   |district - sectors| 0.00658 -> 0.00002, median ratio 1.088 -> 1.000.
+   LL25 0.20971 -> 0.16980 against a roll-up of 0.16978; CF41 0.14167 ->
+   0.10899 against 0.10899.
+
+The two grains disagreed on Wales before this and agree after it. **When
+two grains measure the same thing from different geometry, one can audit
+the other for free** - no new fetch, no external dataset. That is the
+cheapest validation this project has found, and it should be reached for
+before anything more elaborate.
+
+**A guard that fires is not a guard that failed.** The refusal cost a
+75-minute fetch to act on, so `sw-refetch.yml` gained an `accept_large`
+input: a move a human has looked at and justified can now be committed
+by re-running `collect` alone. `check_refetch_delta.py` also prints the
+level shift SIGNED - it reported a fall as `(+0.80%)`, which is how a
+reader ends up arguing with the arrow instead of the number.
+
+## 2026-09-12: the depth tables were rasterised on the wrong transform - refetching all four
+
+Chasing the retraction above to the bottom turned up a real defect, one
+grain deeper than the one I invented.
+
+**The EA product has not changed.** Run 34056312941 refetched the sector
+depth bands on 2026-09-06 in 75 minutes and its artifact is byte-for-byte
+the committed 2026-08-17 table. Downloaded and diffed, not inferred.
+
+**But the fetch jobs never had the OSTN15 grid.** `fetch_sw_depth.py`
+calls `load_districts().to_crs(27700)`. On `sector-model` that is a round
+trip - the source file is already 27700, so the transform cancels
+(measured: 4e-9 relative area, 0.000000 m corner shift). **On main it is
+one-way**: the district polygons are 4326 GeoJSON, nothing cancels, and
+without the grid PROJ falls back to the Helmert approximation. Measured
+across eight British points that is **2.0 to 7.1 m, up to 0.54 of a 13 m
+pixel**. The model build has used OSTN15 since 2026-09-05. So the district
+depth bands have been counted against polygons the model does not use.
+
+**Size of it.** Refetching on this laptop (which has the grid) against the
+committed tables: tens of pixels per district - OX9 d03_low by 13.4 px out
+of 411,598, about 1e-5 of the fraction. Invisible at district grain. At
+sector grain the same absolute shift is a whole pixel in the slivers, and
+a pixel is 4.5% of TW8 1 (22 pixels in total). Every large sector delta
+I checked was exactly one pixel.
+
+**What changed.** `sw-refetch.yml` refetches the depth bands AND the
+area-share envelope they are conditioned on - the two are rasterisations
+of the same tile grid and are meaningless apart - for whichever grain the
+dispatched ref builds, with the grid installed. `fetch_surface_water.py
+--out` leaves the postcode-share frequency file untouched. Four jobs in
+parallel, so one depth job of wall clock. The same step was added to
+sector-model.yml's `erosion`, `depth` and `depth-climate` jobs.
+
+**And the guard no longer relies on anyone remembering.**
+`tests/test_workflows.py` now DERIVES the list of transforming scripts by
+grepping `scripts/` for `to_crs(27700)`, instead of the hand-written list
+that had missed `fetch_sw_depth.py` since it was written. Adding a script
+that transforms, without the grid step, is now a red `tests.yml`.
+
+**The first attempt at that refetch produced a table twice the truth.**
+`fetch_surface_water.py`'s merge seeded every unit from the existing CSV
+and then added the freshly fetched value on top, so re-running `england`
+against a file that already held England double-counted it. It had never
+been wrong before because it had only ever run on a file whose selected
+rows were still zero. The output looks exactly like a fraction table -
+right row count, every value in [0, 1], `sw_high` still inside `sw_low` -
+and **every guard in `tests/test_inputs.py` passes on it**, including the
+new shares check; the depth-envelope guard is a CEILING, so an oversized
+envelope makes it pass *more* easily. Measured on the artifacts of runs
+34713778297 and 34713779880: 77.4% of district and 82.7% of sector values
+moved, all upward, median +0.076 / +0.094, mean `sw_low` 0.15557 ->
+0.28464, nineteen units pinned at 1.0. Both runs were cancelled at 48
+minutes, before `collect`; `origin/main` stayed at `b11ca78` and
+`origin/sector-model` at `cf34168`.
+
+It was caught because the user had asked to see the deltas before the
+push. That is not a control, so `eccd532` added one: the merge now keys
+on `data/country.csv` rather than on which rows happen to be nonzero,
+and `scripts/check_refetch_delta.py` compares each refetched table
+against the version it replaces and fails the run if more than 1% of
+values moved past 0.01 or any column's mean level moved 2%. The expected
+move is the datum shift, ~1e-5 of a fraction, so those thresholds are
+generous by three orders of magnitude and still catch a doubling (76.33%
+moved, level +82.96%, exit 1). `sw-refetch.yml` runs it in `collect`
+before the commit step; `tests/test_workflows.py` asserts that ordering
+and that every table the workflow fetches is one it size-checks.
+
+**The lesson worth keeping:** a shape guard cannot catch a size error.
+Every identity in `test_inputs.py` is a statement about one file on its
+own, and a doubled file satisfies all of them. Refetching an unchanged
+product is the one situation where you know what the answer should be -
+the old one - so compare against it.
+
+## RETRACTED 2026-09-12: "stale sector depth table" - it was not stale, and I did not check before writing it
+
+Earlier the same day I recorded that `tests/test_inputs.py`, arriving on
+`sector-model` for the first time, had caught a stale depth table:
+`sw_depth.csv` from 2026-08-17 against an envelope "rebuilt 2026-09-06 on
+the current geometry". The user asked for the fix and a republish. **The
+finding was wrong and no republish is warranted.** Every claim in it is
+answered below by something I could have run before writing it.
+
+**The two tables come from the same fetch.** `sw_fractions_area.csv` is
+not a rebuild at all - `fetch_sw_postcodes.py` *copies* the pre-existing
+area-share file aside before overwriting it, so its 2026-09-06 date is
+the copy, not a measurement. Its bytes are identical to
+`sw_fractions.csv` as committed in `453cef2`, "Sector model: cloud fetch
++ build (run 8)" - the same run that wrote `sw_depth.csv`. I compared
+mtimes and stopped.
+
+**The geometry never moved either.** `data/sectors_gb.gpkg` is committed
+on this branch and has been written exactly once, in `d5dc7f2`. OSTN15
+changed postcode centroids, not the sector polygons, so the depth
+rasterisation, its envelope and the live build all use one geography.
+
+**What the overshoot actually is:** the same two-rasterisation artefact
+already documented for districts. The five depth layers and the extent
+layer are separate 13 m/px renderings, and the same absolute edge error
+is a bigger share of a smaller polygon. Districts: 0 rows past half a
+point out of 5,472, largest 0.29 pp. Sectors: 38 out of 20,796, largest
+14.7 pp. Rare at both grains, which is the signature of rounding rather
+than of a mismatched pair.
+
+**And the consequence was overstated in the wrong direction.** I wrote
+that the affected sectors are "individually overstated". Re-running
+`sw_depth_severity` against a variant that caps each depth fraction at
+its envelope moves the exposure-weighted mean multiplier by nothing
+(1.000000 either way, it is renormalised) and moves individual sectors
+**both ways**: BR8 9 1.493 -> 1.000, but SE3 3 2.044 -> 2.215. The
+largest move is 0.49 on a 160-household sector; the next five are 0.23
+or less, on 75-250 households. Capping is not obviously more correct
+than what the model does - raising the envelope to the band is the
+*gentler* of the two, since capping shifts relatively more weight into
+the deep bands.
+
+**Also checked, also a non-issue:** the `depth`, `depth-climate` and
+`erosion` jobs of `sector-model.yml` run scripts that call `.to_crs(27700)`
+with no OSTN15 step, which `tests/test_workflows.py` does not catch
+because its list of transforming scripts is hand-written. It is harmless
+here: `load_districts()` reads a 27700 file and returns 4326, so
+`fetch_sw_depth.py` round-trips back to the source CRS with one pipeline
+and the grid cancels - measured at 4e-9 relative area and a 0.000000 m
+corner shift. Worth knowing before someone "fixes" it; worth fixing only
+if one of those scripts ever stops round-tripping.
+
+**What changed as a result.** `tests/test_inputs.py` now guards the
+overshoot RATE (under 1% of rows) with a ceiling on any single row,
+instead of one absolute tolerance that could only ever be right at one
+grain. Nothing was rebuilt and nothing was republished.
+
+**The lesson, which is the only reason this entry is long.** Two file
+mtimes are not provenance. `git log` on both files would have taken
+fifteen seconds and would have stopped the claim being written, the
+commit being pushed, and the user being asked to authorise five hours of
+CI to fix a table that was already correct. This is the eighth entry in
+the list of claims of mine that measurement later contradicted.
+
+## MEASURED 2026-09-12: how far ahead is the weather forecastable? Three ways, same answer
+
+The question was whether the model could be fed a one-year weather
+forecast instead of a climatology. It cannot. Three independent
+measurements, none of them an appeal to authority.
+
+**1. No free source forecasts a year.** The longest is Open-Meteo's
+seasonal (NOAA CFSv2, 50 members): **hard cap 217 days**. Its own
+ensemble spread reaches the 1991-2020 climatological spread by about
+**two to four weeks** (spread ratio 0.19 on day 0, ~1.0 from day 15-30
+on), averaged over London/Manchester/Edinburgh/Cardiff, for both
+temperature and rainfall. Past that lead it is climatology wearing a
+timestamp. Endpoint-by-endpoint sweep in DATA_SOURCES #42.
+
+**2. The two indices the model actually consumes have no year-to-year
+memory.** Detrended lag-1 autocorrelation over 66 years: `cwd_yr_mm`
+**+0.103** (p=0.41), `frost_days` **+0.027** (p=0.83). A 36-year
+walk-forward agrees: persistence is **31% and 24% WORSE** than
+climatology; only the trend helps, and only on frost (**+14.7%**).
+So the best available one-year forecast of the model's own inputs is
+climatology plus a trend - which is what it already uses.
+
+**3. The equations themselves, integrated here.** `scripts/nwp/` is a
+real shallow-water model on the rotating sphere (the Navier-Stokes
+equations after hydrostatic balance and one constant-density layer),
+spectral, vorticity-divergence form, initialised from NCEP reanalysis.
+Twin runs from starting states that differ by less than the wind is
+observable measure the error doubling time: **5.6 d at T42, 4.2 d at
+T63** - *faster* with resolution, the classic result. Saturation (two
+unrelated January days) is **17.6 m/s**.
+
+**The doubling time is not one number, and the conclusion does not need
+it to be.** A 20-day sweep over four starting amplitudes gives 6.6 d
+(0.001 m/s), 6.8 d (0.01), 9.1 d (0.1) and 15.6 d (1.0): growth slows
+as the error grows, which is Lorenz's own result and the reason a
+single figure is always window-dependent. Take the *slowest* measured
+growth, 15.6 d, and a year is still 23 doublings - the initial wind
+would have to be known to **8e-7 m/s**, against the ~1 m/s it is
+actually observed to. At the fastest, 4.7 d, the requirement is 5e-23.
+The whole measured range rules a year out by six to twenty-three orders
+of magnitude, so it is not a data problem and no sharpening of the
+number changes the answer.
+
+**It is physics, not the integrator.** Halving the timestep (600 s ->
+300 s, T42, 12 days) moves the mean doubling time from 5.5754 d to
+5.5750 d and the final error by 0.04%. Mass is conserved to 2e-16,
+energy to 4e-4, and enstrophy falls 6% into the filter as it must.
+
+**What this settles.** The 20,000-year copula simulation is not a
+second-best substitute for a forecast; at a one-year lead it is the
+*only* correct product. A deterministic year-ahead weather input would
+be a false precision, and the model does not have one.
+
+**The solver is guarded, not trusted.** `tests/test_spectral.py` (12
+tests, ~20 s) asserts identities, not pictures: basis orthonormality
+under the Gauss quadrature actually used, exact round-trips, the
+analytic vorticity of solid-body rotation, Williamson case 2 holding
+steady, and case 6 conserving mass/energy while enstrophy *falls* into
+the filter. Independent check: a height field built from observed
+winds alone via the linear balance equation correlates **0.9983** with
+the separately observed 500 hPa height.
+
+**Not in the pipeline.** Nothing here feeds the published model. It is
+evidence for a decision, kept because the decision will be asked again.
+
+## MEASURED 2026-09-10: the DROUGHT re-aim question, closed - do not re-aim
+
+An asymmetry nobody had noticed. On 2026-08-31 `measure_frost_era.py`
+asked whether the freeze leg's 1991-2020 climatology should be aimed at
+a more recent window, and answered no on a careful standard: the level
+cancels exactly (`eow_rate` divides frost by its own exposure-weighted
+mean) and every candidate window moved the SHAPE of the map by less than
+a same-climate control does. **The identical question was never put to
+the other temperature-driven leg**, even though subsidence is priced
+through the same construction
+
+    sub_rel = (1 - SUB_DROUGHT_SHARE) + SUB_DROUGHT_SHARE * cwd_yr / wmean(cwd_yr)
+
+on a climatology built from the same window, and even though the drought
+integral trends UPWARD - the direction that raises the peril, not the one
+that lowers it. `scripts/measure_smd_era.py` puts the question, reusing
+the frost script's controls verbatim so the two legs are judged by one
+standard.
+
+**The level has moved, and more than frost's did.** National
+household-weighted `cwd_yr`, 1960-2025: **+0.93 mm/yr, p = 0.036**,
++3.6% of the mean per decade. Against the published 1991-2020 mean of
+260.2 mm: 1961-1990 is -5.2%, 1996-2025 +2.2%, 2006-2025 +3.9%, and
+**2016-2025 is +14.0%**. A fourteen percent shift in a driver of a
+peril is the kind of number that looks like it must matter.
+
+**It cannot matter, and the shape has not moved.** The division by the
+exposure-weighted mean removes the level exactly, so only the map can
+price - and the map is inside its own noise floor at every candidate:
+
+| window vs 1991-2020 | Spearman | \|d rel\| p95 | control at that sample | verdict |
+|---|---|---|---|---|
+| 1961-1990 (n=30) | +0.9929 | 0.231 | 0.244 (n=15) | inside |
+| 1996-2025 (n=30) | +0.9994 | 0.043 | 0.244 (n=15) | inside |
+| 2006-2025 (n=20) | +0.9981 | 0.068 | 0.244 (n=15) | inside |
+| 2016-2025 (n=10) | +0.9947 | 0.105 | 0.211 (n=10) | inside |
+
+The controls - odd vs even years of 1991-2020, the two 15-year halves,
+two disjoint 10-year windows - hold the climate fixed and vary only the
+sample, and they move the relativity map by 0.185 to 0.244 at the 95th
+percentile. Every re-aimed window moves it less than that. The largest
+effect any candidate has on the multiplier the model actually uses is
+`|d sub_rel| max 0.055` for the recent-20-year window, against 0.145 to
+0.189 for the controls.
+
+**Verdict: do not re-aim, on the same standard the freeze leg was held
+to.** The drought leg's window is now a checked decision rather than an
+inherited default, and the asymmetry between the two temperature legs is
+closed. The script is a measurement tool; it is not a model input and
+changes nothing that builds.
+
+This came out of the weather-forecasting question below: asking what
+could be known about next year's weather led to asking whether the model
+is even aimed at the right past.
+
+## MEASURED 2026-09-07: household-weighting the unit postcodes - parked, too small
+
+The postcode-share denominators count every live unit postcode once.
+The obvious refinement is to weight each by the households behind it,
+and the project already has such a weight: `fetch_households.py`
+shares each LSOA's Census 2021 households equally among the LSOA's
+live postcodes (Scotland has no data-zone join and is equal per
+postcode already). ONSPD carries `lsoa21cd`, so no new fetch. Measured
+on the laptop's England flag files (scratchpad `weigh_postcodes.py`,
+E&W, 1,518,234 postcodes, mean 16.3 households per postcode, p10 8 /
+p90 25) before writing any pipeline code:
+
+| raw share, unweighted -> weighted | district (2,099 E&W) | sector (7,775) |
+|---|---|---|
+| sw_high: Spearman; hh-weighted mean \|d\|; relative \|d\| p50 / p90 | 0.989; 0.4 pp; 4% / 11% | 0.992; 0.5 pp; 4% / 15% |
+| sw_low | 0.992; 0.7 pp; 3% / 9% | 0.993; 0.8 pp; 3% / 10% |
+| depth >0.3 m (high) | 0.985; 0.14 pp; 7% / 20% | 0.991; 0.17 pp; 8% / 24% |
+
+The within-unit spread of the weight is small (coefficient of
+variation 0.28 by district, 0.23 by sector) because LSOAs are built to
+similar sizes, so the weighting only bites where an LSOA mixes offices
+with homes: the movers are W1B, EC2M, EC4V, M2, L1, TW6 (Heathrow),
+BS1 5, LS2 8 - city centres, where the equal-split-within-LSOA
+assumption is itself weakest. An order of magnitude below the
+area-to-postcode changes (Spearman 0.45-0.7 against 0.99 here), and
+it would refine the proxy exactly where the proxy is least reliable.
+Parked; LIMITATIONS §7.6 carries the bound. Coastal erosion is the
+one input still on an area basis and stays there on purpose: NCERM's
+recession strips are metres to tens of metres wide, far below the
+spacing of unit-postcode centroids, and the line is unpriced.
+
+## MEASURED 2026-09-07: SURFACE-WATER DEPTH by postcode share, both grains - not published
+
+"Keep going" after the second publish. The last area-share input in
+the surface-water peril: the depth bands (`sw_depth[_cc].csv`) were
+still the share of AREA deeper than 0.2/0.3/0.6/0.9/1.2 m, and the
+severity conditioned them on the area-share envelope kept as
+`sw_fractions_area[_cc].csv` - consistent, but two denominators for one
+peril. Branches `exp/sw-depth-households` (district: d02ce8b script +
+severity hook, dba6508 / e7faf1b aggregation fixes, dcf7e8e tables;
+laptop build in `.worktrees/hygiene`, not committed) and
+`exp/sw-depth-households-sector` (sector: 8cd44c4 tables + bot run 34
+`e335416`). Baselines are the second publish (district `068149d9`,
+sector run 30). Publishing is the user's decision.
+
+**Method.** `scripts/fetch_sw_depth_postcodes.py` samples the five EA
+`rofsw_<d>_depth` layers `fetch_sw_depth.py` rasterises (13 m/px,
+category colours) at every live English unit postcode, two stages as
+the other postcode scripts (`--flags [--climate]`, then aggregate;
+239 tiles x 5 layers, ~50 minutes per edition on the laptop with the
+CI fetch competing), and writes `sw_depth[_cc].csv` in the old layout
+plus `basis = postcode`. `sw_depth_severity` reads the basis and, for a
+postcode table, conditions on the caller's postcode-share `sw_high` /
+`sw_low` instead of the area file. Three things the aggregation has to
+enforce that the pixel decode does not: (1) nesting per postcode (2-4%
+of flagged postcodes were "deeper than 0.6 m but not 0.3 m" at
+antialiased edges: a deeper flag now implies the shallower ones);
+(2) containment in the envelope from the SAME sampling
+(`sw_flags_england[_cc].csv`, now required); (3) coverage by
+`data/country.csv`, not by postcode area - DG16 Gretna's five English
+postcodes had given the whole DG area an England-only prior and every
+Dumfries district a 0.2 depth band, and on the sector checkout the
+district-keyed lookup zero-filled all 10,398 sectors (sector run 33
+was cancelled on that; run 34 is the real one). Result: 0 nesting
+violations, 0 above the envelope, 637 districts / 1,652 sectors
+outside England zero-filled, 0 clipped.
+
+**The finding, before any model run: where the homes are, the water is
+shallower.** Share of the >=1% band deeper than each threshold,
+hh-weighted over English districts, area -> postcode: 0.2 m 0.391 ->
+0.386; 0.3 m 0.222 -> 0.176; 0.6 m 0.067 -> 0.032; 0.9 m 0.028 ->
+0.012; 1.2 m 0.014 -> 0.006. The deep water in a district's
+surface-water envelope is disproportionately where nobody lives
+(hollows, car parks, fields). The conditional ORDERING correlates only
+0.48 / 0.43 / 0.36 (Spearman, 0.2 / 0.3 / 0.6 m) with the area version,
+so the severity multiplier re-shapes a great deal even though it is
+renormalised to a mean of 1.0 (range 0.74..2.28, mean depth
+0.11..0.95 m).
+
+**Deltas, both grains, against the second publish.**
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.7478 -> 169.7457 (-0.002) | 169.7525 -> 169.7488 (-0.004) |
+| rating group changed | 98 (49 up, 49 down) | 468 (233 up, 235 down) |
+| `premium` moved | 2,139 (1,915 English; 224 elsewhere via the calibration) | 8,939 |
+| hh-weighted \|d premium\| p50 / p90 / p99 | 0.2 / 1.0 / 2.6 | 0.3 / 1.2 / 3.3 |
+| \|d premium\| > 5 / > 10 | 8 / 1 (0.2% of households over 5) | 93 / 19 (0.4%) |
+| largest rise | M90 +6.1, N8 (Hornsey) +6.1, SW1P +5.6 (depth at the homes 0.49 -> 0.67 m) | BB2 9 +26, BD1 9 +20, LE16 0 +20 |
+| largest fall | IP33 (Bury St Edmunds) -10.4 (0.63 -> 0.25 m), RM18 -9.3 (0.26 -> 0.13), RM9 -5.3 | RM20 2 -15, IP33 2 -14, RM18 7 -14 |
+| climate `premium_cc` (exposure-weighted) | 179.137 -> 179.166 | |
+| grain nesting, new pair (median) | 0.74% | |
+
+Smallest of the four denominator changes, as expected: severity is
+renormalised, England only, and surface water is a fifth of flood
+cost. The movers read right: Bury St Edmunds and the Thames-estuary
+towns (Tilbury, Dagenham, Stanford-le-Hope) carried deep area water on
+low ground the homes are not on; inner London and the Pennine towns
+(Blackburn BB2 9, Bradford BD1 9) have their homes in the deeper part
+of the mapped water. No external validation exists for depth-at-homes;
+the evidence is the direction (homes on the higher ground of the
+floodplain is the expected sign), the nesting, and consistency of
+denominator.
+
+**What publishing would need.** `sector-model.yml`'s depth job:
+`fetch_onspd.py` + OSTN15 + `fetch_sw_postcodes.py --flags england` (the
+envelope) + `fetch_sw_depth_postcodes.py --flags` + aggregate, and the
+same for the climate job; the interim-pair step (468 sector groups
+move); README §3 depth bullet, DATA_SOURCES #7/#41, the
+`fetch_sw_depth.py` docstring marked superseded, `sw_depth_area[_cc].csv`
+committed as the kept area tables; and `sw_fractions_area[_cc].csv`
+become redundant to the model (kept for the record or dropped). NOT
+done here. `tests/test_inputs.py` (main and both exp branches) guards
+the nesting, the envelope and the coverage of the depth tables at
+whichever grain the checkout carries. Writing it found that the
+PUBLISHED area tables overshoot their own envelope in three City
+districts (EC4M by 0.29 pp, EC4N, EC3V) - two rasterisations of the
+same water - which `_band_shares` already absorbs by raising the
+envelope to the band; the guard tolerates 0.5 pp on an area basis and
+nothing on a postcode basis, which is sampled once.
+
+## VERIFIED 2026-09-07: a full runner fetch reproduces the published sector build exactly
+
+The caveat from the second publish ("the rewritten surface-water job
+and the subsidence step are untested on a runner") is closed.
+`sector-model.yml` was dispatched with `skip_fetch=false` on a
+throwaway branch (`exp/sector-fetch-test`, from `sector-model` 69716eb)
+so a bot commit could change nothing published. The first attempt
+(run 34056186038) failed in the flood AND surface-water jobs within
+five seconds: `fetch_onspd.py` refuses to run without the OSTN15 grid
+and only the model job installed it - so this morning's flood job had
+never worked on a runner either. Fixed on main (`764d5e6`: the grid
+step in every job that runs `fetch_onspd.py`, and the model job's
+subsidence step moved after its own grid install because
+`score_subsidence_postcodes.py` transforms the BGS layers too) and
+guarded by `tests/test_workflows.py` (`7387417`: every job that runs
+fetch_onspd / score_subsidence_postcodes / build_model has the grid
+step before it; the commit list is complete; no literal `\n`).
+
+Run 34056312941 then succeeded end to end: erosion 14 min, flood 14
+min (ONSPD fetched from a runner for the first time, 85 MB),
+surface-water 40 min (England 8.948% in the >=1% band, Wales 2.859%,
+Scotland 8.780% - the laptop's numbers), depth 75 min, model with the
+subsidence step and the commit-back (`7687a8e`, run 32). Against the
+laptop-fetched inputs on `sector-model`: `flood_fractions.csv`,
+`sw_fractions.csv`, `subsidence_postcodes.csv`, `erosion.csv` and
+`sw_depth.csv` differ in NO value (line endings only), and the sector
+output differs in no column and no geometry from run 30; the
+exposure-weighted premium is 169.7525 in both and 0 rating groups move.
+The first time a grain has been reproduced from nothing but the
+workflow. The throwaway branch stays on origin as the record of run 32.
+
 ## PUBLISHED 2026-09-06 (second publish): SURFACE WATER and SUBSIDENCE by postcode share, both grains, one push
 
 The user's decision ("keep going publish outstanding") on the two
