@@ -16,3 +16,6 @@ folium==0.20.0
 branca==0.8.2
 pmtiles==3.7.0
 pyyaml==6.0.3
+# Measurement only: scripts/validate_flood_england.py reads the EA's
+# Key Summary Information .xlsx packs. No build step needs it.
+openpyxl==3.1.5

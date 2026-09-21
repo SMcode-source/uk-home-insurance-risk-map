@@ -168,6 +168,74 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-21: England's flood ordering, validated at last - and it found something
+
+The open question from 2026-09-05 ("whether the EA publishes
+properties-at-risk per community for England is the next availability
+question") is answered: **yes**. DATA_SOURCES #43. England is 85% of
+the exposure and had never been checked against anything the model did
+not itself read.
+
+`scripts/validate_flood_england.py` reads the EA's *Key Summary
+Information* packs - residential properties inside each risk band, per
+**MP constituency**, counted from the National Receptor Dataset 2023 -
+and rank-correlates them against the model, joined through ONSPD's
+`pcon24cd`. Writes `data/flood_validation_england.csv`. Nothing the
+model reads changes.
+
+| product | EA residential band | model | Spearman | n |
+|---|---|---|---|---|
+| surface water | High+Medium (>=1% AEP) | `sw_high` | **+0.932** | 543 |
+| surface water | all bands | `sw_low` | **+0.949** | 543 |
+| rivers and sea | High+Medium | `f_high` | **+0.832** | 534 |
+| rivers and sea | all bands | `f_low` | +0.754 | 534 |
+
+For scale, the 2026-09-05 Welsh check ran sea +0.70, surface water
++0.57, river -0.13.
+
+**The negative control matters as much as the number.** A postcode
+district is not nested inside a constituency and the two cross-cut
+everywhere - the median constituency takes only 34% of its postcodes
+from its largest district - so a natural objection is that the
+disagreement is the join's resolution rather than the model's error.
+Measured, in quartiles of that concentration: rivers/sea 0.840 / 0.863
+/ 0.832 / **0.786** and surface water 0.929 / 0.934 / 0.917 / 0.939.
+The tightest quartile is no better than the loosest. Resolution is not
+the story, so the gap is real.
+
+**What is the story: the two flood perils are built on different KINDS
+of EA product, and the one that matches the EA validates better.**
+Surface water samples `rofsw`, the EA's own risk banding, and scores
++0.932. Rivers and sea samples *extents* -
+`Rivers_1in100_Sea_1in200_defended_extents` - and scores +0.832. The
+largest disagreements say exactly this, and they are not scattered:
+
+    Bermondsey and Old Southwark   EA 0.00% high, 77.93% all bands
+                                   model 6.22% high, 6.44% all
+    Poplar and Limehouse           EA 0.36% / 40.99%
+                                   model 8.56% / 10.85%
+    Doncaster East & Isle of Axholme  EA 13.29% high, model 3.45%
+    South West Norfolk             EA  7.81% high, model 2.69%
+
+Defended tidal London: the EA puts four-fifths of those homes in its
+**Very Low** band because the defence works, and the model has them
+inside the 1-in-200 sea extent and calls it high. Drained fen and
+washland behind embankments: the reverse - the EA's residual risk is
+high, the model's extent is small. An *extent* is the land an event
+covers; RoFRS is the *chance at the property*, probabilistic over
+defence condition and overtopping. Different bases. And the layer name
+alone shows `f_high` is not one return period: it unions rivers at 1
+in 100 (1%/yr) with sea at 1 in 200 (**0.5%/yr**).
+
+**The fix is published, free, and unclaimed** (DATA_SOURCES #44):
+`nafra2-risk-of-flooding-from-rivers-and-sea/wms` serves `rofrs_4band`
+at the same 13 m/px cap as every other layer we rasterise, and
+alongside it `rofrs_4band_0_2m_depth ... _1_2m_depth` - **river/sea
+depth bands**, the analogue of #20 for the larger half of flood, which
+the model does not have at all. Neither string appears anywhere in
+this repo. Both are `exp/` candidates; neither is done here, and
+neither has been priced.
+
 ## PUBLISHED 2026-09-20: surface-water DEPTH by postcode share, both grains
 
 The user's decision, on the measurement of 2026-09-07 re-baselined onto
