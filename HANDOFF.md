@@ -168,6 +168,52 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## VERIFIED 2026-09-21: the rewritten `sw-refetch.yml` runs, and reproduces all four tables
+
+`sw-refetch.yml` was rewritten on 2026-09-20 to fetch the postcode-basis
+pair instead of the superseded area-basis one, and shipped **untested on a
+runner**. Run 35578081011 (`climate=true commit=false`, 1h31m) settles it.
+
+**Both fetch jobs succeeded.** The folded design held: the present-day job
+did all three regions of `fetch_sw_postcodes.py --flags`, its aggregation,
+then `fetch_sw_depth_postcodes.py --flags` and its aggregation, in one job,
+reading the gitignored `sw_flags_england.csv` its own earlier step wrote.
+The climate job did the England pair the same way.
+
+**All four tables came back identical to the published ones** - 2,737 /
+2,737 / 2,237 / 2,737 lines, zero differing, character for character
+against `git show HEAD:`. (A naive `cmp` says all four differ: the working
+copy is CRLF and the artifacts are LF. That is the checkout, not the data.)
+
+**The one failure was the guard, and it failed in the worst available
+way.** `check_refetch_delta.py` printed `ok` for the two frequency tables
+and then died:
+
+    ValueError: could not convert string to float: 'postcode'
+
+`sw_depth.csv` gained a `basis` column at the 2026-09-20 publish and the
+guard assumed every non-key column was a number. So the two tables the
+guard is *for* - the depth pair, whose basis is the thing that can
+silently revert - were never compared, behind a log that showed two ticks.
+A control that skips what it cannot parse is not a control.
+
+Fixed: numeric columns are now found from the data, and a **text column is
+compared for equality**, so a `postcode` -> `area` flip fails the run
+outright even though every number stays a plausible share. That is exactly
+the reversion the 2026-09-20 publish spent its day closing off at three
+other sites; this was the fourth and nobody had looked at it.
+`tests/test_refetch_delta.py` covers the crash, the basis flip, that the
+numeric gates still bite alongside a text column, and that `check()`
+returns rather than raises on each of the four real tables.
+
+**The lesson is not about CSV parsing.** The guard had been *added* on
+2026-09-13 because a shape guard cannot catch a size error. It then went
+eight days unable to read half its arguments, and would have gone longer,
+because nothing runs it except a full refetch - the rarest job in the
+repo. A guard whose only exercise is the event it guards against is
+untested by construction. Hence the end-to-end case in the new test file,
+which runs on every push.
+
 ## MEASURED 2026-09-21: England's flood ordering, validated at last - and it found something
 
 The open question from 2026-09-05 ("whether the EA publishes

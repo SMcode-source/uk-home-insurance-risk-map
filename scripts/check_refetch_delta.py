@@ -88,6 +88,25 @@ def _read(text):
     return out, cols[1:]
 
 
+def _numeric_columns(cols, *tables):
+    """Which columns hold numbers, judged from the data rather than a
+    list of names. sw_depth.csv carries a `basis` column whose value is
+    the literal string "postcode", and on 2026-09-21 this script died on
+    it mid-run with `could not convert string to float: 'postcode'` -
+    after passing the two frequency tables, so the depth pair went
+    unchecked while the run looked like it had checked everything."""
+    num = []
+    for j, _ in enumerate(cols):
+        try:
+            for t in tables:
+                for row in t.values():
+                    float(row[j])
+        except (ValueError, IndexError):
+            continue
+        num.append(j)
+    return num
+
+
 def _committed(path):
     rel = os.path.relpath(os.path.abspath(path), ROOT).replace(os.sep, "/")
     try:
@@ -119,12 +138,33 @@ def check(path):
                        f"e.g. {sorted(gone)[:5]}")
 
     shared = [u for u in new if u in old]
-    a = np.array([[float(x) for x in old[u]] for u in shared])
-    b = np.array([[float(x) for x in new[u]] for u in shared])
+
+    # A text column is compared for EQUALITY, not magnitude, and any
+    # disagreement fails the run outright. The one that exists is
+    # sw_depth.csv's `basis`, and a refetch that flipped it from
+    # "postcode" back to "area" is precisely the silent reversion the
+    # 2026-09-20 publish spent its day closing off: same columns, same
+    # shape, plausible values, wrong denominator.
+    num_j = _numeric_columns(new_cols, old, new)
+    text_j = [j for j, _ in enumerate(new_cols) if j not in num_j]
+    for j in text_j:
+        differ = [u for u in shared if old[u][j] != new[u][j]]
+        if differ:
+            ex = "; ".join(f"{u} {old[u][j]!r} -> {new[u][j]!r}"
+                           for u in differ[:3])
+            return False, (f"{name}: text column {new_cols[j]} changed in "
+                           f"{len(differ)} of {len(shared)} units: {ex}")
+    if not num_j:
+        return True, (f"{name}: {len(shared)} units, no numeric columns, "
+                      f"text columns identical")
+    num_cols = [new_cols[j] for j in num_j]
+
+    a = np.array([[float(old[u][j]) for j in num_j] for u in shared])
+    b = np.array([[float(new[u][j]) for j in num_j] for u in shared])
     d = np.abs(b - a)
     moved = float((d > EPS).mean())
     lvl = []
-    for j, col in enumerate(new_cols):
+    for j, col in enumerate(num_cols):
         m_old, m_new = a[:, j].mean(), b[:, j].mean()
         if m_old > 1e-9:
             # rank on the magnitude, REPORT the signed move - printing
@@ -146,7 +186,7 @@ def check(path):
             f"({100 * worst[4]:+.2f}%)")
     units = sorted({shared[i] for i, _ in hit})
     if len(units) > MAX_RATIO_UNITS:
-        ex = "; ".join(f"{shared[i]} {new_cols[j]} {a[i, j]:.5f} -> "
+        ex = "; ".join(f"{shared[i]} {num_cols[j]} {a[i, j]:.5f} -> "
                        f"{b[i, j]:.5f}" for i, j in hit[:3])
         head += (f"\n        {len(units)} units landed on exactly 2x or 0.5x "
                  f"({len(hit)} values) - a pixel cannot do that to this many "
