@@ -168,6 +168,99 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-22: England's rivers/sea on the EA's RISK bands, both grains - NOT published
+
+Branches `exp/rofrs-4band` (district, laptop build `5a71ba6`) and
+`exp/rofrs-4band-sector` (sector, runner build run 37, `a0300da`). The
+user asked for the experiment; **publishing is theirs to decide.**
+
+**What changed.** England's `f_high`/`f_low` came from the defended
+EXTENTS (`Rivers_1in100_Sea_1in200_defended_extents`, and the 1-in-1000
+pair) - land an event covers, and not even one return period. They now
+come from `rofrs_4band` (DATA_SOURCES #44): the EA's chance-at-the-
+property banding, defence-aware, decoded at 13 m and sampled at every
+unit postcode. `f_high` = High + Medium (>= 1%/yr), `f_low` adds Low
+(>= 0.1%), Very Low is neither. Climate reads `rofrs_cc01_4band`.
+Wales, Scotland, the postcode sampling and the shrinkage are untouched.
+
+**The decoding is the only new machinery, and it is tested.** The style
+strokes every polygon in grey; a third of painted pixels in a built-up
+tile are not a legend colour, and nearest-colour on a dark stroke says
+High - so `f_high` would have been inflated exactly where the houses
+are. Opaque exact pixels are read by colour; the rest take the majority
+of readable pixels round them (transparent ones voting "none"),
+widening 5 -> 11 -> 21 px, failing loudly if none. 96.4% of English
+postcodes are read directly. The test: decoded postcode bands
+aggregated straight to constituencies against the EA's own residential
+shares from the same raster - Pearson **0.974 / 0.988 / 0.993** (H+M,
++Low, any), level **1.94% vs 2.0%**. The decoder reproduces the EA.
+
+**Two traps found on the way.**
+- The climate edition is **"Unavailable" over the fens**: 1.9% of
+  English postcodes, 100% of PE11-PE25 and CB6, the Somerset Levels, the
+  Lincolnshire coast. Read as "none", PE11's f_high would go 0.65 -> 0
+  under climate change. Those postcodes now carry their present-day
+  band, fetched by the climate run itself. English districts whose
+  f_high FALLS under climate change: **28 on main (worst HU12, -0.25) ->
+  1 here** (TD12, -0.008, a border artefact already on main).
+- **The national pin moves Wales and Scotland.** Flood is calibrated to
+  one ABI total; England's raw frequency falls (mean f_high 0.055 ->
+  0.020), the scaling rises, and unchanged Welsh and Scottish hazard is
+  worth more. Wales reads NRW FRAW, banded High/Medium/Low like RoFRS
+  (its defence treatment is NOT confirmed from metadata - the WMS
+  abstracts are one line), so its +GBP5.5 looks like a correction: it was
+  being pinned against inflated English extents. Scotland reads SEPA,
+  which describes its layers as return-period HAZARD extents, so its
+  +GBP5.1 is a **new relative bias** - before, England and Scotland were
+  on the same (extent) basis; now Scotland is the odd one out. No
+  per-country ABI anchor exists to correct it. By exposure the new
+  state is more consistent (~92% risk basis vs ~5% before), but it is
+  not free.
+
+**The deltas.**
+
+| | district | sector |
+|---|---|---|
+| headline | 169.7457 -> **169.8392** | 169.7488 -> **169.8419** |
+| England | 170.25 -> 169.50 | 170.16 -> 169.41 |
+| Wales | 160.23 -> 165.77 | 160.55 -> 166.05 |
+| Scotland | 170.15 -> 175.23 | 170.86 -> 175.90 |
+| rating groups moved | 980 / 2,736 (31.8% of hh), 118 by >= 2 | 3,430 / 10,398 (32.2% of hh), 412 by >= 2 |
+| fl_score vs live | r 0.832 | r 0.858 |
+| climate repricing | +6.5% (-17% to +86%) -> +3.6% (0% to +61%) | - |
+
+Up: the fens and the Humberhead levels (PE11 175 -> 300, DN7 147 -> 234;
+sectors PE11 9 140 -> 310, DN14 6 152 -> 331). Down: Hull (HU5 293 ->
+148, HU3 329 -> 179; sectors HU5 4 279 -> 120) and defended tidal London
+(SE16 f_high 0.10 -> 0.004). By area: PE +12.9%, DN +8.9%, HU -31.3%,
+the south-west peninsula -4% to -6%. 54% of UK households move by 2% or
+less. Sectors rolled up to districts reproduce the district fractions at
+Pearson 0.9948.
+
+**Validation - read this before quoting it.** England rivers/sea f_high
+vs the EA's properties at risk: 0.832 -> **0.913**. That rise is
+EXPECTED BY CONSTRUCTION: the EA counts are computed from the raster the
+model now samples (DATA_SOURCES #43, corrected on this branch - it used
+to imply the rivers/sea check was already circular, which it was not,
+and that is why +0.832 was the informative number). The independent
+checks barely move, as they should, since the change only reaches them
+through border districts: Wales el_fl vs NRW people at risk 0.590 ->
+0.597, Scotland AAD 0.173 -> 0.174. **There is no independent evidence
+for England either way; none exists outside the EA's own product.** The
+case for publishing is the basis (chance at a property is what a
+frequency model prices; an extent is not), consistency with surface
+water and with Wales, the decoder's fidelity, and a climate file with
+one fall instead of 28. The case against is Scotland, and the size of
+the move - a third of households change rating group on a basis change
+nothing external can adjudicate.
+
+**If published:** both grains in one push as always; `sector-model.yml`'s
+flood job fetches present-day only and the climate file is laptop-
+fetched, which still holds; README / DATA_SOURCES #7 / LIMITATIONS §3
+and §6 / the map's methodology text all name the extents and must be
+updated; `fetch_flood.py` becomes the superseded area/extent path for
+England.
+
 ## VERIFIED 2026-09-21: the rewritten `sw-refetch.yml` runs, and reproduces all four tables
 
 `sw-refetch.yml` was rewritten on 2026-09-20 to fetch the postcode-basis
