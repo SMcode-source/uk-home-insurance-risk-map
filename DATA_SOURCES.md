@@ -1644,6 +1644,70 @@ districts**, used as the exposure weight throughout.
     the ones that reach months carry no information at those leads for
     this model — see HANDOFF 2026-09-12.
 
+43. **EA Key Summary Information — properties and people at risk, by
+    MP constituency (the first external validation available for
+    ENGLAND).** `scripts/validate_flood_england.py`, 2026-09-21.
+
+    - `risk-of-flooding-from-rivers-and-sea-key-summary-information1`
+      → `RoFRS_KeySummaryInfo.zip` (v202606) and
+      `risk-of-flooding-from-surface-water-key-summary-information`
+      → `RoFSW_KeySummaryInfo.zip` (v202509). Direct download from
+      `environment.data.gov.uk/api/file/download?fileDataSetId=…`.
+    - **OGL, recorded ONLY in the CKAN `extras` key `licence`** —
+      `license_id` and `license_title` both read null, exactly the
+      NCERM trap in #21. Do not conclude "no licence" from the field
+      that is supposed to carry it.
+    - Each zip holds spreadsheets of counts inside the risk bands,
+      broken down by ONS Region, River Basin District, RFCC, EA Area,
+      LLFA, Local Authority and **MP Constituency** — 534 English, the
+      finest grain offered. Five blocks per sheet; the only one
+      comparable to a model fraction is *PERCENTAGE OF PROPERTIES AT
+      RISK … BREAKDOWN BY PROPERTY TYPE (RELATIVE TO PROPERTY TYPE)*,
+      whose `Residential (%)` columns are the share of that
+      constituency's **homes** in each band. The others are counts, or
+      percentages of all properties, which a constituency full of
+      shops fails for reasons that have nothing to do with flooding.
+    - Counted from the **National Receptor Dataset 2023** — address
+      points, not area. That is the independent quantity, and the one
+      whose absence produced the Welsh finding of 2026-09-05.
+    - RoFSW also ships a **ground-floor** properties variant, which is
+      arguably closer to what damages a home. Not used yet.
+    - The join is administrative: ONSPD carries `pcon24cd` per unit
+      postcode, so a district's rate is carried to constituencies by
+      the postcodes it has there — no area apportionment. Two name
+      traps, both silent: the EA writes Boundary-Line names
+      ("Aldershot Boro Const") and punctuates "St. Albans" where ONSPD
+      does not, and the two disagree on the case of
+      "Weston-super-Mare". Unnormalised, 9 of 543 drop out.
+    - **What it cannot test:** the EA derives these counts from the
+      same RoFRS/RoFSW rasters the model samples, so agreement is not
+      evidence the hazard map is right. It tests everything between
+      the raster and a district number.
+
+44. **NaFRA2 Risk of Flooding from Rivers and Sea (`rofrs_4band`) —
+    published, OGL, and NOT used by this model.** Found while writing
+    #43, 2026-09-21. `environment.data.gov.uk/spatialdata/
+    nafra2-risk-of-flooding-from-rivers-and-sea/wms`, GetCapabilities
+    200, `MaxScaleDenominator` 50000 (so 13 m/px, as #10 and #20).
+
+        rofrs_4band              four risk bands, defence-aware
+        rofrs_4band_0_2m_depth   ... through rofrs_1_2m_depth
+
+    Two things the model does not have:
+    - **The risk bands.** `f_high`/`f_low` are sampled from a
+      different dataset, `rivers-and-sea-defended-and-undefended-flood-
+      risk-extents-present-day`, layers
+      `Rivers_1in100_Sea_1in200_defended_extents` and
+      `Rivers_1in1000_Sea_1in1000_defended_extents`. An *extent* is
+      the land a given event covers; RoFRS is the *chance at the
+      property*, probabilistic over defence condition and overtopping.
+      They are not the same basis, and the layer name says `f_high`
+      is not even one return period — it unions rivers at 1 in 100
+      (1%/yr) with sea at 1 in 200 (0.5%/yr).
+    - **River/sea depth bands**, the exact analogue of #20, for the
+      larger half of flood. The model has depth-conditioned severity
+      for surface water only.
+
 ## Budget: zero, decided 2026-08-31
 
 **The user has decided this project will not spend money.** That is a

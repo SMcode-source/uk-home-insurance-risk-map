@@ -168,10 +168,137 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
-## PUBLISHING 2026-09-20: surface-water DEPTH by postcode share, both grains
+## VERIFIED 2026-09-21: the rewritten `sw-refetch.yml` runs, and reproduces all four tables
+
+`sw-refetch.yml` was rewritten on 2026-09-20 to fetch the postcode-basis
+pair instead of the superseded area-basis one, and shipped **untested on a
+runner**. Run 35578081011 (`climate=true commit=false`, 1h31m) settles it.
+
+**Both fetch jobs succeeded.** The folded design held: the present-day job
+did all three regions of `fetch_sw_postcodes.py --flags`, its aggregation,
+then `fetch_sw_depth_postcodes.py --flags` and its aggregation, in one job,
+reading the gitignored `sw_flags_england.csv` its own earlier step wrote.
+The climate job did the England pair the same way.
+
+**All four tables came back identical to the published ones** - 2,737 /
+2,737 / 2,237 / 2,737 lines, zero differing, character for character
+against `git show HEAD:`. (A naive `cmp` says all four differ: the working
+copy is CRLF and the artifacts are LF. That is the checkout, not the data.)
+
+**The one failure was the guard, and it failed in the worst available
+way.** `check_refetch_delta.py` printed `ok` for the two frequency tables
+and then died:
+
+    ValueError: could not convert string to float: 'postcode'
+
+`sw_depth.csv` gained a `basis` column at the 2026-09-20 publish and the
+guard assumed every non-key column was a number. So the two tables the
+guard is *for* - the depth pair, whose basis is the thing that can
+silently revert - were never compared, behind a log that showed two ticks.
+A control that skips what it cannot parse is not a control.
+
+Fixed: numeric columns are now found from the data, and a **text column is
+compared for equality**, so a `postcode` -> `area` flip fails the run
+outright even though every number stays a plausible share. That is exactly
+the reversion the 2026-09-20 publish spent its day closing off at three
+other sites; this was the fourth and nobody had looked at it.
+`tests/test_refetch_delta.py` covers the crash, the basis flip, that the
+numeric gates still bite alongside a text column, and that `check()`
+returns rather than raises on each of the four real tables.
+
+**The lesson is not about CSV parsing.** The guard had been *added* on
+2026-09-13 because a shape guard cannot catch a size error. It then went
+eight days unable to read half its arguments, and would have gone longer,
+because nothing runs it except a full refetch - the rarest job in the
+repo. A guard whose only exercise is the event it guards against is
+untested by construction. Hence the end-to-end case in the new test file,
+which runs on every push.
+
+## MEASURED 2026-09-21: England's flood ordering, validated at last - and it found something
+
+The open question from 2026-09-05 ("whether the EA publishes
+properties-at-risk per community for England is the next availability
+question") is answered: **yes**. DATA_SOURCES #43. England is 85% of
+the exposure and had never been checked against anything the model did
+not itself read.
+
+`scripts/validate_flood_england.py` reads the EA's *Key Summary
+Information* packs - residential properties inside each risk band, per
+**MP constituency**, counted from the National Receptor Dataset 2023 -
+and rank-correlates them against the model, joined through ONSPD's
+`pcon24cd`. Writes `data/flood_validation_england.csv`. Nothing the
+model reads changes.
+
+| product | EA residential band | model | Spearman | n |
+|---|---|---|---|---|
+| surface water | High+Medium (>=1% AEP) | `sw_high` | **+0.932** | 543 |
+| surface water | all bands | `sw_low` | **+0.949** | 543 |
+| rivers and sea | High+Medium | `f_high` | **+0.832** | 534 |
+| rivers and sea | all bands | `f_low` | +0.754 | 534 |
+
+For scale, the 2026-09-05 Welsh check ran sea +0.70, surface water
++0.57, river -0.13.
+
+**The negative control matters as much as the number.** A postcode
+district is not nested inside a constituency and the two cross-cut
+everywhere - the median constituency takes only 34% of its postcodes
+from its largest district - so a natural objection is that the
+disagreement is the join's resolution rather than the model's error.
+Measured, in quartiles of that concentration: rivers/sea 0.840 / 0.863
+/ 0.832 / **0.786** and surface water 0.929 / 0.934 / 0.917 / 0.939.
+The tightest quartile is no better than the loosest. Resolution is not
+the story, so the gap is real.
+
+**What is the story: the two flood perils are built on different KINDS
+of EA product, and the one that matches the EA validates better.**
+Surface water samples `rofsw`, the EA's own risk banding, and scores
++0.932. Rivers and sea samples *extents* -
+`Rivers_1in100_Sea_1in200_defended_extents` - and scores +0.832. The
+largest disagreements say exactly this, and they are not scattered:
+
+    Bermondsey and Old Southwark   EA 0.00% high, 77.93% all bands
+                                   model 6.22% high, 6.44% all
+    Poplar and Limehouse           EA 0.36% / 40.99%
+                                   model 8.56% / 10.85%
+    Doncaster East & Isle of Axholme  EA 13.29% high, model 3.45%
+    South West Norfolk             EA  7.81% high, model 2.69%
+
+Defended tidal London: the EA puts four-fifths of those homes in its
+**Very Low** band because the defence works, and the model has them
+inside the 1-in-200 sea extent and calls it high. Drained fen and
+washland behind embankments: the reverse - the EA's residual risk is
+high, the model's extent is small. An *extent* is the land an event
+covers; RoFRS is the *chance at the property*, probabilistic over
+defence condition and overtopping. Different bases. And the layer name
+alone shows `f_high` is not one return period: it unions rivers at 1
+in 100 (1%/yr) with sea at 1 in 200 (**0.5%/yr**).
+
+**The fix is published, free, and unclaimed** (DATA_SOURCES #44):
+`nafra2-risk-of-flooding-from-rivers-and-sea/wms` serves `rofrs_4band`
+at the same 13 m/px cap as every other layer we rasterise, and
+alongside it `rofrs_4band_0_2m_depth ... _1_2m_depth` - **river/sea
+depth bands**, the analogue of #20 for the larger half of flood, which
+the model does not have at all. Neither string appears anywhere in
+this repo. Both are `exp/` candidates; neither is done here, and
+neither has been priced.
+
+## PUBLISHED 2026-09-20: surface-water DEPTH by postcode share, both grains
 
 The user's decision, on the measurement of 2026-09-07 re-baselined onto
 the OSTN15 publish (section below, numbers reproduced almost exactly).
+Main fast-forwarded to `exp/publish-depth-postcode` in one push
+(`dade8dd`; district output = bot run 66, sector output = sector-model
+run 36 `17f87d3` crossed as `data/sectors_risk.geojson`). `sector-model`
+re-synced afterwards (`a6f70b6`, sector build and sector-grain depth
+tables kept OURS). **Live verified** with the cache bypassed after
+`pages` run 35538855901: `uk_district_risk.csv` and
+`uk_sector_risk.csv` are byte-identical to the committed assets,
+2,736 rows at 169.7457 and 10,398 at 169.7488, IP33 152.5 at 0.25 m
+(0.63 m by area), BD1 9 330.7 at 0.55 m.
+
+The CI rebuild reproduced the laptop's measured district build with
+**zero** districts differing on premium - the OSTN15 adoption of
+2026-09-05 continues to hold local == CI.
 The peril now has ONE denominator: `fetch_sw_depth_postcodes.py` samples
 the five EA depth layers at the same unit-postcode centroids the
 frequency uses, and `sw_depth_severity` conditions on the same

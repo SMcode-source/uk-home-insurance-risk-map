@@ -55,10 +55,13 @@ frequency to its ABI figure, and the hazard scores decide only the
 plainly: **the model's district ordering has never been validated against
 actual claims, because no such data is published.** It is validated
 against physics and against the national level, and - since 2026-09-05,
-for flood only, outside England only - against two independent
-consequence products the model never read: SEPA's NFRA AAD grid and
-NRW's people-at-risk layers (`scripts/validate_flood_ordering.py`,
-`data/flood_validation.csv`). The result is split. In Wales the
+for flood only - against independent consequence products the model
+never read: SEPA's NFRA AAD grid and NRW's people-at-risk layers
+(`scripts/validate_flood_ordering.py`, `data/flood_validation.csv`),
+and since 2026-09-21 the EA's own residential properties-at-risk by
+MP constituency for England (`scripts/validate_flood_england.py`,
+`data/flood_validation_england.csv`, DATA_SOURCES #43), where surface
+water runs Spearman +0.932 and rivers/sea +0.832. The result is split. In Wales the
 model's ordering agrees with NRW's for sea (Spearman +0.70 against
 `f_high`) and surface water (+0.57 against `sw_high`) and disagrees for
 rivers (-0.13), measured on the model as it then stood: `f_high` was
@@ -416,10 +419,25 @@ Also unanchored, and worth naming:
    read at the unit postcodes since 2026-09-06 too (§7.7), and the
    surface-water DEPTH conditional followed on 2026-09-20, so the peril
    no longer carries two denominators — though depth-at-homes has no
-   external ordering to be validated against at all. **Still
+   external ordering to be validated against at all.
+   **England was validated on 2026-09-21** and is no longer the blind
+   85% (`scripts/validate_flood_england.py`, DATA_SOURCES #43):
+   against the EA's own residential properties-at-risk per MP
+   constituency, surface water runs Spearman **+0.932** and
+   rivers/sea **+0.832** over 534-543 constituencies. The gap
+   between those two is itself a finding: surface water samples the
+   EA's risk banding, rivers/sea samples flood *extents*, and the
+   disagreements concentrate exactly where that distinction bites -
+   defended tidal London reads high in the model and Very Low at
+   the EA, drained fen the reverse. It is not the join's
+   resolution: correlating within quartiles of how concentrated a
+   constituency is in one district, the tightest quartile scores no
+   better than the loosest. **Still
    open:** the postcode is a proxy for
    the home (~15 addresses per unit postcode, centroid not footprint),
-   and the validation itself is a ranking check outside England only.
+   and the validation is a ranking check throughout - it can say the model
+   orders districts like the EA's and NRW's own products do, never
+   that the level is right.
    Weighting each postcode by its LSOA's households per postcode (the
    split `households.csv` already uses) was measured on 2026-09-07 and
    bounded: rank correlation 0.99 with the unweighted shares, 4%
@@ -470,7 +488,9 @@ trusted.**
 | 2 | Coastal erosion, **Scotland** | **Dynamic Coast** phase 2 (NatureScot, OGL) | eroded-area polygon → district, area-weighted | **DONE 2026-09-03** (DATA_SOURCES #39): 179 of 442 Scottish districts, 79.7 km² by 2100, worst AB23 at 1.891%. The basis gap that looked expensive was measured and is not: only **1.88%** of the projected loss sits at a defended frontage, against England's 0.377 SMP/NFI ratio, so Dynamic Coast's management case and NCERM's SMP agree to within 2% *for Scotland*. What survives is the climate rung — RCP8.5-95th against England's 70th — and it is disclosed, not corrected. Original assessment, which held up: **High (verified 2026-09-03).** Eleven open feature services plus `DC2_Main_results` and `DC2_LES_results`. Scotland has a **climate ladder** — RCP8.5-95th and RCP2.6, each at 2050 and 2100 — which maps onto NCERM's `_hi`/`_lo` allowance columns; ErodedArea totals are 79.7 / 32.5 km² at 2100 and 17.9 / 12.9 km² at 2050. **The real mismatch is the management axis, not the climate one:** NCERM publishes SMP (defences maintained) against NFI (defences lapse), while Dynamic Coast publishes **one** management case — "do nothing", meaning no new intervention but existing defences physically present, capping retreat at **25 m** where they exist. That is nearer SMP than NFI, but it is one point on an axis England resolves into two, and there is no Scottish central (70th-percentile) case at all. DATA_SOURCES #38. |
 | 2 | Coastal erosion, **Wales** | — | — | **The whole of what is left of this row, and still blocked (verified 2026-09-03).** NRW's GeoServer publishes SMP *policies* (`nrw_shoreline_management_plan_policies`) but no projected-shoreline geometry, so a Welsh erosion extent cannot be built the way NCERM's is. With Scotland closed the layer is England + Scotland, and Wales is captioned on the map and in the methodology rather than left as a silent zero. |
 | 2 | **Surface-water depth outside England** | — | — | **No free route (verified 2026-09-03).** SEPA publishes surface-water hazard at `MAP_TYPE='Hazard'`, `METRIC='Extent'` only, and its `Secure`/`Utilities` REST folders list no services at all; NRW's 4,374 published WMS layers contain one "depth" layer and it is `geonode:nrw_ph2_lowland_peatland_peat_depth`. The England-only claim in §3 and §5 is now checked rather than asserted. |
-| — | *(adjacent, not a fix)* | **NRW `NRW_NATIONAL_FLOOD_RISK_SURFACE_WATER_ECON/PEOPLE/ENVIRO`**; **SEPA `NFRA_Flood_Risk_Grid_Latest`** (26,614 cells, `aad_score_res` banded 1–7) | — | These are *consequence*/annual-average-damage products. They cannot serve as severity multipliers — AAD already contains frequency, so multiplying it into a calibrated frequency double-counts. They are, however, a candidate **external validation of flood ordering** outside England, which §2 records the model has never had. |
+| — | *(adjacent, not a fix)* | **NRW `NRW_NATIONAL_FLOOD_RISK_SURFACE_WATER_ECON/PEOPLE/ENVIRO`**; **SEPA `NFRA_Flood_Risk_Grid_Latest`** (26,614 cells, `aad_score_res` banded 1–7) | — | These are *consequence*/annual-average-damage products. They cannot serve as severity multipliers — AAD already contains frequency, so multiplying it into a calibrated frequency double-counts. They are, however, a candidate **external validation of flood ordering** outside England, which §2 records the model has never had. **DONE 2026-09-05** (`scripts/validate_flood_ordering.py`); England followed on 2026-09-21 from a different source, the row below. |
+| — | *(adjacent, not a fix)* | **EA Key Summary Information** packs for RoFRS and RoFSW (CKAN `03068e80-a88b-418d-bd3d-8d8caf4f3c62` and `b15bdd08-6e4b-4f12-9429-6c07f50e2698`, OGL) — residential properties at risk by band, per MP constituency | constituency ← ONSPD `pcon24cd` ← district | **DONE 2026-09-21** (`scripts/validate_flood_england.py`, DATA_SOURCES #43). England, 85% of exposure, was the blind spot the row above could not reach. Surface water Spearman **+0.932**, rivers/sea **+0.832** over 534–543 constituencies, and the gap between the two is a finding, not noise — see the next row. A negative control rules out the join: the quartile of constituencies most concentrated in one district scores no better than the least. |
+| 6 | **`f_high`/`f_low` are EXTENTS, not a risk band** | **EA NaFRA2 `rofrs_4band`** and `rofrs_4band_0_2m_depth` … `_1_2m_depth` (`nafra2-risk-of-flooding-from-rivers-and-sea/wms`, published, OGL, DATA_SOURCES #44) | same postcode-share sampling as today, per band | **Candidate, unpriced, not started.** The 2026-09-21 validation located the weakness precisely: surface water samples the EA's *risk product* and scores +0.932; rivers/sea samples the 1%/0.5% *defended extent* — not even one return period — and scores +0.832. The residuals sit exactly where that distinction bites (defended tidal London high in the model, Very Low at the EA; drained fen the reverse). The depth variants would additionally give the peril a river/sea severity conditional, which it has never had at any grain. Both are `exp/` work and both would move premiums. |
 | 2 | Groundwater outside England | **BGS susceptibility to groundwater flooding**; SEPA/NRW flood maps | polygon fractions per district | Medium — BGS product is GB-wide, but is *susceptibility*, not EA's alert-area basis, so the two do not merge cleanly |
 | 3 | Theft, Scotland | **Recorded Crime in Scotland** by local authority | LA → district apportionment by households | **DONE 2026-09-01.** Shipped from the statistics.gov.scot cube (DATA_SOURCES #37), not the workbook — the cube carries all 32 councils and a fresher year. LA is still far coarser than street level, so this improved on one flat rate without matching E&W, exactly as forecast here. |
 | 4 | Accidental damage proxy | EPC/VOA stock type + census tenure | district | Low — no anchor for what AD actually correlates with |
