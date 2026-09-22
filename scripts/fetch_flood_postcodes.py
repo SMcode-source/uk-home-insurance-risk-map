@@ -94,6 +94,20 @@ EA_RS = ("https://environment.data.gov.uk/spatialdata/"
          "nafra2-risk-of-flooding-from-rivers-and-sea"
          + ("-climate-change" if CLIMATE else "") + "/wms")
 EA_RS_LAYER = "rofrs_cc01_4band" if CLIMATE else "rofrs_4band"
+# The climate edition is "Unavailable" - not published - over whole
+# districts of exactly the ground that floods: measured 2026-09-22 at
+# 1.9% of English postcodes, 100% of PE11-PE25 and CB6, the Somerset
+# Levels (TA8, TA10) and the Lincolnshire coast. Read as "none", PE11's
+# f_high would go from 0.65 today to 0 under climate change, the same
+# fall the area-share climate file once reported for Hull. So where the
+# climate band is unavailable, the postcode keeps its PRESENT-DAY band:
+# no climate uplift where none was modelled, and never a fall. The
+# present-day tile is fetched here, by this run, rather than read from
+# the present-day run's cache - an input recovered from another run's
+# output is an undeclared dependency.
+EA_RS_PRESENT = ("https://environment.data.gov.uk/spatialdata/"
+                 "nafra2-risk-of-flooding-from-rivers-and-sea/wms")
+EA_RS_PRESENT_LAYER = "rofrs_4band"
 RS_PX, RS_TILE = 13.0, 2048
 ENGLAND_BBOX = (82000, 5000, 660000, 660000)
 
@@ -185,6 +199,15 @@ def http_rgba(url):
     return None
 
 
+def rofrs_url(base, layer, bbox):
+    q = dict(service="WMS", version="1.3.0", request="GetMap",
+             layers=layer, crs="EPSG:27700",
+             bbox=",".join(f"{v:.0f}" for v in bbox),
+             width=RS_TILE, height=RS_TILE, format="image/png",
+             transparent="true")
+    return base + "?" + urllib.parse.urlencode(q)
+
+
 def rofrs_england(pc, x, y, in_high, in_low):
     """Band codes for every English postcode, from the tiles that hold one."""
     minx, miny, maxx, maxy = ENGLAND_BBOX
@@ -193,6 +216,7 @@ def rofrs_england(pc, x, y, in_high, in_low):
     ny = int(np.ceil((maxy - miny) / T))
     code = np.full(len(pc), -1, dtype=np.int8)        # -1: not sampled
     direct = np.zeros(len(pc), dtype=bool)
+    carried = np.zeros(len(pc), dtype=bool)     # climate gap -> present day
     eng = (pc["country"] == "England").values
     ix_all = np.clip(((x - minx) // T).astype(int), 0, nx - 1)
     iy_all = np.clip(((y - miny) // T).astype(int), 0, ny - 1)
@@ -203,18 +227,21 @@ def rofrs_england(pc, x, y, in_high, in_low):
     for k, (ix, iy) in enumerate(tiles):
         x0, y0 = minx + ix * T, miny + iy * T
         bbox = (x0, y0, x0 + T, y0 + T)
-        q = dict(service="WMS", version="1.3.0", request="GetMap",
-                 layers=EA_RS_LAYER, crs="EPSG:27700",
-                 bbox=",".join(f"{v:.0f}" for v in bbox),
-                 width=RS_TILE, height=RS_TILE, format="image/png",
-                 transparent="true")
-        a = http_rgba(EA_RS + "?" + urllib.parse.urlencode(q))
+        a = http_rgba(rofrs_url(EA_RS, EA_RS_LAYER, bbox))
         if a is None:
             continue
         idx = np.nonzero(eng & (ix_all == ix) & (iy_all == iy))[0]
         cols = np.clip(((x[idx] - x0) / RS_PX).astype(int), 0, RS_TILE - 1)
         rows = np.clip(((bbox[3] - y[idx]) / RS_PX).astype(int), 0, RS_TILE - 1)
         code[idx], direct[idx] = classify_rofrs(a, rows, cols)
+        gap = code[idx] == 5
+        if CLIMATE and gap.any():
+            p = http_rgba(rofrs_url(EA_RS_PRESENT, EA_RS_PRESENT_LAYER, bbox))
+            if p is None:
+                continue
+            sub = idx[gap]
+            code[sub], direct[sub] = classify_rofrs(p, rows[gap], cols[gap])
+            carried[sub] = True
         if (k + 1) % 25 == 0 or k + 1 == len(tiles):
             print(f"  {k + 1}/{len(tiles)} tiles, {time.time() - t0:.0f}s",
                   flush=True)
@@ -227,6 +254,13 @@ def rofrs_england(pc, x, y, in_high, in_low):
     print(f"  english postcodes by band: {tally}", flush=True)
     print(f"  read directly by colour: {direct[eng].mean():.2%}; the rest sat "
           f"on a polygon stroke and took their neighbourhood's band", flush=True)
+    if CLIMATE:
+        print(f"  climate band unavailable, present-day band carried: "
+              f"{carried[eng].mean():.2%} of English postcodes", flush=True)
+    if (code[eng] == 5).any():
+        raise SystemExit(f"{int((code[eng] == 5).sum())} English postcodes "
+                         f"have no published band at all - read as 'none' "
+                         f"they would price as dry")
     unsampled = int((code[eng] < 0).sum())
     if unsampled and not ff.FAILED:
         raise SystemExit(f"{unsampled} English postcodes were never sampled")
