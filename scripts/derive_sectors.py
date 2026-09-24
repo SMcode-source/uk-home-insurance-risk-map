@@ -29,7 +29,6 @@ import sys
 import zipfile
 from collections import defaultdict
 
-import numpy as np
 import shapely
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

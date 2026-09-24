@@ -126,7 +126,7 @@ def main():
     print(f"dataset version: {version}", flush=True)
 
     # fail fast on a bad token: one known-small file before crawling
-    probe = crawl_probe = (
+    crawl_probe = (
         f"{BASE}/{version}/midas-open_uk-mean-wind-obs_"
         f"{version.replace('dataset-version-', 'dv-')}_station-metadata.csv")
     body = get(crawl_probe, tok)

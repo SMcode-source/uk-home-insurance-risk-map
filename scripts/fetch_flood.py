@@ -191,8 +191,11 @@ def run_vector(region, gdf, tree, frac):
                         print(f"    retry {attempt + 1} {svc}: {e}", flush=True)
                         time.sleep(5)
                 if data is None or "features" not in data:
-                    print(f"    ABORT {svc} at offset {offset}", flush=True)
-                    break
+                    # A break here would write every later page as "no
+                    # flood risk", the silent truncation fetch_flood_
+                    # postcodes.py already refuses.
+                    raise SystemExit(f"{svc}: no answer at offset {offset} "
+                                     "- refusing to write a partial Scotland")
                 feats = data["features"]
                 if not feats:
                     break
@@ -203,7 +206,7 @@ def run_vector(region, gdf, tree, frac):
                 geoms = np.array(shapely.get_parts(geoms))
                 if len(geoms):
                     # f=geojson may come back as lon/lat regardless of outSR
-                    gx, gy = shapely.get_x(shapely.centroid(geoms[0])), 0
+                    gx = shapely.get_x(shapely.centroid(geoms[0]))
                     if abs(gx) <= 180:
                         geoms = shapely.transform(
                             geoms, lambda xy: np.column_stack(

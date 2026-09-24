@@ -22,9 +22,7 @@ Output: data/households.csv (name, households, postcodes)
 import collections
 import csv
 import io
-import json
 import os
-import re
 import urllib.request
 import zipfile
 

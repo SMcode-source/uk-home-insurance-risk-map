@@ -198,7 +198,6 @@ def main():
     args = ap.parse_args()
 
     import geopandas as gpd
-    import pandas as pd
     import shapely
 
     t0 = time.time()

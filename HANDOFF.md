@@ -168,6 +168,53 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## REVIEWED 2026-09-25: three flood decoders have unanchored constants, and two are on the live map
+
+A code review for suppressed errors and fixed values. The clean parts are
+short: every broad `except` retries then raises or is advisory; every
+workflow pipe ends in its checker; 151 tests pass. Cleanup landed in
+`53bdcf7`: `anchor_budget.py` read `obs` before it existed, so it printed a
+typed table and a stale sentence ("about half" of 0.31); the superseded
+`fetch_flood.py` truncated Scotland silently on a failed SEPA page.
+
+The findings are in how tiles and polygons become flags, measured against
+the EA's own residential counts (the KSI packs), level not rank:
+
+| decoder | constant | model ÷ EA, ≥1% band | model ÷ EA, envelope |
+|---|---|---|---|
+| surface water, England (LIVE) | alpha > 16 | 1.45× | 1.43× |
+| same tiles, alpha ≥ 64 | – | 1.09× | 0.98× |
+| rivers/sea extents, England (LIVE) | alpha > 16 | 2.82× | 1.95× |
+| `rofrs_4band` classifier (exp) | exact + majority | 1.08× | 0.97× |
+
+Surface water: 94 urban constituencies wholly inside ten 26 km tiles
+(fens and Cumbria held none). `rofsw` alpha is PIXEL COVERAGE: thin 2 m
+flow paths averaged into 13 m pixels. So alpha > 16 reads "6% of this pixel
+is wet" as at-risk. alpha ≥ 64 (25% coverage) matches the EA level and
+ranks slightly better (ρ +0.934 → +0.944). The depth masks use the same
+rule. NRW draws at 40% opacity (full cover = alpha 102), so the same
+constant means 16% coverage in Wales; the fix is a coverage threshold per
+source, not one alpha. The RoFRS classifier is NOT the fix for surface
+water: on the same tiles it reads 0.28×, because it treats faint pixels as
+none. Tuning the threshold to the EA level uses the validation set as the
+fit, so an exp would need a held-out half.
+
+Scotland: `fetch_flood_postcodes.py` fetches SEPA polygons with
+`maxAllowableOffset=100` (100 m simplification) before point-in-polygon.
+Against a 5 m reference: coastal medium 1,136 vs 859 postcodes in (+32%),
+85% of the true set misplaced; river samples (first 6,000 of ~47,000
+features) point the same way. Unsimplified coastal polygons 500 the
+server, so the fix is a small tolerance at one feature per page.
+
+Unanchored constants with no sensitivity scenario: `DEPTH_DAMAGE`,
+`SPATIAL_BASE`, `SW_FREQ_HIGH/LOW`, `GW_SHARE_OF_FLOOD`, `GW_BACKGROUND`, the
+`LEX_SUSCEP`/`RCS_SUSCEP` table, `OLD_AGE_FACTOR`, `DEFAULT_SUSCEP`. None is
+wrong on evidence; none has a scenario in `sensitivity.py`.
+
+All three flood findings are model changes: exp branches, both grains,
+the user decides. The two measurement scripts were scratch and are not
+committed; an exp should rebuild them as `scripts/` with fixed tile lists.
+
 ## VERIFIED 2026-09-21: the rewritten `sw-refetch.yml` runs, and reproduces all four tables
 
 `sw-refetch.yml` was rewritten on 2026-09-20 to fetch the postcode-basis
