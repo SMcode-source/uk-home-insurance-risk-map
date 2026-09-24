@@ -214,7 +214,6 @@ def main():
 
     names = list(gdf["name"].values)
     hh = gdf["households"].values
-    w = hh
     scot = np.array(sr.load_country(names)) == "Scotland"
     base_rate = gdf["th_rate"].values.copy()
     scot_hh = float(hh[scot].sum())

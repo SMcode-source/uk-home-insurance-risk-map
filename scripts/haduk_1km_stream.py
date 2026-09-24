@@ -100,7 +100,6 @@ def build_weights(sample):
 
     import geopandas as gpd
     import xarray as xr
-    from shapely.geometry import MultiPoint
 
     with xr.open_dataset(sample) as ds:
         var = next(v for v in ds.data_vars if v in VARS)

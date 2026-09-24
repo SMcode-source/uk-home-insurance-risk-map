@@ -148,7 +148,6 @@ def fetch(cfg):
                 print(f"  throttled at offset {offset} after {RETRIES} "
                       f"attempts - progress is checkpointed, so rerunning "
                       f"resumes here rather than restarting", flush=True)
-                stalled = True
                 break
             if matched is None:
                 matched = data.get("numberMatched")

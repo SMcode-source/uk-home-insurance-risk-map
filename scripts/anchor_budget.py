@@ -29,6 +29,7 @@ it cannot drift from what ships.
     .venv/Scripts/python.exe scripts/anchor_budget.py
 """
 
+import csv
 import os
 import sys
 
@@ -86,7 +87,22 @@ def rule(title):
     print("=" * 82)
 
 
+def load_abi_annual():
+    """{metric: {year: GBP m}} from data/abi_annual.csv, published and
+    derived rows only."""
+    obs = {}
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                        "..", "data", "abi_annual.csv")
+    with open(path, newline="", encoding="utf-8") as fh:
+        for r in csv.DictReader(fh):
+            if r["basis"] in ("published", "derived"):
+                obs.setdefault(r["metric"], {})[int(r["year"])] = \
+                    float(r["value_gbp_m"])
+    return obs
+
+
 def main():
+    obs = load_abi_annual()
     n = {name: paid / sev for name, paid, sev, _, _ in LEGS}
     tot_n = sum(n.values())
     tot_p = sum(paid for _, paid, _, _, _ in LEGS)
@@ -215,37 +231,34 @@ def main():
     print("  of putting two different years over one 2017-vintage number.")
     print("  Scale EoW to each year's book instead and it is steady:")
     print()
-    bp = {2023: 153.0, 2025: 202.0}
+    # Years with BOTH a burst-pipes line and a whole-book total. 2024 has
+    # the first but not the second, so it cannot enter this table.
+    bp = obs.get("burstpipes_homes", {})
+    hp = obs.get("home_paid_total", {})
+    years = sorted(set(bp) & set(hp))
     eow_share = (A["eow_paid"] / 1e6) / (P_ABI / 1e6)
-    hp = obs.get("home_paid_total", {}) if "obs" in dir() else {}
     print(f"{'year':8}{'burst pipes':>13}{'home paid':>12}"
-          f"{'% of book':>11}{'EoW at 19.3%':>14}{'freeze share':>14}")
-    for y, v in sorted(bp.items()):
-        h = {2023: 2550.0, 2025: 3400.0}[y]
+          f"{'% of book':>11}{f'EoW at {100 * eow_share:.1f}%':>14}"
+          f"{'freeze share':>14}")
+    book, share = [], []
+    for y in years:
+        v, h = bp[y], hp[y]
         eow_y = eow_share * h
+        book.append(100 * v / h)
+        share.append(v / eow_y)
         print(f"{y:<8}{v:>12,.0f}m{h:>11,.0f}m{100 * v / h:>10.2f}%"
               f"{eow_y:>13,.0f}m{v / eow_y:>14.3f}")
     print()
-    print(f"  Burst pipes are 5.9-6.0% of the whole home book in both years")
-    print(f"  and the implied freeze share is 0.31 in both. The model ships")
-    print(f"  {bm.EOW_FREEZE_SHARE:.2f} - about half. Two years is two years, "
-          f"but they agree")
-    print("  with each other far better than either agrees with 0.15.")
+    print(f"  Burst pipes are {min(book):.1f}-{max(book):.1f}% of the whole "
+          f"home book across {len(years)} years")
+    print(f"  and the implied freeze share is {min(share):.3f}-{max(share):.3f}."
+          f" The model ships {bm.EOW_FREEZE_SHARE:.3f}.")
     print()
 
     rule("THE LEVEL IS FITTED TO ONE YEAR - IS THAT VISIBLE IN THE DATA?")
     print("  data/abi_annual.csv carries the ABI's own published annual")
     print("  totals. Set the modelled book against them:")
     print()
-    obs = {}
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        "..", "data", "abi_annual.csv")
-    with open(path, newline="", encoding="utf-8") as fh:
-        import csv
-        for r in csv.DictReader(fh):
-            if r["basis"] in ("published", "derived"):
-                obs.setdefault(r["metric"], {})[int(r["year"])] = \
-                    float(r["value_gbp_m"])
     print(f"{'year':8}{'ABI all-home paid':>20}{'modelled 7 perils':>20}"
           f"{'model as % of it':>19}")
     for y, v in sorted(obs.get("home_paid_total", {}).items()):

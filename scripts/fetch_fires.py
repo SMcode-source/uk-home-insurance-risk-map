@@ -58,9 +58,7 @@ Usage:
 import collections
 import csv
 import io
-import json
 import os
-import re
 import sys
 import urllib.parse
 import urllib.request
