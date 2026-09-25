@@ -1679,10 +1679,22 @@ districts**, used as the exposure weight throughout.
       ("Aldershot Boro Const") and punctuates "St. Albans" where ONSPD
       does not, and the two disagree on the case of
       "Weston-super-Mare". Unnormalised, 9 of 543 drop out.
-    - **What it cannot test:** the EA derives these counts from the
-      same RoFRS/RoFSW rasters the model samples, so agreement is not
-      evidence the hazard map is right. It tests everything between
-      the raster and a district number.
+    - **What it cannot test:** the EA derives these counts from its
+      RoFRS/RoFSW rasters. Where the model samples the SAME raster,
+      agreement is not evidence the hazard map is right - it tests
+      everything between the raster and a district number (the
+      postcode proxy, the shrinkage, the join), and nothing else.
+      That was true of surface water from the start (`rofsw`), and it
+      becomes true of rivers/sea on `exp/rofrs-4band`, which moves
+      England's `f_high`/`f_low` onto `rofrs_4band`. It was NOT true
+      of rivers/sea while the model read the defended extents: that
+      +0.832 compared two different EA products, which is why it was
+      the informative number and why the gap to surface water's
+      +0.932 located the basis mismatch. After the switch a rise is
+      expected by construction and is not independent evidence; the
+      independent checks left for rivers/sea are NRW's people at risk
+      in Wales and SEPA's AAD grid in Scotland, neither of which the
+      switch touches.
 
 44. **NaFRA2 Risk of Flooding from Rivers and Sea (`rofrs_4band`) —
     published, OGL, and NOT used by this model.** Found while writing

@@ -13,8 +13,20 @@ unit postcode is ~15 addresses) took rivers to +0.42 (high band) and
 
 This script does that for all of Great Britain in one pass:
 
-  England  : EA NaFRA2 defended extents, the WMS masks fetch_flood.py
-             rasterises at 100 m, sampled at the postcode's pixel.
+  England  : EA NaFRA2 Risk of Flooding from Rivers and Sea
+             (`rofrs_4band`, DATA_SOURCES #44), decoded per pixel at
+             13 m from its four legend colours and sampled at the
+             postcode's pixel: f_high = High + Medium (>= 1% a year),
+             f_low = High + Medium + Low (>= 0.1%). Very Low is below
+             the low band and counts as neither. Until
+             exp/rofrs-4band this read the defended EXTENTS
+             (`Rivers_1in100_Sea_1in200_defended_extents`), which is
+             land an event covers, not the chance at a property - and
+             not even one return period, since it unions rivers at 1%
+             with sea at 0.5%. Measured against the EA's own residential
+             properties at risk (validate_flood_england.py) the extents
+             ranked constituencies at Spearman +0.832 while surface
+             water, already on the EA's risk product, ranked at +0.932.
   Wales    : NRW FRAW rivers + sea, same masks.
   Scotland : SEPA river + coastal likelihood polygons, point-in-polygon.
 
@@ -35,7 +47,7 @@ denominator:
     data/flood_fractions.csv   name, f_high, f_low
 
 --climate: England only, the EA's climate-change edition of the same
-extents (the _CCP1 layers, exactly as fetch_flood.py --climate), sampled
+risk product (`rofrs_cc01_4band`, same legend, same scale cap), sampled
 at the same English postcodes and shrunk with England-only priors, to
 data/flood_fractions_cc.csv. The present-day and climate fractions
 must share a denominator: flood_future() substitutes one for the other,
@@ -73,11 +85,186 @@ def area_of(district):
 
 CLIMATE = "--climate" in sys.argv[1:]
 if CLIMATE:
-    for band in ff.REGIONS["england"]["bands"].values():
-        for i, (mode, url, layer, cql) in enumerate(band):
-            band[i] = (mode, url.replace("-present-day/", "-climate-change/"),
-                       layer + "_CCP1", cql)
     OUT = os.path.join(DATA, "flood_fractions_cc.csv")
+
+# England: the EA's risk product. Same service family, legend and
+# 1:50,000 scale cap as the surface-water product fetch_surface_water.py
+# decodes, so the same 13 m / 2048 px tiles.
+EA_RS = ("https://environment.data.gov.uk/spatialdata/"
+         "nafra2-risk-of-flooding-from-rivers-and-sea"
+         + ("-climate-change" if CLIMATE else "") + "/wms")
+EA_RS_LAYER = "rofrs_cc01_4band" if CLIMATE else "rofrs_4band"
+# The climate edition is "Unavailable" - not published - over whole
+# districts of exactly the ground that floods: measured 2026-09-22 at
+# 1.9% of English postcodes, 100% of PE11-PE25 and CB6, the Somerset
+# Levels (TA8, TA10) and the Lincolnshire coast. Read as "none", PE11's
+# f_high would go from 0.65 today to 0 under climate change, the same
+# fall the area-share climate file once reported for Hull. So where the
+# climate band is unavailable, the postcode keeps its PRESENT-DAY band:
+# no climate uplift where none was modelled, and never a fall. The
+# present-day tile is fetched here, by this run, rather than read from
+# the present-day run's cache - an input recovered from another run's
+# output is an undeclared dependency.
+EA_RS_PRESENT = ("https://environment.data.gov.uk/spatialdata/"
+                 "nafra2-risk-of-flooding-from-rivers-and-sea/wms")
+EA_RS_PRESENT_LAYER = "rofrs_4band"
+RS_PX, RS_TILE = 13.0, 2048
+ENGLAND_BBOX = (82000, 5000, 660000, 660000)
+
+# The legend (GetLegendGraphic, read 2026-09-22), in code order. The fill
+# colours are exact in the tiles; what is not exact is a thin grey stroke
+# (112,112,112) the style draws round every polygon and along the
+# product's internal tile grid, blended over whatever fill it crosses.
+# Nearest-colour on a stroke pixel is a coin toss, and the one boundary
+# that matters most - Low against Very Low, which is f_low's edge - is
+# also the closest pair of colours in the legend (23 RGB units apart).
+# So a pixel is classed by colour only when it is opaque and within
+# RS_EXACT of an anchor, and every other painted pixel takes the most
+# common confident class round it, widening through RS_WINDOWS until one
+# is found. Transparent pixels vote too, for "none": a stroke on the
+# OUTER edge of a polygon is half outside it, and letting only the fills
+# vote would grow every polygon by a pixel. What must not happen is a
+# fallback to the nearest colour - a dark-grey stroke is nearest to High,
+# and dense strokes are where the houses are.
+RS_ANCHORS = np.array([[85, 91, 157],     # 4 High     (>= 3.3%)
+                       [154, 159, 222],   # 3 Medium   (1 - 3.3%)
+                       [195, 224, 255],   # 2 Low      (0.1 - 1%)
+                       [200, 247, 255],   # 1 Very low (< 0.1%)
+                       [176, 179, 180]])  # 5 Unavailable
+RS_CODE = np.array([4, 3, 2, 1, 5], dtype=np.int8)
+RS_NAMES = {0: "none", 1: "very low", 2: "low", 3: "medium", 4: "high",
+            5: "unavailable"}
+RS_EXACT = 12               # RGB distance for a pixel to be read by colour
+RS_WINDOWS = (5, 11, 21)    # neighbourhoods tried in turn, in pixels
+RS_FAINT = 128              # an inexact pixel fainter than this is "none"
+
+
+def classify_rofrs(a, rows, cols):
+    """Band codes (RS_NAMES) at pixels (rows, cols) of an RGBA tile, and
+    whether each was read directly rather than settled by its neighbours.
+
+    Only the requested pixels are settled: the model needs the band at
+    each postcode's pixel, and settling a whole 2048-px tile costs ten
+    times the fetch."""
+    rgb = a[:, :, :3].astype(np.int32)
+    alpha = a[:, :, 3]
+    clear = alpha <= 16
+    d = ((rgb[:, :, None, :] - RS_ANCHORS[None, None, :, :]) ** 2).sum(-1)
+    exact = ~clear & (alpha >= 250) & (d.min(-1) <= RS_EXACT ** 2)
+    grid = np.zeros(alpha.shape, dtype=np.int8)
+    grid[exact] = RS_CODE[d.argmin(-1)[exact]]
+    known = exact | clear
+
+    out = grid[rows, cols].copy()
+    direct = known[rows, cols]
+    todo = ~direct & (alpha[rows, cols] >= RS_FAINT)
+    H, W = alpha.shape
+    for win in RS_WINDOWS:
+        if not todo.any():
+            break
+        i = np.nonzero(todo)[0]
+        off = np.arange(win) - win // 2
+        rr = np.clip(rows[i, None, None] + off[None, :, None], 0, H - 1)
+        cc = np.clip(cols[i, None, None] + off[None, None, :], 0, W - 1)
+        ok = known[rr, cc].reshape(len(i), -1)
+        cls = grid[rr, cc].reshape(len(i), -1).astype(np.int64)
+        votes = np.zeros((len(i), 6), dtype=np.int64)
+        np.add.at(votes, (np.repeat(np.arange(len(i)), ok.shape[1])[ok.ravel()],
+                          cls.ravel()[ok.ravel()]), 1)
+        has = votes.sum(1) > 0
+        out[i[has]] = votes[has].argmax(1).astype(np.int8)
+        todo[i[has]] = False
+    if todo.any():
+        raise SystemExit(f"{int(todo.sum())} pixels with no readable pixel "
+                         f"within {RS_WINDOWS[-1] // 2} of them - the style "
+                         f"has changed; re-read the legend")
+    return out, direct
+
+
+def http_rgba(url):
+    """One tile as an RGBA array, or None (recorded in ff.FAILED)."""
+    import io
+    from PIL import Image
+    delay = 5
+    for attempt in range(6):
+        try:
+            with urllib.request.urlopen(url, timeout=300) as r:
+                return np.asarray(Image.open(io.BytesIO(r.read())).convert("RGBA"))
+        except Exception as e:                        # noqa: BLE001
+            print(f"    retry {attempt + 1}/6 in {delay}s: {e}", flush=True)
+            time.sleep(delay)
+            delay = min(delay * 2, 120)
+    print(f"    !! GIVING UP on {url[:120]}", flush=True)
+    ff.FAILED.append(url)
+    return None
+
+
+def rofrs_url(base, layer, bbox):
+    q = dict(service="WMS", version="1.3.0", request="GetMap",
+             layers=layer, crs="EPSG:27700",
+             bbox=",".join(f"{v:.0f}" for v in bbox),
+             width=RS_TILE, height=RS_TILE, format="image/png",
+             transparent="true")
+    return base + "?" + urllib.parse.urlencode(q)
+
+
+def rofrs_england(pc, x, y, in_high, in_low):
+    """Band codes for every English postcode, from the tiles that hold one."""
+    minx, miny, maxx, maxy = ENGLAND_BBOX
+    T = RS_PX * RS_TILE
+    nx = int(np.ceil((maxx - minx) / T))
+    ny = int(np.ceil((maxy - miny) / T))
+    code = np.full(len(pc), -1, dtype=np.int8)        # -1: not sampled
+    direct = np.zeros(len(pc), dtype=bool)
+    carried = np.zeros(len(pc), dtype=bool)     # climate gap -> present day
+    eng = (pc["country"] == "England").values
+    ix_all = np.clip(((x - minx) // T).astype(int), 0, nx - 1)
+    iy_all = np.clip(((y - miny) // T).astype(int), 0, ny - 1)
+    tiles = sorted(set(zip(ix_all[eng].tolist(), iy_all[eng].tolist())))
+    print(f"england: {EA_RS_LAYER}, {len(tiles)} tiles of {T / 1000:.1f} km "
+          f"hold postcodes ({RS_PX} m/px)", flush=True)
+    t0 = time.time()
+    for k, (ix, iy) in enumerate(tiles):
+        x0, y0 = minx + ix * T, miny + iy * T
+        bbox = (x0, y0, x0 + T, y0 + T)
+        a = http_rgba(rofrs_url(EA_RS, EA_RS_LAYER, bbox))
+        if a is None:
+            continue
+        idx = np.nonzero(eng & (ix_all == ix) & (iy_all == iy))[0]
+        cols = np.clip(((x[idx] - x0) / RS_PX).astype(int), 0, RS_TILE - 1)
+        rows = np.clip(((bbox[3] - y[idx]) / RS_PX).astype(int), 0, RS_TILE - 1)
+        code[idx], direct[idx] = classify_rofrs(a, rows, cols)
+        gap = code[idx] == 5
+        if CLIMATE and gap.any():
+            p = http_rgba(rofrs_url(EA_RS_PRESENT, EA_RS_PRESENT_LAYER, bbox))
+            if p is None:
+                continue
+            sub = idx[gap]
+            code[sub], direct[sub] = classify_rofrs(p, rows[gap], cols[gap])
+            carried[sub] = True
+        if (k + 1) % 25 == 0 or k + 1 == len(tiles):
+            print(f"  {k + 1}/{len(tiles)} tiles, {time.time() - t0:.0f}s",
+                  flush=True)
+        time.sleep(0.15)
+    in_high[eng] = np.isin(code[eng], (3, 4))
+    in_low[eng] = np.isin(code[eng], (2, 3, 4))
+    n = int(eng.sum())
+    tally = ", ".join(f"{RS_NAMES[c]} {int((code[eng] == c).sum()) / n:.3%}"
+                      for c in (4, 3, 2, 1, 0, 5))
+    print(f"  english postcodes by band: {tally}", flush=True)
+    print(f"  read directly by colour: {direct[eng].mean():.2%}; the rest sat "
+          f"on a polygon stroke and took their neighbourhood's band", flush=True)
+    if CLIMATE:
+        print(f"  climate band unavailable, present-day band carried: "
+              f"{carried[eng].mean():.2%} of English postcodes", flush=True)
+    if (code[eng] == 5).any():
+        raise SystemExit(f"{int((code[eng] == 5).sum())} English postcodes "
+                         f"have no published band at all - read as 'none' "
+                         f"they would price as dry")
+    unsampled = int((code[eng] < 0).sum())
+    if unsampled and not ff.FAILED:
+        raise SystemExit(f"{unsampled} English postcodes were never sampled")
+    return code
 
 
 def raster_region(name, pc, x, y, in_high, in_low):
@@ -186,10 +373,16 @@ def main():
     if not CLIMATE:
         raster_region("wales", pc, x, y, in_high, in_low)
         vector_scotland(pc, x, y, in_high, in_low)
-    raster_region("england", pc, x, y, in_high, in_low)
+    code = rofrs_england(pc, x, y, in_high, in_low)
     if ff.FAILED:
         raise SystemExit(f"{len(ff.FAILED)} tiles failed - refusing to write "
                          "a partial file")
+    # The per-postcode bands, kept for diagnosis (which postcodes fell in
+    # "Unavailable", which sit on a stroke). Not model input.
+    os.makedirs(os.path.join(DATA, "cache"), exist_ok=True)
+    pd.DataFrame({"postcode": pc["postcode"], "band": code}).to_csv(
+        os.path.join(DATA, "cache", f"rofrs_bands{'_cc' if CLIMATE else ''}.csv"),
+        index=False)
     pc["in_high"] = in_high
     pc["in_low"] = in_low | in_high
 
