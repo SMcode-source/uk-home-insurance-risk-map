@@ -43,6 +43,10 @@ concurrency:
 jobs:
   rebuild:
     name: full model rebuild
+    # ostn15=false builds the Helmert approximation on purpose; tell the
+    # model's own guard (build_model.require_ostn15) that it is meant.
+    env:
+      UKRISK_ALLOW_HELMERT: ${{ inputs.ostn15 && '0' || '1' }}
     runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
     # Two 20,000-year simulations (present-day + climate). Generous ceiling
     # so a slow runner fails loudly rather than being killed at the default.

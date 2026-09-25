@@ -195,6 +195,39 @@ def check_simulated_columns(sim):
 # ---------------------------------------------------------------- load
 
 
+def require_ostn15():
+    """Refuse to build on the Helmert fallback unless asked to.
+
+    Every unit's centroid and every hazard sample goes through EPSG:4326
+    -> 27700, and without the OSTN15 grid pyproj does not fail: it warns
+    and uses a Helmert shift ~1.75 m off. On 2026-09-25 a laptop build
+    launched from PowerShell (which on this machine sees a virtualised
+    AppData without the grid) did exactly that, and CI refused to
+    reproduce it: every district differed, via the IDW weather scores.
+    fetch_onspd.py already refused; the model did not.
+
+    UKRISK_ALLOW_HELMERT=1 builds anyway. Only rebuild.yml's ostn15=false
+    measurement mode and platform-probe.yml (which reports whatever
+    transform a machine has) set it.
+    """
+    if os.environ.get("UKRISK_ALLOW_HELMERT") == "1":
+        print("  UKRISK_ALLOW_HELMERT=1: building without the OSTN15 check")
+        return
+    from pyproj.transformer import TransformerGroup
+    tg = TransformerGroup(4326, 27700, always_xy=True)
+    missing = [o.name for o in tg.unavailable_operations
+               if "OSTN15" in o.name or "(9)" in o.name]
+    if missing:
+        raise SystemExit(
+            "the OSTN15 grid is not visible to this process, so pyproj would "
+            "silently use a ~1.75 m Helmert shift and the build would not "
+            "match the published model.\n"
+            "  fix: .venv/Scripts/pyproj.exe sync --file "
+            "uk_os_OSTN15_NTv2_OSGBtoETRS (or copy the .tif into "
+            "pyproj.datadir.get_data_dir())\n"
+            f"  missing: {missing[0]}")
+
+
 def load_districts() -> gpd.GeoDataFrame:
     """SECTOR-MODEL BRANCH: the geography atom is the postcode sector.
 
@@ -206,6 +239,7 @@ def load_districts() -> gpd.GeoDataFrame:
     what makes sector results aggregable back to the published district
     model for validation. `district` and `n_units` ride along for that.
     """
+    require_ostn15()
     gdf = gpd.read_file(os.path.join(DATA, "sectors_gb.gpkg"))
     gdf = gdf.rename(columns={"sector": "name"})
     gdf["area"] = gdf["name"].str.extract(r"^([A-Z]{1,2})", expand=False)
