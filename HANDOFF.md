@@ -168,6 +168,52 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-25: Scotland's flood polygons read at 5 m, not 100 m - both grains, NOT published
+
+Branches `exp/sepa-tolerance` (district) and `exp/sepa-tolerance-sector`.
+One fetch; its per-postcode flags (`data/cache/flood_postcode_flags.csv`)
+built both tables via `--flags-from`, so the grains read identical flags.
+
+| | district | sector |
+|---|---|---|
+| headline | 169.7457 → 169.7488 | 169.7488 → 169.7508 |
+| Scotland (household mean) | −1.45 | −1.47 |
+| England / Wales (pin only) | +0.15 / +0.13 | +0.15 / +0.13 |
+| rating groups changed | 196 (4.7% of homes) | 360 (2.9%) |
+| biggest movers | IV40 −15.7, PH17 −15.6 | G13 4 −30.8, PH37 4 −25.4 |
+
+- **Only Scotland's inputs move.** Every English and Welsh row of the new
+  table is identical to the published one, so the published build is a
+  clean baseline, with no service drift mixed in. England and Wales
+  reprice through the national ABI pin alone (143 English sectors change
+  group with no hazard change): the same cross-country effect as the
+  `rofrs_4band` experiment, in the other direction.
+- **Converged.** 5 m vs 1 m: coastal 859 vs 863 postcodes, rivers
+  identical. 100 m vs 5 m was 1,136 vs 859. All four layers returned the
+  server's full count (47,093 / 16 / 44,671 / 16).
+- **Only partial validation available.** SEPA's Flood Risk Grid (residential AAD,
+  a different product from the extents): `el_fl` vs area in AAD band ≥ 5
+  +0.17 → +0.25; `f_high` vs the area-weighted AAD index −0.43 → −0.35,
+  still negative. That index is surface-water-dominated and area-based
+  (see the 2026-09-05 entry), so it is weak evidence either way.
+- **The grains agree better.** Mean |sector roll-up − district| over
+  Scottish districts: f_high 0.0051 → 0.0034, f_low 0.0068 → 0.0052. The
+  big movers are thin units (PH17: 13 postcodes) where 100 m polygons had
+  inflated both grains unevenly (0.156 vs 0.216 → 0.055 vs 0.063).
+- **The laptop did not reproduce CI.** `rebuild.yml verify=true` (run
+  36077933168) failed: same packages, same OSTN15 pipeline, and the only
+  differing log line is the `wdr` district range (2402.1 laptop, 2401.9
+  CI), which moves `wx_score` in the fourth decimal on most districts. So
+  the district numbers above are superseded by the bot's CI build
+  (`rebuild.yml commit=true` on the branch); the sector build was always
+  the bot's (run 38, `42d20c5`). Whether the laptop≠CI gap is new or was
+  already there under the published build is open.
+
+To publish (the user's decision): merge both branches' data in one push;
+DATA_SOURCES #9 is already updated on the branch. It composes with
+`rofrs_4band` (both move the pin); if both are published, build them
+together rather than stacking two measured deltas.
+
 ## REVIEWED 2026-09-25: three flood decoders have unanchored constants, and two are on the live map
 
 A code review for suppressed errors and fixed values. The clean parts are

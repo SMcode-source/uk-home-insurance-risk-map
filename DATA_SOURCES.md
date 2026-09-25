@@ -95,8 +95,12 @@ districts**, used as the exposure weight throughout.
 9. **SEPA rivers/coastal** — FeatureServer **vector** queries (their MapServers
    have a 1:85,000 minScale, so image export at coarse scales renders nothing):
    `https://map.sepa.org.uk/server/rest/services/Open/<service>/FeatureServer/<id>/query`
-   with `maxAllowableOffset=100`. Sublayer ids: River medium=1, Coastal
-   medium=7, River low=2, Coastal low=8.
+   with `maxAllowableOffset=5` (metres; 100 before 2026-09-25, which moved
+   32% of the coastal postcode flags - HANDOFF). Sublayer ids: River
+   medium=1, Coastal medium=7, River low=2, Coastal low=8. **Quirk:** at
+   5 m the 16 coastal features are big enough that a 1,000-feature page
+   returns HTTP 500; `fetch_flood_postcodes.py` halves the page on a 500
+   and ends each layer on `exceededTransferLimit`.
 10. **EA surface water** — WMS
     `.../spatialdata/nafra2-risk-of-flooding-from-surface-water/wms`, layer
     `rofsw`. **Quirk:** `MaxScaleDenominator=50000` — renders only at
