@@ -336,7 +336,11 @@ __NAV__
     legend colours at 13 m per pixel; Wales from NRW FRAW; Scotland from SEPA's polygons,
     queried at a 5 m tolerance. Surface water is handled the same way: England's RoFSW
     layer only renders below 1:50,000, so it is fetched at 13 m per pixel with the three
-    legend colours decoded per pixel into likelihood bands.
+    legend colours decoded per pixel into likelihood bands. A pixel counts only when at
+    least a quarter of it is covered: the layer is drawn from 2&nbsp;m flow paths, so a
+    faint 13&nbsp;m pixel is a thin path through its edge, and counting those put England
+    at 1.6 times the EA's own count of homes at risk. A quarter was chosen on half the
+    constituencies and checked on the other half.
     Surface-water claims are modelled as more frequent but cheaper than fluvial ones.</p>
 
     <h3>How deep, not just how wet</h3>

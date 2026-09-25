@@ -89,6 +89,21 @@ the model now samples the product the EA's own counts come from, so
 Wales and Scotland keep their external checks. See §7 and HANDOFF
 2026-09-05 and 2026-09-06.
 
+**Surface water's LEVEL in England is a fit, not a check, since the
+25% coverage threshold** (HANDOFF "PUBLISHED 2026-09-26: surface water
+at 25% pixel coverage"). An EA pixel counts when at least a quarter of
+it is covered. Against the EA's residential counts that took England
+from 1.60x / 1.53x of the EA's share (>=1% / any band) to 1.18x /
+1.00x, and Spearman from +0.932 to +0.939. The threshold was chosen on
+half the constituencies in ten tiles and held out on the other half
+(1.17x / 1.02x), but the same counts chose it, so the national level
+no longer validates anything; the ranking still does. Scotland has a
+level check the other way round: SEPA's NFRA 2025 counts 268,000
+homes at medium surface-water risk on the same maps the model reads,
+and the model reads 0.82-0.94x of that (the range is the dwelling
+denominator). National totals only; SEPA has not yet published the
+breakdown.
+
 The scalings applied to reach the ABI level are large:
 
 | peril | raw score frequency | ABI target | scaling |
@@ -115,24 +130,28 @@ total divided by a blended claim size. So any change to the river/sea
 vs surface-water mix moves groundwater with no groundwater input
 touched: the 2026-09-25 RoFRS publish cut the blend from £27,363 to
 £25,670 and groundwater rose £1.46 → £1.57 while flood stayed £20.13.
+The surface-water coverage threshold ran it back the other way: less
+surface water in the mix, a blend of about £27,000, groundwater
+£1.57 → £1.49, flood £20.13 again. That groundwater move is the whole
+of that change's headline effect.
 
 ---
 
 ## 3. Per-peril provenance, and what each driver actually is
 
-EL per policy and share of the **£164.32 priced** total. Note which line
+EL per policy and share of the **£164.24 priced** total. Note which line
 is outside it:
 
 | peril | EL | share | driver | resolution | coverage |
 |---|---|---|---|---|---|
-| Escape of water | £42.39 | **25.80%** | air-frost days | 1991–2020 **climatology** | UK — **no year-to-year variation** |
-| Fire | £28.00 | 17.04% | MHCLG dwelling-fire incidents | fire-authority area | GB |
-| Theft | £22.04 | 13.41% | police.uk burglary points | **street level** | E&W; Scotland at council resolution |
-| Flood | £20.13 | 12.25% | EA RoFRS risk bands / NRW FRAW / SEPA polygons | share of unit postcodes in each band | UK; depth England only |
-| Subsidence | £19.81 | 12.05% | BGS clay shrink–swell | 1:625,000 | GB |
+| Escape of water | £42.39 | **25.81%** | air-frost days | 1991–2020 **climatology** | UK — **no year-to-year variation** |
+| Fire | £28.00 | 17.05% | MHCLG dwelling-fire incidents | fire-authority area | GB |
+| Theft | £22.04 | 13.42% | police.uk burglary points | **street level** | E&W; Scotland at council resolution |
+| Flood | £20.13 | 12.26% | EA RoFRS risk bands / NRW FRAW / SEPA polygons | share of unit postcodes in each band | UK; depth England only |
+| Subsidence | £19.81 | 12.06% | BGS clay shrink–swell | 1:625,000 | GB |
 | Storm | £15.74 | 9.58% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
-| Accidental damage | £14.65 | 8.91% | census child-share | LSOA | GB |
-| Groundwater | £1.57 | 0.96% | EA alert areas | postcode flag | **England only** |
+| Accidental damage | £14.65 | 8.92% | census child-share | LSOA | GB |
+| Groundwater | £1.49 | 0.91% | EA alert areas | postcode flag | **England only** |
 | *Coastal erosion* | *£3.09* | *—* | *EA NCERM frontages; NatureScot Dynamic Coast* | *frontage / eroded-area polygons* | ***England + Scotland on two bases (`er_basis`); Welsh coast unmapped; UNPRICED*** |
 
 **Coastal erosion is deliberately outside `el_total`** — "no policy pays
