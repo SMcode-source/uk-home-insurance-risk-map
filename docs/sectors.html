@@ -306,10 +306,10 @@ page</a>.</p>
   &ge;10&nbsp;mm rain days and annual precipitation (HadUK-Grid observations 1991&ndash;2020).</p>
   <p><b>Marginals.</b> Annual aggregate loss per policy per peril is compound
   Bernoulli &times; LogNormal, with claim frequency and severity driven by the scores.</p>
-  <p><b>Flood.</b> Official flood extents rasterised per district: rivers &amp; sea from
-  EA NaFRA2 present-day defended extents (England), NRW FRAW (Wales) and SEPA maps
-  (Scotland) at 100&nbsp;m; <b>surface water</b> from EA RoFSW (13&nbsp;m, category colours
-  decoded), NRW FRAW surface water and SEPA surface water maps. Zone fractions drive
+  <p><b>Flood.</b> Official flood maps sampled at every unit postcode: rivers &amp; sea from
+  the EA's Risk of Flooding from Rivers and Sea (England, 13&nbsp;m, risk bands decoded),
+  NRW FRAW (Wales) and SEPA maps (Scotland, polygons at 5&nbsp;m); <b>surface water</b> from EA RoFSW (13&nbsp;m, category colours
+  decoded), NRW FRAW surface water and SEPA surface water maps. The shares of postcodes in each band drive
   the flood claim frequency directly; surface-water claims are modelled shallower and
   cheaper than river/sea.</p>
   <p><b>Groundwater.</b> EA groundwater flood alert target areas via the postcode
@@ -468,13 +468,13 @@ const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
    works while "the loaded features" means all of them. Under vector
    tiles it means the viewport's, so the scale (and the legend printed
    from it) would shift as you panned. Fixed nationally, once. */
-const BREAKS = {"premium":[131.5,145,157.6,170.4,186.6,214],"var995_vine":[4878.9,5383.6,5862.2,6427,7170.5,8577],"capital":[4.2134,4.7099,5.1415,5.6037,6.1775,7.0467],"er_head":[0.0005,0.0016,0.0038,0.0074,0.0123,0.0206]};
+const BREAKS = {"premium":[131.3,144.7,156.9,169.7,186.1,213.4],"var995_vine":[4898.3,5398.6,5883.4,6439,7214.6,8570.7],"capital":[4.2468,4.7051,5.1308,5.5755,6.1076,7.0035],"er_head":[0.0005,0.0016,0.0038,0.0074,0.0123,0.0206]};
 /* Household-weighted median premium across the whole country - the
    anchor the relative-risk page divides by. Weighted by households, not
    by unit, so a sparse rural district counts as its people, not as one
    vote; and a median, not a mean, so the skewed top of the premium
    distribution cannot drag everyone else's ratio. */
-const REL_MEDIAN = 163;
+const REL_MEDIAN = 162;
 const DEFAULT_METRIC = 'group';
 
 /* Erosion bins are cut over the COASTAL districts only — quantiles across
@@ -837,10 +837,10 @@ function popupHtml(p) {
     row('Wind-driven rain idx', p.wdr_idx.toFixed(0)) +
     row('Days ≥10mm rain/yr', p.rain10_days.toFixed(0)) +
     row('Annual rainfall', p.precip_mm.toFixed(0) + ' mm') +
-    row('River/sea 1in100/200', (100 * p.f_high).toFixed(1) + '% of area') +
-    row('River/sea 1in1000', (100 * p.f_low).toFixed(1) + '% of area') +
-    row('Surface water ≥1% AEP', (100 * p.sw_high).toFixed(1) + '% of area') +
-    row('Surface water 1in1000', (100 * p.sw_low).toFixed(1) + '% of area') +
+    row('River/sea ≥1% a year', (100 * p.f_high).toFixed(1) + '% of postcodes') +
+    row('River/sea ≥0.1% a year', (100 * p.f_low).toFixed(1) + '% of postcodes') +
+    row('Surface water ≥1% AEP', (100 * p.sw_high).toFixed(1) + '% of postcodes') +
+    row('Surface water 1in1000', (100 * p.sw_low).toFixed(1) + '% of postcodes') +
     row('Mean surface-water depth', p.sw_depth_m > 0
       ? p.sw_depth_m.toFixed(2) + ' m (severity ×' + p.sw_sev.toFixed(2) + ')'
       : '<span style="color:var(--ink-muted)">no depth data</span>') +
