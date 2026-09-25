@@ -90,7 +90,7 @@ Wales and Scotland keep their external checks. See §7 and HANDOFF
 2026-09-05 and 2026-09-06.
 
 **Surface water's LEVEL in England is a fit, not a check, since the
-25% coverage threshold** (HANDOFF "MEASURED 2026-09-25: surface water
+25% coverage threshold** (HANDOFF "PUBLISHED 2026-09-26: surface water
 at 25% pixel coverage"). An EA pixel counts when at least a quarter of
 it is covered. Against the EA's residential counts that took England
 from 1.60x / 1.53x of the EA's share (>=1% / any band) to 1.18x /

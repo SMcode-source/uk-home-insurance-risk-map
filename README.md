@@ -255,7 +255,7 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    of homes at risk. 25% was fitted to those counts on half the constituencies
    and held out on the rest; built nationally it reads 1.18x / 1.00x. NRW keeps
    its old rule, which NRW's own counts favour (`MIN_ALPHA`, HANDOFF
-   2026-09-25). The masks are sampled at every
+   2026-09-26). The masks are sampled at every
    live unit-postcode centroid (`scripts/fetch_sw_postcodes.py`), so `sw_high` /
    `sw_low` are the share of a district's postcodes in the ≥1% AEP band and in
    the whole envelope, shrunk toward the postcode area under 20 postcodes

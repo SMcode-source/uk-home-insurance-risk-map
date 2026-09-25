@@ -172,7 +172,20 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
-## MEASURED 2026-09-25: surface water at 25% pixel coverage in England, both grains - NOT published
+## PUBLISHED 2026-09-26: surface water at 25% pixel coverage in England, both grains
+
+Published on the user's decision, both grains in one push (main
+da59625 plus this entry; district runs 73/74, sector run 42). What was
+measured is below, unchanged, except for one fix found while preparing
+the publish: the model now writes `el_*` at 2 dp. At 1 dp, groundwater's
+household mean read out of the file was £1.46 against the build's own
+unrounded £1.49 (its rounding errors share a sign, because the column
+barely varies). `doc_figures.py`'s el_total identity caught it before it
+reached LIMITATIONS. No price moved: the premiums are identical to the
+1-dp build. National flood stays at its £20.13 anchor; groundwater
+£1.57 → £1.49 through the frequency peg is the whole headline move.
+
+### As measured 2026-09-25
 
 `exp/sw-coverage` (district run 72) and `exp/sw-coverage-sector` (sector
 run 41): EA surface-water pixels count when at least 25% covered (alpha
