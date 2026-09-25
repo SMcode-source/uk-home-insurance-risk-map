@@ -16,6 +16,9 @@ on:
 jobs:
   probe:
     runs-on: ${{ inputs.runner }}
+    # The probe reports whichever transform the runner has, grid or not.
+    env:
+      UKRISK_ALLOW_HELMERT: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

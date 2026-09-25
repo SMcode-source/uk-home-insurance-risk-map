@@ -54,6 +54,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt pytest
 
+      # The model refuses to build on the Helmert fallback
+      # (build_model.require_ostn15), and these prices must be measured on
+      # the transform the published model uses. Same step and hash as
+      # rebuild.yml.
+      - name: Install the OSTN15 datum grid
+        run: |
+          dir=$(python -c "from pyproj import datadir; print(datadir.get_user_data_dir())")
+          mkdir -p "$dir"
+          curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
+          echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" | sha256sum -c
+
       - name: Clone postcode-district boundaries
         run: |
           git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git \

@@ -213,3 +213,74 @@ def test_depth_is_sampled_in_the_job_that_fetched_its_envelope(workflow):
                 f"{workflow} job '{job_name}' samples depth at step {i} "
                 f"without fetching the envelope flags before it")
     assert seen, f"{workflow} no longer samples depth at all"
+
+
+# Scripts that reach build_model.load_districts(), which since 2026-09-25
+# refuses to run without the OSTN15 grid. Derived, like NEEDS_OSTN15: a
+# script that calls load_districts or drives build_model.main() directly.
+_LOADS = re.compile(r"load_districts\(|\bbm\.main\(\)|build_model\.main\(\)")
+
+
+def _loading_scripts():
+    out = set()
+    for path in glob.glob(os.path.join(ROOT, "scripts", "*.py")):
+        with open(path, encoding="utf-8") as fh:
+            if _LOADS.search(fh.read()):
+                out.add(os.path.basename(path))
+    assert {"build_model.py", "price_smd_curve.py"} <= out, \
+        "the detector stopped detecting"
+    return sorted(out)
+
+
+def _allows_helmert(wf, job):
+    return any("UKRISK_ALLOW_HELMERT" in (scope.get("env") or {})
+               for scope in (wf, job))
+
+
+@pytest.mark.parametrize("workflow", sorted(
+    os.path.basename(p) for p in glob.glob(os.path.join(WORKFLOWS, "*.yml"))))
+def test_every_model_run_has_the_grid_or_says_it_does_not(workflow):
+    """The measurement workflows were out of scope of the test above, and
+    six of them priced variants on the Helmert fallback while the
+    published model used OSTN15 - the variant and baseline shared a
+    datum, so the deltas mostly held, but neither baseline was the
+    published model. Now the model itself refuses (require_ostn15), so a
+    workflow without the step would fail at runtime; this catches it on
+    the push instead. The only way round is to say so in `env`."""
+    wf = _load(workflow)
+    for job_name, job in wf["jobs"].items():
+        if _allows_helmert(wf, job):
+            continue
+        steps = job.get("steps", [])
+        grid_at = [i for i, s in enumerate(steps) if s.get("name") == OSTN15_STEP]
+        for script in _loading_scripts():
+            # whole name only: check_pet_sensitivity.py is not sensitivity.py
+            pat = re.compile(r"scripts/" + re.escape(script) + r"\b")
+            for i, s in enumerate(steps):
+                if not pat.search(s.get("run") or ""):
+                    continue
+                assert grid_at and grid_at[0] < i, (
+                    f"{workflow} job '{job_name}' runs {script} at step {i} "
+                    f"with neither '{OSTN15_STEP}' before it nor "
+                    f"UKRISK_ALLOW_HELMERT in env")
+
+
+def test_require_ostn15_refuses_without_the_grid(monkeypatch):
+    """The guard itself: a TransformerGroup reporting the OSTN15
+    operation as unavailable must stop the build, and the documented
+    opt-out must let it through."""
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, "scripts"))
+    import build_model as bm
+    import pyproj.transformer as pt
+
+    class NoGrid:
+        def __init__(self, *a, **k):
+            self.unavailable_operations = [
+                type("Op", (), {"name": "Inverse of OSGB36 to WGS 84 (9)"})()]
+    monkeypatch.setattr(pt, "TransformerGroup", NoGrid)
+    monkeypatch.delenv("UKRISK_ALLOW_HELMERT", raising=False)
+    with pytest.raises(SystemExit, match="OSTN15"):
+        bm.require_ostn15()
+    monkeypatch.setenv("UKRISK_ALLOW_HELMERT", "1")
+    bm.require_ostn15()
