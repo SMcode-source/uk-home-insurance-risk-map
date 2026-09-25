@@ -221,10 +221,10 @@ page</a>.</p>
   &ge;10&nbsp;mm rain days and annual precipitation (HadUK-Grid observations 1991&ndash;2020).</p>
   <p><b>Marginals.</b> Annual aggregate loss per policy per peril is compound
   Bernoulli &times; LogNormal, with claim frequency and severity driven by the scores.</p>
-  <p><b>Flood.</b> Official flood extents rasterised per district: rivers &amp; sea from
-  EA NaFRA2 present-day defended extents (England), NRW FRAW (Wales) and SEPA maps
-  (Scotland) at 100&nbsp;m; <b>surface water</b> from EA RoFSW (13&nbsp;m, category colours
-  decoded), NRW FRAW surface water and SEPA surface water maps. Zone fractions drive
+  <p><b>Flood.</b> Official flood maps sampled at every unit postcode: rivers &amp; sea from
+  the EA's Risk of Flooding from Rivers and Sea (England, 13&nbsp;m, risk bands decoded),
+  NRW FRAW (Wales) and SEPA maps (Scotland, polygons at 5&nbsp;m); <b>surface water</b> from EA RoFSW (13&nbsp;m, category colours
+  decoded), NRW FRAW surface water and SEPA surface water maps. The shares of postcodes in each band drive
   the flood claim frequency directly; surface-water claims are modelled shallower and
   cheaper than river/sea.</p>
   <p><b>Groundwater.</b> EA groundwater flood alert target areas via the postcode
@@ -752,10 +752,10 @@ function popupHtml(p) {
     row('Wind-driven rain idx', p.wdr_idx.toFixed(0)) +
     row('Days ≥10mm rain/yr', p.rain10_days.toFixed(0)) +
     row('Annual rainfall', p.precip_mm.toFixed(0) + ' mm') +
-    row('River/sea 1in100/200', (100 * p.f_high).toFixed(1) + '% of area') +
-    row('River/sea 1in1000', (100 * p.f_low).toFixed(1) + '% of area') +
-    row('Surface water ≥1% AEP', (100 * p.sw_high).toFixed(1) + '% of area') +
-    row('Surface water 1in1000', (100 * p.sw_low).toFixed(1) + '% of area') +
+    row('River/sea ≥1% a year', (100 * p.f_high).toFixed(1) + '% of postcodes') +
+    row('River/sea ≥0.1% a year', (100 * p.f_low).toFixed(1) + '% of postcodes') +
+    row('Surface water ≥1% AEP', (100 * p.sw_high).toFixed(1) + '% of postcodes') +
+    row('Surface water 1in1000', (100 * p.sw_low).toFixed(1) + '% of postcodes') +
     row('Mean surface-water depth', p.sw_depth_m > 0
       ? p.sw_depth_m.toFixed(2) + ' m (severity ×' + p.sw_sev.toFixed(2) + ')'
       : '<span style="color:var(--ink-muted)">no depth data</span>') +

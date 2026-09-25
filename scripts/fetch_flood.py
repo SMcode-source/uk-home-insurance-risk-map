@@ -28,6 +28,12 @@ REGIONS, the SEPA services) at every unit-postcode centroid and writes
 the share of postcodes instead of the share of area. This module stays
 as the mask source and the area-share measurement; running it directly
 would overwrite the committed postcode-share file with area shares.
+
+Since 2026-09-25 England's rivers/sea no longer come from these masks at
+all: fetch_flood_postcodes.py reads the EA's risk product (`rofrs_4band`,
+DATA_SOURCES #44) instead of the defended extents below. The England
+entry of REGIONS is kept only for area-share measurement; Wales's masks
+and the SEPA services are still model input.
 """
 
 import csv

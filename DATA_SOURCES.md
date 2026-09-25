@@ -83,7 +83,8 @@ districts**, used as the exposure weight throughout.
    `outSR` — `scores_real._load_grid` auto-detects and reprojects.
    **Note:** HadUK-Grid NetCDFs on CEDA (`dap.ceda.ac.uk`) need a CEDA login;
    the Climate Data Portal serves the same HadUK-derived layers anonymously.
-7. **EA rivers/sea** — WMS
+7. **EA rivers/sea extents** — *superseded as model input on 2026-09-25 by
+   #44 (`rofrs_4band`); kept for area-share measurement.* WMS
    `https://environment.data.gov.uk/spatialdata/rivers-and-sea-defended-and-undefended-flood-risk-extents-present-day/wms`,
    layers `Rivers_1in100_Sea_1in200_defended_extents` and
    `Rivers_1in1000_Sea_1in1000_defended_extents`, rasterised at 100 m in
@@ -95,8 +96,12 @@ districts**, used as the exposure weight throughout.
 9. **SEPA rivers/coastal** — FeatureServer **vector** queries (their MapServers
    have a 1:85,000 minScale, so image export at coarse scales renders nothing):
    `https://map.sepa.org.uk/server/rest/services/Open/<service>/FeatureServer/<id>/query`
-   with `maxAllowableOffset=100`. Sublayer ids: River medium=1, Coastal
-   medium=7, River low=2, Coastal low=8.
+   with `maxAllowableOffset=5` (metres; 100 before 2026-09-25, which moved
+   32% of the coastal postcode flags - HANDOFF). Sublayer ids: River
+   medium=1, Coastal medium=7, River low=2, Coastal low=8. **Quirk:** at
+   5 m the 16 coastal features are big enough that a 1,000-feature page
+   returns HTTP 500; `fetch_flood_postcodes.py` halves the page on a 500
+   and ends each layer on `exceededTransferLimit`.
 10. **EA surface water** — WMS
     `.../spatialdata/nafra2-risk-of-flooding-from-surface-water/wms`, layer
     `rofsw`. **Quirk:** `MaxScaleDenominator=50000` — renders only at
@@ -1697,7 +1702,10 @@ districts**, used as the exposure weight throughout.
       switch touches.
 
 44. **NaFRA2 Risk of Flooding from Rivers and Sea (`rofrs_4band`) —
-    published, OGL, and NOT used by this model.** Found while writing
+    published, OGL, and England's rivers/sea input since 2026-09-25**
+    (`fetch_flood_postcodes.py`: f_high = High + Medium, f_low adds
+    Low; climate edition `rofrs_cc01_4band`, present-day band carried
+    where it is Unavailable). Found while writing
     #43, 2026-09-21. `environment.data.gov.uk/spatialdata/
     nafra2-risk-of-flooding-from-rivers-and-sea/wms`, GetCapabilities
     200, `MaxScaleDenominator` 50000 (so 13 m/px, as #10 and #20).
@@ -1705,8 +1713,9 @@ districts**, used as the exposure weight throughout.
         rofrs_4band              four risk bands, defence-aware
         rofrs_4band_0_2m_depth   ... through rofrs_1_2m_depth
 
-    Two things the model does not have:
-    - **The risk bands.** `f_high`/`f_low` are sampled from a
+    Two things the model did not have when this was written; the
+    first is now in, the second is still not:
+    - **The risk bands.** `f_high`/`f_low` were sampled from a
       different dataset, `rivers-and-sea-defended-and-undefended-flood-
       risk-extents-present-day`, layers
       `Rivers_1in100_Sea_1in200_defended_extents` and

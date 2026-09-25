@@ -792,11 +792,10 @@ def flood_future(names, f_high, f_low, sw_high, sw_low):
     """Swap in the EA's climate-change flood extents where they exist.
 
     The EA publishes a climate-change edition of the two products this
-    model already uses - the rivers/sea defended extents and NaFRA2 RoFSW -
-    under the same service family and the same layer names. Using that
-    matched pair matters: the alternative NaFRA2 `rofrs_cc01_4band` product
-    is derived differently from the present-day extents we hold, so a
-    comparison against it would confound the method change with the
+    model already uses - NaFRA2 RoFRS (`rofrs_4band` / `rofrs_cc01_4band`,
+    since 2026-09-25; the defended extents and their _CCP1 layers before)
+    and NaFRA2 RoFSW. Using the matched pair matters: comparing two
+    differently derived products would confound a method change with the
     climate change.
 
     England only. Wales and Scotland keep their present-day values, so the
@@ -842,14 +841,13 @@ def flood_future(names, f_high, f_low, sw_high, sw_low):
     #
     # It deliberately says NOTHING about present vs future, and must not be
     # "corrected" into np.maximum(future, present). The future is a separate
-    # EA model run, not an uplift of the present one, and 9 of the 2,087
-    # covered districts (0.4%) genuinely see their share of homes in the
-    # 1-in-100/200 band shrink by more than 1pp, worst -25.5pp at HU12
-    # (by area share, before 2026-09-06: 52 districts, worst -11.2pp).
-    # Clamping that away would silently rewrite them and
-    # delete the finding README states under "Rivers/sea is not a strict
-    # uplift" - while leaving the +37.7% national growth looking unchanged,
-    # so nothing would appear to break.
+    # EA model run, not an uplift of the present one: on the RoFRS pair 77
+    # of the 2,087 covered districts see their share of homes in the high
+    # band fall, worst -0.5pp at SS1 (on the extent pair before 2026-09-25,
+    # 9 fell by more than 1pp, worst -25.5pp at HU12). Clamping that away
+    # would silently rewrite them and delete the finding README states
+    # under "Nearly, not strictly, an uplift", with nothing appearing to
+    # break.
     out[1] = np.maximum(out[1], out[0])
     out[3] = np.maximum(out[3], out[2])
     print(f"  climate-change flood: {int(covered.sum())} districts repriced "
