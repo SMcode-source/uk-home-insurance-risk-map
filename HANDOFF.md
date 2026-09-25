@@ -229,6 +229,11 @@ shares from the same raster - Pearson **0.974 / 0.988 / 0.993** (H+M,
 | fl_score vs live | r 0.832 | r 0.858 |
 | climate repricing | +6.5% (-17% to +86%) -> +3.6% (0% to +61%) | - |
 
+The district column is a laptop build, re-run on CI on 2026-09-25 (rebuild.yml
+commit=true, run 36079691257, `4fc6eba`) in case the laptop had built on Helmert:
+169.8392 -> 169.8393, 2 of 2,736 groups flip. The numbers stand, and the committed
+output is now CI's.
+
 Up: the fens and the Humberhead levels (PE11 175 -> 300, DN7 147 -> 234;
 sectors PE11 9 140 -> 310, DN14 6 152 -> 331). Down: Hull (HU5 293 ->
 148, HU3 329 -> 179; sectors HU5 4 279 -> 120) and defended tidal London
