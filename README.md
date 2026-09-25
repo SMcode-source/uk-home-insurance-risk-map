@@ -591,7 +591,8 @@ Stated plainly, four limits:
   On the RoFRS pair **no English district's** share of homes in the high band
   (>= 1% a year) falls by more than 1pp; 77 fall at all, worst −0.5pp (SS1). On the
   extent pair it used before 2026-09-25, 9 districts fell by more than 1pp, worst
-  −25.5pp at HU12. Surface water: **5 districts (0.2%)** decrease, worst −1.2pp. The
+  −25.5pp at HU12. Surface water: **5 districts (0.2%)** fall by more than 1pp (12 at
+  all), worst −4.6pp at HU20. The
   carried present-day band over the fens is an *under*statement there, not a fall.
 - **England only.** Neither NRW nor SEPA publishes an equivalent, so Wales and Scotland
   are not modelled; the headline is quoted over covered districts, because a national
