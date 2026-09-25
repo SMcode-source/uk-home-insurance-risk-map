@@ -328,12 +328,15 @@ __NAV__
     level is exactly what the ABI calibration re-pins — so the map survives the formula, and
     only the map is used.</p>
 
-    <h3>Flood — rasterised official extents</h3>
-    <p>The published flood maps are rendered as images at 13–100 m per pixel and the painted
-    pixels counted per district, giving the fraction of each district inside the ~1-in-100
-    (rivers) / 1-in-200 (sea) zone and the 1-in-1000 envelope. Surface water is handled
-    separately: England's RoFSW layer only renders below 1:50,000, so it is fetched at 13 m
-    per pixel with the three legend colours decoded per pixel into likelihood bands.
+    <h3>Flood — official maps, read at the homes</h3>
+    <p>The published flood maps are sampled at every live unit postcode (about 15 addresses
+    each), giving the share of each district's postcodes in a high band (&ge;1% a year) and a
+    low envelope (&ge;0.1%). England's rivers and sea come from the EA's Risk of Flooding from
+    Rivers and Sea, whose four risk bands already account for defences, decoded from the
+    legend colours at 13 m per pixel; Wales from NRW FRAW; Scotland from SEPA's polygons,
+    queried at a 5 m tolerance. Surface water is handled the same way: England's RoFSW
+    layer only renders below 1:50,000, so it is fetched at 13 m per pixel with the three
+    legend colours decoded per pixel into likelihood bands.
     Surface-water claims are modelled as more frequent but cheaper than fluvial ones.</p>
 
     <h3>How deep, not just how wet</h3>
@@ -687,27 +690,24 @@ __NAV__
     repricing.</p>
 
     <h3>Why the matched pair matters</h3>
-    <p>There are two candidate future products, and choosing wrongly would have produced a
-    number that looked fine and meant nothing. NaFRA2 publishes a
-    <code>rofrs_cc01_4band</code> layer, but it is derived differently from the present-day
-    extents this model holds, so comparing them would have mixed a <i>method</i> change in
-    with the <i>climate</i> change. The rivers-and-sea extents instead have a climate-change
-    sibling with identical layer names and a <code>_CCP1</code> suffix — same product, same
-    resolution, same service. That is the pair used.</p>
+    <p>Comparing two differently derived products would mix a <i>method</i> change in
+    with the <i>climate</i> change and produce a number that looks fine and means nothing.
+    England's rivers and sea read NaFRA2 <code>rofrs_4band</code>; its climate sibling
+    <code>rofrs_cc01_4band</code> is the same product, legend and resolution. That is the
+    pair used. Where the climate edition is not published (about 2% of English postcodes:
+    the fens, the Somerset Levels, the Lincolnshire coast) a postcode keeps its present-day
+    band, so those places show no uplift rather than a fall to zero.</p>
 
     <h3>Three things it is not</h3>
     <ul style="color:var(--ink-2); font-size:14px; line-height:1.7">
       <li><b>Not a forecast.</b> It is the EA's climate allowance scenario. Read it as
       "if the flood map looked like this", not "this will happen".</li>
-      <li><b>Not a strict uplift for rivers and sea.</b> The future layer is a separate
-      model run, so it does not simply contain the present one. On a Humber test tile at
-      13 m per pixel, <b>19.7%</b> of today's <i>pixels</i> fall outside the future extent;
-      across England at district level the effect is smaller but real — <b>__CC_FH_SHRINK_N__
-      districts (__CC_FH_SHRINK_PCT__%)</b> see their share of homes in the 1-in-100/200 band shrink, worst
-      __CC_FH_SHRINK_WORST_PP__pp. Surface water behaves far
-      more like a true uplift: only <b>__CC_SW_SHRINK_N__ districts</b> decrease. So the
-      surface-water half reads as a genuine climate delta, and the rivers/sea half is
-      better read as a scenario swap.</li>
+      <li><b>Nearly, not strictly, an uplift.</b> Each future layer is a separate EA model
+      run, so it need not contain the present one. <b>__CC_FH_SHRINK_N__ districts
+      (__CC_FH_SHRINK_PCT__%)</b> see their share of homes in the river/sea high band fall,
+      worst __CC_FH_SHRINK_WORST_PP__pp; <b>__CC_SW_SHRINK_N__ districts</b> fall for surface
+      water. Where no climate band is published, the present-day band is carried: an
+      understatement there, not a fall.</li>
       <li><b>Not national.</b> Neither NRW nor SEPA publishes an equivalent, so Wales and
       Scotland are not modelled at all. The headline is quoted over covered districts; a
       national average would dilute it with two countries that cannot move.</li>
@@ -717,7 +717,7 @@ __NAV__
     models, holding the calibration fixed and moving only the flood map changes the
     exposure-weighted technical premium by <b>__CC_UPLIFT__%</b>. The hardest-hit district
     is <b>__CC_WORST__</b> at <b>__CC_WORST_PCT__%</b>. Averaged over England's districts,
-    the share of a district's homes (unit postcodes) inside the 1-in-100/200 river/sea zone grows
+    the share of a district's homes (unit postcodes) in the river/sea high band (&ge;1% a year) grows
     <b>__CC_FH_GROWTH__%</b> and inside the surface-water ≥1% AEP zone
     <b>__CC_SW_GROWTH__%</b>.</div>
 
@@ -1156,8 +1156,8 @@ __NAV__
     </div>
 
     <h3>The climate scenario, and what averaging was hiding</h3>
-    <p>The EA's future flood extents were re-rasterised over the sectors on
-    2026-08-12, so the sector map carries the climate repricing too:
+    <p>The EA's climate-change flood maps are sampled at the sectors' postcodes too, so
+    the sector map carries the climate repricing:
     <b>__SECTOR_CC_UPLIFT__%</b> exposure-weighted across the
     <b>__SECTOR_CC_N__</b> sectors the EA models, against <b>__CC_UPLIFT__%</b> over
     __CC_N__ districts — the same national answer, as it should be.</p>
@@ -1216,7 +1216,7 @@ __NAV__
         <tr><td><strong>Met Office</strong></td><td>HadUK-Grid 1991–2020: ≥10 mm rain days, annual precipitation</td><td>Weather</td></tr>
         <tr><td><strong>Met Office</strong></td><td>HadUK-Grid 1991–2020: annual air-frost days</td><td>Escape of water (freeze exposure)</td></tr>
         <tr><td><strong>Met Office MIDAS Open</strong> (via CEDA)</td><td>Station gust observations 1970–2025 → Gumbel-fitted 1-in-50 gust at 191 stations ≤300 m</td><td>Weather extremes</td></tr>
-        <tr><td><strong>Environment Agency</strong></td><td>NaFRA2 rivers &amp; sea defended flood extents (England)</td><td>Flood</td></tr>
+        <tr><td><strong>Environment Agency</strong></td><td>NaFRA2 Risk of Flooding from Rivers and Sea, present day and climate change (England)</td><td>Flood</td></tr>
         <tr><td><strong>Natural Resources Wales</strong></td><td>FRAW rivers, sea and surface water (Wales)</td><td>Flood</td></tr>
         <tr><td><strong>SEPA</strong></td><td>River, coastal and surface-water flood maps (Scotland)</td><td>Flood</td></tr>
         <tr><td><strong>Environment Agency</strong></td><td>NaFRA2 Risk of Flooding from Surface Water (England)</td><td>Flood</td></tr>
@@ -1257,8 +1257,8 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 
 .venv/Scripts/python scripts/fetch_bgs.py            # BGS bedrock geology  (~32 MB)
 .venv/Scripts/python scripts/fetch_metoffice.py      # 5 climate grids (incl. air-frost days)
-.venv/Scripts/python scripts/fetch_flood.py          # river/sea flood extents   (~20 min)
-.venv/Scripts/python scripts/fetch_surface_water.py  # surface-water extents     (~60 min)
+.venv/Scripts/python scripts/fetch_flood_postcodes.py  # river/sea risk bands at every postcode
+.venv/Scripts/python scripts/fetch_sw_postcodes.py     # surface water at every postcode
 .venv/Scripts/python scripts/fetch_groundwater.py    # groundwater alert flags
 .venv/Scripts/python scripts/fetch_midas.py          # MIDAS station gusts (CEDA token; ERA5 fetch_gusts.py = fallback)
 .venv/Scripts/python scripts/fetch_history.py        # 35yr ERA5 drivers, for the backtest

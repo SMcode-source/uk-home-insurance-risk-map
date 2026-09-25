@@ -168,6 +168,118 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## PUBLISHED 2026-09-25: RoFRS risk bands for England and SEPA at 5 m for Scotland, built together, both grains
+
+The user's decision, on the two measurements below (both 2026-09-22 /
+2026-09-25, NOT published sections). Built TOGETHER, not stacked: each
+change reprices the other two countries through the national ABI flood
+pin, so two measured deltas would not add.
+
+**How the inputs were combined.** One per-postcode flags file:
+England's `in_high`/`in_low` from the rofrs experiment's band cache
+(`rofrs_bands.csv`: High+Medium, and +Low), Wales and Scotland from
+the SEPA 5 m fetch. Both grains' `flood_fractions.csv` aggregate that
+one file with `--flags-from`. NOT spliced by row: a district shrinks
+toward its postcode AREA and a sector toward its district, and TD, CH,
+SY, LL, NP and LD cross a border, so one country's flags move the
+other's border units. Against the experiments' own tables: 29 Scottish
+districts / 42 sectors differ from SEPA's and 1 English district / 2
+sectors from rofrs's, all by construction. `flood_fractions_cc.csv` is
+rofrs's (England only, England-only priors; SEPA cannot touch it).
+The fetcher merges both branches: `rofrs_england` + SEPA paging and
+tolerance + the flags cache.
+
+| | districts (2,736) | sectors (10,398) |
+|---|---|---|
+| headline | 169.7457 -> **169.8428** (+0.0971) | 169.7488 -> **169.8449** (+0.0960) |
+| England | 170.25 -> 169.69 (-0.57) | 170.16 -> 169.60 (-0.56) |
+| Wales | 160.17 -> 165.97 (+5.80) | 160.55 -> 166.29 (+5.74) |
+| Scotland | 170.11 -> 173.35 (+3.24) | 170.85 -> 174.05 (+3.20) |
+| rating groups changed | 905 (29.6% of hh) | 3,361 (31.7%) |
+| largest | HU3 -149, HU5 -145, PE11 +127 | PE11 1 +185, DN14 6 +181, HU5 3 -159 |
+| climate repricing (England) | +6.5% -> **+3.6%** (range 0% to +61%) | |
+
+Sum of the two separate measurements vs built together (districts):
+headline +0.0969 vs +0.0971; Scotland +3.62 vs +3.24. Scotland is where
+stacking would have been wrong: under rofrs's pin a unit of flood
+hazard is worth more, so SEPA's cut to Scottish hazard takes more off.
+
+**Correction to the rofrs section below:** it says the pin reprices
+Wales "with no hazard change". 108 Welsh districts do change hazard
+(max 0.014 in f_high), through postcode areas shared with England.
+Small, but not zero.
+
+**Validation after the build.** Wales el_fl vs NRW people at risk
++0.596; Scotland el_fl vs SEPA AAD high share +0.245. England's
+rivers/sea check against the EA's KSI is now circular (the model reads
+the product the counts come from); +0.832 was the last independent
+figure. National el_fl stays £20.13 (the pin); groundwater £1.46 ->
+£1.57.
+
+**Climate pair.** On RoFRS, 77 of 2,087 covered districts see f_high
+fall under climate change, worst SS1 -0.5pp; on the extent pair 9 fell
+by more than 1pp, worst HU12 -25.5pp. Growth in the high band +60.4%
+(was +87.7%). README, the methodology template and the
+`flood_future` comment are rewritten to match.
+
+**Docs updated in the same push:** README flood + climate sections,
+DATA_SOURCES #7 (superseded) and #44 (in use), LIMITATIONS §2, §3,
+§6 and §8, `map/template.html` (methodology text; the popup rows said
+"1in100/200 ... % of area", wrong since 2026-09-06 on the share and now on
+the band), the methodology template (flood section, EA source row,
+run list still naming `fetch_flood.py`/`fetch_surface_water.py`),
+`fetch_flood.py`'s docstring.
+
+**Still stale, found here and not fixed:** LIMITATIONS §3's per-peril
+£ table (groundwater £1.34 against £1.46 published before this change;
+the "£164.09 priced" total) and HANDOFF's own Status headline (still
+the 2026-08-28 £169.66). Both are hand-typed.
+
+## MEASURED 2026-09-25: Scotland's flood polygons read at 5 m, not 100 m - both grains, NOT published
+
+Branches `exp/sepa-tolerance` (district) and `exp/sepa-tolerance-sector`.
+One fetch; its per-postcode flags (`data/cache/flood_postcode_flags.csv`)
+built both tables via `--flags-from`, so the grains read identical flags.
+
+| | district | sector |
+|---|---|---|
+| headline | 169.7457 → 169.7489 | 169.7488 → 169.7508 |
+| Scotland (household mean) | −1.45 | −1.47 |
+| England / Wales (pin only) | +0.15 / +0.13 | +0.15 / +0.13 |
+| rating groups changed | 196 (4.7% of homes) | 360 (2.9%) |
+| biggest movers | IV40 −15.7, PH17 −15.6 | G13 4 −30.8, PH37 4 −25.4 |
+
+- **Only Scotland's inputs move.** Every English and Welsh row of the new
+  table is identical to the published one, so the published build is a
+  clean baseline, with no service drift mixed in. England and Wales
+  reprice through the national ABI pin alone (143 English sectors change
+  group with no hazard change): the same cross-country effect as the
+  `rofrs_4band` experiment, in the other direction.
+- **Converged.** 5 m vs 1 m: coastal 859 vs 863 postcodes, rivers
+  identical. 100 m vs 5 m was 1,136 vs 859. All four layers returned the
+  server's full count (47,093 / 16 / 44,671 / 16).
+- **Only partial validation available.** SEPA's Flood Risk Grid (residential AAD,
+  a different product from the extents): `el_fl` vs area in AAD band ≥ 5
+  +0.17 → +0.25; `f_high` vs the area-weighted AAD index −0.43 → −0.35,
+  still negative. That index is surface-water-dominated and area-based
+  (see the 2026-09-05 entry), so it is weak evidence either way.
+- **The grains agree better.** Mean |sector roll-up − district| over
+  Scottish districts: f_high 0.0051 → 0.0034, f_low 0.0068 → 0.0052. The
+  big movers are thin units (PH17: 13 postcodes) where 100 m polygons had
+  inflated both grains unevenly (0.156 vs 0.216 → 0.055 vs 0.063).
+- **Every number above is a CI build** (district: `rebuild.yml commit=true`,
+  run 36078524656, `40ee70b`; sector: bot run 38, `42d20c5`). A laptop
+  district build first failed `verify=true` (run 36077933168): launched
+  from PowerShell, whose virtualised AppData hides the OSTN15 grid, it had
+  built on the Helmert fallback. The priced delta was nearly the same
+  (+0.0031 vs +0.0032, the same 196 groups), but the output was not.
+  main `8c5cc3d` now refuses to build without the grid.
+
+To publish (the user's decision): merge both branches' data in one push;
+DATA_SOURCES #9 is already updated on the branch. It composes with
+`rofrs_4band` (both move the pin); if both are published, build them
+together rather than stacking two measured deltas.
+
 ## REVIEWED 2026-09-25: three flood decoders have unanchored constants, and two are on the live map
 
 A code review for suppressed errors and fixed values. The clean parts are

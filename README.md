@@ -229,13 +229,16 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
      up, sheltered Welsh valleys down — at an unchanged national level.
      Score = 0.30·wind + 0.25·WDR + 0.20·gust₅₀ + 0.15·rain days +
      0.10·precipitation, each normalised 5th–95th percentile.
-2. **Flood — rivers & sea** (`scripts/fetch_flood_postcodes.py`, masks from
-   `scripts/fetch_flood.py`). Official flood-extent maps rasterised at 100 m
-   via WMS/ArcGIS tiles and sampled at every live unit-postcode centroid:
-   **EA** NaFRA2 present-day *defended* extents for England (high band = rivers
-   1in100 / sea 1in200; low envelope = 1in1000), **NRW** FRAW for Wales, **SEPA**
-   river + coastal maps for Scotland (via FeatureServer vector queries — their
-   map services have a 1:85k scale limit). Each district gets `f_high` / `f_low`:
+2. **Flood — rivers & sea** (`scripts/fetch_flood_postcodes.py`). Official
+   flood maps sampled at every live unit-postcode centroid: **EA** NaFRA2 Risk
+   of Flooding from Rivers and Sea (`rofrs_4band`, 13 m, legend colours
+   decoded; high band = High + Medium, >= 1% a year; low envelope adds Low,
+   >= 0.1%) for England since 2026-09-25 (the *defended extents* before, which
+   ranked constituencies worse against the EA's own properties at risk),
+   **NRW** FRAW for Wales (masks from `scripts/fetch_flood.py`, 100 m), **SEPA**
+   river + coastal maps for Scotland (FeatureServer vector queries at a 5 m
+   generalisation tolerance — 100 m before 2026-09-25, which inflated coastal
+   flags by a third; their map services have a 1:85k scale limit). Each district gets `f_high` / `f_low`:
    the share of its unit postcodes (ONSPD centroids) inside each band, shrunk
    toward its postcode area when it has fewer than 20 postcodes (postcode share
    since 2026-09-06; area share before, which put valley towns at the wrong end
@@ -556,15 +559,19 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
 ## What climate change does to the premium
 
 The EA publishes a climate-change edition of both flood products this model already
-uses. Re-running on those extents with the calibration **held fixed** — nothing moves
+uses. Re-running on those editions with the calibration **held fixed** — nothing moves
 but the hazard map — gives a per-district repricing (`premium_cc`, `cc_uplift_pct`,
 and a map layer).
 
-**Choosing the right pair mattered.** NaFRA2 also publishes `rofrs_cc01_4band`, but it
-is derived differently from the present-day extents in use here, so comparing against
-it would have folded a *method* change into the *climate* change. The rivers-and-sea
-extents have a climate sibling with identical layer names and a `_CCP1` suffix — same
-product, same 100 m/px, same service — so that is the pair used.
+**Choosing the right pair mattered.** A comparison between two differently derived
+products folds a *method* change into the *climate* change. Since 2026-09-25 England's
+rivers and sea read NaFRA2 `rofrs_4band`, and its climate sibling is `rofrs_cc01_4band`
+— same product, same legend, same 13 m/px — so that is the pair used. (Until then the
+model read the defended *extents* and paired them with their `_CCP1` climate layers,
+for the same reason.) Where the climate edition is not published at all — "Unavailable"
+over 1.9% of English postcodes, all of PE11-PE25 and CB6, the Somerset Levels and the
+Lincolnshire coast — the postcode keeps its present-day band: no uplift where none was
+modelled, rather than the fall to zero that reading "Unavailable" as dry would give.
 
 **Two normalisations had to be pinned to the present day**, or the exercise would have
 measured nothing: the depth multiplier (renormalising on future data divides out
@@ -576,30 +583,27 @@ Stated plainly, four limits:
 - **A scenario, not a forecast** — the EA's climate allowance, not a prediction.
 - **One rung, not a ladder.** There is no choice of epoch or allowance to make: a
   `GetCapabilities` sweep of both climate services returns exactly one future layer
-  per product — `..._CCP1` for rivers/sea and `rofsw_cc01` (plus its five depth bands)
+  per product — `rofrs_cc01_4band` for rivers/sea and `rofsw_cc01` (plus its five depth bands)
   for surface water. So the model cannot show a 2050-vs-2080 or central-vs-upper
   progression the way the NCERM erosion columns do, where the EA really does publish
   two epochs and three allowances. This is a publishing limit, not a modelling choice.
-- **Rivers/sea is not a strict uplift.** The future layer is a separate model run, so
-  it does not simply contain the present one. On a Humber test tile at 13 m/px,
-  **19.7%** of today's *pixels* fall outside the future extent; across England at
-  district level the effect is much smaller but real — **9 districts (0.4%)** see the
-  share of homes in the 1-in-100/200 band shrink by more than 1pp, worst −25.5pp at
-  HU12 (Hedon, east of Hull; by area it was 52 districts and −11.2pp, because the
-  future extent retreats from settled ground there). Surface water behaves far more like a true
-  uplift: only **5 districts (0.2%)** decrease, worst −1.2pp. So the surface-water half
-  reads as a genuine climate delta and the rivers/sea half as a scenario swap.
+- **Nearly, not strictly, an uplift.** Each future layer is a separate EA model run.
+  On the RoFRS pair **no English district's** share of homes in the high band
+  (>= 1% a year) falls by more than 1pp; 77 fall at all, worst −0.5pp (SS1). On the
+  extent pair it used before 2026-09-25, 9 districts fell by more than 1pp, worst
+  −25.5pp at HU12. Surface water: **5 districts (0.2%)** decrease, worst −1.2pp. The
+  carried present-day band over the fens is an *under*statement there, not a fall.
 - **England only.** Neither NRW nor SEPA publishes an equivalent, so Wales and Scotland
   are not modelled; the headline is quoted over covered districts, because a national
   average would dilute it with two countries that cannot move.
 
-The direction of travel is not subtle. Averaged over England's districts, the share
-of a district's homes (unit postcodes) inside the 1-in-100/200 river/sea zone grows
-**+87.7%** (by area it was +37.7%: the future extent grows into settled land, not
-just marsh) and the share of homes inside the surface-water ≥1% AEP zone
-**+35.4%** (by area it was +28.8%). Low-lying coast and estuary carry the fluvial/tidal side — TA9 on the
-Somerset Levels goes from 6% to **91%** of its postcodes, PE21 (Boston) 12% → 79%,
-TS2 (Teesside) 15% → 71%, DN32 (Grimsby) 5% → 95%, LA4 (Morecambe) 6% → 85% —
+The direction of travel is not subtle. Summed over England's districts, the share
+of a district's homes (unit postcodes) in the river/sea high band grows **+60.4%**
+(+87.7% on the extent pair before 2026-09-25) and the share of homes inside the
+surface-water ≥1% AEP zone **+35.4%**. Estuary and defended lowland carry the
+fluvial/tidal side — ME11 (Queenborough, Sheppey) goes from 0% to **47%** of its
+postcodes, DN32 (Grimsby) 19% → 52%, YO8 (Selby) 15% → 49%, HU1 (Hull) 21% → 49%,
+NG2 (Nottingham, on the Trent) 7% → 40%, E6 (East Ham) 0% → 32% —
 while surface water concentrates on dense urban drainage:
 SW8 (Nine Elms) 14% → 33%, N1C (King's Cross) 10% → 26%, E8 (Hackney)
 32% → 48%, RM9 (Dagenham) 38% → 52%.
@@ -760,7 +764,7 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 # The area fetchers below them still work and are how the masks were validated,
 # but their output is no longer model input - see DATA_SOURCES #41.
 .venv/Scripts/python -u scripts/fetch_onspd.py             # -> data/postcode_centroids.csv
-.venv/Scripts/python -u scripts/fetch_flood_postcodes.py   # river/sea -> data/flood_fractions.csv (~6 min)
+.venv/Scripts/python -u scripts/fetch_flood_postcodes.py   # river/sea -> data/flood_fractions.csv
 .venv/Scripts/python -u scripts/fetch_sw_postcodes.py --flags england   # and --flags wales, --flags scotland
 .venv/Scripts/python -u scripts/fetch_sw_postcodes.py      # surface water -> data/sw_fractions.csv
 .venv/Scripts/python -u scripts/fetch_sw_depth_postcodes.py --flags     # five depth layers, England (~1 h)

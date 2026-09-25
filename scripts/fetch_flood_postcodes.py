@@ -53,6 +53,11 @@ data/flood_fractions_cc.csv. The present-day and climate fractions
 must share a denominator: flood_future() substitutes one for the other,
 and an area-share future against a postcode-share present would report
 Hull's flood risk FALLING under climate change.
+
+Every fetch also writes its per-postcode flags to
+data/cache/flood_postcode_flags[_cc].csv. --flags-from PATH aggregates
+such a file instead of fetching, which is how both grains are built from
+one fetch: run once on either checkout, then --flags-from on the other.
 """
 import json
 import os
@@ -267,6 +272,15 @@ def rofrs_england(pc, x, y, in_high, in_low):
     return code
 
 
+# Every fetch leaves its per-postcode flags in the cache; --flags-from
+# PATH aggregates a saved flags file instead of fetching (see main()).
+FLAGS_OUT = os.path.join(DATA, "cache", "flood_postcode_flags"
+                         + ("_cc" if CLIMATE else "") + ".csv")
+FLAGS_FROM = None
+if "--flags-from" in sys.argv[1:]:
+    FLAGS_FROM = sys.argv[sys.argv.index("--flags-from") + 1]
+
+
 def raster_region(name, pc, x, y, in_high, in_low):
     region = ff.REGIONS[name]
     minx, miny, maxx, maxy = region["bbox"]
@@ -296,6 +310,56 @@ def raster_region(name, pc, x, y, in_high, in_low):
             time.sleep(0.15)
 
 
+# SEPA serves its polygons generalised to `maxAllowableOffset` metres. This
+# was 100 until 2026-09-25, which is fine for drawing a map and wrong for
+# point-in-polygon at a postcode: against a 5 m reference, the coastal
+# medium layer flagged 1,136 Scottish postcodes instead of 859 (+32%) and
+# 85% of the true set was misplaced (HANDOFF "REVIEWED 2026-09-25").
+# 5 m is under the ~13 m pixel the English and Welsh masks are read at;
+# the 5-vs-1 m check is in the HANDOFF entry for this change.
+SEPA_TOLERANCE_M = 5
+SEPA_PAGE = 1000
+
+
+def sepa_page(svc, lid, offset, rec):
+    """One page of a SEPA layer, halving the page on a server error.
+
+    Unsimplified coastal polygons are single features of tens of MB and
+    SEPA answers a 1,000-feature page of them with HTTP 500; a smaller
+    page is the only thing that helps, so a 500 halves the page at once
+    and anything else is retried as before. Returns (data, rec)."""
+    import urllib.error
+    tries = 0
+    while True:
+        q = dict(where="1=1", outFields="", returnGeometry="true",
+                 outSR=27700, maxAllowableOffset=SEPA_TOLERANCE_M,
+                 f="geojson", resultOffset=offset, resultRecordCount=rec,
+                 orderByFields="OBJECTID")
+        url = (f"{ff.SEPA}/{svc}/FeatureServer/{lid}/query?"
+               + urllib.parse.urlencode(q))
+        try:
+            with urllib.request.urlopen(url, timeout=600) as r:
+                data = json.load(r)
+            if "features" in data:
+                return data, rec
+            err = data.get("error", data)
+        except urllib.error.HTTPError as e:
+            err = e
+            if e.code >= 500 and rec > 1:
+                rec = max(1, rec // 2)
+                print(f"    {svc}: HTTP {e.code} at offset {offset} - page "
+                      f"-> {rec}", flush=True)
+                continue
+        except Exception as e:                            # noqa: BLE001
+            err = e
+        tries += 1
+        if tries >= 4:
+            raise SystemExit(f"{svc}: no answer at offset {offset} ({err}) - "
+                             "refusing to write a partial Scotland")
+        print(f"    retry {tries} {svc}: {err}", flush=True)
+        time.sleep(10)
+
+
 def vector_scotland(pc, x, y, in_high, in_low):
     from pyproj import Transformer
     region = ff.REGIONS["scotland"]
@@ -305,25 +369,9 @@ def vector_scotland(pc, x, y, in_high, in_low):
     for band, layers in region["bands"].items():
         target = in_high if band == "high" else in_low
         for svc, lid in layers:
-            offset, total = 0, 0
+            offset, total, rec = 0, 0, SEPA_PAGE
             while True:
-                q = dict(where="1=1", outFields="", returnGeometry="true",
-                         outSR=27700, maxAllowableOffset=100, f="geojson",
-                         resultOffset=offset, resultRecordCount=1000)
-                url = (f"{ff.SEPA}/{svc}/FeatureServer/{lid}/query?"
-                       + urllib.parse.urlencode(q))
-                data = None
-                for attempt in range(4):
-                    try:
-                        with urllib.request.urlopen(url, timeout=300) as r:
-                            data = json.load(r)
-                        break
-                    except Exception as e:                # noqa: BLE001
-                        print(f"    retry {attempt + 1} {svc}: {e}", flush=True)
-                        time.sleep(10)
-                if data is None or "features" not in data:
-                    raise SystemExit(f"{svc}: no answer at offset {offset} - "
-                                     "refusing to write a partial Scotland")
+                data, rec = sepa_page(svc, lid, offset, rec)
                 feats = data["features"]
                 if not feats:
                     break
@@ -343,7 +391,12 @@ def vector_scotland(pc, x, y, in_high, in_low):
                         target[idx_all[np.unique(pairs[1])]] = True
                 total += len(feats)
                 offset += len(feats)
-                if len(feats) < 1000:
+                # exceededTransferLimit is the authoritative "there is
+                # more"; the page-size test alone would stop early once
+                # sepa_page has shrunk the page.
+                more = (data.get("exceededTransferLimit")
+                        or data.get("properties", {}).get("exceededTransferLimit"))
+                if not more and len(feats) < rec:
                     break
             print(f"  scotland {svc}: {total} features", flush=True)
 
@@ -370,21 +423,40 @@ def main():
     in_high = np.zeros(len(pc), dtype=bool)
     in_low = np.zeros(len(pc), dtype=bool)
 
-    if not CLIMATE:
-        raster_region("wales", pc, x, y, in_high, in_low)
-        vector_scotland(pc, x, y, in_high, in_low)
-    code = rofrs_england(pc, x, y, in_high, in_low)
-    if ff.FAILED:
-        raise SystemExit(f"{len(ff.FAILED)} tiles failed - refusing to write "
-                         "a partial file")
-    # The per-postcode bands, kept for diagnosis (which postcodes fell in
-    # "Unavailable", which sit on a stroke). Not model input.
-    os.makedirs(os.path.join(DATA, "cache"), exist_ok=True)
-    pd.DataFrame({"postcode": pc["postcode"], "band": code}).to_csv(
-        os.path.join(DATA, "cache", f"rofrs_bands{'_cc' if CLIMATE else ''}.csv"),
-        index=False)
+    if FLAGS_FROM:
+        # Aggregate an earlier fetch's per-postcode flags instead of
+        # fetching: both grains then read ONE fetch, so a district and a
+        # sector table built this way cannot disagree about a postcode.
+        fl = pd.read_csv(FLAGS_FROM).set_index("postcode")
+        miss = ~pc["postcode"].isin(fl.index)
+        if miss.any():
+            raise SystemExit(f"{int(miss.sum())} postcodes are not in "
+                             f"{FLAGS_FROM} - it is from another ONSPD vintage")
+        in_high = fl.loc[pc["postcode"], "in_high"].values.astype(bool)
+        in_low = fl.loc[pc["postcode"], "in_low"].values.astype(bool)
+        print(f"flags from {FLAGS_FROM} - nothing fetched", flush=True)
+    else:
+        if not CLIMATE:
+            raster_region("wales", pc, x, y, in_high, in_low)
+            vector_scotland(pc, x, y, in_high, in_low)
+        code = rofrs_england(pc, x, y, in_high, in_low)
+        if ff.FAILED:
+            raise SystemExit(f"{len(ff.FAILED)} tiles failed - refusing to "
+                             "write a partial file")
+        # The per-postcode bands, kept for diagnosis (which postcodes fell
+        # in "Unavailable", which sit on a stroke). Not model input.
+        os.makedirs(os.path.join(DATA, "cache"), exist_ok=True)
+        pd.DataFrame({"postcode": pc["postcode"], "band": code}).to_csv(
+            os.path.join(DATA, "cache",
+                         f"rofrs_bands{'_cc' if CLIMATE else ''}.csv"),
+            index=False)
     pc["in_high"] = in_high
     pc["in_low"] = in_low | in_high
+    if not FLAGS_FROM:
+        os.makedirs(os.path.dirname(FLAGS_OUT), exist_ok=True)
+        pc[["postcode", "country", "in_high", "in_low"]].astype(
+            {"in_high": int, "in_low": int}).to_csv(FLAGS_OUT, index=False)
+        print(f"wrote {FLAGS_OUT}", flush=True)
 
     names = load_districts()["name"].tolist()
     grain = "sector" if any(" " in n for n in names) else "district"
