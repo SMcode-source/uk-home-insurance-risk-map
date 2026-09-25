@@ -71,6 +71,7 @@ from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build_model import load_districts  # noqa: E402
+from fetch_surface_water import FULL_ALPHA, covered  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "..", "data")
@@ -136,7 +137,8 @@ def masks_for_tile(layer, bbox, service=EA_SW):
     if img is None:
         return None
     a = np.asarray(img)
-    painted = a[:, :, 3] > 16
+    # The frequency envelope's own coverage rule, or depth stops nesting in it.
+    painted = covered(a[:, :, 3], FULL_ALPHA["ea_color"])
     if not painted.any():
         return {}
     rgb = a[:, :, :3].astype(np.int32)
