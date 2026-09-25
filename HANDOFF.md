@@ -37,8 +37,11 @@ and the map sits inside its own noise floor. Tab 4 SHIPPED as
 workstream, which is the honest headline: five gates of temperature
 work found one real map (subsidence geography) and no level.
 
-**The current premium is £169.6477 — £169.65 at 2dp, districts;
-£169.6636 at sector grain.** Stated here because everything below this
+**The current premium is £169.8428 — £169.84 at 2dp, districts;
+£169.8449 at sector grain; loss cost £164.32.** `scripts/doc_figures.py
+--check` holds this line and LIMITATIONS §3 to the committed output
+(its own step in `tests.yml`, on main); after a publish, run it with
+`--fix` and commit. Stated here because everything below this
 line is a dated entry quoting whatever was live at the time, and
 £169.66 appears in many of them correctly as history. That ambiguity
 already cost something real: the temperature tab shipped with £169.66
@@ -156,10 +159,11 @@ four vine perils now take their EL analytically and flood severity is
 no longer blended in log space. Re-measure any marginal change with
 `.venv/Scripts/python.exe scripts/analytic_el_check.py`.
 
-Current headline figures (**2026-08-28 publish**, CI 33138216612 +
-33138240678 verified): exposure-weighted premium **£169.66**
-(169.6558) over 27.26m households; loss cost £164.12 ≈ 75% of the £219
-all-home-claims cost. The last move was Gate 1's subsidence severity
+Current headline figures: see **"The current premium"** near the top
+of this file, the one figure here that is checked (loss cost ≈ 75% of
+the £219 all-home-claims cost). As of the **2026-08-28 publish** (CI
+33138216612 + 33138240678): £169.66 (169.6558) over 27.26m
+households, loss cost £164.12. That move was Gate 1's subsidence severity
 fix, worth **−0.6 pence** and entirely capital — `el_total` is
 bit-identical across it. Before that, the fall from £176.66 was theft's
 level correction (−3.96%); the EoW freeze share moved geography only
@@ -230,10 +234,19 @@ the band), the methodology template (flood section, EA source row,
 run list still naming `fetch_flood.py`/`fetch_surface_water.py`),
 `fetch_flood.py`'s docstring.
 
-**Still stale, found here and not fixed:** LIMITATIONS §3's per-peril
-£ table (groundwater £1.34 against £1.46 published before this change;
-the "£164.09 priced" total) and HANDOFF's own Status headline (still
-the 2026-08-28 £169.66). Both are hand-typed.
+**Two stale "current" figures, fixed the same day, and now checked.**
+LIMITATIONS §3's per-peril table (groundwater still £1.34, two publishes
+out of date; "£164.09 priced") and this file's current-premium line
+(£169.6477, four publishes out of date). `scripts/doc_figures.py`
+computes both from the committed output; `--check` is a main-only step
+in `tests.yml` (not under tests/, because rebuild.yml runs tests/ as the
+pre-flight on exp branches, whose output differs from main's by design),
+and `--fix` rewrites them. **After every publish: run `--fix` and commit
+it in the publish push.** Groundwater's move is itself a finding:
+`GW_SHARE_OF_FLOOD` pegs it to flood's claim FREQUENCY, which is flood's
+fixed paid total over a blended claim size. RoFRS moved the blend
+£27,363 -> £25,670, so groundwater rose £1.46 -> £1.57 with no
+groundwater input touched. LIMITATIONS §2 now says so.
 
 ## MEASURED 2026-09-25: Scotland's flood polygons read at 5 m, not 100 m - both grains, NOT published
 
