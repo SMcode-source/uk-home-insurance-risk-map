@@ -108,26 +108,31 @@ that shape is not corrected by the calibration.
 **Groundwater is not calibrated at all.** It is pegged at 10% of flood
 (`GW_SHARE_OF_FLOOD = 0.10`) because the ABI does not report it
 separately — it sits inside flood. This is a modelling choice with no
-anchor, and groundwater is 0.8% of expected loss, so it is disclosed
-rather than fixed.
+anchor, and groundwater is about 1% of expected loss (§3), so it is disclosed
+rather than fixed. One consequence to know: the peg is on flood's
+claim *frequency*, not its £, and flood's frequency is its fixed paid
+total divided by a blended claim size. So any change to the river/sea
+vs surface-water mix moves groundwater with no groundwater input
+touched: the 2026-09-25 RoFRS publish cut the blend from £27,363 to
+£25,670 and groundwater rose £1.46 → £1.57 while flood stayed £20.13.
 
 ---
 
 ## 3. Per-peril provenance, and what each driver actually is
 
-EL per policy and share of the **£164.09 priced** total. Note which line
+EL per policy and share of the **£164.32 priced** total. Note which line
 is outside it:
 
 | peril | EL | share | driver | resolution | coverage |
 |---|---|---|---|---|---|
-| Escape of water | £42.39 | **25.83%** | air-frost days | 1991–2020 **climatology** | UK — **no year-to-year variation** |
-| Fire | £28.00 | 17.06% | MHCLG dwelling-fire incidents | fire-authority area | GB |
-| Theft | £22.04 | 13.43% | police.uk burglary points | **street level** | E&W; Scotland at council resolution |
-| Flood | £20.13 | 12.27% | EA RoFRS risk bands / NRW FRAW / SEPA polygons | share of unit postcodes in each band | UK; depth England only |
-| Subsidence | £19.81 | 12.07% | BGS clay shrink–swell | 1:625,000 | GB |
-| Storm | £15.74 | 9.59% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
-| Accidental damage | £14.65 | 8.93% | census child-share | LSOA | GB |
-| Groundwater | £1.34 | 0.82% | EA alert areas | postcode flag | **England only** |
+| Escape of water | £42.39 | **25.80%** | air-frost days | 1991–2020 **climatology** | UK — **no year-to-year variation** |
+| Fire | £28.00 | 17.04% | MHCLG dwelling-fire incidents | fire-authority area | GB |
+| Theft | £22.04 | 13.41% | police.uk burglary points | **street level** | E&W; Scotland at council resolution |
+| Flood | £20.13 | 12.25% | EA RoFRS risk bands / NRW FRAW / SEPA polygons | share of unit postcodes in each band | UK; depth England only |
+| Subsidence | £19.81 | 12.05% | BGS clay shrink–swell | 1:625,000 | GB |
+| Storm | £15.74 | 9.58% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
+| Accidental damage | £14.65 | 8.91% | census child-share | LSOA | GB |
+| Groundwater | £1.57 | 0.96% | EA alert areas | postcode flag | **England only** |
 | *Coastal erosion* | *£3.09* | *—* | *EA NCERM frontages; NatureScot Dynamic Coast* | *frontage / eroded-area polygons* | ***England + Scotland on two bases (`er_basis`); Welsh coast unmapped; UNPRICED*** |
 
 **Coastal erosion is deliberately outside `el_total`** — "no policy pays

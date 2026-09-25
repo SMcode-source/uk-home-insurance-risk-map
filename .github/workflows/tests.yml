@@ -29,6 +29,15 @@ jobs:
         # dependence, and that severities match the published ABI means.
         run: python -m pytest tests -q
 
+      - name: Check the Markdown's "current" figures match the model
+        # LIMITATIONS §3 and HANDOFF's current-premium line are typed by
+        # hand and both went a full publish stale unnoticed. Main only:
+        # exp/ branches carry a different model by design, which is why
+        # this is a step here and not a test under tests/ (rebuild.yml
+        # runs tests/ as its pre-flight on every branch).
+        if: github.ref == 'refs/heads/main'
+        run: python scripts/doc_figures.py --check
+
       - name: Check the published site rebuilds from committed data
         # The model outputs (districts_risk.geojson, year_analysis.json) are
         # committed, so the whole publish chain must run without refetching
