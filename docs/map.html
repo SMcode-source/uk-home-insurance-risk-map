@@ -468,13 +468,13 @@ const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
    works while "the loaded features" means all of them. Under vector
    tiles it means the viewport's, so the scale (and the legend printed
    from it) would shift as you panned. Fixed nationally, once. */
-const BREAKS = {"premium":[137.5,149.9,160.5,172.1,185.6,208.4],"var995_vine":[5086.7,5545.4,5942,6398.8,7017,8187.9],"capital":[4.4325,4.8852,5.2717,5.6838,6.1889,6.9472],"er_head":[0.0004,0.0011,0.0024,0.0046,0.0084,0.0143]};
+const BREAKS = {"premium":[137.1,149.1,160.4,171.9,186,209.1],"var995_vine":[5104.1,5555.2,5950.7,6436.5,7099.7,8242.8],"capital":[4.4351,4.8754,5.292,5.6717,6.1725,6.951],"er_head":[0.0004,0.0011,0.0024,0.0046,0.0084,0.0143]};
 /* Household-weighted median premium across the whole country - the
    anchor the relative-risk page divides by. Weighted by households, not
    by unit, so a sparse rural district counts as its people, not as one
    vote; and a median, not a mean, so the skewed top of the premium
    distribution cannot drag everyone else's ratio. */
-const REL_MEDIAN = 163;
+const REL_MEDIAN = 162;
 const DEFAULT_METRIC = 'group';
 
 /* Erosion bins are cut over the COASTAL districts only — quantiles across
