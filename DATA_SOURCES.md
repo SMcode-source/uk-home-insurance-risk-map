@@ -108,12 +108,18 @@ districts**, used as the exposure weight throughout.
     ≤ ~14 m/px, so tiles are fetched at 13 m/px (2048 px) and the three legend
     colours are decoded per pixel: High(1in30)=(85,91,157),
     Medium(1in100)=(154,159,222), Low(1in1000)=(195,224,255),
-    nearest-anchor with alpha>16.
+    nearest-anchor. **Alpha is pixel coverage** (2 m flow paths in 13 m
+    pixels, 255 levels), not a yes/no: a pixel counts when it is ≥ 25%
+    covered (`SW_COVERAGE_MIN`, alpha ≥ 64), fitted against the EA's own
+    residential counts and held out (1.17× / 1.02× the EA level; the old
+    alpha > 16 read 1.45× / 1.43×). The depth layers use the same rule.
 11. **NRW surface water** — same GeoServer, layer
     `inspire-nrw:NRW_FLOOD_RISK_FROM_SURFACE_WATER_SMALL_WATERCOURSES`,
     `cql_filter=risk IN ('High','Medium')` for the high band, rendered at
     20 m/px (100 m under-renders the small polygons — hence the Wales
-    re-render + `merge_sw_wales.py` max-merge). FRAW SW is notably more
+    re-render + `merge_sw_wales.py` max-merge). Drawn at 40% opacity with
+    16 coverage levels, so a full pixel is alpha 102 and the 25%-coverage
+    rule is alpha ≥ 25. FRAW SW is notably more
     conservative than EA RoFSW (e.g. Cardiff ~2% envelope vs London ~48%) —
     a data-source difference, not an error.
 12. **SEPA surface water** — MapServer export at 20 m/px. **Quirk:** the

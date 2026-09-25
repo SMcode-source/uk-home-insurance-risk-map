@@ -49,6 +49,31 @@ from build_model import load_districts  # noqa: E402
 
 OUT = os.path.join("data", "sw_fractions.csv")
 
+# A pixel's alpha is how much of it the layer COVERS, not a yes/no: rofsw
+# is drawn from 2 m flow paths, so a 13 m pixel with one thin path through
+# it comes back faint. Measured 2026-09-25 (alpha census, every layer read
+# here): EA present, climate and depth layers carry 255 alpha levels; NRW
+# carries 16 (4x4 supersampling) on a 40%-opacity style, so a fully
+# covered NRW pixel is alpha 102 and quarter cover renders as 26; SEPA's
+# export is binary. A postcode counts as inside the extent when its pixel
+# is at least SW_COVERAGE_MIN covered, on each source's own scale.
+#
+# 0.25 is FITTED, and against an external count: the EA's own residential
+# properties at risk (KSI packs, scripts/validate_flood_england.py) over
+# 94 constituencies in ten 26 km tiles. Chosen on half of them (md5 split),
+# the held-out half scores 1.17x the EA's >=1% share and 1.02x its
+# any-band share (Spearman +0.94 / +0.97). The rule it replaced, alpha > 16
+# (6% cover on the EA scale, 16% on NRW's), read 1.45x / 1.43x. Treating
+# alpha as a probability instead (no constant) reads 0.76x / 0.71x: the EA
+# counts a property at risk more generously than centroid-in-extent does.
+SW_COVERAGE_MIN = 0.25
+FULL_ALPHA = {"ea_color": 255, "wms_cql": 102, "sepa": 255}
+
+
+def covered(alpha, full):
+    """Pixels at least SW_COVERAGE_MIN covered; half a level of rounding slack."""
+    return alpha >= SW_COVERAGE_MIN * full - 0.5
+
 EA_SW = ("https://environment.data.gov.uk/spatialdata/"
          "nafra2-risk-of-flooding-from-surface-water/wms")
 # The EA's climate-change edition of the same product: same service family,
@@ -129,7 +154,7 @@ def masks_for_tile(region, bbox):
         if img is None:
             return None
         a = np.asarray(img)
-        painted = a[:, :, 3] > 16
+        painted = covered(a[:, :, 3], FULL_ALPHA["ea_color"])
         if not painted.any():
             return {}
         rgb = a[:, :, :3].astype(np.int32)
@@ -149,7 +174,7 @@ def masks_for_tile(region, bbox):
             img = http_image(NRW + "?" + urllib.parse.urlencode(q))
             if img is None:
                 return None
-            out[band] = np.asarray(img)[:, :, 3] > 16
+            out[band] = covered(np.asarray(img)[:, :, 3], FULL_ALPHA["wms_cql"])
         return out
 
     # sepa
@@ -163,7 +188,7 @@ def masks_for_tile(region, bbox):
                          + urllib.parse.urlencode(q))
         if img is None:
             return None
-        out[band] = np.asarray(img)[:, :, 3] > 16
+        out[band] = covered(np.asarray(img)[:, :, 3], FULL_ALPHA["sepa"])
     return out
 
 
