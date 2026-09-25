@@ -172,6 +172,56 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-25: surface water at 25% pixel coverage in England, both grains - NOT published
+
+`exp/sw-coverage` (district run 72) and `exp/sw-coverage-sector` (sector
+run 41): EA surface-water pixels count when at least 25% covered (alpha
+>= 64, `MIN_ALPHA` in `fetch_surface_water.py`, depth masks too). This
+is the last decoder constant from the review below that was still live.
+
+| surface water vs each agency's own count | live | exp |
+|---|---|---|
+| England vs EA KSI, >=1% / any band (543 constituencies) | 1.60x / 1.53x | 1.18x / 1.00x |
+| England Spearman, >=1% / any band | +0.932 / +0.949 | +0.939 / +0.958 |
+| Wales sw_high vs NRW SW people at risk, Spearman | +0.720 | +0.721 |
+| Scotland vs NFRA 2025 national count, both bands | 0.82-0.94x | unchanged |
+
+The 25% was chosen on half the tiles and held out on the other half
+(1.17x / 1.02x). It is the EA's alone. Applied to NRW by analogy (alpha
+>= 25 of 102), it was built and measured, and it made Wales worse against
+NRW's own counts: Spearman +0.72 -> +0.69, level ~0.56x -> ~0.43x
+(people / 2.2 per household). FRAW is the more conservative product, so
+NRW keeps alpha > 16. SEPA's export is binary.
+
+Scotland's anchor is new: NFRA 2025 (SEPA; Table 4, on the same "Surface
+Water and Small Watercourses" maps the model reads) counts 268,000 homes
+at medium risk and 439,000 at low. The range is the denominator: 2.51m
+model households, or the ~2.88m implied by "1 in 9 homes". Only national
+totals exist so far; the supporting data is still "to be published".
+
+| | districts | sectors |
+|---|---|---|
+| headline | 169.8428 -> 169.7653 | 169.8449 -> 169.7658 |
+| England | -0.48 | -0.48 |
+| Scotland | +2.19 | +2.20 |
+| Wales | +2.69 | +2.67 |
+| rating groups | 308 of 2,736 (10.8% of hh) | 1,032 of 10,398 (9.8%) |
+
+The Scottish and Welsh rises are the national ABI flood pin, not hazard:
+neither country's inputs moved. England was 1.5-1.6x its agency's count
+and carried too much of the fixed national flood total; Scotland sat at
+~0.9x and Wales below NRW. So the shift goes TOWARD consistency. Biggest
+movers: PE11 +14.8, DN14 +11.2 (river-heavy districts rise with the pin),
+and sectors PE29 9 -54.8, OL13 3 -50.6 (surface-water-heavy ones fall).
+The grains agree: sector sw_high rolled up by country matches districts
+to 0.0001.
+
+Two process notes. The refetch guard's "exactly 2x / 0.5x" merge flag
+fires on a real threshold change. The ratios were a smooth spread with no
+spike at 0.5, and nothing rose, which a stricter mask requires. And
+`validate_flood_england.py` reads the BUILT `districts_risk.geojson`, not
+the input tables, so it moves only after a rebuild.
+
 ## PUBLISHED 2026-09-25: RoFRS risk bands for England and SEPA at 5 m for Scotland, built together, both grains
 
 The user's decision, on the two measurements below (both 2026-09-22 /

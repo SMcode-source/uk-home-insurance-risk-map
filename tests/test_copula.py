@@ -1215,8 +1215,8 @@ def test_published_geojson_satisfies_the_models_own_identities():
     guarantee.
 
     Tolerances come from the write-time rounding, not from taste:
-    build_model writes el_*/premium/var/tvar at 1dp and most other columns
-    at 4dp.
+    build_model writes el_* at 2dp, premium/var/tvar at 1dp and most other
+    columns at 4dp.
     """
     import json
     root = os.path.join(os.path.dirname(__file__), "..")
