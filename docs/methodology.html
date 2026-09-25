@@ -239,13 +239,13 @@
           <td><strong style="color:var(--fl)">Flood</strong></td>
           <td>EA NaFRA2, NRW FRAW, SEPA</td>
           <td>Share of unit postcodes inside river/sea flood zones and inside surface-water zones</td>
-          <td class="num">from zone share</td><td class="num">£23,344 / £12,006</td><td class="num">12.3%</td><td class="num">48%<sup>†</sup></td><td class="num">52%<sup>†</sup></td>
+          <td class="num">from zone share</td><td class="num">£23,344 / £12,006</td><td class="num">12.2%</td><td class="num">48%<sup>†</sup></td><td class="num">52%<sup>†</sup></td>
         </tr>
         <tr>
           <td><strong style="color:var(--gw)">Groundwater</strong></td>
           <td>EA flood-alert areas</td>
           <td>Share of unit postcodes inside a groundwater flood alert target area</td>
-          <td class="num">to 0.8%/yr</td><td class="num">£14,523</td><td class="num">0.9%</td><td class="num">48%<sup>†</sup></td><td class="num">52%<sup>†</sup></td>
+          <td class="num">to 0.8%/yr</td><td class="num">£14,523</td><td class="num">1.0%</td><td class="num">48%<sup>†</sup></td><td class="num">52%<sup>†</sup></td>
         </tr>
         <tr>
           <td><strong style="color:var(--th)">Theft</strong></td>
@@ -263,7 +263,7 @@
           <td><strong style="color:var(--fire)">Fire</strong></td>
           <td>Home Office / SFRS / Welsh FRA incident data</td>
           <td>Dwelling fires per household — England at LSOA level, Scotland and Wales by local authority / FRA</td>
-          <td class="num">0.03–0.56%/yr</td><td class="num">£6,014</td><td class="num">17.1%</td><td class="num">78%</td><td class="num">22%</td>
+          <td class="num">0.03–0.56%/yr</td><td class="num">£6,014</td><td class="num">17.0%</td><td class="num">78%</td><td class="num">22%</td>
         </tr>
         <tr>
           <td><strong style="color:var(--ad)">Accidental damage</strong></td>
@@ -412,7 +412,7 @@
     </ul>
     <p><b>Theft sits outside the vine copula, on purpose.</b> Burglary does not arrive on
     the storm track: the correlation between a district's theft expected loss and its
-    four-peril catastrophe expected loss is <b>0.28</b> — theft re-ranks the
+    four-peril catastrophe expected loss is <b>0.27</b> — theft re-ranks the
     book rather than reinforcing it. It is simulated as an independent compound leg, and
     its systemic loading is derived, not assumed: national annual burglary counts vary by
     roughly ±10–15%, so the loading is solved to reproduce that, which makes a 1-in-100
@@ -445,7 +445,7 @@
     <p><b>Like theft it sits outside the vine — but for capital it is the opposite
     case.</b> The vine's root is the storm track, and cold is the one weather axis the
     vine does not carry: the correlation between a district's escape-of-water expected
-    loss and its four-peril catastrophe expected loss is <b>0.15</b> — the
+    loss and its four-peril catastrophe expected loss is <b>0.16</b> — the
     frost map is close to an inversion of the storm map, so this peril re-ranks the
     book more than any other addition. But a hard national freeze <i>is</i> genuinely
     systemic: winter 2010 pushed around 103,000 burst-pipe claims (£680m) through in
@@ -491,7 +491,7 @@
     heatwave summer barely registers at annual grain), so the factor loading
     comes out effectively zero and fire prices as pure expected loss — the
     purest diversifier in the book. Correlation with the four-peril
-    catastrophe expected loss: <b>0.25</b>. The severity sigma
+    catastrophe expected loss: <b>0.30</b>. The severity sigma
     is 1.3, the heaviest tail of the attritional perils (~2% of claims above
     £100k), which the analytic expected-loss identity absorbs exactly as for
     theft and escape of water.</p>
@@ -540,7 +540,7 @@
     DATA_SOURCES.md.) A 6% worst-shock pins the factor loading at
     <b>0.012%</b>, effectively zero, so AD prices as pure expected loss.
     Correlation with the four-peril catastrophe expected loss:
-    <b>0.53</b>. The severity sigma is 0.90, the narrowest tail
+    <b>0.52</b>. The severity sigma is 0.90, the narrowest tail
     of the attritional perils (~0.7% of claims above £10,000): dropped
     televisions and stained carpets cluster tightly around the mean.</p>
     <p class="note">The dilution note applies a fourth and final time:
@@ -574,15 +574,15 @@
         </tr></thead>
         <tbody>
         <tr><td><strong>escape of water</strong></td><td class="num">£42.39</td><td class="num">25.8%</td><td class="num">—</td><td class="num" colspan="2"><em>no anchor</em></td></tr>
-        <tr><td><strong>fire</strong></td><td class="num">£28.00</td><td class="num">17.1%</td><td class="num">78%</td><td class="num">£21.84</td><td class="num">£6.16</td></tr>
+        <tr><td><strong>fire</strong></td><td class="num">£28.00</td><td class="num">17.0%</td><td class="num">78%</td><td class="num">£21.84</td><td class="num">£6.16</td></tr>
         <tr><td><strong>theft</strong></td><td class="num">£22.04</td><td class="num">13.4%</td><td class="num">24%</td><td class="num">£5.33</td><td class="num">£16.70</td></tr>
         <tr><td><strong>flood</strong></td><td class="num">£20.13</td><td class="num">12.3%</td><td class="num">48%</td><td class="num">£9.66</td><td class="num">£10.47</td></tr>
         <tr><td><strong>subsidence</strong></td><td class="num">£19.81</td><td class="num">12.1%</td><td class="num">100%</td><td class="num">£19.81</td><td class="num">£0.00</td></tr>
         <tr><td><strong>weather</strong></td><td class="num">£15.74</td><td class="num">9.6%</td><td class="num">—</td><td class="num" colspan="2"><em>no anchor</em></td></tr>
         <tr><td><strong>accidental damage</strong></td><td class="num">£14.65</td><td class="num">8.9%</td><td class="num">—</td><td class="num" colspan="2"><em>no anchor</em></td></tr>
-        <tr><td><strong>groundwater</strong></td><td class="num">£1.46</td><td class="num">0.9%</td><td class="num">48%</td><td class="num">£0.70</td><td class="num">£0.76</td></tr>
-        <tr class="sub"><td><strong>anchored subtotal</strong></td><td class="num"><strong>£91.43</strong></td><td class="num"><strong>55.7%</strong></td><td class="num"><strong>63%</strong></td><td class="num"><strong>£57.34</strong></td><td class="num"><strong>£34.09</strong></td></tr>
-        <tr class="sub"><td><strong>not split</strong></td><td class="num"><strong>£72.79</strong></td><td class="num"><strong>44.3%</strong></td><td class="num" colspan="3"><em>named and left blank</em></td></tr>
+        <tr><td><strong>groundwater</strong></td><td class="num">£1.57</td><td class="num">1.0%</td><td class="num">48%</td><td class="num">£0.75</td><td class="num">£0.82</td></tr>
+        <tr class="sub"><td><strong>anchored subtotal</strong></td><td class="num"><strong>£91.54</strong></td><td class="num"><strong>55.7%</strong></td><td class="num"><strong>63%</strong></td><td class="num"><strong>£57.40</strong></td><td class="num"><strong>£34.15</strong></td></tr>
+        <tr class="sub"><td><strong>not split</strong></td><td class="num"><strong>£72.77</strong></td><td class="num"><strong>44.3%</strong></td><td class="num" colspan="3"><em>named and left blank</em></td></tr>
         </tbody>
       </table>
     </div>
@@ -727,9 +727,9 @@
       <li><b>Not a strict uplift for rivers and sea.</b> The future layer is a separate
       model run, so it does not simply contain the present one. On a Humber test tile at
       13 m per pixel, <b>19.7%</b> of today's <i>pixels</i> fall outside the future extent;
-      across England at district level the effect is smaller but real — <b>124
-      districts (5.9%)</b> see their share of homes in the 1-in-100/200 band shrink, worst
-      -25.5pp. Surface water behaves far
+      across England at district level the effect is smaller but real — <b>77
+      districts (3.7%)</b> see their share of homes in the 1-in-100/200 band shrink, worst
+      -0.5pp. Surface water behaves far
       more like a true uplift: only <b>12 districts</b> decrease. So the
       surface-water half reads as a genuine climate delta, and the rivers/sea half is
       better read as a scenario swap.</li>
@@ -740,10 +740,10 @@
 
     <div class="callout" style="margin:16px 0">Over the <b>2,087</b> districts the EA
     models, holding the calibration fixed and moving only the flood map changes the
-    exposure-weighted technical premium by <b>+6%</b>. The hardest-hit district
-    is <b>TA9</b> at <b>+86%</b>. Averaged over England's districts,
+    exposure-weighted technical premium by <b>+4%</b>. The hardest-hit district
+    is <b>ME11</b> at <b>+61%</b>. Averaged over England's districts,
     the share of a district's homes (unit postcodes) inside the 1-in-100/200 river/sea zone grows
-    <b>+87.7%</b> and inside the surface-water ≥1% AEP zone
+    <b>+60.4%</b> and inside the surface-water ≥1% AEP zone
     <b>+35.4%</b>.</div>
 
     <h3>Holding the calibration still</h3>
@@ -1025,7 +1025,7 @@
     <b>6% of the district's Euler-allocated share of the portfolio's</b> worst 1% of years,
     not of its own. The gap is the whole point — a single policy's standalone TVaR₉₉ ran
     <b>£10,100–£17,600</b> across 30 simulation seeds, while
-    its allocated share of the portfolio tail held at about <b>£261</b>, a
+    its allocated share of the portfolio tail held at about <b>£262</b>, a
     <b>98% diversification credit</b>. An earlier version charged 6% of
     the standalone figure and inflated premiums roughly tenfold.</p>
     <p class="note"><b>Why the first of those is a range and the other two are not.</b>
@@ -1059,7 +1059,7 @@
     Removing it is the finding, not a retreat from it.</div>
     <p><b>For the portfolio, it shows up where capital is set.</b> Aggregate over 2,736
     districts and the rare joint events stop cancelling: catastrophic years cost
-    <b>5.1%</b> more under the vine than under independence. That is the number
+    <b>5.5%</b> more under the vine than under independence. That is the number
     that matters for solvency, and it is the reason the vine is here.</p>
     <p class="note">Measured by <code>scripts/dependence_check.py</code>: 60 districts ×
     400,000 simulated years, with a bootstrap interval on the TVaR comparison so the noise
@@ -1160,7 +1160,7 @@
 
     <h3>What the finer grain reveals</h3>
     <p>Aggregating sector premiums back to their districts by household weight reproduces
-    the district model closely — <b>0.996 correlation</b>, exposure-weighted level
+    the district model closely — <b>0.960 correlation</b>, exposure-weighted level
     within <b>0.0%</b> — so this is the same model resolved more finely, not
     a different one.
     Within districts, though, it is not close at all:</p>
@@ -1184,12 +1184,12 @@
     <p>The EA's future flood extents were re-rasterised over the sectors on
     2026-08-12, so the sector map carries the climate repricing too:
     <b>+6.4%</b> exposure-weighted across the
-    <b>8,730</b> sectors the EA models, against <b>+6%</b> over
+    <b>8,730</b> sectors the EA models, against <b>+4%</b> over
     2,087 districts — the same national answer, as it should be.</p>
     <p>The tails are not the same answer at all. The worst district is
-    <b>TA9</b> at <b>+86%</b>; the worst sector is
+    <b>ME11</b> at <b>+61%</b>; the worst sector is
     <b>DN31 9</b> at <b>+119%</b>. And where the
-    district model finds just <b>7</b> district whose flood risk falls
+    district model finds just <b>1</b> district whose flood risk falls
     under the scenario, the sector model finds <b>142</b> sectors.
     Those improvements are real — the EA's future run is a separate model, not a
     uniform uplift — but at district resolution they are averaged against
@@ -1200,7 +1200,7 @@
     <div class="diagram-card">
       <div class="res-figure"><svg viewBox="0 0 330 389" role="img" aria-label="Districts">
       <text class="panel-title" x="0" y="14">Districts</text>
-      <g clip-path="url(#frameclip)"><path d="M37.4 327.6L-38.3 329.5L-59.1 348.5L-95.1 352.4L-103.8 407.9L-98.2 412.5L-91.7 447.4L-52.3 440.8L-46.4 454.3L-36.4 459.6L-15.6 438.2L-10.7 444.6L-9.3 466.8L14.4 470.9L25.4 480.0L38.5 463.1L75.0 463.9L82.7 452.8L77.0 436.7L47.7 432.1L50.2 418.6L40.5 409.9L55.8 376.0L35.2 352.8L37.4 327.6Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M55.8 376.0L40.5 409.9L50.2 418.6L47.7 432.1L77.0 436.7L89.5 413.8L114.0 423.8L128.3 408.2L146.4 414.0L164.4 398.2L174.3 379.9L216.0 356.3L191.0 304.9L154.3 291.7L37.4 327.6L35.2 352.8L55.8 376.0Z" fill="#9c2b2a" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M294.0 497.9L306.9 498.8L339.5 467.6L278.0 397.9L233.2 361.6L216.0 356.3L174.3 379.9L150.3 411.5L163.0 430.4L139.5 448.7L172.9 474.4L182.5 493.3L171.2 509.9L177.0 524.2L188.9 524.7L209.1 541.3L231.1 539.1L240.0 523.0L258.8 525.4L294.0 497.9Z" fill="#9c2b2a" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M115.3 299.3L135.8 296.0L129.1 253.6L108.3 259.2L106.8 270.7L112.8 270.8L110.5 279.0L115.3 299.3Z" fill="#b7d3f6" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M102.3 251.4L102.1 258.8L127.5 253.8L125.4 244.4L130.2 240.7L125.0 232.4L111.8 233.5L108.5 238.7L110.9 249.4L102.3 251.4Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M113.5 300.2L112.8 270.8L106.8 270.7L110.1 260.7L102.1 258.8L102.9 249.8L111.6 247.5L110.6 235.3L94.2 246.6L73.6 244.8L59.8 252.4L71.1 284.2L61.9 290.3L63.4 317.1L101.7 311.2L113.5 300.2Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M58.1 249.0L30.0 252.7L31.6 275.8L26.7 282.5L27.3 291.4L32.6 293.0L48.0 322.6L57.1 321.7L63.4 317.1L61.9 290.3L69.8 288.0L70.5 279.9L58.1 249.0Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M130.2 220.2L60.4 205.4L28.7 216.1L28.0 250.3L94.2 246.6L104.3 236.1L123.6 233.7L130.2 220.2Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M63.4 209.8L108.7 212.2L119.3 220.4L128.4 216.3L105.5 198.9L110.1 192.8L108.6 179.3L90.8 163.6L93.6 145.9L84.3 137.9L66.1 143.5L62.1 168.2L56.3 176.2L63.4 209.8Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M104.1 140.3L93.6 145.9L90.8 163.6L108.6 179.3L107.6 202.1L126.7 211.1L130.2 220.2L145.6 211.9L147.6 201.9L161.2 198.5L160.8 191.5L153.8 186.7L171.7 161.0L155.3 141.8L161.9 117.4L141.5 103.3L113.7 97.2L97.2 81.5L82.3 98.9L104.1 140.3Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M137.3 251.1L202.9 198.7L206.2 191.3L203.7 182.6L182.5 162.1L171.7 161.0L153.8 186.7L160.8 191.5L161.2 198.5L147.6 201.9L145.6 211.9L125.8 223.0L123.8 228.7L130.2 240.7L125.2 246.1L127.6 252.0L137.3 251.1Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M165.3 291.0L191.0 304.9L199.9 297.7L227.9 241.3L230.7 216.3L201.8 198.7L158.2 226.7L137.3 251.1L128.2 252.0L135.8 296.0L165.3 291.0Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M-32.4 217.4L-47.2 227.0L-50.4 236.5L-38.4 238.7L-34.5 244.6L-36.4 253.6L-11.0 271.6L31.6 275.8L29.1 264.9L32.2 257.0L26.4 237.0L28.7 216.1L-3.6 200.6L-24.2 201.0L-33.4 207.1L-32.4 217.4Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M162.4 119.2L155.3 141.8L164.3 154.7L186.7 165.1L203.7 182.6L204.7 201.1L230.7 216.3L241.5 217.6L272.6 193.4L295.0 192.4L315.7 172.3L335.5 190.4L354.7 184.7L363.6 157.1L362.7 146.0L383.3 135.3L397.0 175.4L414.6 179.9L429.7 205.0L446.9 203.7L480.7 161.8L381.7 13.3L323.0 31.4L321.6 12.4L295.5 -14.3L294.0 -25.9L279.8 -34.8L272.1 -25.4L263.4 -31.3L255.2 -52.9L271.5 -86.0L258.8 -97.7L241.1 -75.7L198.8 -76.9L188.1 -51.4L193.6 -35.3L179.3 -25.2L196.7 -11.7L213.6 13.1L192.9 21.8L161.9 2.0L129.1 8.3L133.9 21.0L129.1 30.7L130.5 57.7L143.9 62.8L146.6 79.8L141.5 103.3L162.4 119.2Z" fill="#b7d3f6" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M479.9 505.5L521.0 519.5L526.1 530.3L559.7 546.5L574.2 563.2L572.9 582.0L577.7 594.4L592.2 608.1L607.4 612.0L630.8 604.0L664.3 566.1L679.6 541.7L684.6 517.7L664.8 429.7L632.0 370.5L594.5 409.1L584.1 409.0L557.0 393.8L537.8 359.2L491.6 357.4L486.7 351.3L499.6 331.9L499.9 310.0L485.8 301.4L480.2 286.6L454.5 264.6L460.1 237.0L490.6 238.9L521.6 217.2L480.7 161.8L446.9 203.7L429.7 205.0L414.6 179.9L397.0 175.4L383.3 135.3L371.2 138.6L362.7 146.0L363.6 157.1L354.7 184.7L335.5 190.4L315.7 172.3L295.0 192.4L272.6 193.4L241.5 217.6L230.7 216.3L227.9 241.3L199.9 297.7L191.0 304.9L216.0 356.3L247.3 368.8L347.9 475.3L389.8 502.9L479.9 505.5Z" fill="#5598e7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M48.0 322.6L32.6 293.0L27.5 292.1L29.1 280.1L24.3 273.4L2.1 275.3L-17.0 267.5L-25.4 281.9L-20.9 303.2L-25.5 328.0L-11.1 332.4L48.0 322.6Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M-3.6 200.6L28.7 216.1L60.4 205.4L56.3 176.2L62.1 168.2L66.1 143.5L51.2 131.6L36.3 137.0L18.6 125.9L-12.8 153.3L-42.8 158.1L-36.1 180.4L-55.3 200.4L-87.3 206.7L-92.6 214.3L-90.4 225.2L-77.7 232.6L-50.4 236.5L-47.2 227.0L-32.4 217.4L-33.4 207.1L-24.2 201.0L-3.6 200.6Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M20.3 125.5L36.3 137.0L51.2 131.6L66.1 143.5L84.3 137.9L99.3 143.8L104.1 140.3L82.3 98.9L97.2 81.5L113.7 97.2L141.5 103.3L146.6 79.8L143.9 62.8L130.5 57.7L129.1 30.7L133.9 21.0L129.1 8.3L161.9 2.0L192.9 21.8L213.6 13.1L196.7 -11.7L179.3 -25.2L164.9 -30.4L145.7 -24.8L117.8 -40.0L105.8 -32.4L80.6 -44.8L64.9 -29.1L64.9 -7.6L54.6 -1.7L29.4 -18.1L-8.1 -6.5L-20.9 -8.9L-31.3 -21.7L-71.5 -19.3L-75.8 -31.8L-65.4 -54.4L-90.3 -49.6L-126.3 -58.5L-138.6 -40.5L-163.6 -23.1L-134.9 -2.6L-130.1 28.3L-139.3 43.8L-141.1 57.5L-120.1 72.6L-118.0 85.6L-103.6 94.5L-117.6 114.6L-113.0 136.4L-90.4 149.2L-62.9 147.5L-42.8 158.1L-12.8 153.3L20.3 125.5Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M329.5 -108.7L271.5 -86.0L258.3 -65.5L255.2 -52.9L263.4 -31.3L272.1 -25.4L279.8 -34.8L294.0 -25.9L295.5 -14.3L321.6 12.4L323.0 31.4L381.7 13.3L351.3 -46.4L329.5 -108.7Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M137.3 251.1L202.9 198.7L206.2 191.3L203.7 182.6L182.5 162.1L171.7 161.0L153.8 186.7L160.8 191.5L161.2 198.5L147.6 201.9L145.6 211.9L125.8 223.0L123.8 228.7L130.2 240.7L125.2 246.1L127.6 252.0L137.3 251.1Z" fill="none" stroke="var(--ink-1)" stroke-width="1.6"/></g>
+      <g clip-path="url(#frameclip)"><path d="M37.4 327.6L-38.3 329.5L-59.1 348.5L-95.1 352.4L-103.8 407.9L-98.2 412.5L-91.7 447.4L-52.3 440.8L-46.4 454.3L-36.4 459.6L-15.6 438.2L-10.7 444.6L-9.3 466.8L14.4 470.9L25.4 480.0L38.5 463.1L75.0 463.9L82.7 452.8L77.0 436.7L47.7 432.1L50.2 418.6L40.5 409.9L55.8 376.0L35.2 352.8L37.4 327.6Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M55.8 376.0L40.5 409.9L50.2 418.6L47.7 432.1L77.0 436.7L89.5 413.8L114.0 423.8L128.3 408.2L146.4 414.0L164.4 398.2L174.3 379.9L216.0 356.3L191.0 304.9L154.3 291.7L37.4 327.6L35.2 352.8L55.8 376.0Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M294.0 497.9L306.9 498.8L339.5 467.6L278.0 397.9L233.2 361.6L216.0 356.3L174.3 379.9L150.3 411.5L163.0 430.4L139.5 448.7L172.9 474.4L182.5 493.3L171.2 509.9L177.0 524.2L188.9 524.7L209.1 541.3L231.1 539.1L240.0 523.0L258.8 525.4L294.0 497.9Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M115.3 299.3L135.8 296.0L129.1 253.6L108.3 259.2L106.8 270.7L112.8 270.8L110.5 279.0L115.3 299.3Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M102.3 251.4L102.1 258.8L127.5 253.8L125.4 244.4L130.2 240.7L125.0 232.4L111.8 233.5L108.5 238.7L110.9 249.4L102.3 251.4Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M113.5 300.2L112.8 270.8L106.8 270.7L110.1 260.7L102.1 258.8L102.9 249.8L111.6 247.5L110.6 235.3L94.2 246.6L73.6 244.8L59.8 252.4L71.1 284.2L61.9 290.3L63.4 317.1L101.7 311.2L113.5 300.2Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M58.1 249.0L30.0 252.7L31.6 275.8L26.7 282.5L27.3 291.4L32.6 293.0L48.0 322.6L57.1 321.7L63.4 317.1L61.9 290.3L69.8 288.0L70.5 279.9L58.1 249.0Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M130.2 220.2L60.4 205.4L28.7 216.1L28.0 250.3L94.2 246.6L104.3 236.1L123.6 233.7L130.2 220.2Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M63.4 209.8L108.7 212.2L119.3 220.4L128.4 216.3L105.5 198.9L110.1 192.8L108.6 179.3L90.8 163.6L93.6 145.9L84.3 137.9L66.1 143.5L62.1 168.2L56.3 176.2L63.4 209.8Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M104.1 140.3L93.6 145.9L90.8 163.6L108.6 179.3L107.6 202.1L126.7 211.1L130.2 220.2L145.6 211.9L147.6 201.9L161.2 198.5L160.8 191.5L153.8 186.7L171.7 161.0L155.3 141.8L161.9 117.4L141.5 103.3L113.7 97.2L97.2 81.5L82.3 98.9L104.1 140.3Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M137.3 251.1L202.9 198.7L206.2 191.3L203.7 182.6L182.5 162.1L171.7 161.0L153.8 186.7L160.8 191.5L161.2 198.5L147.6 201.9L145.6 211.9L125.8 223.0L123.8 228.7L130.2 240.7L125.2 246.1L127.6 252.0L137.3 251.1Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M165.3 291.0L191.0 304.9L199.9 297.7L227.9 241.3L230.7 216.3L201.8 198.7L158.2 226.7L137.3 251.1L128.2 252.0L135.8 296.0L165.3 291.0Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M-32.4 217.4L-47.2 227.0L-50.4 236.5L-38.4 238.7L-34.5 244.6L-36.4 253.6L-11.0 271.6L31.6 275.8L29.1 264.9L32.2 257.0L26.4 237.0L28.7 216.1L-3.6 200.6L-24.2 201.0L-33.4 207.1L-32.4 217.4Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M162.4 119.2L155.3 141.8L164.3 154.7L186.7 165.1L203.7 182.6L204.7 201.1L230.7 216.3L241.5 217.6L272.6 193.4L295.0 192.4L315.7 172.3L335.5 190.4L354.7 184.7L363.6 157.1L362.7 146.0L383.3 135.3L397.0 175.4L414.6 179.9L429.7 205.0L446.9 203.7L480.7 161.8L381.7 13.3L323.0 31.4L321.6 12.4L295.5 -14.3L294.0 -25.9L279.8 -34.8L272.1 -25.4L263.4 -31.3L255.2 -52.9L271.5 -86.0L258.8 -97.7L241.1 -75.7L198.8 -76.9L188.1 -51.4L193.6 -35.3L179.3 -25.2L196.7 -11.7L213.6 13.1L192.9 21.8L161.9 2.0L129.1 8.3L133.9 21.0L129.1 30.7L130.5 57.7L143.9 62.8L146.6 79.8L141.5 103.3L162.4 119.2Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M479.9 505.5L521.0 519.5L526.1 530.3L559.7 546.5L574.2 563.2L572.9 582.0L577.7 594.4L592.2 608.1L607.4 612.0L630.8 604.0L664.3 566.1L679.6 541.7L684.6 517.7L664.8 429.7L632.0 370.5L594.5 409.1L584.1 409.0L557.0 393.8L537.8 359.2L491.6 357.4L486.7 351.3L499.6 331.9L499.9 310.0L485.8 301.4L480.2 286.6L454.5 264.6L460.1 237.0L490.6 238.9L521.6 217.2L480.7 161.8L446.9 203.7L429.7 205.0L414.6 179.9L397.0 175.4L383.3 135.3L371.2 138.6L362.7 146.0L363.6 157.1L354.7 184.7L335.5 190.4L315.7 172.3L295.0 192.4L272.6 193.4L241.5 217.6L230.7 216.3L227.9 241.3L199.9 297.7L191.0 304.9L216.0 356.3L247.3 368.8L347.9 475.3L389.8 502.9L479.9 505.5Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M48.0 322.6L32.6 293.0L27.5 292.1L29.1 280.1L24.3 273.4L2.1 275.3L-17.0 267.5L-25.4 281.9L-20.9 303.2L-25.5 328.0L-11.1 332.4L48.0 322.6Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M-3.6 200.6L28.7 216.1L60.4 205.4L56.3 176.2L62.1 168.2L66.1 143.5L51.2 131.6L36.3 137.0L18.6 125.9L-12.8 153.3L-42.8 158.1L-36.1 180.4L-55.3 200.4L-87.3 206.7L-92.6 214.3L-90.4 225.2L-77.7 232.6L-50.4 236.5L-47.2 227.0L-32.4 217.4L-33.4 207.1L-24.2 201.0L-3.6 200.6Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M20.3 125.5L36.3 137.0L51.2 131.6L66.1 143.5L84.3 137.9L99.3 143.8L104.1 140.3L82.3 98.9L97.2 81.5L113.7 97.2L141.5 103.3L146.6 79.8L143.9 62.8L130.5 57.7L129.1 30.7L133.9 21.0L129.1 8.3L161.9 2.0L192.9 21.8L213.6 13.1L196.7 -11.7L179.3 -25.2L164.9 -30.4L145.7 -24.8L117.8 -40.0L105.8 -32.4L80.6 -44.8L64.9 -29.1L64.9 -7.6L54.6 -1.7L29.4 -18.1L-8.1 -6.5L-20.9 -8.9L-31.3 -21.7L-71.5 -19.3L-75.8 -31.8L-65.4 -54.4L-90.3 -49.6L-126.3 -58.5L-138.6 -40.5L-163.6 -23.1L-134.9 -2.6L-130.1 28.3L-139.3 43.8L-141.1 57.5L-120.1 72.6L-118.0 85.6L-103.6 94.5L-117.6 114.6L-113.0 136.4L-90.4 149.2L-62.9 147.5L-42.8 158.1L-12.8 153.3L20.3 125.5Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M329.5 -108.7L271.5 -86.0L258.3 -65.5L255.2 -52.9L263.4 -31.3L272.1 -25.4L279.8 -34.8L294.0 -25.9L295.5 -14.3L321.6 12.4L323.0 31.4L381.7 13.3L351.3 -46.4L329.5 -108.7Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M137.3 251.1L202.9 198.7L206.2 191.3L203.7 182.6L182.5 162.1L171.7 161.0L153.8 186.7L160.8 191.5L161.2 198.5L147.6 201.9L145.6 211.9L125.8 223.0L123.8 228.7L130.2 240.7L125.2 246.1L127.6 252.0L137.3 251.1Z" fill="none" stroke="var(--ink-1)" stroke-width="1.6"/></g>
       <text class="focus-label" x="165" y="207" text-anchor="middle"
             paint-order="stroke" stroke="var(--surface-1)" stroke-width="3.5"
             stroke-linejoin="round">HU8</text>
@@ -1217,7 +1217,7 @@
       scenario, on the climate layer: <b>HU8</b> outlined in both. Blue is a
       premium that <i>falls</i> under the EA's future flood extents, red one that
       rises; the ramp and its breaks are the map's own. HU8 is the single
-      district in Great Britain whose premium falls (<b>+2%</b>) — and
+      district in Great Britain whose premium falls (<b>+6%</b>) — and
       it is made of 4 sectors running from <b>HU8 9 at
       -26%</b> to <b>HU8 7 at +51%</b>. Both
       statements are true; only one of them is useful to somebody choosing where
