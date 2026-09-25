@@ -54,25 +54,35 @@ OUT = os.path.join("data", "sw_fractions.csv")
 # it comes back faint. Measured 2026-09-25 (alpha census, every layer read
 # here): EA present, climate and depth layers carry 255 alpha levels; NRW
 # carries 16 (4x4 supersampling) on a 40%-opacity style, so a fully
-# covered NRW pixel is alpha 102 and quarter cover renders as 26; SEPA's
-# export is binary. A postcode counts as inside the extent when its pixel
-# is at least SW_COVERAGE_MIN covered, on each source's own scale.
+# covered NRW pixel is alpha 102; SEPA's export is binary. A postcode is
+# inside the extent when its pixel's alpha reaches MIN_ALPHA[kind].
 #
-# 0.25 is FITTED, and against an external count: the EA's own residential
-# properties at risk (KSI packs, scripts/validate_flood_england.py) over
-# 94 constituencies in ten 26 km tiles. Chosen on half of them (md5 split),
-# the held-out half scores 1.17x the EA's >=1% share and 1.02x its
-# any-band share (Spearman +0.94 / +0.97). The rule it replaced, alpha > 16
-# (6% cover on the EA scale, 16% on NRW's), read 1.45x / 1.43x. Treating
-# alpha as a probability instead (no constant) reads 0.76x / 0.71x: the EA
-# counts a property at risk more generously than centroid-in-extent does.
-SW_COVERAGE_MIN = 0.25
-FULL_ALPHA = {"ea_color": 255, "wms_cql": 102, "sepa": 255}
+# EA: 25% coverage (alpha >= 64), FITTED against an external count - the
+# EA's own residential properties at risk (KSI packs,
+# scripts/validate_flood_england.py). Chosen on half of 94 constituencies
+# in ten 26 km tiles (md5 split), the held-out half scores 1.17x the EA's
+# >=1% share and 1.02x its any-band share; built nationally, 1.18x / 1.00x
+# over 543 constituencies at Spearman +0.94 / +0.96. The rule it replaced,
+# alpha > 16 (6% cover), read 1.60x / 1.53x nationally. Treating alpha as
+# a probability instead (no constant) reads 0.76x / 0.71x on the tiles:
+# the EA counts a property at risk more generously than centroid-in-extent.
+#
+# NRW: alpha > 16 (16% cover), deliberately NOT moved to 25%. That was
+# built and measured: against NRW's own surface-water people at risk
+# (validate_flood_ordering.py) Welsh sw_high already reads ~0.56x NRW's
+# level at the old rule - FRAW is the more conservative product - and 25%
+# took it to ~0.43x and Spearman +0.72 -> +0.69. A threshold fitted to one
+# agency's counts is not evidence about another agency's map.
+#
+# SEPA: binary, so any threshold reads the same.
+EA_COVERAGE_MIN = 0.25
+MIN_ALPHA = {"ea_color": round(EA_COVERAGE_MIN * 255),   # 64
+             "wms_cql": 17, "sepa": 17}
 
 
-def covered(alpha, full):
-    """Pixels at least SW_COVERAGE_MIN covered; half a level of rounding slack."""
-    return alpha >= SW_COVERAGE_MIN * full - 0.5
+def covered(alpha, kind):
+    """Pixels whose alpha reaches this source's MIN_ALPHA."""
+    return alpha >= MIN_ALPHA[kind]
 
 EA_SW = ("https://environment.data.gov.uk/spatialdata/"
          "nafra2-risk-of-flooding-from-surface-water/wms")
@@ -154,7 +164,7 @@ def masks_for_tile(region, bbox):
         if img is None:
             return None
         a = np.asarray(img)
-        painted = covered(a[:, :, 3], FULL_ALPHA["ea_color"])
+        painted = covered(a[:, :, 3], "ea_color")
         if not painted.any():
             return {}
         rgb = a[:, :, :3].astype(np.int32)
@@ -174,7 +184,7 @@ def masks_for_tile(region, bbox):
             img = http_image(NRW + "?" + urllib.parse.urlencode(q))
             if img is None:
                 return None
-            out[band] = covered(np.asarray(img)[:, :, 3], FULL_ALPHA["wms_cql"])
+            out[band] = covered(np.asarray(img)[:, :, 3], "wms_cql")
         return out
 
     # sepa
@@ -188,7 +198,7 @@ def masks_for_tile(region, bbox):
                          + urllib.parse.urlencode(q))
         if img is None:
             return None
-        out[band] = covered(np.asarray(img)[:, :, 3], FULL_ALPHA["sepa"])
+        out[band] = covered(np.asarray(img)[:, :, 3], "sepa")
     return out
 
 

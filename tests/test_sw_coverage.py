@@ -1,8 +1,8 @@
-"""Surface-water masks count a pixel only when it is SW_COVERAGE_MIN covered.
+"""Surface-water masks count a pixel only when its alpha reaches MIN_ALPHA.
 
-Alpha is coverage on each source's own scale (EA 255, NRW 102 at its 40%
-opacity), and the depth masks must apply the frequency masks' rule or the
-depth bands stop nesting inside the frequency envelope.
+EA: 25% coverage (fitted to the EA's counts). NRW: its old rule, kept on
+NRW's own counts. The depth masks must apply the frequency masks' rule
+or the depth bands stop nesting inside the frequency envelope.
 """
 import os
 import sys
@@ -27,11 +27,11 @@ def _image(pixels, size=2):
     return Image.fromarray(a, "RGBA")
 
 
-def test_quarter_cover_on_each_scale():
+def test_thresholds_per_source():
     al = np.array([16, 17, 24, 25, 26, 63, 64, 102, 255])
-    assert al[fs.covered(al, fs.FULL_ALPHA["ea_color"])].tolist() == [64, 102, 255]
-    # NRW: 16 levels of 102, quarter cover renders as 26 and must count
-    assert al[fs.covered(al, fs.FULL_ALPHA["wms_cql"])].tolist() == [25, 26, 63, 64, 102, 255]
+    assert fs.MIN_ALPHA["ea_color"] == 64                  # 25% of 255
+    assert al[fs.covered(al, "ea_color")].tolist() == [64, 102, 255]
+    assert al[fs.covered(al, "wms_cql")].tolist() == [17, 24, 25, 26, 63, 64, 102, 255]
 
 
 def test_ea_frequency_mask_drops_faint_pixels(monkeypatch):
@@ -42,8 +42,8 @@ def test_ea_frequency_mask_drops_faint_pixels(monkeypatch):
     assert m["low"].tolist() == [[False, True], [False, True]]
 
 
-def test_nrw_mask_uses_its_own_opacity_scale(monkeypatch):
-    img = _image([(LOW, 13), (LOW, 26), (LOW, 102), (LOW, 164)])
+def test_nrw_keeps_its_own_rule(monkeypatch):
+    img = _image([(LOW, 13), (LOW, 19), (LOW, 102), (LOW, 164)])
     monkeypatch.setattr(fs, "http_image", lambda url: img)
     region = dict(fs.REGIONS["wales"], tile=2)
     m = fs.masks_for_tile(region, (0, 0, 40, 40))
