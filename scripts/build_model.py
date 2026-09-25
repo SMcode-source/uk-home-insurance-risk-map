@@ -2070,10 +2070,17 @@ def main():
         out[col] = out[col].fillna(0.0)
     # Output precision. This is the ONLY place the published columns are
     # quantised, and it is worth knowing what it costs before reading a
-    # figure back out of the file: `el*` and `premium` land on 1 dp
-    # (below), `capital` on 4 dp. Across 2,736 districts, 1-dp rounding
-    # puts SD 0.00067 on an exposure-weighted mean and 4-dp rounding puts
-    # SD 6.7e-7 on one. That is why price_sub_level.py reproduced capital
+    # figure back out of the file: `el*` land on 2 dp, `premium` and the
+    # tail measures on 1 dp (below), `capital` on 4 dp. Across 2,736
+    # districts, 1-dp rounding puts SD 0.00067 on an exposure-weighted
+    # mean - IF the rounding errors are independent, which needs the
+    # column to spread across many 0.1 steps. Groundwater does not: it
+    # sits in a band about 0.4 wide nationally, so at 1 dp its errors
+    # share a sign and the household mean read out of the file was
+    # £1.46 against an unrounded £1.49 (2026-09-25, caught by
+    # doc_figures.py's el_total identity). Hence 2 dp for `el*`: the
+    # Markdown quotes every peril's EL to the penny. 4-dp rounding puts
+    # SD 6.7e-7 on a mean. That is why price_sub_level.py reproduced capital
     # to six decimals and missed el_total by 0.0011 - two quantisations,
     # not a disagreement. Anything argued to better than +-0.0013 on EL
     # or premium must come from an unrounded run, not from this file.
@@ -2086,7 +2093,9 @@ def main():
             continue
         if col in round1:
             out[col] = out[col].round(round1[col])
-        elif "var" in col or col.startswith("el") or col == "premium":
+        elif col.startswith("el"):
+            out[col] = out[col].round(2)
+        elif "var" in col or col == "premium":
             out[col] = out[col].round(1)
         elif col.startswith("er_"):
             # erosion fractions run down to ~1e-6 for lightly-clipped
