@@ -139,19 +139,19 @@ of that change's headline effect.
 
 ## 3. Per-peril provenance, and what each driver actually is
 
-EL per policy and share of the **£164.32 priced** total. Note which line
+EL per policy and share of the **£164.24 priced** total. Note which line
 is outside it:
 
 | peril | EL | share | driver | resolution | coverage |
 |---|---|---|---|---|---|
-| Escape of water | £42.39 | **25.80%** | air-frost days | 1991–2020 **climatology** | UK — **no year-to-year variation** |
-| Fire | £28.00 | 17.04% | MHCLG dwelling-fire incidents | fire-authority area | GB |
-| Theft | £22.04 | 13.41% | police.uk burglary points | **street level** | E&W; Scotland at council resolution |
-| Flood | £20.13 | 12.25% | EA RoFRS risk bands / NRW FRAW / SEPA polygons | share of unit postcodes in each band | UK; depth England only |
-| Subsidence | £19.81 | 12.05% | BGS clay shrink–swell | 1:625,000 | GB |
+| Escape of water | £42.39 | **25.81%** | air-frost days | 1991–2020 **climatology** | UK — **no year-to-year variation** |
+| Fire | £28.00 | 17.05% | MHCLG dwelling-fire incidents | fire-authority area | GB |
+| Theft | £22.04 | 13.42% | police.uk burglary points | **street level** | E&W; Scotland at council resolution |
+| Flood | £20.13 | 12.26% | EA RoFRS risk bands / NRW FRAW / SEPA polygons | share of unit postcodes in each band | UK; depth England only |
+| Subsidence | £19.81 | 12.06% | BGS clay shrink–swell | 1:625,000 | GB |
 | Storm | £15.74 | 9.58% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
-| Accidental damage | £14.65 | 8.91% | census child-share | LSOA | GB |
-| Groundwater | £1.57 | 0.96% | EA alert areas | postcode flag | **England only** |
+| Accidental damage | £14.65 | 8.92% | census child-share | LSOA | GB |
+| Groundwater | £1.49 | 0.91% | EA alert areas | postcode flag | **England only** |
 | *Coastal erosion* | *£3.09* | *—* | *EA NCERM frontages; NatureScot Dynamic Coast* | *frontage / eroded-area polygons* | ***England + Scotland on two bases (`er_basis`); Welsh coast unmapped; UNPRICED*** |
 
 **Coastal erosion is deliberately outside `el_total`** — "no policy pays

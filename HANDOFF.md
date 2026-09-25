@@ -37,8 +37,8 @@ and the map sits inside its own noise floor. Tab 4 SHIPPED as
 workstream, which is the honest headline: five gates of temperature
 work found one real map (subsidence geography) and no level.
 
-**The current premium is £169.8428 — £169.84 at 2dp, districts;
-£169.8449 at sector grain; loss cost £164.32.** `scripts/doc_figures.py
+**The current premium is £169.7653 — £169.77 at 2dp, districts;
+£169.7658 at sector grain; loss cost £164.24.** `scripts/doc_figures.py
 --check` holds this line and LIMITATIONS §3 to the committed output
 (its own step in `tests.yml`, on main); after a publish, run it with
 `--fix` and commit. Stated here because everything below this
