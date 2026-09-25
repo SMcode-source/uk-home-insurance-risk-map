@@ -176,7 +176,7 @@ built both tables via `--flags-from`, so the grains read identical flags.
 
 | | district | sector |
 |---|---|---|
-| headline | 169.7457 → 169.7488 | 169.7488 → 169.7508 |
+| headline | 169.7457 → 169.7489 | 169.7488 → 169.7508 |
 | Scotland (household mean) | −1.45 | −1.47 |
 | England / Wales (pin only) | +0.15 / +0.13 | +0.15 / +0.13 |
 | rating groups changed | 196 (4.7% of homes) | 360 (2.9%) |
@@ -200,14 +200,13 @@ built both tables via `--flags-from`, so the grains read identical flags.
   Scottish districts: f_high 0.0051 → 0.0034, f_low 0.0068 → 0.0052. The
   big movers are thin units (PH17: 13 postcodes) where 100 m polygons had
   inflated both grains unevenly (0.156 vs 0.216 → 0.055 vs 0.063).
-- **The laptop did not reproduce CI.** `rebuild.yml verify=true` (run
-  36077933168) failed: same packages, same OSTN15 pipeline, and the only
-  differing log line is the `wdr` district range (2402.1 laptop, 2401.9
-  CI), which moves `wx_score` in the fourth decimal on most districts. So
-  the district numbers above are superseded by the bot's CI build
-  (`rebuild.yml commit=true` on the branch); the sector build was always
-  the bot's (run 38, `42d20c5`). Whether the laptop≠CI gap is new or was
-  already there under the published build is open.
+- **Every number above is a CI build** (district: `rebuild.yml commit=true`,
+  run 36078524656, `40ee70b`; sector: bot run 38, `42d20c5`). A laptop
+  district build first failed `verify=true` (run 36077933168): launched
+  from PowerShell, whose virtualised AppData hides the OSTN15 grid, it had
+  built on the Helmert fallback. The priced delta was nearly the same
+  (+0.0031 vs +0.0032, the same 196 groups), but the output was not.
+  main `8c5cc3d` now refuses to build without the grid.
 
 To publish (the user's decision): merge both branches' data in one push;
 DATA_SOURCES #9 is already updated on the branch. It composes with
