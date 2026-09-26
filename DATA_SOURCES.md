@@ -1722,8 +1722,8 @@ districts**, used as the exposure weight throughout.
         rofrs_4band              four risk bands, defence-aware
         rofrs_4band_0_2m_depth   ... through rofrs_1_2m_depth
 
-    Two things the model did not have when this was written; the
-    first is now in, the second is still not:
+    Two things the model did not have when this was written; both
+    are now in (the bands 2026-09-25, the depth bands 2026-09-26):
     - **The risk bands.** `f_high`/`f_low` were sampled from a
       different dataset, `rivers-and-sea-defended-and-undefended-flood-
       risk-extents-present-day`, layers
@@ -1735,8 +1735,18 @@ districts**, used as the exposure weight throughout.
       is not even one return period — it unions rivers at 1 in 100
       (1%/yr) with sea at 1 in 200 (0.5%/yr).
     - **River/sea depth bands**, the exact analogue of #20, for the
-      larger half of flood. The model has depth-conditioned severity
-      for surface water only.
+      larger half of flood. In since 2026-09-26
+      (`fetch_rs_depth_postcodes.py` -> `data/rs_depth[_cc].csv`,
+      `scores_real.rs_depth_severity`; refetch with `rs-depth.yml` or
+      sector-model.yml's river/sea depth jobs). The five layers
+      (`rofrs_4band_{0_2,0_3,0_6,0_9,1_2}m_depth`, climate
+      `rofrs_cc01_4band_*`) share `rofrs_4band`'s legend and nest to
+      0.1-0.35% of pixels. The band is read in the same pass and
+      reproduces the frequency fetch's bands at 100.000% of 1,428,927
+      postcodes. Depth is "Unavailable" at 16.7% of >=1%-band
+      postcodes, 60% of them in PE: those are left out of envelope
+      and depth alike, and a unit with none of its own (PE11, PE13,
+      PE14) takes its postcode area's distribution.
 
 ## Budget: zero, decided 2026-08-31
 
