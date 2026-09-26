@@ -54,7 +54,10 @@ the postcodes where depth IS published: e_high / e_low are the
 envelope counted over those postcodes only, the d* bands are counted
 over the same set, and scores_real.rs_depth_severity conditions on
 the file's own e_* rather than on the caller's f_high / f_low. A unit
-with no published depth in its envelope keeps the flat severity.
+with no published depth in its own envelope takes its parent's depth
+distribution through the shrinkage prior (PE11, PE13 and PE14 - the
+Fens - get the PE area's, 2026-09-26), and flat severity only if the
+parent has none either.
 
 The deep layers' small polygons are mostly stroke, so the classifier
 searches wider neighbourhoods here (DEPTH_WINDOWS): at the default
