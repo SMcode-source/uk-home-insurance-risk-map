@@ -172,6 +172,83 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-26: river/sea depth severity, both grains - NOT published
+
+`exp/rs-depth` (district run 75, c110ee7) and `exp/rs-depth-sector`
+(sector run 43, 9146746). The river/sea leg has been priced at one flat
+ABI claim size everywhere; surface water has carried a depth multiplier
+since 2026-08. The EA publishes five RoFRS depth layers next to
+`rofrs_4band` (`rofrs_4band_{0_2,0_3,0_6,0_9,1_2}m_depth`, climate
+`rofrs_cc01_4band_*`), same legend, nested. This reads them at unit
+postcodes and gives river/sea the same depth-damage core as surface
+water, on the ZONE frequency only (the 0.05% background has no depth).
+
+**The fetch** (`scripts/fetch_rs_depth_postcodes.py`,
+`.github/workflows/rs-depth.yml`, run 36205880535, 4 parts x 2 editions,
+~25 min): the band itself is read in the same pass (`b00`), so the band
+files are the whole input and aggregate at either grain. `b00` equals
+the published fetch's `rofrs_bands` at **100.000% of 1,428,927 postcodes
+in both editions**. The runner's district aggregation and a laptop one
+of the same files are identical; the sector branch's own push ran an
+independent second fetch (36207569273) and its sector tables are
+identical to the committed ones. Sector rolled up to districts: national
+bands within 0.5%, per-district correlation 0.999.
+
+**Depth is not published everywhere the band is.** "Unavailable" at 1.9%
+of English postcodes but **16.7% of the >=1% band** (climate 10.3%), in
+all five layers alike; 60% of those are in PE, and PE11/PE13/PE14 (the
+Fens) have none of their own. Those postcodes are left out of envelope
+and depth alike (the conditional uses the file's own `e_high`/`e_low`);
+a unit with none takes its parent's distribution through the shrinkage
+prior - the three Fens districts get the PE area's (0.945, 0.39 m), not
+flat. That is the gap to state: the most exposed river/sea districts in
+England are priced on their neighbours' depth.
+
+**Normalisation is over claims, not households.** The first version
+reused surface water's household-weighted mean of 1; its mean per claim
+(households x zone frequency) was **1.059**, because deep water sits
+where the claims are. The flood total is pinned nationally, so that
+would have lowered flood frequency everywhere to pay for it - Wales,
+Scotland and groundwater moving with no hazard change there. Computed,
+not built. Weighting by claims makes the change a redistribution inside
+England. **Published surface water has the same property at 1.022 per
+claim**; unchanged here, a candidate of its own.
+
+| | districts | sectors |
+|---|---|---|
+| headline | 169.7653 -> 169.7635 (-0.0017) | 169.7658 -> 169.7650 (-0.0007) |
+| England / Scotland / Wales | -0.003 / +0.007 / +0.008 | -0.002 / +0.006 / +0.007 |
+| flood, groundwater (national) | £20.13, £1.49 unchanged | £20.13, £1.49 unchanged |
+| premium_cc (national) | 175.17 -> 175.51 | 175.15 -> 175.45 |
+| rating groups | 235 of 2,736 (9.6% of hh) | 846 of 10,398 (8.3%) |
+| rs_sev min / p5 / p50 / p95 / max | 0.50 / 0.55 / 0.91 / 1.46 / 2.14 | 0.50 / 0.52 / 0.90 / 1.56 / 2.15 |
+
+Movers: up DN7 +102 (Thorne/Fishlake, 1.31 m), DN14 +76 (Goole),
+LN12 +42, YO8/YO1 +28, M7 +21 (Lower Broughton); sectors DN14 6 +216,
+DN7 4 +164. Down DN32 -21 / DN35 -19 (Grimsby, Cleethorpes: wide shallow
+tidal plains, 0.2 m), BS23 -21 (Weston), HU9 -14; sectors CA28 0 -77,
+TN23 9 -73. Newham (E6, E12) comes out among the deepest (1.3 m) with no
+>=1% band at all: the whole signal is the defended Thames fringe, i.e.
+the depth if defences fail. The climate edition is deeper, so the
+climate premium rises (+0.34 districts) while the present-day one is
+flat.
+
+**Not validated.** No external source gives river/sea depth at homes
+anywhere; the EA KSI counts are frequency and do not move. `DEPTH_DAMAGE`
+is the same unanchored curve surface water uses.
+
+Tests: `tests.yml` dispatched on `exp/rs-depth` green (36236131727). On
+the sector branch the property tests pass (141) and the site-build step
+fails with `StopIteration` on the district FOCUS - identically on
+`sector-model` itself (36236307419), which `tests.yml` had never been run
+on. Not this change.
+
+To publish: the usual two-branch push, plus `rs-depth.yml` is an exp
+workflow (push-triggered on the exp branches because a dispatch needs
+main). The sector-model full fetch has no river/sea depth step yet; add
+it to sector-model.yml before a publish, or a full refetch would
+condition the committed depth table on a refetched envelope, silently.
+
 ## PUBLISHED 2026-09-26: surface water at 25% pixel coverage in England, both grains
 
 Published on the user's decision, both grains in one push (main
