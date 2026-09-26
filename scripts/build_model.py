@@ -56,6 +56,7 @@ from scipy import stats
 from scores_real import (subsidence_score, weather_from_metoffice,
                          flood_from_agencies, groundwater_from_ea,
                          erosion_from_ncerm, sw_depth_severity, load_country,
+                         rs_depth_severity,
                          theft_from_police, frost_from_metoffice,
                          drought_from_haduk,
                          fires_from_mhclg, children_from_census,
@@ -97,7 +98,8 @@ OUTPUT_COLUMNS = [
     "wind_ms", "wdr_idx", "rain10_days", "precip_mm",
     "gust_rp50",
     "f_high", "f_low", "sw_high", "sw_low", "gw_frac",
-    "sw_sev", "sw_depth_m", "th_rate", "frost_days", "eow_rate",
+    "sw_sev", "sw_depth_m", "rs_sev", "rs_depth_m",
+    "th_rate", "frost_days", "eow_rate",
     "sub_drought_mm", "sub_rel",
     "fire_rate", "ad_rate",
     "er_score", "er_head", "er_basis",
@@ -746,7 +748,8 @@ def marginal_params(f):
     """Per-district claim frequency and severity for each peril.
 
     `f` is a mapping of same-shaped per-district arrays: sub, wx, f_high,
-    f_low, sw_high, sw_low, gw_frac, sw_sev (depth severity multiplier)
+    f_low, sw_high, sw_low, gw_frac, sw_sev and rs_sev (surface-water and
+    river/sea depth severity multipliers)
     and er (erosion zone fraction). Passing a mapping rather than nine
     positional arguments keeps the three call sites legible.
 
@@ -770,8 +773,9 @@ def marginal_params(f):
     # river/sea flood frequency from actual zone fractions: ~1.5%/yr for a
     # property in the defended 1in100/200 zone, ~0.3%/yr in the rest of
     # the 1in1000 envelope, 0.05%/yr background
-    p_rs = (0.0005 + 0.015 * f["f_high"]
-            + 0.003 * np.maximum(f["f_low"] - f["f_high"], 0))
+    p_rs_zone = (0.015 * f["f_high"]
+                 + 0.003 * np.maximum(f["f_low"] - f["f_high"], 0))
+    p_rs = 0.0005 + p_rs_zone
     # surface water: ~1%/yr in the >=1% AEP zone, shallower/cheaper events
     p_sw = (0.010 * f["sw_high"]
             + 0.002 * np.maximum(f["sw_low"] - f["sw_high"], 0))
@@ -857,7 +861,12 @@ def marginal_params(f):
     # see sw_depth_severity) - deep water damages a house far more than a
     # few centimetres, and the multiplier is normalised to leave the
     # national average, and so the ABI calibration, unchanged.
-    mu_rs = np.log(_median_for_mean(ABI["sev_flood_fluvial"], s_fl))
+    # The river/sea leg carries its own depth multiplier (EA RoFRS depth
+    # layers, see rs_depth_severity), on the zone frequency only: the
+    # 0.05% background has no mapped depth and stays at flat severity.
+    rs_sev = (0.0005 + p_rs_zone * f["rs_sev"]) / p_rs
+    mu_rs = np.log(_median_for_mean(
+        ABI["sev_flood_fluvial"] * rs_sev, s_fl))
     mu_sw = np.log(_median_for_mean(
         ABI["sev_surface_water"] * f["sw_sev"], s_fl))
     # The two legs are a MIXTURE, moment-matched to a single lognormal on
@@ -922,7 +931,8 @@ def _fields(src):
             [("sub", "sub_score"), ("sub_rel", "sub_rel"),
              ("wx", "wx_score"), ("f_high", "f_high"),
              ("f_low", "f_low"), ("sw_high", "sw_high"), ("sw_low", "sw_low"),
-             ("gw_frac", "gw_frac"), ("sw_sev", "sw_sev"), ("er", "er_frac"),
+             ("gw_frac", "gw_frac"), ("sw_sev", "sw_sev"), ("rs_sev", "rs_sev"),
+             ("er", "er_frac"),
              ("th", "th_rate"), ("eow", "eow_rate"),
              ("fire", "fire_rate"), ("ad", "ad_rate"),
              ("ct_th", "ct_th"), ("ct_eow", "ct_eow"),
@@ -1856,6 +1866,10 @@ def main():
         gdf["name"].values, gdf["sw_high"].values, gdf["sw_low"].values,
         gdf["households"].values)
 
+    print("conditioning river/sea severity on EA RoFRS depth bands...")
+    gdf["rs_sev"], gdf["rs_depth_m"] = rs_depth_severity(
+        gdf["name"].values, gdf["households"].values)
+
     print("scoring theft from police.uk burglary counts...")
     gdf["th_rate"] = theft_from_police(gdf["name"].values,
                                        gdf["households"].values)
@@ -1995,6 +2009,8 @@ def main():
         fut["sw_sev"], _ = sw_depth_severity(
             gdf["name"].values, swh_cc, swl_cc, gdf["households"].values,
             climate=True)
+        fut["rs_sev"], _ = rs_depth_severity(
+            gdf["name"].values, gdf["households"].values, climate=True)
         print(f"running climate-change simulation "
               f"({N_SIM:,} years/district)...")
         sim_cc, _ = simulate(fut)
@@ -2063,6 +2079,7 @@ def main():
     # undefined where no depth is mapped - Wales, Scotland, and English
     # districts with no surface water at all - so send it out as 0.
     out["sw_depth_m"] = out["sw_depth_m"].fillna(0.0)
+    out["rs_depth_m"] = out["rs_depth_m"].fillna(0.0)
     # Same for the climate columns: undefined outside England, where the EA
     # publishes no future extents. `cc_covered` is the flag that keeps the
     # zero readable as "not modelled" rather than "no change".
@@ -2086,6 +2103,7 @@ def main():
     # or premium must come from an unrounded run, not from this file.
     round1 = {"wind_ms": 1, "wdr_idx": 1, "rain10_days": 1, "precip_mm": 0,
               "gust_rp50": 0, "households": 0, "sw_depth_m": 2,
+              "rs_depth_m": 2,
               "frost_days": 1}
     for col in keep:
         if col in ("name", "area", "country", "geometry", "group", "geol",

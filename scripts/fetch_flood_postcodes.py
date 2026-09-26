@@ -144,13 +144,14 @@ RS_WINDOWS = (5, 11, 21)    # neighbourhoods tried in turn, in pixels
 RS_FAINT = 128              # an inexact pixel fainter than this is "none"
 
 
-def classify_rofrs(a, rows, cols):
+def classify_rofrs(a, rows, cols, windows=RS_WINDOWS):
     """Band codes (RS_NAMES) at pixels (rows, cols) of an RGBA tile, and
     whether each was read directly rather than settled by its neighbours.
 
     Only the requested pixels are settled: the model needs the band at
     each postcode's pixel, and settling a whole 2048-px tile costs ten
-    times the fetch."""
+    times the fetch. `windows` widens the search for sparse layers (the
+    depth layers' small deep polygons are mostly stroke)."""
     rgb = a[:, :, :3].astype(np.int32)
     alpha = a[:, :, 3]
     clear = alpha <= 16
@@ -164,7 +165,7 @@ def classify_rofrs(a, rows, cols):
     direct = known[rows, cols]
     todo = ~direct & (alpha[rows, cols] >= RS_FAINT)
     H, W = alpha.shape
-    for win in RS_WINDOWS:
+    for win in windows:
         if not todo.any():
             break
         i = np.nonzero(todo)[0]
@@ -181,7 +182,7 @@ def classify_rofrs(a, rows, cols):
         todo[i[has]] = False
     if todo.any():
         raise SystemExit(f"{int(todo.sum())} pixels with no readable pixel "
-                         f"within {RS_WINDOWS[-1] // 2} of them - the style "
+                         f"within {windows[-1] // 2} of them - the style "
                          f"has changed; re-read the legend")
     return out, direct
 
@@ -444,7 +445,9 @@ def main():
             raise SystemExit(f"{len(ff.FAILED)} tiles failed - refusing to "
                              "write a partial file")
         # The per-postcode bands, kept for diagnosis (which postcodes fell
-        # in "Unavailable", which sit on a stroke). Not model input.
+        # in "Unavailable", which sit on a stroke). Not model input;
+        # fetch_rs_depth_postcodes.py reads the same layer in its own
+        # pass and reports its agreement with this file when present.
         os.makedirs(os.path.join(DATA, "cache"), exist_ok=True)
         pd.DataFrame({"postcode": pc["postcode"], "band": code}).to_csv(
             os.path.join(DATA, "cache",

@@ -26,6 +26,7 @@ import build_model as bm  # noqa: E402
 from scores_real import (subsidence_score, weather_from_metoffice,  # noqa: E402
                          flood_from_agencies, groundwater_from_ea,
                          erosion_from_ncerm, sw_depth_severity,
+                         rs_depth_severity,
                          theft_from_police, frost_from_metoffice,
                          drought_from_haduk,
                          fires_from_mhclg, children_from_census)
@@ -52,6 +53,8 @@ def main():
     gdf["sw_sev"], _ = sw_depth_severity(
         gdf["name"].values, gdf["sw_high"].values, gdf["sw_low"].values,
         gdf["households"].values)
+    gdf["rs_sev"], _ = rs_depth_severity(
+        gdf["name"].values, gdf["households"].values)
     # The attritional rate columns _fields() has required since theft
     # landed (each later peril widened the gap). The arithmetic mirrors
     # build_model.main() exactly - the normalisation must live here,

@@ -45,6 +45,7 @@ def fingerprint():
         "sw_low": rng.uniform(0.0, 0.5, n),
         "gw_frac": rng.uniform(0.0, 0.5, n),
         "sw_sev": rng.uniform(0.6, 2.5, n),
+        "rs_sev": rng.uniform(0.6, 2.5, n),
         "er_frac": rng.uniform(0.0, 0.05, n),
         "households": rng.uniform(200, 40000, n),
     })
