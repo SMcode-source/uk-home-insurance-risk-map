@@ -1,6 +1,6 @@
 name: river/sea depth
 
-# EXPERIMENT (exp/rs-depth, 2026-09-26). Samples the EA RoFRS depth
+# Refetches river/sea depth for either grain (built 2026-09-26). Samples the EA RoFRS depth
 # layers (rofrs_4band_<d>_depth, d = 0.2 ... 1.2 m) and the band itself
 # at every English unit-postcode centroid - scripts/
 # fetch_rs_depth_postcodes.py --flags - in four parallel parts per
@@ -18,15 +18,10 @@ name: river/sea depth
 # so each part is well inside the job limit.
 
 on:
-  # A dispatch needs the file on the default branch, and an experiment
-  # does not go to main. So it also runs on a push to the experiment
-  # branches that changes the fetch itself (never on the bot's data
-  # commits, which touch neither path; `commit` is false on a push).
-  push:
-    branches: [exp/rs-depth, exp/rs-depth-sector]
-    paths:
-      - .github/workflows/rs-depth.yml
-      - scripts/fetch_rs_depth_postcodes.py
+  # Dispatch only. While it was an experiment it also ran on pushes to
+  # exp/rs-depth[-sector] (a dispatch needs the file on main); those
+  # runs - 36205880535 and the independent 36207569273 - produced the
+  # published tables and reproduced them.
   workflow_dispatch:
     inputs:
       commit:

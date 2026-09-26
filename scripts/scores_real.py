@@ -633,7 +633,7 @@ def _band_shares(env, frac):
 
 
 def _depth_multiplier(names, env_hi, env_lo, frac_hi, frac_lo, households,
-                      freq_hi, freq_lo, ref, climate, label, weights=None):
+                      freq_hi, freq_lo, ref, climate, label):
     """Depth-damage multiplier from nested exceedance fractions: the core
     shared by surface water and rivers/sea.
 
@@ -642,8 +642,6 @@ def _depth_multiplier(names, env_hi, env_lo, frac_hi, frac_lo, households,
     0.9/1.2 m, all on one basis. freq_hi / freq_lo are the claim-frequency
     weights of the two bands (see marginal_params). `ref` is the present-
     day reference a climate run is normalised against (None: its own).
-    `weights` are what the mean-1 normalisation averages over (default:
-    households).
 
     Returns (multiplier, mean_depth_m, own_ref); the caller keeps own_ref
     from its present-day call as the reference for the climate run.
@@ -687,16 +685,28 @@ def _depth_multiplier(names, env_hi, env_lo, frac_hi, frac_lo, households,
     mean_depth = np.full(len(names), np.nan)
     mean_depth[have] = share[have] @ mids
 
-    # Renormalise so the exposure-weighted national mean multiplier is 1.0:
-    # this re-shapes severity across districts without moving the level the
+    # Renormalise so the national mean multiplier PER CLAIM is 1.0: this
+    # re-shapes severity across districts without moving the level the
     # ABI calibration has already fixed.
+    #
+    # Per claim, not per household. The flood total is pinned nationally
+    # (build_model.calibrate_frequency re-derives flood's frequency from
+    # the severity the legs deliver), so a multiplier averaging 1 per
+    # household but more per claim - deep water sits where the claims
+    # are - raises England's claim size, lowers the national flood
+    # frequency to pay for it, and moves Welsh and Scottish flood and
+    # everyone's groundwater with no hazard change there. Household
+    # weighting gave 1.022 per claim for surface water (live until
+    # 2026-09-26) and would have given 1.059 for rivers/sea. Weighting by
+    # households x zone frequency makes it a redistribution inside England.
     #
     # The climate run must NOT renormalise to its own mean. Doing so would
     # divide out exactly what it is measuring - water getting deeper
     # everywhere - and leave only the relativities, reporting no severity
     # change at all. It is therefore normalised against the PRESENT-DAY
     # reference, so a uniformly deeper future comes out above 1.0.
-    w = np.asarray(households if weights is None else weights, dtype=float)
+    w = np.asarray(households, dtype=float) * (
+        freq_hi * env_hi + freq_lo * np.maximum(env_lo - env_hi, 0.0))
     own_ref = float(np.average(mult[have], weights=w[have])) if have.any() else 1.0
     if climate and ref is not None:
         print(f"  (climate depth normalised against the present-day "
@@ -869,25 +879,11 @@ def rs_depth_severity(names, households, climate=False):
     env_lo = np.array([r[1] for r in rows])
     frac_hi = np.array([r[2] for r in rows])
     frac_lo = np.array([r[3] for r in rows])
-    # Normalised over CLAIMS, not households. The flood total is pinned
-    # nationally (build_model.calibrate_frequency re-derives flood's
-    # frequency from the severity the legs deliver), so a multiplier
-    # whose mean is 1 per household but 1.06 per claim - which is what
-    # household weighting gave on the 2026-09-26 tables, deep water
-    # sitting where the claims are - raises England's river/sea claim
-    # size, lowers the national flood frequency to pay for it, and so
-    # moves Welsh and Scottish flood and everyone's groundwater with no
-    # hazard change there. Weighting by households x zone frequency
-    # makes the mean river/sea claim in England what it was, and the
-    # multiplier a pure redistribution within England. (Surface water's
-    # multiplier is household-weighted, mean 1.022 per claim; unchanged
-    # here, HANDOFF 2026-09-26.)
-    claims = np.asarray(households, dtype=float) * (
-        RS_FREQ_HIGH * env_hi + RS_FREQ_LOW * np.maximum(env_lo - env_hi, 0.0))
+    # normalised per claim, on this file's envelope: see _depth_multiplier
     mult, mean_depth, own_ref = _depth_multiplier(
         names, env_hi, env_lo, frac_hi, frac_lo, households,
         RS_FREQ_HIGH, RS_FREQ_LOW, _RS_DEPTH_REF if climate else None,
-        climate, "rs depth", weights=claims)
+        climate, "rs depth")
     if not climate:
         _RS_DEPTH_REF = own_ref
     return mult, mean_depth

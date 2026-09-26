@@ -98,6 +98,8 @@ def test_sector_model_commits_every_regenerated_input():
                   if "git add" in (s.get("run") or ""))["run"]
     for f in ("data/erosion.csv", "data/flood_fractions.csv",
               "data/sw_fractions.csv", "data/sw_depth.csv",
+              "data/sw_fractions_cc.csv", "data/sw_depth_cc.csv",
+              "data/rs_depth.csv", "data/rs_depth_cc.csv",
               "data/subsidence_postcodes.csv",
               "data/districts_risk.geojson", "data/year_analysis.json"):
         assert f in commit, f"{f} is regenerated but not committed"
