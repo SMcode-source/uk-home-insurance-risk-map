@@ -754,6 +754,30 @@ def test_fire_severity_mean_hits_the_anchor_average():
     assert abs(mean / bm.ABI["sev_fire"] - 1) < 1e-6
 
 
+def test_flood_band_frequencies_have_one_definition():
+    """marginal_params prices flood from scores_real's band frequencies,
+    the same constants both depth multipliers weight their bands by. Until
+    2026-09-27 marginal_params carried its own literal copies (0.015/0.003/
+    0.010/0.002/0.0005), so the two could drift apart unseen and
+    sensitivity.py could not perturb them. Moving each constant must move
+    p_fl by exactly its own term - which fails if a literal creeps back."""
+    import scores_real as sr
+    f = fields(f_high=0.1, f_low=0.3, sw_high=0.2, sw_low=0.5)
+    base = float(bm.marginal_params(f)["p_fl"][0])
+    k = bm.FREQ_SCALE["fl"]
+    terms = {"RS_FREQ_HIGH": 0.1, "RS_FREQ_LOW": 0.3 - 0.1,
+             "SW_FREQ_HIGH": 0.2, "SW_FREQ_LOW": 0.5 - 0.2,
+             "RS_FREQ_BACKGROUND": 1.0}
+    for name, weight in terms.items():
+        old = getattr(sr, name)
+        try:
+            setattr(sr, name, old + 0.001)
+            moved = float(bm.marginal_params(f)["p_fl"][0])
+        finally:
+            setattr(sr, name, old)
+        assert abs((moved - base) - 0.001 * weight * k) < 1e-12, name
+
+
 def test_fire_frequency_is_the_dwelling_rate_scaled():
     """p_fire is the precomputed fire_rate (anchor level x dwelling-fire
     relativity, built in main() where the exposure weights live) times

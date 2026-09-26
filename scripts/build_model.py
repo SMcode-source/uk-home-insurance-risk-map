@@ -63,6 +63,7 @@ from scores_real import (subsidence_score, weather_from_metoffice,
                          ct_value_from_bands,
                          flood_future, flood_score_from_fractions,
                          EROSION_HORIZON_YEARS)
+import scores_real  # flood band frequencies, read at call time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "..", "data")
@@ -772,13 +773,21 @@ def marginal_params(f):
     p_wx = 0.010 + 0.090 * wx ** 1.2
     # river/sea flood frequency from actual zone fractions: ~1.5%/yr for a
     # property in the defended 1in100/200 zone, ~0.3%/yr in the rest of
-    # the 1in1000 envelope, 0.05%/yr background
-    p_rs_zone = (0.015 * f["f_high"]
-                 + 0.003 * np.maximum(f["f_low"] - f["f_high"], 0))
-    p_rs = 0.0005 + p_rs_zone
-    # surface water: ~1%/yr in the >=1% AEP zone, shallower/cheaper events
-    p_sw = (0.010 * f["sw_high"]
-            + 0.002 * np.maximum(f["sw_low"] - f["sw_high"], 0))
+    # the 1in1000 envelope, 0.05%/yr background. Surface water: ~1%/yr in
+    # the >=1% AEP zone, shallower/cheaper events outside it.
+    #
+    # The band frequencies live in scores_real, read at call time, and
+    # nowhere else. Until 2026-09-27 they were literals here AND named
+    # constants there (the depth multipliers weight their bands by them),
+    # so the two could drift apart and sensitivity.py could not perturb
+    # them. Only the RATIOS matter: calibrate_frequency re-pins the level.
+    p_rs_zone = (scores_real.RS_FREQ_HIGH * f["f_high"]
+                 + scores_real.RS_FREQ_LOW
+                 * np.maximum(f["f_low"] - f["f_high"], 0))
+    p_rs = scores_real.RS_FREQ_BACKGROUND + p_rs_zone
+    p_sw = (scores_real.SW_FREQ_HIGH * f["sw_high"]
+            + scores_real.SW_FREQ_LOW
+            * np.maximum(f["sw_low"] - f["sw_high"], 0))
     p_fl = p_rs + p_sw
     p_gw = 0.0003 + 0.008 * f["gw_frac"]
     # Coastal erosion. A property inside the strip projected to be lost by
@@ -864,7 +873,7 @@ def marginal_params(f):
     # The river/sea leg carries its own depth multiplier (EA RoFRS depth
     # layers, see rs_depth_severity), on the zone frequency only: the
     # 0.05% background has no mapped depth and stays at flat severity.
-    rs_sev = (0.0005 + p_rs_zone * f["rs_sev"]) / p_rs
+    rs_sev = (scores_real.RS_FREQ_BACKGROUND + p_rs_zone * f["rs_sev"]) / p_rs
     mu_rs = np.log(_median_for_mean(
         ABI["sev_flood_fluvial"] * rs_sev, s_fl))
     mu_sw = np.log(_median_for_mean(

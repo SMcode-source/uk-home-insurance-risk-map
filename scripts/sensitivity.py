@@ -31,6 +31,19 @@ Scenarios:
                     depth-damage curve (Huizinga et al. 2017) - a
                     citable shape, though on a different basis (see
                     JRC_EU_RESIDENTIAL).
+  flood_band_ratio_2_5/10   high-zone : envelope claim-rate ratio 2.5:1 /
+                    10:1 on both flood legs (5:1 as shipped); level re-pinned
+  flood_rs_weight_067/150   river/sea band frequencies x2/3 / x1.5 against
+                    surface water; level re-pinned
+  gw_share_05/20    GW_SHARE_OF_FLOOD 0.05 / 0.20 (0.10) - moves a LEVEL
+  gw_background_01/04   GW_BACKGROUND 0.01 / 0.04 (0.02): groundwater
+                    outside the EA alert areas (Wales, Scotland)
+  spatial_equal     SPATIAL_BASE loadings set equal at their mean
+  Not covered: the subsidence susceptibility tables (LEX_SUSCEP,
+  RCS_SUSCEP, OLD_AGE_FACTOR, DEFAULT_SUSCEP). The model reads them
+  through data/subsidence_postcodes.csv, scored once at the unit
+  postcodes, so a scenario needs score_subsidence_postcodes.py re-run
+  (BGS + ONSPD) per variant.
 
 Reading the churn column: since capital stopped being Monte Carlo noise
 (see build_model.simulate), churn measures the perturbation rather than the
@@ -53,7 +66,8 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_model as bm  # noqa: E402
-from scores_real import sw_depth_severity, rs_depth_severity  # noqa: E402
+from scores_real import (sw_depth_severity, rs_depth_severity,  # noqa: E402
+                         groundwater_from_ea)
 
 import scores_real  # noqa: E402  (DEPTH_DAMAGE is read at call time)
 
@@ -65,7 +79,12 @@ ORIG = dict(theta_ws=bm.theta_ws, theta_wf=bm.theta_wf, theta_wg=bm.theta_wg,
             marginal_params=bm.marginal_params, fields=bm._fields,
             rho_sf=bm.RHO_SF_GIVEN_W, rho_fg=bm.RHO_FG_GIVEN_W,
             rho_fe=bm.RHO_FE_GIVEN_W,
-            depth_damage=list(scores_real.DEPTH_DAMAGE))
+            depth_damage=list(scores_real.DEPTH_DAMAGE),
+            gw_background=scores_real.GW_BACKGROUND,
+            gw_share=bm.GW_SHARE_OF_FLOOD,
+            spatial_base=dict(bm.SPATIAL_BASE),
+            **{k: getattr(scores_real, k) for k in
+               ("SW_FREQ_HIGH", "SW_FREQ_LOW", "RS_FREQ_HIGH", "RS_FREQ_LOW")})
 CTX = {}    # the full frame and the sample, for scenarios that must redo both
 
 
@@ -170,22 +189,94 @@ def set_depth_damage(curve):
     """Install a depth-damage curve and redo what build_model derives."""
     scores_real.DEPTH_DAMAGE = list(curve)
     print(f"  DEPTH_DAMAGE -> {[round(c, 3) for c in curve]}", flush=True)
+    rederive()
+
+
+# Columns a scenario may re-derive on the full frame; reset() restores them.
+REDERIVED = ("sw_sev", "rs_sev", "gw_score", "gw_frac")
+
+
+def rederive(groundwater=False):
+    """Redo, on the FULL frame and in build_model.main()'s order, everything
+    derived from a module constant a scenario has just changed: both depth
+    multipliers (normalised per claim, weighted by the band frequencies),
+    optionally groundwater, then both calibrations - and copy the result
+    into the sample. The flood pin re-solves here, so a scenario that only
+    reshapes flood keeps the national flood level by construction."""
     full, sample = CTX["full"], CTX["sample"]
     full["sw_sev"], _ = sw_depth_severity(
         full["name"].values, full["sw_high"].values, full["sw_low"].values,
         full["households"].values)
     full["rs_sev"], _ = rs_depth_severity(
         full["name"].values, full["households"].values)
+    if groundwater:
+        full["gw_score"], full["gw_frac"] = groundwater_from_ea(
+            full["name"].values)
     bm.calibrate_frequency(full)
     bm.calibrate_spatial(full)
-    for col in ("sw_sev", "rs_sev"):
+    for col in REDERIVED:
         sample[col] = full[col].values[::3]
+
+
+FLOOD_FREQS = ("SW_FREQ_HIGH", "SW_FREQ_LOW", "RS_FREQ_HIGH", "RS_FREQ_LOW")
+
+
+def flood_bands(ratio=None, rs_weight=1.0):
+    """Reshape the unanchored flood band frequencies (scores_real, read by
+    marginal_params and by both depth weightings).
+
+    ratio: the high-zone : rest-of-envelope claim-rate ratio, 5:1 on both
+    legs as shipped (1.5%/0.3% river/sea, 1.0%/0.2% surface water); the
+    high band is held and the low one moved. rs_weight: river/sea against
+    surface water, both of its bands scaled. The background 0.05%/yr is
+    left alone. Only shape can move - rederive() re-pins the level.
+    """
+    for leg in ("SW", "RS"):
+        hi = ORIG[f"{leg}_FREQ_HIGH"] * (rs_weight if leg == "RS" else 1.0)
+        lo = (hi / ratio if ratio else
+              ORIG[f"{leg}_FREQ_LOW"] * (rs_weight if leg == "RS" else 1.0))
+        setattr(scores_real, f"{leg}_FREQ_HIGH", hi)
+        setattr(scores_real, f"{leg}_FREQ_LOW", lo)
+    print("  flood bands -> " + ", ".join(
+        f"{k} {getattr(scores_real, k):.4f}" for k in FLOOD_FREQS), flush=True)
+    rederive()
+
+
+def gw_share(share):
+    """GW_SHARE_OF_FLOOD: groundwater has no published claims total, so its
+    national frequency is pegged at this share of flood's (0.10 as shipped).
+    Unlike the flood reshapes this moves a LEVEL - the only one here."""
+    bm.GW_SHARE_OF_FLOOD = share
+    rederive()
+
+
+def gw_background(frac):
+    """GW_BACKGROUND: the groundwater-emergence fraction given to every
+    district the EA alert areas do not cover (Wales and Scotland), 0.02 as
+    shipped. The peg to flood holds the national level, so this moves
+    groundwater between England and the rest."""
+    scores_real.GW_BACKGROUND = frac
+    rederive(groundwater=True)
+
+
+def spatial_equal():
+    """SPATIAL_BASE's four systemic loadings (weather 0.50, flood 0.40,
+    subsidence 0.60, groundwater 0.70) set equal at their mean; the overall
+    scale is re-solved to the same 1-in-100 target as always."""
+    m = float(np.mean(list(ORIG["spatial_base"].values())))
+    bm.SPATIAL_BASE = {k: m for k in ORIG["spatial_base"]}
+    rederive()
 
 
 def reset():
     scores_real.DEPTH_DAMAGE = list(ORIG["depth_damage"])
+    for k in FLOOD_FREQS:
+        setattr(scores_real, k, ORIG[k])
+    scores_real.GW_BACKGROUND = ORIG["gw_background"]
+    bm.GW_SHARE_OF_FLOOD = ORIG["gw_share"]
+    bm.SPATIAL_BASE = dict(ORIG["spatial_base"])
     for frame in ("full", "sample"):
-        for col in ("sw_sev", "rs_sev"):
+        for col in REDERIVED:
             if frame in CTX:
                 CTX[frame][col] = CTX[f"{frame}_{col}"]
     if "flood_sev_blend" in ORIG:
@@ -224,6 +315,16 @@ SCENARIOS = {
     "depth_half": lambda: depth_curve(0.5),
     "depth_steep": lambda: depth_curve(1.5),
     "depth_jrc_eu": depth_jrc,
+    # the other unanchored constants (added 2026-09-27)
+    "flood_band_ratio_2_5": lambda: flood_bands(ratio=2.5),
+    "flood_band_ratio_10": lambda: flood_bands(ratio=10.0),
+    "flood_rs_weight_067": lambda: flood_bands(rs_weight=2 / 3),
+    "flood_rs_weight_150": lambda: flood_bands(rs_weight=1.5),
+    "gw_share_05": lambda: gw_share(0.05),
+    "gw_share_20": lambda: gw_share(0.20),
+    "gw_background_01": lambda: gw_background(0.01),
+    "gw_background_04": lambda: gw_background(0.04),
+    "spatial_equal": spatial_equal,
 }
 
 
@@ -276,7 +377,7 @@ def main():
     sample = gdf.iloc[::3].reset_index(drop=True)
     CTX["full"], CTX["sample"] = gdf, sample
     for frame in ("full", "sample"):
-        for col in ("sw_sev", "rs_sev"):
+        for col in REDERIVED:
             CTX[f"{frame}_{col}"] = CTX[frame][col].values.copy()
     print(f"sample: {len(sample)} districts, N_SIM={bm.N_SIM}", flush=True)
 

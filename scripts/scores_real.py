@@ -608,9 +608,10 @@ DEPTH_BANDS = [("d02", 0.0, 0.2), ("d03", 0.2, 0.3), ("d06", 0.3, 0.6),
 DEPTH_DAMAGE = [0.45, 0.75, 1.00, 1.35, 1.60, 1.95]
 
 
-# Claim-frequency weights per likelihood band, matching marginal_params:
-# a property in the >=1% AEP ("high") zone claims about five times as often
-# as one in the rest of the 1-in-1000 envelope.
+# Claim frequencies per likelihood band - the only definition;
+# build_model.marginal_params reads them at call time: a property in the
+# >=1% AEP ("high") zone claims about five times as often as one in the
+# rest of the 1-in-1000 envelope.
 SW_FREQ_HIGH, SW_FREQ_LOW = 0.010, 0.002
 
 # Exposure-weighted mean of the raw present-day multiplier. Held so the
@@ -821,11 +822,13 @@ def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
 
 # ---------------------------------------------------- river/sea depth
 
-# Frequency weights of the two RoFRS likelihood bands, matching p_rs in
-# build_model.marginal_params: ~1.5%/yr inside the >=1% AEP zone, ~0.3%/yr
-# in the rest of the 0.1% envelope. The 0.05% background carries no depth
-# information and is kept at flat severity by the caller.
+# Frequencies of the two RoFRS likelihood bands: ~1.5%/yr inside the >=1%
+# AEP zone, ~0.3%/yr in the rest of the 0.1% envelope, plus a 0.05%/yr
+# background everywhere. build_model.marginal_params reads these (and
+# SW_FREQ_* above) at call time - this is their only definition. The
+# background carries no depth information and is kept at flat severity.
 RS_FREQ_HIGH, RS_FREQ_LOW = 0.015, 0.003
+RS_FREQ_BACKGROUND = 0.0005
 
 # Present-day reference for the climate run, as _DEPTH_REF is for surface
 # water. Separate because the two multipliers are normalised separately.
