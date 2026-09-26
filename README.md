@@ -75,6 +75,8 @@ scripts/
                               centroids -> sw_depth.csv (England)
   fetch_sw_depth.py           the same bands as an AREA share (superseded as
                               model input 2026-09-20; kept for the record)
+  fetch_rs_depth_postcodes.py EA river/sea (RoFRS) depth bands at unit-postcode
+                              centroids -> rs_depth.csv (England)
   merge_sw_wales.py           folds the 20m Wales re-render into sw_fractions
   fetch_groundwater.py        EA postcode groundwater flags -> district fractions
   fetch_erosion.py            EA NCERM coastal frontages -> erosion.csv (England)
@@ -278,10 +280,26 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
      the usual UK depth–damage shape (damage climbs steeply through the first
      half-metre as water passes floor level and reaches sockets, then flattens
      once the ground floor is written off). The multiplier is **renormalised
-     to an exposure-weighted mean of 1.0**, so it re-shapes severity across
-     districts without moving the level the ABI calibration fixed — the same
-     discipline the frequency calibration follows. England only; Wales and
+     to a mean of 1.0 per claim** (households × band frequency), so it
+     re-shapes severity across districts without moving the level the ABI
+     calibration fixed — the same discipline the frequency calibration
+     follows. Until 2026-09-26 it was 1.0 per *household*, which is 1.022
+     per claim because deep water sits where the claims are; with the flood
+     total pinned nationally, that 2.2% was paid for out of Welsh and
+     Scottish flood and everyone's groundwater. England only; Wales and
      Scotland have no equivalent product and keep the flat severity.
+   - **River/sea depth** (`scripts/fetch_rs_depth_postcodes.py`, since
+     2026-09-26). The EA publishes the same five depth thresholds for the
+     RoFRS risk bands, so river/sea claims — the larger half of flood,
+     priced at one flat ABI claim size until then — get the same
+     depth-damage core, per claim, on the zone frequency only (the 0.05%
+     background has no mapped depth). Goole and Thorne/Fishlake (1.0–1.3 m)
+     rise most; Grimsby, Cleethorpes and Weston-super-Mare, wide shallow
+     tidal plains at ~0.2 m, fall. The depth layers are "Unavailable" at
+     16.7% of homes in the ≥1% band, mostly the Fens: those homes are left
+     out of the conditional, and PE11/PE13/PE14, with none of their own,
+     take their postcode area's distribution. Nothing external measures
+     depth at homes, so neither depth multiplier is validated.
      Coverage comes from the **country boundary**, not from the numbers
      (`scripts/fetch_countries.py` → `data/country.csv`). The depth file
      has a row for every district, zero-filled outside England, so judging
@@ -776,6 +794,8 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 .venv/Scripts/python -u scripts/fetch_sw_postcodes.py      # surface water -> data/sw_fractions.csv
 .venv/Scripts/python -u scripts/fetch_sw_depth_postcodes.py --flags     # five depth layers, England (~1 h)
 .venv/Scripts/python -u scripts/fetch_sw_depth_postcodes.py             # -> data/sw_depth.csv
+.venv/Scripts/python -u scripts/fetch_rs_depth_postcodes.py --flags     # band + five depth layers, England (~2 h; rs-depth.yml does it in 4 parts)
+.venv/Scripts/python -u scripts/fetch_rs_depth_postcodes.py             # -> data/rs_depth.csv
 .venv/Scripts/python scripts/fetch_erosion.py        # NCERM coastal erosion -> data/erosion.csv (~3 min, England)
 .venv/Scripts/python scripts/fetch_countries.py      # ONS country boundaries -> data/country.csv (~1 min).
                                                      # Run this BEFORE build_model: it is the coverage mask that
@@ -786,6 +806,8 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 .venv/Scripts/python -u scripts/fetch_sw_postcodes.py --climate   # -> data/sw_fractions_cc.csv
 .venv/Scripts/python -u scripts/fetch_sw_depth_postcodes.py --flags --climate
 .venv/Scripts/python -u scripts/fetch_sw_depth_postcodes.py --climate  # -> data/sw_depth_cc.csv
+.venv/Scripts/python -u scripts/fetch_rs_depth_postcodes.py --flags --climate
+.venv/Scripts/python -u scripts/fetch_rs_depth_postcodes.py --climate  # -> data/rs_depth_cc.csv
 # download Postcodes_Risk_Assessment_All.csv (see DATA_SOURCES.md #13) to data/ea_postcode_risk.csv, then:
 .venv/Scripts/python scripts/fetch_groundwater.py    # groundwater flags -> data/gw_fractions.csv
 # Gusts - data/gusts.csv is MIDAS station extremes (since 2026-08-10). To
@@ -926,11 +948,12 @@ priced product:
   (GB-only boundaries make this moot);
 - groundwater uses alert-area *coverage*, not modelled emergence probability,
   and is England-only;
-- surface-water **severity** is now depth-conditioned, but only in England:
-  Wales and Scotland publish no depth product, so they keep the flat severity.
-  That is an asymmetry in the *spread* of severity, not its level — the
-  multiplier is renormalised to a national mean of 1.0 — but it means English
-  districts are differentiated on depth and the rest are not;
+- flood **severity** is depth-conditioned (surface water, and since
+  2026-09-26 rivers/sea), but only in England: Wales and Scotland publish no
+  depth product, so they keep the flat severity. That is an asymmetry in the
+  *spread* of severity, not its level — each multiplier is renormalised to a
+  mean of 1.0 per claim — but it means English districts are differentiated
+  on depth and the rest are not;
 - coastal **erosion** is England-only (NCERM), assumes households are spread
   uniformly across the district when they in fact cluster towards the shore,
   and annualises an 80-year projection into a flat yearly hazard. It is

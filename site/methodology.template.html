@@ -352,14 +352,25 @@ __NAV__
     depth–damage shape: damage climbs steeply through the first half-metre as water passes
     floor level and reaches sockets and plaster, then flattens once the ground floor is a
     write-off either way.</p>
-    <p>The multiplier is deliberately <b>renormalised to an exposure-weighted mean of
-    1.0</b>. That keeps it doing one job — re-shaping severity <em>between</em> districts —
-    without moving the national level that the ABI calibration already fixes. It is the same
-    discipline the frequency calibration follows: the data decides the relativities, the
-    published aggregates decide the level.</p>
+    <p>The EA publishes the same five depth thresholds for its river and sea risk bands,
+    so river and sea claims — the larger half of flood — get the same treatment. Where the
+    river water is deep (Goole, Thorne and Fishlake, over a metre) the claim is dearer; on
+    wide, shallow tidal plains (Grimsby, Cleethorpes, Weston-super-Mare, around 0.2&nbsp;m) it
+    is cheaper. The EA marks river depth "unavailable" for about a sixth of the homes in its
+    higher risk bands, mostly in the Fens; those districts take the depth of their wider
+    postcode area.</p>
+    <p>Each multiplier is deliberately <b>renormalised to a mean of 1.0 per claim</b>. That
+    keeps it doing one job — re-shaping severity <em>between</em> districts — without moving
+    the national level that the ABI calibration already fixes. Per claim rather than per
+    household matters: deep water sits where the claims are, so a multiplier averaging 1.0
+    per household averages more per claim, and because the national flood total is fixed,
+    the difference would be paid for by Welsh and Scottish homes whose flood risk had not
+    changed. It is the same discipline the frequency calibration follows: the data decides
+    the relativities, the published aggregates decide the level.</p>
     <p class="note">England only. Neither NRW nor SEPA publishes an equivalent depth
     product, so Welsh and Scottish districts keep the flat severity. That is an asymmetry in
-    the spread of severity, not in its level.</p>
+    the spread of severity, not in its level. Nothing external measures flood depth at
+    homes, so neither multiplier is validated.</p>
 
     <h3 id="theft">Theft — burglary geography from police.uk</h3>
     <p><b>__TH_INCIDENTS__ street-level burglaries</b> over the latest __TH_MONTHS__ months
@@ -727,8 +738,8 @@ __NAV__
 
     <h3>Holding the calibration still</h3>
     <p>Two normalisations had to be pinned to the present day rather than recomputed, or the
-    exercise would have measured nothing. The depth severity multiplier is normalised to an
-    exposure-weighted mean of 1.0 — recomputing that on the future data would divide out
+    exercise would have measured nothing. The depth severity multipliers are normalised to a
+    mean of 1.0 per claim — recomputing that on the future data would divide out
     exactly the "water gets deeper everywhere" signal. The flood score is anchored to the
     95th percentile of the <i>present-day</i> index for the same reason. Both runs also
     share their random draws, so the comparison is paired rather than two independent
@@ -1225,6 +1236,7 @@ __NAV__
         <tr><td><strong>SEPA</strong></td><td>River, coastal and surface-water flood maps (Scotland)</td><td>Flood</td></tr>
         <tr><td><strong>Environment Agency</strong></td><td>NaFRA2 Risk of Flooding from Surface Water (England)</td><td>Flood</td></tr>
         <tr><td><strong>Environment Agency</strong></td><td>NaFRA2 surface-water <strong>depth</strong> bands &gt;0.2/0.3/0.6/0.9/1.2 m (England)</td><td>Flood severity</td></tr>
+        <tr><td><strong>Environment Agency</strong></td><td>NaFRA2 rivers and sea <strong>depth</strong> bands &gt;0.2/0.3/0.6/0.9/1.2 m (England)</td><td>Flood severity</td></tr>
         <tr><td><strong>Environment Agency</strong></td><td>Flood-risk postcode data — groundwater alert-area flags</td><td>Groundwater</td></tr>
         <tr><td><strong>Environment Agency</strong></td><td>NCERM National 2024 coastal erosion frontages (England)</td><td>Erosion (not priced)</td></tr>
         <tr><td><strong>NatureScot</strong></td><td><a href="https://www.dynamiccoast.com/">Dynamic Coast</a> phase 2 FutureCoast erosion areas, RCP8.5-95th and RCP2.6, 2050 and 2100 (Scotland)</td><td>Erosion (not priced)</td></tr>
@@ -1307,9 +1319,10 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
       the English one.</li>
       <li><b>Groundwater uses alert-area coverage</b>, not modelled emergence probability, and
       exists only for England.</li>
-      <li><b>Surface-water depth exists only for England.</b> Neither NRW nor SEPA publishes
-      an equivalent product, so Welsh and Scottish districts keep a flat severity. The
-      multiplier is renormalised to a national mean of 1.0, so this is an asymmetry in how
+      <li><b>Flood depth exists only for England</b>, for surface water and for rivers and
+      sea. Neither NRW nor SEPA publishes an equivalent product, so Welsh and Scottish
+      districts keep a flat severity. Each multiplier is renormalised to a mean of 1.0 per
+      claim, so this is an asymmetry in how
       finely severity is differentiated, not in its overall level — but English districts
       are separated on depth and the rest are not.</li>
       <li><b>Coastal erosion covers England and Scotland on two different bases, and the

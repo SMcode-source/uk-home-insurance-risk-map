@@ -388,7 +388,7 @@ page</a>.</p>
   while TVaR stays monotone in dependence. <b>Rating groups are deciles of THIS map's
   own units</b>, so a group 7 sector and a group 7 district are not the same
   population &mdash; compare the premiums, not the group numbers.</p>
-  <p><b>Reading this map.</b> This is the <b>same technical premium</b> as the model map, re-expressed: each district is shown as a multiple of the UK median premium (&pound;163/yr, household-weighted), so 2.00&times; means homes there carry twice the median modelled risk. Nothing new is modelled on this page &mdash; it exists because &ldquo;2.4&times; the UK median&rdquo; answers &ldquo;how exposed is my area?&rdquo; more directly than a &pound; figure does.</p>
+  <p><b>Reading this map.</b> This is the <b>same technical premium</b> as the model map, re-expressed: each district is shown as a multiple of the UK median premium (&pound;162/yr, household-weighted), so 2.00&times; means homes there carry twice the median modelled risk. Nothing new is modelled on this page &mdash; it exists because &ldquo;2.4&times; the UK median&rdquo; answers &ldquo;how exposed is my area?&rdquo; more directly than a &pound; figure does.</p>
   <p class="note">Hazard data: BGS Geology 625k, Met Office HadUK-Grid / Climate
   Data Portal (incl. air-frost days), EA / NRW / SEPA flood maps, EA flood-risk
   postcode data, police.uk street-level burglary (all OGL).
@@ -468,13 +468,13 @@ const fmtPct = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
    works while "the loaded features" means all of them. Under vector
    tiles it means the viewport's, so the scale (and the legend printed
    from it) would shift as you panned. Fixed nationally, once. */
-const BREAKS = {"premium":[137.2,149.1,160.2,172.2,186.2,209.7],"var995_vine":[5091.3,5548.5,5949.1,6428.1,7088.8,8214.6],"capital":[4.4164,4.8809,5.3023,5.6929,6.1742,6.954],"er_head":[0.0004,0.0011,0.0024,0.0046,0.0084,0.0143]};
+const BREAKS = {"premium":[136.8,149.1,160.4,171.9,186.4,209.4],"var995_vine":[5091.3,5549.6,5949.8,6428.1,7088.8,8214.6],"capital":[4.4061,4.8772,5.2949,5.6891,6.1786,6.9319],"er_head":[0.0004,0.0011,0.0024,0.0046,0.0084,0.0143]};
 /* Household-weighted median premium across the whole country - the
    anchor the relative-risk page divides by. Weighted by households, not
    by unit, so a sparse rural district counts as its people, not as one
    vote; and a median, not a mean, so the skewed top of the premium
    distribution cannot drag everyone else's ratio. */
-const REL_MEDIAN = 163;
+const REL_MEDIAN = 162;
 const DEFAULT_METRIC = 'rel';
 
 /* Erosion bins are cut over the COASTAL districts only — quantiles across
