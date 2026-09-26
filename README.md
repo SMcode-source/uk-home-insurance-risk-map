@@ -528,23 +528,37 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    `data/sensitivity.json`, rendered as a table on the analysis page).
    Re-runs the simulation on a 1-in-3 district sample with perturbed
    assumptions — Gumbel dependence ±25%, tree-2 correlations zeroed/doubled,
-   severity σ ×1.1, flood frequency ×1.5, and erosion switched from the
-   adopted defence plan to no-further-intervention — reporting the impact on
+   severity σ ×1.1 at a held mean, flood frequency ×1.5, erosion switched
+   from the adopted defence plan to no-further-intervention, and four
+   alternative flood depth-damage curves — reporting the impact on
    expected loss, premium, catastrophic-year cost and rating-group churn. This
    quantifies which of the documented assumptions actually move the answer:
    the copula parameters govern the tail, the marginals govern the ranking.
+   The churn column measures each perturbation, not a noise floor, because
+   capital is a conditional expectation rather than a Monte Carlo average.
 
-   Two things worth reading out of that table. The erosion scenario raises
-   erosion exposure **2.5×** (£4.0 → £10.1 per policy) and moves **exactly
-   zero** districts between rating groups — which is what "excluded from the
-   premium" has to mean, checked rather than asserted. And since capital
-   stopped being Monte Carlo noise, the churn column measures the
-   perturbation instead of the noise floor: the weakest perturbation
-   (severity σ ×1.1) moves **6.6%** of districts and the strongest (flood
-   frequency ×1.5) **34.8%** — a 5× spread, where the noisy-capital era
-   compressed every scenario toward the same noise floor. (The flood–erosion
-   tree-2 pair is deliberately left out of the ρ perturbations: erosion sits
-   outside the premium, so varying it cannot move a rating group.)
+   Re-run 2026-09-26, after seven weeks stale (the script had been failing
+   since the council-tax severity landed — see HANDOFF). Four readings:
+   - **The copula barely touches the ranking** now: every dependence
+     scenario moves ≤0.4% of districts, down from 7–26% in August. The
+     attritional perils (escape of water, theft, fire, accidental damage)
+     now carry most of the loss, and they are independent by construction.
+   - **Flood's unanchored depth-damage curve moves the ranking** as much as
+     anything short of a 50% flood-frequency shock: ignoring depth
+     altogether moves 11.2%, a curve half or 1.5× as steep 5.5% / 6.1%, and
+     the JRC Europe residential curve 6.8%, all at an unchanged level
+     (LIMITATIONS §6).
+   - **Severity σ is a check, not a lever:** held at the mean it moves no
+     premium and no rating group (Gate 3), but it raises catastrophic-year
+     cost by 12.5%, because the year view draws realised claim sizes.
+     Until this re-run the row scaled σ after the median was fixed. That
+     raised every mean severity unevenly, which is where its old churn
+     came from.
+   - **Erosion stays out of the premium:** no further intervention raises
+     erosion exposure **2.3×** (£4.5 → £10.5 per policy on the sample) and
+     moves **exactly zero** districts, which is what "excluded from the
+     premium" has to mean. (The flood–erosion tree-2 pair is left out of
+     the ρ perturbations for the same reason.)
 11. **Good vs bad years** (`analysis/uk_risk_year_analysis.html`, built by
    `scripts/build_analysis.py`). The 20,000 simulated portfolio years are
    ranked and bucketed (good = best 50%, typical = 50–90th pct, bad = 90–99th,
@@ -684,8 +698,8 @@ Worth asking of any model that spends this much effort on dependence.
 answer splits in two:
 
 - **For one home**, modelling the perils jointly makes a multi-peril year
-  **94× more likely** (0.11% vs 0.0012% under independence) — but both are rare,
-  so that home's own 99% TVaR barely moves: **+2.7%, 95% CI −9.0% to +12.8%**,
+  **99× more likely** (0.12% vs 0.0012% under independence) — but both are rare,
+  so that home's own 99% TVaR barely moves: **+3.1%, 95% CI −7.6% to +14.6%**,
   i.e. indistinguishable from zero. (The interval straddling zero is the
   finding; its point estimate wanders between runs precisely because it is
   noise, which is why nothing is priced off it.)
@@ -844,7 +858,7 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 .venv/Scripts/python scripts/build_model.py          # calibrate + vine sim -> districts_risk.geojson + year_analysis.json (~55 min;
                                                      # the 5th vine dimension roughly doubled this - the extra Gumbel
                                                      # h-inverse bisection for erosion is the dominant cost)
-.venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs -> data/sensitivity.json (~25 min, optional)
+.venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs -> data/sensitivity.json (~35 min, optional)
 .venv/Scripts/python scripts/make_images.py          # favicon + 1200x630 social card, rendered from the data
 .venv/Scripts/python scripts/build_map.py            # -> both map pages (district and sector)
 .venv/Scripts/python scripts/build_tiles.py          # -> vector tiles, popup shards, name index (~3 min).

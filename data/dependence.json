@@ -1,14 +1,14 @@
 {
  "districts": 60,
  "years_per_district": 400000,
- "multi_peril_vine": 0.0011482083333333333,
- "multi_peril_indep": 1.2208333333333333e-05,
- "multi_peril_ratio": 94.05119453924915,
- "tvar99_vine": 5839.44873046875,
- "tvar99_indep": 5682.54833984375,
- "tvar_uplift_pct": 2.761092053100156,
+ "multi_peril_vine": 0.0012169166666666667,
+ "multi_peril_indep": 1.225e-05,
+ "multi_peril_ratio": 99.34013605442176,
+ "tvar99_vine": 5927.71484375,
+ "tvar99_indep": 5749.1806640625,
+ "tvar_uplift_pct": 3.1053847516655297,
  "tvar_uplift_ci": [
-  -8.951527063818602,
-  12.779039346552633
+  -7.6276979171540304,
+  14.625816662392975
  ]
 }

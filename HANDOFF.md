@@ -172,6 +172,82 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-26: the sensitivity table was seven weeks stale, and the depth curve moves the ranking
+
+Branch `exp/sensitivity-refresh`. No model change: `el_total`, the premium
+and every rating group are untouched. It changes `data/sensitivity.json`,
+the table on the year analysis page, and the landing-page finding built
+from it.
+
+**Why it was stale.** `data/sensitivity.json` and `data/dependence.json`
+were last written 2026-08-03 (mean premium 77.8 on the sample, against
+172.6 now). `sensitivity.py`, `seed_sweep.py` and `dependence_check.py`
+each carried a hand-copied version of `build_model.main()`'s scoring
+block. None ever gained the `ct_*` columns, so all three KeyErrored in
+`_fields()` before simulating, and all three still set erosion from
+`er_smp105` instead of `er_head`. The same rot as `analytic_el_check.py`
+on 2026-08-31, three more times. Fixed structurally:
+`build_model.score_districts(gdf)` now holds the block, `main()` calls
+it, and so do all three scripts.
+`test_analysis_scripts_score_through_build_model_not_a_copy` fails if a
+script calls a scoring reader itself. `analytic_el_check.py` keeps its
+own copy on purpose: it is the independent audit, and
+`test_analytic_el_check_builds_every_column_the_model_scores` guards it.
+
+**New scenarios.** `depth_flat/half/steep` (`DEPTH_DAMAGE**p`, p = 0 /
+0.5 / 1.5) and `depth_jrc_eu` (JRC Europe residential, Huizinga, de
+Moel & Szewczyk 2017, read at band midpoints). Each redoes the per-claim
+normalisation and the flood pin on the FULL frame, as `main()` does, then
+replaces the sample's columns. `reset()` restores `DEPTH_DAMAGE`, the
+columns, `FLOOD_SEV_BLEND` and `ABI_TARGET_FREQ`. A smoke run with a
+second baseline after the depth scenarios reproduced the first exactly.
+
+**Fixed scenario.** `sev_sigma_up` scaled σ after μ had been set from
+the mean, so every mean severity rose by e^{0.105σ²} — unevenly, more
+for the wider perils. The old 6.6% (August) / 10.5% (now) churn was that
+level shift. It now holds each mean. Rerun alone beside the baseline
+(the baseline was dict-identical to the full run's) and merged: 0.0%
+churn, premium unchanged, which is Gate 3 confirmed end to end. The
+catastrophic-year cost does rise +12.5% (425.9 → 479.0): the year view
+draws realised claim sizes, so σ reaches the tail diagnostic but never
+the price.
+
+### As measured (1-in-3 sample, 912 districts, N_SIM 8,000, ~35 min)
+
+| scenario | E[loss] | premium | cat year | churn |
+|---|---|---|---|---|
+| baseline | 166.8 | 172.6 | 425.9 | — |
+| θ−1 ×0.75 / ×1.25 | 166.8 / 166.8 | 172.5 / 172.7 | 425.7 / 426.2 | 0.0% / 0.4% |
+| tree-2 ρ zero / doubled | 166.8 / 166.8 | 172.6 / 172.6 | 425.7 / 426.6 | 0.0% / 0.4% |
+| σ ×1.1, mean held | 166.8 | 172.6 | 479.0 | 0.0% |
+| flood frequency ×1.5 | 177.0 | 183.3 | 476.6 | 24.9% |
+| erosion NFI | 166.8 | 172.6 | 425.9 | 0.0% (erosion 4.5 → 10.5) |
+| depth flat / ×0.5 / ×1.5 | 166.9 / 166.8 / 166.8 | 172.8 / 172.7 / 172.6 | 426.5 / 425.7 / 427.4 | 11.2% / 5.5% / 6.1% |
+| depth JRC Europe | 166.7 | 172.6 | 427.7 | 6.8% |
+
+Readings:
+- **The copula no longer moves the ranking** (≤0.4%, down from 7–26%
+  in August). Theft, EoW, fire and AD are independent legs by
+  construction and now carry most of the loss, so capital is a smaller
+  share and dependence reshuffles almost nothing. The landing-page
+  headline ("dependence sets the tail; the marginals set the ranking")
+  is MORE true than when it was written; its uplift-range clause is
+  gone, because the per-policy uplift is noise and the range had
+  collapsed to "11–11%".
+- **`DEPTH_DAMAGE` is the most consequential unanchored constant with
+  a scenario:** 11.2% of groups if depth is ignored. The JRC curve is on
+  a different basis (unconditional damage fraction, 0 at 0 m, so its
+  shallow end folds in no-claim, which this model prices in frequency)
+  and is a bracket, not an anchor. LIMITATIONS §6 now names it.
+- **`dependence_check.py` re-run the same day** (`data/dependence.json`
+  was also 2026-08-03 and feeds the methodology page's multi-peril
+  figures): multi-peril ratio ×94 → ×99 (vine 0.122% vs 0.00123%), TVaR
+  uplift +2.8% → +3.1% (CI −7.6% to +14.6%, still straddling zero).
+  README's hand copy updated; the site injects the rest.
+- **Not re-run:** `seed_sweep.py` (`seed-sweep.yml` on CI, an hour;
+  `data/seed_sensitivity.json` from 2026-08-22). It now runs through
+  `score_districts` but has not been run since the change.
+
 ## PUBLISHED 2026-09-26: river/sea depth, and both depth multipliers normalised per claim, both grains
 
 Published on the user's explicit choice (asked after "go ahead and do
@@ -506,10 +582,12 @@ Against a 5 m reference: coastal medium 1,136 vs 859 postcodes in (+32%),
 features) point the same way. Unsimplified coastal polygons 500 the
 server, so the fix is a small tolerance at one feature per page.
 
-Unanchored constants with no sensitivity scenario: `DEPTH_DAMAGE`,
+Unanchored constants with no sensitivity scenario:
 `SPATIAL_BASE`, `SW_FREQ_HIGH/LOW`, `GW_SHARE_OF_FLOOD`, `GW_BACKGROUND`, the
 `LEX_SUSCEP`/`RCS_SUSCEP` table, `OLD_AGE_FACTOR`, `DEFAULT_SUSCEP`. None is
-wrong on evidence; none has a scenario in `sensitivity.py`.
+wrong on evidence; none has a scenario in `sensitivity.py`. (`DEPTH_DAMAGE`
+was on this list until 2026-09-26; it now has four, see "MEASURED
+2026-09-26: the sensitivity table was seven weeks stale".)
 
 All three flood findings are model changes: exp branches, both grains,
 the user decides. The two measurement scripts were scratch and are not

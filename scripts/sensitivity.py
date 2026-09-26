@@ -11,20 +11,33 @@ Scenarios:
   baseline          as shipped (sampled - numbers differ slightly from full run)
   theta_low/high    Gumbel dependence excess (theta-1) x0.75 / x1.25, all pairs
   rho2_zero/high    tree-2 partial correlations 0 / doubled (FG 0.5, FS 0.3)
-  sev_sigma_up      all severity sigmas x1.1 (heavier tails)
+  sev_sigma_up      the five cat-peril severity sigmas x1.1, means held
+                    (heavier tails, same level) - a check: Gate 3 says
+                    sigma cancels out of EL and capital, so it should
+                    move nothing
   flood_freq_150    flood claim frequencies x1.5 (climate-change-style stress)
   erosion_no_intervention   erosion from the NFI (defences lapse) scenario
                     instead of the adopted SMP. Doubles as a check that the
                     exclusion is wired correctly: it raises erosion exposure
-                    2.5x (4.0 -> 10.1 per policy) and moves EXACTLY ZERO
-                    districts between rating groups, which is what "not in
-                    the premium" has to mean.
+                    (England; Scotland keeps Dynamic Coast) and must move
+                    EXACTLY ZERO districts between rating groups, which is
+                    what "not in the premium" has to mean.
+  depth_flat/half/steep   flood depth-damage relativities DEPTH_DAMAGE**p
+                    for p = 0 / 0.5 / 1.5; p = 0 prices no depth at all.
+                    Re-normalised per claim and the flood pin re-solved,
+                    as build_model does, so the level holds by construction
+                    and the scenario measures the spread only.
+  depth_jrc_eu      DEPTH_DAMAGE replaced by the JRC Europe residential
+                    depth-damage curve (Huizinga et al. 2017) - a
+                    citable shape, though on a different basis (see
+                    JRC_EU_RESIDENTIAL).
 
 Reading the churn column: since capital stopped being Monte Carlo noise
 (see build_model.simulate), churn measures the perturbation rather than the
 noise floor - weak perturbations move fewer districts and strong ones move
-more (currently ~5x between the weakest and strongest scenario; before the
-fix every scenario sat near the same noise floor). The exact figures move
+more (before the fix every scenario sat near the same noise floor). The
+check rows (sev_sigma_up, erosion_no_intervention) should read exactly
+0.0 - anything else is a wiring fault. The exact figures move
 whenever the model inputs do, so quote them from data/sensitivity.json,
 never from this docstring.
 
@@ -40,13 +53,9 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_model as bm  # noqa: E402
-from scores_real import (subsidence_score, weather_from_metoffice,  # noqa: E402
-                         flood_from_agencies, groundwater_from_ea,
-                         erosion_from_ncerm, sw_depth_severity,
-                         rs_depth_severity,
-                         theft_from_police, frost_from_metoffice,
-                         drought_from_haduk,
-                         fires_from_mhclg, children_from_census)
+from scores_real import sw_depth_severity, rs_depth_severity  # noqa: E402
+
+import scores_real  # noqa: E402  (DEPTH_DAMAGE is read at call time)
 
 bm.N_SIM = 8000
 bm.BATCH = 100      # smaller than the main run: 8 scenarios back to back
@@ -55,7 +64,9 @@ ORIG = dict(theta_ws=bm.theta_ws, theta_wf=bm.theta_wf, theta_wg=bm.theta_wg,
             theta_we=bm.theta_we,
             marginal_params=bm.marginal_params, fields=bm._fields,
             rho_sf=bm.RHO_SF_GIVEN_W, rho_fg=bm.RHO_FG_GIVEN_W,
-            rho_fe=bm.RHO_FE_GIVEN_W)
+            rho_fe=bm.RHO_FE_GIVEN_W,
+            depth_damage=list(scores_real.DEPTH_DAMAGE))
+CTX = {}    # the full frame and the sample, for scenarios that must redo both
 
 
 def scale_theta(k):
@@ -68,11 +79,25 @@ def scale_theta(k):
 
 
 def sigma_up(f):
+    """Severity sigmas x f with each MEAN held: mu drops by the matching
+    (f^2 - 1) sigma^2 / 2, exactly as marginal_params' _median_for_mean
+    would have set it.
+
+    Until 2026-09-26 this scaled sigma after mu was fixed, so every mean
+    rose by exp((f^2 - 1) sigma^2 / 2) - more for the wider perils - and
+    the row labelled "heavier tails" measured an uneven severity LEVEL
+    change (10.5% churn, E[loss] +3.7%). Held at the mean, Gate 3 says
+    sigma cancels out of EL and capital exactly
+    (test_severity_sigma_cannot_move_capital), so this row is now a check,
+    like erosion's: it should move nothing.
+    """
     def wrapped(*a):
         m = dict(ORIG["marginal_params"](*a))
         for key in ("sev_sub", "sev_wx", "sev_fl", "sev_gw", "sev_er"):
             m[key] = dict(m[key])
-            m[key]["sigma"] = m[key]["sigma"] * f
+            s = m[key]["sigma"]
+            m[key]["sigma"] = s * f
+            m[key]["mu"] = m[key]["mu"] - (f ** 2 - 1.0) * s ** 2 / 2.0
         return m
     bm.marginal_params = wrapped
 
@@ -88,18 +113,85 @@ def flood_freq(f):
 def erosion_scenario(col):
     """Swap which NCERM scenario drives the erosion peril.
 
-    `er_frac` normally holds the SMP (planned-defence) 2105 zone; the
-    no-further-intervention case - defences allowed to lapse - is the
-    interesting stress, and roughly doubles the national land loss.
+    `er_frac` normally holds er_head: the SMP (planned-defence) 2105 zone
+    in England and Dynamic Coast in Scotland. The no-further-intervention
+    case - defences allowed to lapse - is the interesting stress, and
+    roughly doubles the national land loss. NCERM has no Scottish pair
+    (Dynamic Coast publishes one management case), so Scotland keeps its
+    er_head rather than being zeroed by an England-only column.
     """
     def wrapped(src):
         f = ORIG["fields"](src)
-        f["er"] = np.asarray(src[col].values, dtype=float)
+        f["er"] = np.where(src["er_basis"].values == "dynamiccoast",
+                           src["er_head"].values,
+                           src[col].values).astype(float)
         return f
     bm._fields = wrapped
 
 
+def depth_curve(power):
+    """Raise the depth-damage relativities to `power`, then re-derive
+    everything build_model derives from them.
+
+    DEPTH_DAMAGE is unanchored and, since 2026-09-26, shapes BOTH flood
+    legs. power 0 flattens it to 1.0 everywhere (depth carries no price at
+    all: severity by likelihood zone only); 0.5 halves its log-spread; 1.5
+    stretches it by half again. Unlike the other scenarios this cannot
+    live in marginal_params: the multipliers are normalised per claim on
+    the FULL frame and the national flood pin (FLOOD_SEV_BLEND) is solved
+    from them, so both are redone on the full frame and the sample's
+    columns replaced - exactly the order build_model.main() uses.
+    """
+    set_depth_damage([d ** power for d in ORIG["depth_damage"]])
+
+
+# JRC global flood depth-damage functions, Europe, residential buildings
+# (Huizinga, de Moel & Szewczyk 2017, EUR 28552 EN, JRC105688): damage
+# factor by water depth in metres. The one free, citable curve on the
+# shelf - but NOT on the model's basis. It is an unconditional damage
+# fraction that runs to 0 at 0 m, so its shallow end carries "no claim
+# at all", which this model prices in FREQUENCY; DEPTH_DAMAGE is
+# severity GIVEN a claim. Read it as a steep bracket, not an anchor.
+JRC_EU_RESIDENTIAL = [(0.0, 0.0), (0.5, 0.25), (1.0, 0.40), (1.5, 0.50),
+                      (2.0, 0.60), (3.0, 0.75), (4.0, 0.85), (5.0, 0.95),
+                      (6.0, 1.00)]
+
+
+def depth_jrc():
+    """DEPTH_DAMAGE replaced by the JRC Europe residential curve, read at
+    each band's midpoint depth (the same midpoints the model reports as
+    mean depth). Only the shape matters: it is renormalised per claim."""
+    xs, ys = zip(*JRC_EU_RESIDENTIAL)
+    mids = [0.5 * (lo + hi) for _, lo, hi in scores_real.DEPTH_BANDS]
+    set_depth_damage([float(v) for v in np.interp(mids, xs, ys)])
+
+
+def set_depth_damage(curve):
+    """Install a depth-damage curve and redo what build_model derives."""
+    scores_real.DEPTH_DAMAGE = list(curve)
+    print(f"  DEPTH_DAMAGE -> {[round(c, 3) for c in curve]}", flush=True)
+    full, sample = CTX["full"], CTX["sample"]
+    full["sw_sev"], _ = sw_depth_severity(
+        full["name"].values, full["sw_high"].values, full["sw_low"].values,
+        full["households"].values)
+    full["rs_sev"], _ = rs_depth_severity(
+        full["name"].values, full["households"].values)
+    bm.calibrate_frequency(full)
+    bm.calibrate_spatial(full)
+    for col in ("sw_sev", "rs_sev"):
+        sample[col] = full[col].values[::3]
+
+
 def reset():
+    scores_real.DEPTH_DAMAGE = list(ORIG["depth_damage"])
+    for frame in ("full", "sample"):
+        for col in ("sw_sev", "rs_sev"):
+            if frame in CTX:
+                CTX[frame][col] = CTX[f"{frame}_{col}"]
+    if "flood_sev_blend" in ORIG:
+        bm.FLOOD_SEV_BLEND = ORIG["flood_sev_blend"]
+        bm.ABI_TARGET_FREQ.clear()
+        bm.ABI_TARGET_FREQ.update(ORIG["abi_target_freq"])
     bm.theta_ws, bm.theta_wf, bm.theta_wg, bm.theta_we = (
         ORIG["theta_ws"], ORIG["theta_wf"], ORIG["theta_wg"], ORIG["theta_we"])
     bm.marginal_params = ORIG["marginal_params"]
@@ -127,6 +219,11 @@ SCENARIOS = {
     "flood_freq_150": lambda: flood_freq(1.50),
     # erosion: defences allowed to lapse instead of maintained as planned
     "erosion_no_intervention": lambda: erosion_scenario("er_nfi105"),
+    # flood depth-damage curve (unanchored; prices both flood legs)
+    "depth_flat": lambda: depth_curve(0.0),
+    "depth_half": lambda: depth_curve(0.5),
+    "depth_steep": lambda: depth_curve(1.5),
+    "depth_jrc_eu": depth_jrc,
 }
 
 
@@ -165,58 +262,22 @@ def run_scenario(df):
 
 def main():
     print("loading districts + scores (sampled 1-in-3)...", flush=True)
-    gdf = bm.load_districts()
-    bng = gdf.to_crs(27700)
-    bng_pts = bng.geometry.representative_point()
-    targets = np.column_stack([bng_pts.x.values, bng_pts.y.values])
-    gdf["sub_score"], gdf["geol"], _, _ = subsidence_score(bng)
-    gdf["wx_score"], _ = weather_from_metoffice(targets)
-    (gdf["fl_score"], gdf["f_high"], gdf["f_low"],
-     gdf["sw_high"], gdf["sw_low"]) = flood_from_agencies(gdf["name"].values)
-    gdf["gw_score"], gdf["gw_frac"] = groundwater_from_ea(gdf["name"].values)
-    gdf["er_score"], er = erosion_from_ncerm(gdf["name"].values)
-    for col, vals in er.items():
-        gdf[col] = vals
-    gdf["er_frac"] = gdf["er_smp105"]
-    gdf["households"] = bm.load_households(gdf["name"].values)
-    gdf["sw_sev"], _ = sw_depth_severity(
-        gdf["name"].values, gdf["sw_high"].values, gdf["sw_low"].values,
-        gdf["households"].values)
-    gdf["rs_sev"], _ = rs_depth_severity(
-        gdf["name"].values, gdf["households"].values)
-    # The attritional rate columns _fields() has required since theft
-    # landed (each later peril widened the gap). The arithmetic mirrors
-    # build_model.main() exactly - the normalisation must live here,
-    # on the full frame, for the same batch-composition reason.
-    gdf["th_rate"] = theft_from_police(gdf["name"].values,
-                                       gdf["households"].values)
-    gdf["frost_days"] = frost_from_metoffice(targets)
-    fmean = np.average(gdf["frost_days"], weights=gdf["households"])
-    gdf["eow_rate"] = bm.ABI_TARGET_FREQ["eow"] * (
-        (1.0 - bm.EOW_FREEZE_SHARE)
-        + bm.EOW_FREEZE_SHARE * gdf["frost_days"] / fmean)
-    gdf["sub_drought_mm"] = drought_from_haduk(gdf["name"].values)
-    dmean = np.average(gdf["sub_drought_mm"], weights=gdf["households"])
-    gdf["sub_rel"] = ((1.0 - bm.SUB_DROUGHT_SHARE)
-                      + bm.SUB_DROUGHT_SHARE * gdf["sub_drought_mm"] / dmean)
-    fire_raw = fires_from_mhclg(gdf["name"].values,
-                                gdf["households"].values)
-    gdf["fire_rate"] = bm.ABI_TARGET_FREQ["fire"] * fire_raw / np.average(
-        fire_raw, weights=gdf["households"])
-    child_share = children_from_census(gdf["name"].values,
-                                       gdf["households"].values)
-    cmean = np.average(child_share, weights=gdf["households"])
-    gdf["ad_rate"] = bm.ABI_TARGET_FREQ["ad"] * (
-        (1.0 - bm.AD_CHILD_SHARE)
-        + bm.AD_CHILD_SHARE * child_share / cmean)
+    # the same frame build_model.main() scores - never a copy of it
+    gdf = bm.score_districts(bm.load_districts())
     # calibrate on the FULL set (as build_model does) so every scenario is
     # perturbing a properly calibrated baseline, then sample for speed
     bm.calibrate_frequency(gdf)
     bm.calibrate_spatial(gdf)
     ORIG["freq_scale"] = bm.FREQ_SCALE
     ORIG["spatial_scale"] = bm.SPATIAL_SCALE
+    ORIG["flood_sev_blend"] = bm.FLOOD_SEV_BLEND
+    ORIG["abi_target_freq"] = dict(bm.ABI_TARGET_FREQ)
 
     sample = gdf.iloc[::3].reset_index(drop=True)
+    CTX["full"], CTX["sample"] = gdf, sample
+    for frame in ("full", "sample"):
+        for col in ("sw_sev", "rs_sev"):
+            CTX[f"{frame}_{col}"] = CTX[frame][col].values.copy()
     print(f"sample: {len(sample)} districts, N_SIM={bm.N_SIM}", flush=True)
 
     results, base_groups = {}, None

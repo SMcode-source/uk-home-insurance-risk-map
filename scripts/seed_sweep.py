@@ -46,46 +46,8 @@ COLS = ["el_total", "el_year", "tvar99_euler", "var995_vine",
 
 
 def scored_frame():
-    """Re-derive the scored districts, as analytic_el_check.py does."""
-    g = bm.load_districts()
-    bng = g.to_crs(27700)
-    pts = bng.geometry.representative_point()
-    targets = np.column_stack([pts.x.values, pts.y.values])
-    (g["sub_score"], g["geol"], g["sup_frac"],
-     g["sup_geol"]) = bm.subsidence_score(bng)
-    g["wx_score"], wx = bm.weather_from_metoffice(targets)
-    g["wind_ms"], g["wdr_idx"] = wx["wind"], wx["wdr"]
-    g["rain10_days"], g["precip_mm"] = wx["rain10"], wx["precip"]
-    g["gust_rp50"] = wx["gust_rp50"]
-    (g["fl_score"], g["f_high"], g["f_low"],
-     g["sw_high"], g["sw_low"]) = bm.flood_from_agencies(g["name"].values)
-    g["gw_score"], g["gw_frac"] = bm.groundwater_from_ea(g["name"].values)
-    g["country"] = bm.load_country(g["name"].values)
-    g["er_score"], er = bm.erosion_from_ncerm(g["name"].values)
-    for c, v in er.items():
-        g[c] = v
-    g["er_frac"] = g["er_smp105"]
-    g["households"] = bm.load_households(g["name"].values)
-    g["sw_sev"], g["sw_depth_m"] = bm.sw_depth_severity(
-        g["name"].values, g["sw_high"].values, g["sw_low"].values,
-        g["households"].values)
-    g["rs_sev"], g["rs_depth_m"] = bm.rs_depth_severity(
-        g["name"].values, g["households"].values)
-    g["th_rate"] = bm.theft_from_police(g["name"].values,
-                                        g["households"].values)
-    g["frost_days"] = bm.frost_from_metoffice(targets)
-    fmean = np.average(g["frost_days"], weights=g["households"])
-    g["eow_rate"] = bm.ABI_TARGET_FREQ["eow"] * (
-        (1.0 - bm.EOW_FREEZE_SHARE)
-        + bm.EOW_FREEZE_SHARE * g["frost_days"] / fmean)
-    fire_raw = bm.fires_from_mhclg(g["name"].values, g["households"].values)
-    g["fire_rate"] = bm.ABI_TARGET_FREQ["fire"] * fire_raw / np.average(
-        fire_raw, weights=g["households"])
-    cs = bm.children_from_census(g["name"].values, g["households"].values)
-    g["ad_rate"] = bm.ABI_TARGET_FREQ["ad"] * (
-        (1.0 - bm.AD_CHILD_SHARE) + bm.AD_CHILD_SHARE * cs / np.average(
-            cs, weights=g["households"]))
-    return g
+    """The scored districts: the same frame build_model.main() builds."""
+    return bm.score_districts(bm.load_districts())
 
 
 def main():

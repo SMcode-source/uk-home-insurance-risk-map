@@ -2500,6 +2500,36 @@ def test_analytic_el_check_builds_every_column_the_model_scores(
         assert f"\n{k:6}" in printed, f"{k} missing from the audit table"
 
 
+@pytest.mark.parametrize("script", ["sensitivity.py", "seed_sweep.py",
+                                    "dependence_check.py"])
+def test_analysis_scripts_score_through_build_model_not_a_copy(script):
+    """sensitivity.py, seed_sweep.py and dependence_check.py re-run the
+    simulation, so they need the whole scored frame. Each used to assemble
+    it by hand, and all three rotted the same way analytic_el_check.py did
+    (above): no ct_* columns once the council-tax severity landed, so each
+    KeyErrored in _fields() before simulating anything, and all three
+    still priced erosion from er_smp105 after main() moved to er_head.
+    data/sensitivity.json went seven weeks stale behind that (found
+    2026-09-26). They now call build_model.score_districts, which main()
+    calls too, so there is nothing left to copy.
+
+    Source-level on purpose: running them costs minutes to an hour each.
+    A reader called directly is the sign of a copy creeping back.
+    """
+    here = os.path.join(os.path.dirname(__file__), "..", "scripts")
+    with open(os.path.join(here, script), encoding="utf-8") as fh:
+        src = fh.read()
+    assert "bm.score_districts(" in src, f"{script} no longer scores via build_model"
+    for reader in ("theft_from_police(", "ct_value_from_bands(",
+                   "frost_from_metoffice(", "erosion_from_ncerm(",
+                   "flood_from_agencies(", "children_from_census("):
+        assert reader not in src, (
+            f"{script} calls {reader[:-1]} itself - that is a hand-copied "
+            "scoring block; use bm.score_districts instead")
+    with open(os.path.join(here, "build_model.py"), encoding="utf-8") as fh:
+        assert "    gdf = score_districts(gdf)\n" in fh.read().replace("\r\n", "\n")
+
+
 def test_the_capital_allocation_does_not_depend_on_a_partition_kernel():
     """`bad` is a set, but np.argpartition hands it back as a sequence.
 
