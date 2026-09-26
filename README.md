@@ -529,8 +529,10 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    Re-runs the simulation on a 1-in-3 district sample with perturbed
    assumptions — Gumbel dependence ±25%, tree-2 correlations zeroed/doubled,
    severity σ ×1.1 at a held mean, flood frequency ×1.5, erosion switched
-   from the adopted defence plan to no-further-intervention, and four
-   alternative flood depth-damage curves — reporting the impact on
+   from the adopted defence plan to no-further-intervention, four
+   alternative flood depth-damage curves, and the other unanchored
+   constants (flood band frequencies, groundwater share and background,
+   systemic loadings) — reporting the impact on
    expected loss, premium, catastrophic-year cost and rating-group churn. This
    quantifies which of the documented assumptions actually move the answer:
    the copula parameters govern the tail, the marginals govern the ranking.
@@ -548,6 +550,12 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
      altogether moves 11.2%, a curve half or 1.5× as steep 5.5% / 6.1%, and
      the JRC Europe residential curve 6.8%, all at an unchanged level
      (LIMITATIONS §6).
+   - **The balance between river/sea and surface water moves it more**
+     (added 2026-09-27): their band frequencies ×2/3 or ×1.5 against each
+     other move 12.3% / 16.1% of districts. The rest of the unanchored
+     constants matter less: the high-zone ratio 5.7–7.8%, groundwater's
+     share of flood 2.0–4.2% (the only one that moves the level),
+     groundwater outside England and equal systemic loadings ≤1.5%.
    - **Severity σ is a check, not a lever:** held at the mean it moves no
      premium and no rating group (Gate 3), but it raises catastrophic-year
      cost by 12.5%, because the year view draws realised claim sizes.
@@ -858,7 +866,7 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 .venv/Scripts/python scripts/build_model.py          # calibrate + vine sim -> districts_risk.geojson + year_analysis.json (~55 min;
                                                      # the 5th vine dimension roughly doubled this - the extra Gumbel
                                                      # h-inverse bisection for erosion is the dominant cost)
-.venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs -> data/sensitivity.json (~35 min, optional)
+.venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs -> data/sensitivity.json (~60 min, optional)
 .venv/Scripts/python scripts/make_images.py          # favicon + 1200x630 social card, rendered from the data
 .venv/Scripts/python scripts/build_map.py            # -> both map pages (district and sector)
 .venv/Scripts/python scripts/build_tiles.py          # -> vector tiles, popup shards, name index (~3 min).
