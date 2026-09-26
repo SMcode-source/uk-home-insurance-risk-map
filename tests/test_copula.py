@@ -483,6 +483,29 @@ def test_depth_severity_is_normalised_and_monotone(tmp_path, monkeypatch):
     assert abs(float(np.average(mult[:2], weights=households[:2])) - 1.0) < 1e-9
 
 
+def test_sw_depth_severity_is_normalised_per_claim(tmp_path, monkeypatch):
+    """The mean multiplier must be 1 per CLAIM, not per household: the
+    flood total is pinned nationally, so a per-claim mean above 1 in
+    England is paid for by lowering flood frequency everywhere. Household
+    weighting left 1.022 per claim live until 2026-09-26."""
+    import scores_real as sr
+    rows = ["name,d02_high,d02_low,d03_high,d03_low,d06_high,d06_low,"
+            "d09_high,d09_low,d12_high,d12_low,basis",
+            # small shallow envelope, big deep one
+            "SHALLOW,0.004,0.010,0.001,0.002,0.0,0.0,0.0,0.0,0.0,0.0,postcode",
+            "DEEP,0.20,0.38,0.18,0.35,0.15,0.30,0.10,0.20,0.05,0.10,postcode"]
+    (tmp_path / "sw_depth.csv").write_text("\n".join(rows))
+    (tmp_path / "country.csv").write_text(
+        "name,country,share\nSHALLOW,England,1.0\nDEEP,England,1.0\n")
+    monkeypatch.setattr(sr, "DATA", str(tmp_path))
+    hi, lo = np.array([0.01, 0.20]), np.array([0.02, 0.40])
+    hh = np.array([1000.0, 1000.0])
+    mult, _ = sr.sw_depth_severity(np.array(["SHALLOW", "DEEP"]), hi, lo, hh)
+    claims = hh * (sr.SW_FREQ_HIGH * hi + sr.SW_FREQ_LOW * (lo - hi))
+    assert abs(float(np.average(mult, weights=claims)) - 1.0) < 1e-9
+    assert float(np.average(mult, weights=hh)) < 1.0
+
+
 def _theft_fixture(tmp_path, premises_rows):
     """Minimal data dir for theft_from_police: two E&W areas and one
     Scottish one, with whatever premises.csv the caller wants to test."""
