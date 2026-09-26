@@ -632,11 +632,89 @@ def _band_shares(env, frac):
     return np.column_stack([bands, edges[:, -1]])          # (n, 6) incl. >1.2
 
 
+def _depth_multiplier(names, env_hi, env_lo, frac_hi, frac_lo, households,
+                      freq_hi, freq_lo, ref, climate, label):
+    """Depth-damage multiplier from nested exceedance fractions: the core
+    shared by surface water and rivers/sea.
+
+    env_hi / env_lo are the likelihood envelopes (>=1% AEP and the wider
+    one) and frac_hi / frac_lo the matching shares exceeding 0.2/0.3/0.6/
+    0.9/1.2 m, all on one basis. freq_hi / freq_lo are the claim-frequency
+    weights of the two bands (see marginal_params). `ref` is the present-
+    day reference a climate run is normalised against (None: its own).
+
+    Returns (multiplier, mean_depth_m, own_ref); the caller keeps own_ref
+    from its present-day call as the reference for the climate run.
+    """
+    # the two bands are disjoint: the fringe is the envelope minus the
+    # high-likelihood zone, in extent and in depth alike
+    b_hi = _band_shares(env_hi, frac_hi)
+    b_fringe = np.maximum(_band_shares(env_lo, frac_lo) - b_hi, 0.0)
+
+    # weight by contribution to claim frequency, not by area
+    w_hi = freq_hi * b_hi.sum(axis=1)
+    w_fr = freq_lo * b_fringe.sum(axis=1)
+    denom = np.maximum(w_hi + w_fr, 1e-15)
+    bands = (b_hi * (w_hi / denom / np.maximum(b_hi.sum(axis=1), 1e-15))[:, None]
+             + b_fringe * (w_fr / denom
+                           / np.maximum(b_fringe.sum(axis=1), 1e-15))[:, None])
+    bands = np.nan_to_num(bands)
+
+    # Coverage comes from the boundary, not from the numbers. Two silent
+    # traps make that necessary:
+    #
+    # 1. fetch_sw_depth.py writes a row for EVERY district, zero-filled
+    #    outside England. A Welsh district DOES have surface water (from
+    #    NRW), so judging by the envelope alone reads "no depth mapped" as
+    #    "none of it exceeds 0.2 m" - the shallowest possible severity,
+    #    handed to all of Wales and Scotland.
+    # 2. Border districts (Annan, Wrexham, Caldicot, Berwick...) clip into
+    #    England far enough to pick up a sliver of EA depth while sw_low
+    #    covers the whole district, so they look uniformly shallow.
+    #
+    # england_mask() settles both from the actual country boundary.
+    tot = bands.sum(axis=1)
+    have = (tot > 1e-9) & england_mask(names)
+    share = np.zeros_like(bands)
+    share[have] = bands[have] / tot[have][:, None]
+
+    mult = np.ones(len(names))
+    mult[have] = share[have] @ np.array(DEPTH_DAMAGE)
+
+    mids = np.array([0.5 * (lo + hi) for _, lo, hi in DEPTH_BANDS])
+    mean_depth = np.full(len(names), np.nan)
+    mean_depth[have] = share[have] @ mids
+
+    # Renormalise so the exposure-weighted national mean multiplier is 1.0:
+    # this re-shapes severity across districts without moving the level the
+    # ABI calibration has already fixed.
+    #
+    # The climate run must NOT renormalise to its own mean. Doing so would
+    # divide out exactly what it is measuring - water getting deeper
+    # everywhere - and leave only the relativities, reporting no severity
+    # change at all. It is therefore normalised against the PRESENT-DAY
+    # reference, so a uniformly deeper future comes out above 1.0.
+    w = np.asarray(households, dtype=float)
+    own_ref = float(np.average(mult[have], weights=w[have])) if have.any() else 1.0
+    if climate and ref is not None:
+        print(f"  (climate depth normalised against the present-day "
+              f"reference {ref:.4f}, not its own {own_ref:.4f})")
+    else:
+        ref = own_ref
+    mult = mult / max(ref, 1e-9)
+    mult[~have] = 1.0
+
+    print(f"  {label}: {int(have.sum())}/{len(names)} districts with mapped "
+          f"depth; multiplier {mult[have].min():.2f}..{mult[have].max():.2f} "
+          f"(mean depth {np.nanmin(mean_depth):.2f}..{np.nanmax(mean_depth):.2f} m)")
+    return mult, mean_depth, own_ref
+
+
 def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
     """Per-district relative severity multiplier for surface-water claims.
 
-    Reads data/sw_depth.csv (see fetch_sw_depth.py): the fraction of each
-    district exceeding 0.2/0.3/0.6/0.9/1.2 m of surface water. Conditional
+    Reads data/sw_depth.csv (fetch_sw_depth_postcodes.py): the share of each
+    district's postcodes exceeding 0.2/0.3/0.6/0.9/1.2 m of surface water. Conditional
     on being inside the flooded envelope, those nested fractions give the
     depth distribution, which is turned into an expected damage relativity.
 
@@ -648,11 +726,12 @@ def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
     measured. The residual 1-in-1000 fringe is shallower and claims five
     times less often, so it is weighted accordingly.
 
-    The envelope the conditional is taken against is the AREA-share one
-    (data/sw_fractions_area[_cc].csv), not the postcode-share sw_high /
-    sw_low the frequency uses since 2026-09-06: the depth layers are area
-    measurements and dividing them by a postcode-share envelope corrupts
-    the conditional.
+    The envelope the conditional is taken against must share the depth
+    table's basis. The published table is postcode share (basis =
+    "postcode", since 2026-09-20), so the caller's postcode-share sw_high /
+    sw_low are used as they are. An old area-basis table is conditioned on
+    the area envelope (data/sw_fractions_area[_cc].csv) instead: dividing
+    area bands by a postcode-share envelope corrupts the conditional.
 
     England only - NRW and SEPA publish no equivalent depth product, so
     Welsh and Scottish districts (and any English district with no mapped
@@ -717,71 +796,83 @@ def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
                 hit += 1
         print(f"  sw depth: envelope from {area_name} for {hit}/{len(names)} "
               "districts (area share, matching the depth bands)")
-    # the two bands are disjoint: the fringe is the envelope minus the
-    # high-likelihood zone, in extent and in depth alike
-    b_hi = _band_shares(env_hi, frac_hi)
-    b_fringe = np.maximum(_band_shares(env_lo, frac_lo) - b_hi, 0.0)
-
-    # weight by contribution to claim frequency, not by area
-    w_hi = SW_FREQ_HIGH * b_hi.sum(axis=1)
-    w_fr = SW_FREQ_LOW * b_fringe.sum(axis=1)
-    denom = np.maximum(w_hi + w_fr, 1e-15)
-    bands = (b_hi * (w_hi / denom / np.maximum(b_hi.sum(axis=1), 1e-15))[:, None]
-             + b_fringe * (w_fr / denom
-                           / np.maximum(b_fringe.sum(axis=1), 1e-15))[:, None])
-    bands = np.nan_to_num(bands)
-
-    # Coverage comes from the boundary, not from the numbers. Two silent
-    # traps make that necessary:
-    #
-    # 1. fetch_sw_depth.py writes a row for EVERY district, zero-filled
-    #    outside England. A Welsh district DOES have surface water (from
-    #    NRW), so judging by the envelope alone reads "no depth mapped" as
-    #    "none of it exceeds 0.2 m" - the shallowest possible severity,
-    #    handed to all of Wales and Scotland.
-    # 2. Border districts (Annan, Wrexham, Caldicot, Berwick...) clip into
-    #    England far enough to pick up a sliver of EA depth while sw_low
-    #    covers the whole district, so they look uniformly shallow.
-    #
-    # england_mask() settles both from the actual country boundary.
-    tot = bands.sum(axis=1)
-    have = (tot > 1e-9) & england_mask(names)
-    share = np.zeros_like(bands)
-    share[have] = bands[have] / tot[have][:, None]
-
-    mult = np.ones(len(names))
-    mult[have] = share[have] @ np.array(DEPTH_DAMAGE)
-
-    mids = np.array([0.5 * (lo + hi) for _, lo, hi in DEPTH_BANDS])
-    mean_depth = np.full(len(names), np.nan)
-    mean_depth[have] = share[have] @ mids
-
-    # Renormalise so the exposure-weighted national mean multiplier is 1.0:
-    # this re-shapes severity across districts without moving the level the
-    # ABI calibration has already fixed.
-    #
-    # The climate run must NOT renormalise to its own mean. Doing so would
-    # divide out exactly what it is measuring - water getting deeper
-    # everywhere - and leave only the relativities, reporting no severity
-    # change at all. It is therefore normalised against the PRESENT-DAY
-    # reference, so a uniformly deeper future comes out above 1.0.
     global _DEPTH_REF
-    w = np.asarray(households, dtype=float)
-    own_ref = float(np.average(mult[have], weights=w[have])) if have.any() else 1.0
-    if climate and _DEPTH_REF is not None:
-        ref = _DEPTH_REF
-        print(f"  (climate depth normalised against the present-day "
-              f"reference {ref:.4f}, not its own {own_ref:.4f})")
-    else:
-        ref = own_ref
-        if not climate:
-            _DEPTH_REF = own_ref
-    mult = mult / max(ref, 1e-9)
-    mult[~have] = 1.0
+    mult, mean_depth, own_ref = _depth_multiplier(
+        names, env_hi, env_lo, frac_hi, frac_lo, households,
+        SW_FREQ_HIGH, SW_FREQ_LOW, _DEPTH_REF if climate else None,
+        climate, "sw depth")
+    if not climate:
+        _DEPTH_REF = own_ref
+    return mult, mean_depth
 
-    print(f"  sw depth: {int(have.sum())}/{len(names)} districts with mapped "
-          f"depth; multiplier {mult[have].min():.2f}..{mult[have].max():.2f} "
-          f"(mean depth {np.nanmin(mean_depth):.2f}..{np.nanmax(mean_depth):.2f} m)")
+
+
+# ---------------------------------------------------- river/sea depth
+
+# Frequency weights of the two RoFRS likelihood bands, matching p_rs in
+# build_model.marginal_params: ~1.5%/yr inside the >=1% AEP zone, ~0.3%/yr
+# in the rest of the 0.1% envelope. The 0.05% background carries no depth
+# information and is kept at flat severity by the caller.
+RS_FREQ_HIGH, RS_FREQ_LOW = 0.015, 0.003
+
+# Present-day reference for the climate run, as _DEPTH_REF is for surface
+# water. Separate because the two multipliers are normalised separately.
+_RS_DEPTH_REF = None
+
+
+def rs_depth_severity(names, households, climate=False):
+    """Per-district relative severity multiplier for river/sea claims.
+
+    Reads data/rs_depth.csv (fetch_rs_depth_postcodes.py): the EA RoFRS
+    depth layers read at unit postcodes, the share of each unit's homes
+    with a >=1% (d*_high) or >=0.1% (d*_low) annual chance of flooding
+    deeper than 0.2/0.3/0.6/0.9/1.2 m. The same depth-damage core as
+    surface water turns them into a relativity.
+
+    The conditional is taken on the file's OWN envelope (e_high / e_low),
+    not the caller's f_high / f_low. The depth layers read "Unavailable"
+    in places where rofrs_4band has a band (about 2% of postcodes), so
+    the fetch drops those postcodes from envelope and depth alike and the
+    two stay on one basis. The frequency leg still uses f_high / f_low.
+
+    England only: NRW and SEPA publish no river/sea depth product, so
+    Wales, Scotland and English units with no mapped envelope keep 1.0.
+
+    Returns (multiplier, mean_depth_m), both length-len(names).
+    """
+    global _RS_DEPTH_REF
+    fname = "rs_depth_cc.csv" if climate else "rs_depth.csv"
+    path = os.path.join(DATA, fname)
+    if climate and not os.path.exists(path):
+        # as sw_depth_severity: swap the FILE, keep the climate flag
+        print(f"  {fname} missing -> future river/sea severity reuses "
+              "present-day depth (run fetch_rs_depth_postcodes.py --climate)")
+        path = os.path.join(DATA, "rs_depth.csv")
+    if not os.path.exists(path):
+        print("  rs_depth.csv missing -> flat river/sea severity "
+              "(run scripts/fetch_rs_depth_postcodes.py)")
+        return np.ones(len(names)), np.full(len(names), np.nan)
+
+    keys = [k for k, _, _ in DEPTH_BANDS if k]
+    table = {}
+    with open(path, newline="") as fh:
+        for row in csv.DictReader(fh):
+            table[row["name"]] = (
+                float(row["e_high"]), float(row["e_low"]),
+                [float(row[f"{k}_high"]) for k in keys],
+                [float(row[f"{k}_low"]) for k in keys])
+    blank = (0.0, 0.0, [0.0] * len(keys), [0.0] * len(keys))
+    rows = [table.get(n, blank) for n in names]
+    env_hi = np.array([r[0] for r in rows])
+    env_lo = np.array([r[1] for r in rows])
+    frac_hi = np.array([r[2] for r in rows])
+    frac_lo = np.array([r[3] for r in rows])
+    mult, mean_depth, own_ref = _depth_multiplier(
+        names, env_hi, env_lo, frac_hi, frac_lo, households,
+        RS_FREQ_HIGH, RS_FREQ_LOW, _RS_DEPTH_REF if climate else None,
+        climate, "rs depth")
+    if not climate:
+        _RS_DEPTH_REF = own_ref
     return mult, mean_depth
 
 

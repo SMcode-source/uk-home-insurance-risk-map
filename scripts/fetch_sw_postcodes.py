@@ -27,14 +27,14 @@ It runs in two stages so the slow part can be split across machines:
         fetch_flood_postcodes.py (K_PRIOR postcodes toward the parent),
         and write data/sw_fractions.csv (or sw_fractions_cc.csv).
 
-The depth product (data/sw_depth.csv, fetch_sw_depth.py) stays an AREA
-measurement: it gives the depth distribution CONDITIONAL on being
-inside the envelope, and that conditional must be taken against the
-envelope measured the same way. So the first aggregation keeps the
-previous area-share file as data/sw_fractions_area.csv (and _cc), and
-scores_real.sw_depth_severity reads its envelope from there. Frequency
-comes from where the homes are; depth, given a home is in the water,
-from the water.
+The depth product follows the same basis since 2026-09-20:
+fetch_sw_depth_postcodes.py samples the depth layers at the same
+postcodes, clipped to the envelope written by --flags here, and writes
+data/sw_depth.csv with basis = "postcode". scores_real.sw_depth_severity
+then conditions on this file's own sw_high / sw_low. The first
+aggregation still keeps an area-share copy as data/sw_fractions_area.csv
+(and _cc) for the record; the model reads it only if handed an old
+area-basis depth table.
 
 --climate is England only (the EA rofsw_cc01 edition; NRW and SEPA
 publish no equivalent), with England-only priors, exactly as

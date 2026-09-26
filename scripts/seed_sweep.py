@@ -69,6 +69,8 @@ def scored_frame():
     g["sw_sev"], g["sw_depth_m"] = bm.sw_depth_severity(
         g["name"].values, g["sw_high"].values, g["sw_low"].values,
         g["households"].values)
+    g["rs_sev"], g["rs_depth_m"] = bm.rs_depth_severity(
+        g["name"].values, g["households"].values)
     g["th_rate"] = bm.theft_from_police(g["name"].values,
                                         g["households"].values)
     g["frost_days"] = bm.frost_from_metoffice(targets)

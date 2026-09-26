@@ -28,7 +28,8 @@ OSTN15_STEP = "Install the OSTN15 datum grid"
 # Workflows that produce COMMITTED model inputs or outputs. Anything they
 # rasterise or sample has to see the same transform the build does; the
 # measurement-only workflows are deliberately out of scope.
-BUILD_WORKFLOWS = ["sector-model.yml", "rebuild.yml", "sw-refetch.yml"]
+BUILD_WORKFLOWS = ["sector-model.yml", "rebuild.yml", "sw-refetch.yml",
+                   "rs-depth.yml"]
 
 # Which scripts need the grid is DERIVED, not listed. The hand-written
 # list missed fetch_sw_depth.py for six weeks, and the district depth
