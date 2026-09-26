@@ -425,20 +425,25 @@ def load_stats():
                   ("theta_low", "theta_high", "rho2_zero", "rho2_high")
                   if k in s)
         marg = max(s[k]["group_churn_pct"] for k in
-                   ("sev_sigma_up", "flood_freq_150") if k in s)
-        up_lo = s.get("theta_low", {}).get("mean_uplift_pct")
-        up_hi = s.get("flood_freq_150", {}).get("mean_uplift_pct")
+                   ("flood_freq_150", "depth_flat") if k in s)
+        # The per-policy TVaR uplift used to be quoted here as a range
+        # across scenarios. It is noise by construction (see the analysis
+        # page, which does not tabulate it), and once the attritional
+        # perils landed the "range" collapsed to e.g. "11-11%".
+        depth = s.get("depth_flat", {}).get("group_churn_pct")
+        depth_txt = "" if depth is None else (
+            f" Flood's depth-damage curve alone, which has no published anchor, "
+            f"moves <b>{depth:.0f}%</b> of districts when depth is ignored altogether.")
         sens_finding = f"""<div class="finding">
-      <div class="num">{dep:.0f}% vs {marg:.0f}%<small>rating-group churn</small></div>
+      <div class="num">{dep:.1f}% vs {marg:.0f}%<small>rating-group churn</small></div>
       <div>
         <h3>Dependence sets the tail; the marginals set the ranking</h3>
         <p>Perturbing the copula — dependence strength ±25%, conditional correlations
-        zeroed or doubled — moves at most <b>{dep:.0f}%</b> of districts into a different
-        rating group. Perturbing the loss assumptions moves up to <b>{marg:.0f}%</b>. The
-        vine is what makes the tail honest (uplift ranges {up_lo:.0f}–{up_hi:.0f}% across
-        scenarios), but if you want the <i>ranking</i> right, spend your effort on claim
-        frequencies and severities. Every scenario is tabulated on the
-        <a href="years.html#sens-section">year analysis page</a>.</p>
+        zeroed or doubled — moves at most <b>{dep:.1f}%</b> of districts into a different
+        rating group. Perturbing the flood assumptions moves up to <b>{marg:.0f}%</b>.{depth_txt}
+        The vine is what makes the tail honest, but if you want the <i>ranking</i> right,
+        spend your effort on claim frequencies and severities. Every scenario is
+        tabulated on the <a href="years.html#sens-section">year analysis page</a>.</p>
       </div>
     </div>"""
 

@@ -381,6 +381,28 @@ Also unanchored, and worth naming:
   proved analytically and by measurement that **every σ cancels out of
   both EL and capital**, so they cannot move the premium. Guarded by
   `test_severity_sigma_cannot_move_capital`.
+- **`DEPTH_DAMAGE = [0.45, 0.75, 1.00, 1.35, 1.60, 1.95]`** — the
+  depth-damage relativities by band. Since 2026-09-26 they shape BOTH
+  flood legs (surface water and rivers/sea, England), and no published
+  UK curve stands behind them. They cannot move the level: each leg is
+  renormalised to a mean of 1 per claim and the national flood pin
+  re-solved, so E[loss] held at £166.7–166.9 in every scenario. They
+  DO move the ranking. Measured 2026-09-26 (`sensitivity.py`, 1-in-3
+  sample, rating-group churn vs baseline): depth ignored altogether
+  **11.2%**; the curve half as steep (`**0.5`) **5.5%**; 1.5× as steep
+  (`**1.5`) **6.1%**; the JRC Europe residential curve **6.8%**. That
+  is well above anything the copula does (≤0.4%). Only flood frequency
+  ×1.5 (24.9%) moves more, and it is a far larger shock.
+  The JRC curve (Huizinga, de Moel & Szewczyk 2017, EUR 28552 EN) is
+  the only free, citable curve available, and it is **not a drop-in
+  anchor**. It is an unconditional damage fraction that runs to 0 at
+  0 m, so its shallow end folds in "no claim at all", which this model
+  prices in frequency; `DEPTH_DAMAGE` is severity given a claim. Read
+  at the band midpoints it is steeper than ours, mostly at the shallow
+  end (0.22 vs 0.45 relative to the 0.3–0.6 m band), and it moves
+  slightly more than either bracket (6.8% against 5.5% / 6.1%). So the
+  one outside curve available disagrees with ours by about as much as
+  the brackets do, and that is not evidence that ours is wrong.
 - **`GW_SHARE_OF_FLOOD = 0.10`** — see §2.
 - **`SMD_CAP = 150 mm`** in the new climate work — not a model parameter;
   nothing reads it yet.

@@ -778,12 +778,16 @@ chart('incidence', function (mount) {
     theta_high: 'Stronger dependence (θ−1 ×1.25)',
     rho2_zero: 'Tree-2 correlations → 0',
     rho2_high: 'Tree-2 correlations doubled',
-    sev_sigma_up: 'Severity σ ×1.10 (heavier tails)',
+    sev_sigma_up: 'Severity σ ×1.10, mean held (check: should move no premium)',
     flood_freq_150: 'Flood frequency ×1.5 (climate stress)',
     erosion_no_intervention: 'Erosion: defences lapse (NFI, not the plan)',
+    depth_flat: 'Flood depth ignored (depth-damage flat)',
+    depth_half: 'Flood depth-damage curve half as steep',
+    depth_steep: 'Flood depth-damage curve 1.5× as steep',
+    depth_jrc_eu: 'Flood depth-damage: JRC Europe residential curve',
   };
   /* Erosion gets its own column because it is NOT in the premium: the NFI
-     scenario raises it 2.5× while moving no district between rating groups,
+     scenario more than doubles it while moving no district between rating groups,
      which is the check that the exclusion is actually wired up. */
   const rows = Object.entries(SENS).map(([k, s]) => `
     <tr><td class="hl">${LABELS[k] || k}</td>

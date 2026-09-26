@@ -1820,11 +1820,19 @@ def apply_cover_split(gdf):
     return gdf
 
 
-def main():
-    print("loading district polygons...")
-    gdf = load_districts()
-    print(f"  {len(gdf)} districts across {gdf['area'].nunique()} postcode areas")
+def score_districts(gdf):
+    """Score every district from the committed inputs: the full frame
+    calibrate_frequency() and simulate() need, and nothing downstream.
 
+    The ONE place this is assembled. main() calls it, and so do the
+    analysis scripts (sensitivity.py, seed_sweep.py, dependence_check.py),
+    which until 2026-09-26 each carried a hand-copied version. Every new
+    column main() gained had to be copied three more times, and nothing
+    enforced it: all three had silently stopped running (no ct_* columns
+    since the council-tax severity landed) and still priced erosion from
+    er_smp105 rather than er_head. tests/test_copula.py now refuses a
+    helper that re-assembles the frame itself.
+    """
     bng = gdf.to_crs(27700)
     bng_pts = bng.geometry.representative_point()
     targets = np.column_stack([bng_pts.x.values, bng_pts.y.values])
@@ -1968,6 +1976,15 @@ def main():
         gdf[f"ct_{peril}"] = ct_rel / np.average(ct_rel, weights=wgt)
 
     check_scored_columns(gdf)
+    return gdf
+
+
+def main():
+    print("loading district polygons...")
+    gdf = load_districts()
+    print(f"  {len(gdf)} districts across {gdf['area'].nunique()} postcode areas")
+
+    gdf = score_districts(gdf)
 
     print("calibrating to published UK aggregates...")
     calibrate_frequency(gdf)

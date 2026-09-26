@@ -23,13 +23,6 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build_model as bm  # noqa: E402
-from scores_real import (subsidence_score, weather_from_metoffice,  # noqa: E402
-                         flood_from_agencies, groundwater_from_ea,
-                         erosion_from_ncerm, sw_depth_severity,
-                         rs_depth_severity,
-                         theft_from_police, frost_from_metoffice,
-                         drought_from_haduk,
-                         fires_from_mhclg, children_from_census)
 
 N_SIM = 400_000          # per district-batch; multi-peril years are rare
 SAMPLE = 60              # districts, spread across the premium range
@@ -38,48 +31,8 @@ BATCH = 4
 
 def main():
     print("loading districts + scores...", flush=True)
-    gdf = bm.load_districts()
-    bng = gdf.to_crs(27700)
-    pts = bng.geometry.representative_point()
-    targets = np.column_stack([pts.x.values, pts.y.values])
-    gdf["sub_score"], _, _, _ = subsidence_score(bng)
-    gdf["wx_score"], _ = weather_from_metoffice(targets)
-    (gdf["fl_score"], gdf["f_high"], gdf["f_low"],
-     gdf["sw_high"], gdf["sw_low"]) = flood_from_agencies(gdf["name"].values)
-    gdf["gw_score"], gdf["gw_frac"] = groundwater_from_ea(gdf["name"].values)
-    gdf["er_score"], er = erosion_from_ncerm(gdf["name"].values)
-    gdf["er_frac"] = er["er_head"]
-    gdf["households"] = bm.load_households(gdf["name"].values)
-    gdf["sw_sev"], _ = sw_depth_severity(
-        gdf["name"].values, gdf["sw_high"].values, gdf["sw_low"].values,
-        gdf["households"].values)
-    gdf["rs_sev"], _ = rs_depth_severity(
-        gdf["name"].values, gdf["households"].values)
-    # The attritional rate columns _fields() has required since theft
-    # landed (each later peril widened the gap). The arithmetic mirrors
-    # build_model.main() exactly - the normalisation must live here,
-    # on the full frame, for the same batch-composition reason.
-    gdf["th_rate"] = theft_from_police(gdf["name"].values,
-                                       gdf["households"].values)
-    gdf["frost_days"] = frost_from_metoffice(targets)
-    fmean = np.average(gdf["frost_days"], weights=gdf["households"])
-    gdf["eow_rate"] = bm.ABI_TARGET_FREQ["eow"] * (
-        (1.0 - bm.EOW_FREEZE_SHARE)
-        + bm.EOW_FREEZE_SHARE * gdf["frost_days"] / fmean)
-    gdf["sub_drought_mm"] = drought_from_haduk(gdf["name"].values)
-    dmean = np.average(gdf["sub_drought_mm"], weights=gdf["households"])
-    gdf["sub_rel"] = ((1.0 - bm.SUB_DROUGHT_SHARE)
-                      + bm.SUB_DROUGHT_SHARE * gdf["sub_drought_mm"] / dmean)
-    fire_raw = fires_from_mhclg(gdf["name"].values,
-                                gdf["households"].values)
-    gdf["fire_rate"] = bm.ABI_TARGET_FREQ["fire"] * fire_raw / np.average(
-        fire_raw, weights=gdf["households"])
-    child_share = children_from_census(gdf["name"].values,
-                                       gdf["households"].values)
-    cmean = np.average(child_share, weights=gdf["households"])
-    gdf["ad_rate"] = bm.ABI_TARGET_FREQ["ad"] * (
-        (1.0 - bm.AD_CHILD_SHARE)
-        + bm.AD_CHILD_SHARE * child_share / cmean)
+    # the same frame build_model.main() scores - never a copy of it
+    gdf = bm.score_districts(bm.load_districts())
 
     bm.calibrate_frequency(gdf)
     step = max(len(gdf) // SAMPLE, 1)
