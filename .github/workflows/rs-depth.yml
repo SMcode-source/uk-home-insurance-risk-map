@@ -18,6 +18,15 @@ name: river/sea depth
 # so each part is well inside the job limit.
 
 on:
+  # A dispatch needs the file on the default branch, and an experiment
+  # does not go to main. So it also runs on a push to the experiment
+  # branches that changes the fetch itself (never on the bot's data
+  # commits, which touch neither path; `commit` is false on a push).
+  push:
+    branches: [exp/rs-depth, exp/rs-depth-sector]
+    paths:
+      - .github/workflows/rs-depth.yml
+      - scripts/fetch_rs_depth_postcodes.py
   workflow_dispatch:
     inputs:
       commit:
