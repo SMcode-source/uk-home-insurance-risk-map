@@ -83,6 +83,23 @@ def test_normalised_monotone_and_england_only(tmp_path, monkeypatch):
     assert abs(float(np.average(mult[:2], weights=hh[:2])) - 1.0) < 1e-9
 
 
+def test_normalised_over_claims_not_households(tmp_path, monkeypatch):
+    """A deep unit with a big envelope must not lift the national mean
+    claim: the flood total is pinned, so that would move other
+    countries' flood and groundwater with no hazard change there."""
+    _write(tmp_path, [
+        "SHALLOW,0.01,0.02,0.004,0.01,0.001,0.002,0.0,0.0,0.0,0.0,0.0,0.0,postcode",
+        "DEEP,0.20,0.40,0.20,0.38,0.18,0.35,0.15,0.30,0.10,0.20,0.05,0.10,postcode",
+    ], {"SHALLOW": "England", "DEEP": "England"})
+    monkeypatch.setattr(sr, "DATA", str(tmp_path))
+    hh = np.array([1000.0, 1000.0])
+    mult, _ = sr.rs_depth_severity(np.array(["SHALLOW", "DEEP"]), hh)
+    env_hi, env_lo = np.array([0.01, 0.20]), np.array([0.02, 0.40])
+    claims = hh * (sr.RS_FREQ_HIGH * env_hi + sr.RS_FREQ_LOW * (env_lo - env_hi))
+    assert abs(float(np.average(mult, weights=claims)) - 1.0) < 1e-9
+    assert float(np.average(mult, weights=hh)) < 1.0
+
+
 def test_missing_file_is_flat(tmp_path, monkeypatch):
     monkeypatch.setattr(sr, "DATA", str(tmp_path))
     mult, depth = sr.rs_depth_severity(np.array(["A", "B"]),
@@ -104,5 +121,5 @@ def test_climate_is_on_the_present_day_scale(tmp_path, monkeypatch):
     names, hh = np.array(["A", "B"]), np.array([1.0, 1.0])
     now, _ = sr.rs_depth_severity(names, hh)
     fut, _ = sr.rs_depth_severity(names, hh, climate=True)
-    assert abs(now.mean() - 1.0) < 1e-9
+    assert abs(now.mean() - 1.0) < 1e-9          # equal envelopes: claims = households
     assert np.all(fut > now)
