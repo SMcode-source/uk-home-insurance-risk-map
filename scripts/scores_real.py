@@ -635,8 +635,8 @@ def _band_shares(env, frac):
 def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
     """Per-district relative severity multiplier for surface-water claims.
 
-    Reads data/sw_depth.csv (see fetch_sw_depth.py): the fraction of each
-    district exceeding 0.2/0.3/0.6/0.9/1.2 m of surface water. Conditional
+    Reads data/sw_depth.csv (fetch_sw_depth_postcodes.py): the share of each
+    district's postcodes exceeding 0.2/0.3/0.6/0.9/1.2 m of surface water. Conditional
     on being inside the flooded envelope, those nested fractions give the
     depth distribution, which is turned into an expected damage relativity.
 
@@ -648,11 +648,12 @@ def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
     measured. The residual 1-in-1000 fringe is shallower and claims five
     times less often, so it is weighted accordingly.
 
-    The envelope the conditional is taken against is the AREA-share one
-    (data/sw_fractions_area[_cc].csv), not the postcode-share sw_high /
-    sw_low the frequency uses since 2026-09-06: the depth layers are area
-    measurements and dividing them by a postcode-share envelope corrupts
-    the conditional.
+    The envelope the conditional is taken against must share the depth
+    table's basis. The published table is postcode share (basis =
+    "postcode", since 2026-09-20), so the caller's postcode-share sw_high /
+    sw_low are used as they are. An old area-basis table is conditioned on
+    the area envelope (data/sw_fractions_area[_cc].csv) instead: dividing
+    area bands by a postcode-share envelope corrupts the conditional.
 
     England only - NRW and SEPA publish no equivalent depth product, so
     Welsh and Scottish districts (and any English district with no mapped
