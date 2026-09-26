@@ -37,8 +37,8 @@ and the map sits inside its own noise floor. Tab 4 SHIPPED as
 workstream, which is the honest headline: five gates of temperature
 work found one real map (subsidence geography) and no level.
 
-**The current premium is £169.7653 — £169.77 at 2dp, districts;
-£169.7658 at sector grain; loss cost £164.24.** `scripts/doc_figures.py
+**The current premium is £169.7722 — £169.77 at 2dp, districts;
+£169.7777 at sector grain; loss cost £164.25.** `scripts/doc_figures.py
 --check` holds this line and LIMITATIONS §3 to the committed output
 (its own step in `tests.yml`, on main); after a publish, run it with
 `--fix` and commit. Stated here because everything below this
@@ -172,7 +172,44 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
-## MEASURED 2026-09-26: river/sea depth severity, both grains - NOT published
+## PUBLISHED 2026-09-26: river/sea depth, and both depth multipliers normalised per claim, both grains
+
+Published on the user's explicit choice (asked after "go ahead and do
+what is best", which I did not take as a yes on its own), both grains in
+one push: district run 76, sector run 44 (`data/sectors_risk.geojson`
+blob-identical to it). Two changes, built together:
+
+1. **River/sea depth** (measured below, unchanged).
+2. **Surface water's depth multiplier normalised per claim**, the flaw
+   the river/sea work found. The normalisation now lives in the shared
+   core (`scores_real._depth_multiplier`, households x band frequency),
+   so neither peril can drift back. River/sea is byte-identical;
+   surface water is rescaled by 1/1.022 everywhere.
+
+| | districts | sectors |
+|---|---|---|
+| headline | 169.7653 -> 169.7722 | 169.7658 -> 169.7777 |
+| England / Scotland / Wales | -0.019 / +0.156 / +0.180 | -0.025 / +0.219 / +0.265 |
+| of which the surface-water fix | -0.016 / +0.149 / +0.173 | -0.023 / +0.214 / +0.257 |
+| groundwater (national) | £1.49 -> £1.50 | £1.49 -> £1.50 |
+| rating groups | 237 of 2,736 (9.7% of hh) | 889 of 10,398 (8.8%) |
+
+The surface-water fix does what it should and only that: the 2.2% that
+England's surface-water claims were overpaying came out of the national
+flood frequency, so undoing it returns flood to Wales and Scotland and
+lifts groundwater through its frequency peg (the whole headline rise).
+It is larger at sector grain, where the per-household/per-claim gap is
+wider. National flood stays at its £20.13 anchor. Validation: England's
+KSI table is unchanged (frequency did not move); Wales `el_fl` vs NRW
++0.598, as before.
+
+Also in this push: `sector-model.yml` has river/sea depth jobs (present,
+climate) and its commit step now lists every climate table it
+regenerates - it never listed surface water's either, so a climate pass
+built from inputs it did not commit. `rs-depth.yml` is dispatch-only
+and can refetch either grain.
+
+### As measured 2026-09-26 (river/sea depth alone)
 
 `exp/rs-depth` (district run 75, c110ee7) and `exp/rs-depth-sector`
 (sector run 43, 9146746). The river/sea leg has been priced at one flat
@@ -212,7 +249,7 @@ would have lowered flood frequency everywhere to pay for it - Wales,
 Scotland and groundwater moving with no hazard change there. Computed,
 not built. Weighting by claims makes the change a redistribution inside
 England. **Published surface water has the same property at 1.022 per
-claim**; unchanged here, a candidate of its own.
+claim**; unchanged in this measurement, fixed in the publish above.
 
 | | districts | sectors |
 |---|---|---|
@@ -243,11 +280,9 @@ fails with `StopIteration` on the district FOCUS - identically on
 `sector-model` itself (36236307419), which `tests.yml` had never been run
 on. Not this change.
 
-To publish: the usual two-branch push, plus `rs-depth.yml` is an exp
-workflow (push-triggered on the exp branches because a dispatch needs
-main). The sector-model full fetch has no river/sea depth step yet; add
-it to sector-model.yml before a publish, or a full refetch would
-condition the committed depth table on a refetched envelope, silently.
+(Two to-dos written here at measurement time - make `rs-depth.yml`
+dispatch-only, give sector-model.yml a river/sea depth step - were done
+in the publish above.)
 
 ## PUBLISHED 2026-09-26: surface water at 25% pixel coverage in England, both grains
 

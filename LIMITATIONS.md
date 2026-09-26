@@ -139,7 +139,7 @@ of that change's headline effect.
 
 ## 3. Per-peril provenance, and what each driver actually is
 
-EL per policy and share of the **£164.24 priced** total. Note which line
+EL per policy and share of the **£164.25 priced** total. Note which line
 is outside it:
 
 | peril | EL | share | driver | resolution | coverage |
@@ -151,7 +151,7 @@ is outside it:
 | Subsidence | £19.81 | 12.06% | BGS clay shrink–swell | 1:625,000 | GB |
 | Storm | £15.74 | 9.58% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
 | Accidental damage | £14.65 | 8.92% | census child-share | LSOA | GB |
-| Groundwater | £1.49 | 0.91% | EA alert areas | postcode flag | **England only** |
+| Groundwater | £1.50 | 0.91% | EA alert areas | postcode flag | **England only** |
 | *Coastal erosion* | *£3.09* | *—* | *EA NCERM frontages; NatureScot Dynamic Coast* | *frontage / eroded-area polygons* | ***England + Scotland on two bases (`er_basis`); Welsh coast unmapped; UNPRICED*** |
 
 **Coastal erosion is deliberately outside `el_total`** — "no policy pays
