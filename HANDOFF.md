@@ -172,6 +172,117 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-27: Wales's rivers/sea read from FRAW's own polygons - both grains, NOT published
+
+Branches `exp/wales-vector` (districts, rebuild run 83) and
+`exp/wales-vector-sector` (sectors, sector-model run 45). Found during
+`exp/rofrs-split`: the Welsh High share of the >= 1% zone read 0.757 off
+the 100 m masks, and the masks turned out to be the problem, not the
+share.
+
+**What changed.** `fetch_flood_postcodes.vector_wales` replaces
+`raster_region("wales", ...)`: NRW FRAW rivers and sea polygons over WFS
+(`inspire-nrw:NRW_FLOOD_RISK_FROM_RIVERS`, 105,679 features;
+`..._FROM_SEA`, 29,328 inside the Wales box), point-in-polygon at the
+unit postcodes like `vector_scotland`. f_high = High + Medium, f_low =
+any band, the higher of rivers and sea. The masks counted a pixel
+flooded at alpha > 16 while NRW draws at 40% opacity, so every polygon
+was buffered, and FRAW's High and Medium are thin slivers: in a 4 km box
+round Grangetown the masks put 46 postcodes in the zone and the polygons
+hold 3 (the whole envelope was nearly right, 812 vs 759). England and
+Scotland rows are the published flags untouched. Aggregating the
+published flags reproduces the live `flood_fractions.csv` byte-for-byte
+at both grains, and the rebuild of the unchanged inputs (run 81, see
+below) reproduces the live `districts_risk.geojson`, so every delta
+here is the Welsh read.
+
+**(1) Level, against NRW's own counts - and why they cannot settle it.**
+Welsh postcodes in the zone 5,139 -> **2,044** (0.40x), in the envelope
+12,611 -> 8,835 (0.70x). As homes: f_high 5.20% -> **2.08%** of Welsh
+homes, f_low 14.27% -> 10.32%. NRW NFRA people at risk (/ 2.31 per
+household) puts 7.45-8.89% of Welsh homes at >= 1% (the range is
+max(river, sea) .. river + sea), so the live read was 0.58-0.70x NFRA
+and the vector read is **0.23-0.28x**; the envelope goes 1.02-1.26x ->
+0.74-0.91x. On level alone NFRA prefers the old read. But NFRA is not
+on FRAW's basis: **Grangetown has 7,606 people at high river risk and
+7,519 at high sea risk** in NFRA, most of the community, behind the
+Grangetown flood scheme, where FRAW's own polygons hold 3 zone
+postcodes. NFRA reads as undefended hazard. Nothing else NRW publishes
+counts homes on the map's basis, so **Wales's level has no external
+anchor** (LIMITATIONS §6). What supports the polygons is structure:
+they need no decoding; the WMS re-read at 10 m and 5 m in six boxes fell
+toward them (0.37x and 0.29x of the 100 m zone) without converging; the
+Welsh share of postcodes in the zone (2.29%) now sits by England's
+(2.04% at 6.5 m, which the EA's KSI puts at 1.10x its own property
+counts); and FRAW's High share of the zone (0.556) sits by England's
+(0.524), where the masks said 0.757.
+
+**Rank against NFRA** (`validate_flood_ordering.py`, 195 Welsh
+districts): el_fl vs people at M+H **+0.598 -> +0.687**, at High +0.573
+-> +0.652, rivers +0.480 -> +0.487, sea +0.190 -> +0.210. f_high alone
+dips, +0.356 -> +0.322. England's constituency check moves on 15 border
+rows (rivers/sea High +0.9132 -> +0.9129).
+
+**(3) Priced.**
+
+| | districts (run 83 vs live) | sectors (run 45 vs live) |
+|---|---|---|
+| headline | 169.7722 -> **169.7796** | 169.7777 -> **169.7843** |
+| Wales mean | 168.86 -> 161.42 (**-7.43**) | 169.20 -> 161.82 (**-7.38**) |
+| England mean | +0.39 | +0.39 |
+| Scotland mean | +0.43 | +0.43 |
+| rating groups moved | 296 of 2,736 (9.2% of households) | 680 of 10,398 (6.2%) |
+| largest move | LL35 -38.10 | SA1 1 -48.7 |
+| climate uplift (England) | +3.90% -> +3.96% | +3.86% -> +3.92% |
+
+All 195 Welsh districts fall (median -8.10, p10 -20.88, p90 -3.10).
+Welsh flood EL goes 26.42 -> **19.29** against England's 19.61 -> 19.97:
+Wales had been priced 35% above England for flood and is now level
+with it. Examples (f_high): LL35 Aberdyfi 0.174 -> 0.013, CF11
+Grangetown 0.056 -> 0.006, LL18 Rhyl 0.043 -> 0.005, SY23 Aberystwyth
+0.076 -> 0.026. England and Scotland rise through the one national ABI
+pin, which is the mechanism, not a hazard change. English districts
+move on their own only where a postcode area crosses the border (the
+shrinkage prior of CH, HR, SY, LD includes Welsh postcodes): the
+largest is HR3 at -0.016 of f_high.
+
+**Paging, and a guard that earned its place.** GeoServer pages only
+when sorted, and the one sort key both layers carry, `mm_id`, is not
+unique: paging on it read **105,431 distinct river features of
+105,679**. The id-count guard refused to write, as designed; 248
+polygons would otherwise have been written as dry land. The read is
+now by 20 km box, each fetched whole (a box at the 5,000 cap, or a 5xx,
+splits in four), and distinct feature ids must equal `resultType=hits`
+for the whole box. `tests/test_fraw_vector.py` pins the split on cap,
+the split on error, a polygon across a box edge counted once, the
+higher band winning, and a silent omission refusing.
+
+**Two process findings.**
+- **8bdb410's message claims the Welsh fractions and the commit does
+  not contain them.** A local build chain (build, swap in the published
+  table, build a baseline) had the published table in the working copy
+  at the moment of `git add`, which then added nothing. Its rebuild
+  (run 81) rebuilt unchanged inputs and reproduced the live
+  districts_risk.geojson and year_analysis.json byte-for-byte - a free
+  baseline, and the confirmation that this build path is exact. The
+  data went in at 7b5bd26. **Never commit from a worktree a background
+  job is rewriting, and read `git show --stat` before dispatching.**
+- **`rebuild.yml` on a sector branch fails** in make_images.py on the
+  13 empty-geometry sectors (`getY called on empty Point`, run
+  36323914987). Sector builds go through `sector-model.yml` with
+  `skip_fetch=true`, as they always have.
+
+**To publish (the user's decision - not asked yet):** merge
+`exp/wales-vector` to main and `exp/wales-vector-sector` into
+sector-model (via main); copy the sector build to main's
+`data/sectors_risk.geojson`; carry `data/flood_validation*.csv` to
+sector-model; run `doc_figures.py --fix`. **Interplay with
+`exp/rofrs-split`:** that branch makes Wales carry England's High share
+(0.5244) because the masks were untrustworthy; on the vector read FRAW
+High (>= 1 in 30, the EA's own threshold) can supply Wales's f_top
+directly, at a share (0.556) close enough that the choice is small.
+Whichever lands second is rebuilt on top of the first.
+
 ## MEASURED 2026-09-27: the rest of the unanchored constants - river/sea vs surface water leads
 
 Branch `exp/sensitivity-constants`. No model output changes (the

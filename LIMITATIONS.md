@@ -536,6 +536,20 @@ Also unanchored, and worth naming:
    confined to city-centre LSOAs that mix offices with homes, which is
    where an equal split within the LSOA is itself least reliable. Not
    applied.
+   **Wales's LEVEL has no external anchor** (measured 2026-09-27, on
+   `exp/wales-vector`). Until then Wales was read from 100 m WMS
+   masks that buffered every FRAW polygon: 5.20% of Welsh homes in the
+   >= 1% band, against 2.08% inside the polygons themselves. The only
+   count NRW publishes, NFRA people at risk, puts 7.5-8.9% of Welsh
+   homes at >= 1%, but it is not on the map's basis: Grangetown in
+   Cardiff has 7,606 people at high river risk and 7,519 at high sea
+   risk in NFRA, behind a flood scheme where FRAW's polygons hold 3
+   zone postcodes. So NFRA can rank Wales (el_fl +0.598 -> +0.687 on
+   the vector read) but cannot say whether 2.08% or 5.20% is right.
+   What supports the polygons is structure, not a count: they need no
+   decoding, finer WMS re-reads fell toward them without converging,
+   and the Welsh share of postcodes in the band (2.29%) sits by
+   England's (2.04%), which the EA's own counts put at 1.10x.
 7. **Subsidence geology is 1:625,000** — regional scale, not property
    scale, against a peril that varies house by house with foundation
    depth and tree proximity. Since 2026-09-06 it is read at each unit
