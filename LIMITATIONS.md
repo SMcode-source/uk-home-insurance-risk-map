@@ -139,7 +139,7 @@ of that change's headline effect.
 
 ## 3. Per-peril provenance, and what each driver actually is
 
-EL per policy and share of the **£164.25 priced** total. Note which line
+EL per policy and share of the **£164.26 priced** total. Note which line
 is outside it:
 
 | peril | EL | share | driver | resolution | coverage |
@@ -147,11 +147,11 @@ is outside it:
 | Escape of water | £42.39 | **25.81%** | air-frost days | 1991–2020 **climatology** | UK — **no year-to-year variation** |
 | Fire | £28.00 | 17.05% | MHCLG dwelling-fire incidents | fire-authority area | GB |
 | Theft | £22.04 | 13.42% | police.uk burglary points | **street level** | E&W; Scotland at council resolution |
-| Flood | £20.13 | 12.26% | EA RoFRS risk bands / NRW FRAW / SEPA polygons | share of unit postcodes in each band | UK; depth England only |
+| Flood | £20.13 | 12.25% | EA RoFRS risk bands / NRW FRAW / SEPA polygons | share of unit postcodes in each band | UK; depth England only |
 | Subsidence | £19.81 | 12.06% | BGS clay shrink–swell | 1:625,000 | GB |
 | Storm | £15.74 | 9.58% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
 | Accidental damage | £14.65 | 8.92% | census child-share | LSOA | GB |
-| Groundwater | £1.50 | 0.91% | EA alert areas | postcode flag | **England only** |
+| Groundwater | £1.50 | 0.92% | EA alert areas | postcode flag | **England only** |
 | *Coastal erosion* | *£3.09* | *—* | *EA NCERM frontages; NatureScot Dynamic Coast* | *frontage / eroded-area polygons* | ***England + Scotland on two bases (`er_basis`); Welsh coast unmapped; UNPRICED*** |
 
 **Coastal erosion is deliberately outside `el_total`** — "no policy pays
@@ -536,6 +536,20 @@ Also unanchored, and worth naming:
    confined to city-centre LSOAs that mix offices with homes, which is
    where an equal split within the LSOA is itself least reliable. Not
    applied.
+   **Wales's LEVEL has no external anchor** (measured and published
+   2026-09-27). Until then Wales was read from 100 m WMS
+   masks that buffered every FRAW polygon: 5.20% of Welsh homes in the
+   >= 1% band, against 2.08% inside the polygons themselves. The only
+   count NRW publishes, NFRA people at risk, puts 7.5-8.9% of Welsh
+   homes at >= 1%, but it is not on the map's basis: Grangetown in
+   Cardiff has 7,606 people at high river risk and 7,519 at high sea
+   risk in NFRA, behind a flood scheme where FRAW's polygons hold 3
+   zone postcodes. So NFRA can rank Wales (el_fl +0.598 -> +0.687 on
+   the vector read) but cannot say whether 2.08% or 5.20% is right.
+   What supports the polygons is structure, not a count: they need no
+   decoding, finer WMS re-reads fell toward them without converging,
+   and the Welsh share of postcodes in the band (2.29%) sits by
+   England's (2.04%), which the EA's own counts put at 1.10x.
 7. **Subsidence geology is 1:625,000** — regional scale, not property
    scale, against a peril that varies house by house with foundation
    depth and tree proximity. Since 2026-09-06 it is read at each unit
