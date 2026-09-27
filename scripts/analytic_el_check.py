@@ -50,7 +50,7 @@ g["wdr_idx"] = wx_raw["wdr"]
 g["rain10_days"] = wx_raw["rain10"]
 g["precip_mm"] = wx_raw["precip"]
 g["gust_rp50"] = wx_raw["gust_rp50"]
-(g["fl_score"], g["f_high"], g["f_low"],
+(g["fl_score"], g["f_high"], g["f_low"], g["f_top"],
  g["sw_high"], g["sw_low"]) = bm.flood_from_agencies(g["name"].values)
 g["gw_score"], g["gw_frac"] = bm.groundwater_from_ea(g["name"].values)
 g["country"] = bm.load_country(g["name"].values)
@@ -63,7 +63,8 @@ g["sw_sev"], g["sw_depth_m"] = bm.sw_depth_severity(
     g["name"].values, g["sw_high"].values, g["sw_low"].values,
     g["households"].values)
 g["rs_sev"], g["rs_depth_m"] = bm.rs_depth_severity(
-    g["name"].values, g["households"].values)
+    g["name"].values, g["households"].values,
+    g["f_high"].values, g["f_top"].values)
 g["th_rate"] = bm.theft_from_police(g["name"].values, g["households"].values)
 g["frost_days"] = bm.frost_from_metoffice(targets)
 fmean = np.average(g["frost_days"], weights=g["households"])

@@ -93,6 +93,11 @@ K_PRIOR = fp.K_PRIOR
 AREA_RE = re.compile(r"[A-Z]+")
 PRESENT = fp.EA_RS_PRESENT
 CLIMATE_SVC = PRESENT.replace("rivers-and-sea/wms", "rivers-and-sea-climate-change/wms")
+# The depth layers are still read at the 13 m they were published on.
+# fetch_flood_postcodes.RS_PX halved to 6.5 m with exp/rofrs-split, for
+# the High/Medium boundary; whether depth moves at 6.5 m has not been
+# measured, so this does not follow it silently.
+DEPTH_PX = 13.0
 DEPTHS = [("0_2", "d02"), ("0_3", "d03"), ("0_6", "d06"), ("0_9", "d09"), ("1_2", "d12")]
 KEYS = [k for _, k in DEPTHS]
 BANDS = [f"b{k[1:]}" for k in KEYS]                # b02 ... b12
@@ -122,7 +127,7 @@ def stage_flags(climate, part):
     x = pc["easting"].values.astype(float)
     y = pc["northing"].values.astype(float)
     minx, miny, maxx, maxy = fp.ENGLAND_BBOX
-    T = fp.RS_PX * fp.RS_TILE
+    T = DEPTH_PX * fp.RS_TILE
     nx = int(np.ceil((maxx - minx) / T))
     ny = int(np.ceil((maxy - miny) / T))
     ix_all = np.clip(((x - minx) // T).astype(int), 0, nx - 1)
@@ -146,8 +151,8 @@ def stage_flags(climate, part):
         x0, y0 = minx + ix * T, miny + iy * T
         bbox = (x0, y0, x0 + T, y0 + T)
         idx = np.nonzero((ix_all == ix) & (iy_all == iy))[0]
-        cols = np.clip(((x[idx] - x0) / fp.RS_PX).astype(int), 0, fp.RS_TILE - 1)
-        rows = np.clip(((bbox[3] - y[idx]) / fp.RS_PX).astype(int), 0, fp.RS_TILE - 1)
+        cols = np.clip(((x[idx] - x0) / DEPTH_PX).astype(int), 0, fp.RS_TILE - 1)
+        rows = np.clip(((bbox[3] - y[idx]) / DEPTH_PX).astype(int), 0, fp.RS_TILE - 1)
         # The band, exactly as rofrs_england reads it: default windows,
         # and in the climate edition the present-day band where the
         # climate one is Unavailable.

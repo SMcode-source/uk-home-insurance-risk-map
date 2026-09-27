@@ -50,6 +50,7 @@ def fingerprint():
         "households": rng.uniform(200, 40000, n),
     })
     df["f_low"] = np.maximum(df["f_low"], df["f_high"])
+    df["f_top"] = df["f_high"] * rng.uniform(0.0, 1.0, n)
     df["sw_low"] = np.maximum(df["sw_low"], df["sw_high"])
 
     n_sim, batch = bm.N_SIM, bm.BATCH

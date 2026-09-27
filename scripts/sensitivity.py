@@ -35,7 +35,9 @@ Scenarios:
                     10:1 on both flood legs (5:1 as shipped); level re-pinned
   flood_rs_weight_067/150   river/sea band frequencies x2/3 / x1.5 against
                     surface water; level re-pinned
-  gw_share_05/20    GW_SHARE_OF_FLOOD 0.05 / 0.20 (0.10) - moves a LEVEL
+  rs_top_050/100    RS_FREQ_TOP 5% / 10% (3.3%, the floor of the EA's
+                    High band, which has no upper bound); level re-pinned
+  gw_share_05/20   GW_SHARE_OF_FLOOD 0.05 / 0.20 (0.10) - moves a LEVEL
   gw_background_01/04   GW_BACKGROUND 0.01 / 0.04 (0.02): groundwater
                     outside the EA alert areas (Wales, Scotland)
   spatial_equal     SPATIAL_BASE loadings set equal at their mean
@@ -84,7 +86,8 @@ ORIG = dict(theta_ws=bm.theta_ws, theta_wf=bm.theta_wf, theta_wg=bm.theta_wg,
             gw_share=bm.GW_SHARE_OF_FLOOD,
             spatial_base=dict(bm.SPATIAL_BASE),
             **{k: getattr(scores_real, k) for k in
-               ("SW_FREQ_HIGH", "SW_FREQ_LOW", "RS_FREQ_HIGH", "RS_FREQ_LOW")})
+               ("SW_FREQ_HIGH", "SW_FREQ_LOW", "RS_FREQ_TOP",
+                "RS_FREQ_HIGH", "RS_FREQ_LOW")})
 CTX = {}    # the full frame and the sample, for scenarios that must redo both
 
 
@@ -208,7 +211,8 @@ def rederive(groundwater=False):
         full["name"].values, full["sw_high"].values, full["sw_low"].values,
         full["households"].values)
     full["rs_sev"], _ = rs_depth_severity(
-        full["name"].values, full["households"].values)
+        full["name"].values, full["households"].values,
+        full["f_high"].values, full["f_top"].values)
     if groundwater:
         full["gw_score"], full["gw_frac"] = groundwater_from_ea(
             full["name"].values)
@@ -218,7 +222,8 @@ def rederive(groundwater=False):
         sample[col] = full[col].values[::3]
 
 
-FLOOD_FREQS = ("SW_FREQ_HIGH", "SW_FREQ_LOW", "RS_FREQ_HIGH", "RS_FREQ_LOW")
+FLOOD_FREQS = ("SW_FREQ_HIGH", "SW_FREQ_LOW", "RS_FREQ_TOP",
+               "RS_FREQ_HIGH", "RS_FREQ_LOW")
 
 
 def flood_bands(ratio=None, rs_weight=1.0):
@@ -226,10 +231,11 @@ def flood_bands(ratio=None, rs_weight=1.0):
     marginal_params and by both depth weightings).
 
     ratio: the high-zone : rest-of-envelope claim-rate ratio, 5:1 on both
-    legs as shipped (1.5%/0.3% river/sea, 1.0%/0.2% surface water); the
-    high band is held and the low one moved. rs_weight: river/sea against
-    surface water, both of its bands scaled. The background 0.05%/yr is
-    left alone. Only shape can move - rederive() re-pins the level.
+    legs as shipped (1.5%/0.3% river/sea Medium/Low, 1.0%/0.2% surface
+    water); the high band is held and the low one moved, and the river/sea
+    High band (RS_FREQ_TOP) is held too. rs_weight: river/sea against
+    surface water, all three of its bands scaled. The background 0.05%/yr
+    is left alone. Only shape can move - rederive() re-pins the level.
     """
     for leg in ("SW", "RS"):
         hi = ORIG[f"{leg}_FREQ_HIGH"] * (rs_weight if leg == "RS" else 1.0)
@@ -237,8 +243,18 @@ def flood_bands(ratio=None, rs_weight=1.0):
               ORIG[f"{leg}_FREQ_LOW"] * (rs_weight if leg == "RS" else 1.0))
         setattr(scores_real, f"{leg}_FREQ_HIGH", hi)
         setattr(scores_real, f"{leg}_FREQ_LOW", lo)
+    scores_real.RS_FREQ_TOP = ORIG["RS_FREQ_TOP"] * rs_weight
     print("  flood bands -> " + ", ".join(
         f"{k} {getattr(scores_real, k):.4f}" for k in FLOOD_FREQS), flush=True)
+    rederive()
+
+
+def rs_top(freq):
+    """RS_FREQ_TOP, the RoFRS High band's claim rate: 3.3%/yr as shipped,
+    the floor of the EA's definition (>= 1 in 30), which has no upper
+    bound. The scenarios move it up; below the floor is outside the band."""
+    scores_real.RS_FREQ_TOP = freq
+    print(f"  RS_FREQ_TOP -> {freq:.4f}", flush=True)
     rederive()
 
 
@@ -320,6 +336,9 @@ SCENARIOS = {
     "flood_band_ratio_10": lambda: flood_bands(ratio=10.0),
     "flood_rs_weight_067": lambda: flood_bands(rs_weight=2 / 3),
     "flood_rs_weight_150": lambda: flood_bands(rs_weight=1.5),
+    # the RoFRS High band's open upper end (added with exp/rofrs-split)
+    "rs_top_050": lambda: rs_top(0.050),
+    "rs_top_100": lambda: rs_top(0.100),
     "gw_share_05": lambda: gw_share(0.05),
     "gw_share_20": lambda: gw_share(0.20),
     "gw_background_01": lambda: gw_background(0.01),
