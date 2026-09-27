@@ -1039,7 +1039,7 @@
     <p>And that charge is an <i>aggregate</i> quantity, not a personal one: it is
     <b>6% of the district's Euler-allocated share of the portfolio's</b> worst 1% of years,
     not of its own. The gap is the whole point — a single policy's standalone TVaR₉₉ ran
-    <b>£10,100–£17,600</b> across 30 simulation seeds, while
+    <b>£10,100–£17,700</b> across 30 simulation seeds, while
     its allocated share of the portfolio tail held at about <b>£261</b>, a
     <b>98% diversification credit</b>. An earlier version charged 6% of
     the standalone figure and inflated premiums roughly tenfold.</p>
@@ -1047,9 +1047,9 @@
     The standalone figure is the mean of each district's worst 200 years out of
     20,000, and every district is simulated against the <i>same</i> draws — so its Monte
     Carlo error is common to all 2,736 of them and does not average away. Across
-    30 seeds the national mean moved 56%, while the allocated
+    30 seeds the national mean moved 57%, while the allocated
     share moved 2.2%, the diversification credit stayed within
-    97.4–98.5%, and the premium moved 0.19%. Quoting one
+    97.4–98.5%, and the premium moved 0.20%. Quoting one
     standalone number would imply a precision the simulation does not have; the premium
     map does not inherit the problem. The per-district <code>tvar99_vine</code> column in
     the <a href="assets/uk_district_risk.csv">download</a> carries the same caveat.
@@ -1324,7 +1324,7 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 .venv/Scripts/python scripts/fetch_children.py       # census dependent-children shares -> AD driver
 
 .venv/Scripts/python scripts/build_model.py          # scores + vine simulation  (~15 min)
-.venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs         (~35 min)
+.venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs         (~60 min)
 .venv/Scripts/python scripts/build_map.py
 .venv/Scripts/python scripts/build_analysis.py
 .venv/Scripts/python scripts/build_site.py           # assembles this website</code></pre>

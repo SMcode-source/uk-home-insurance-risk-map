@@ -403,7 +403,39 @@ Also unanchored, and worth naming:
   slightly more than either bracket (6.8% against 5.5% / 6.1%). So the
   one outside curve available disagrees with ours by about as much as
   the brackets do, and that is not evidence that ours is wrong.
-- **`GW_SHARE_OF_FLOOD = 0.10`** — see §2.
+- **The flood band frequencies** — `RS_FREQ_HIGH/LOW = 1.5%/0.3%` a year
+  for river/sea, `SW_FREQ_HIGH/LOW = 1.0%/0.2%` for surface water, and a
+  0.05% background (`scores_real.py`, their only definition since
+  2026-09-27). calibrate_frequency re-pins flood's national level, so only
+  two RATIOS are live, and both were measured 2026-09-27 (same run basis
+  as `DEPTH_DAMAGE` above). **River/sea against surface water is the more
+  consequential unanchored constant in the model**: ×2/3 moves **12.3%**
+  of rating groups and ×1.5 **16.1%**, more than ignoring depth
+  altogether. The 5:1 high-zone-to-envelope ratio matters less: 2.5:1
+  moves 7.8%, 10:1 moves 5.7%. There is a partial anchor for the river/sea
+  bands. The EA defines RoFRS High as >3.3% a year and Medium as 1–3.3%,
+  and the model's "high" band is both together (codes 3 and 4). So 1.5%
+  prices every home at ≥1% as if it were mid-Medium, and a High home at
+  less than half its band's floor. That is a flood chance, not a claim
+  rate: not every flood becomes a claim, so the bands bound rather than
+  fix the frequencies. Splitting High from Medium is a model change and
+  has not been made.
+- **`GW_SHARE_OF_FLOOD = 0.10`** — see §2. The one scenario here that
+  moves a LEVEL, because groundwater has no anchor of its own: at 5% the
+  sample premium falls £0.8 and at 20% rises £1.6, moving 2.0% / 4.2% of
+  rating groups.
+- **`GW_BACKGROUND = 0.02`** — the groundwater fraction given to the 623
+  districts outside the EA alert areas (§5). The peg to flood holds the
+  national total, so it only moves groundwater between England and the
+  rest: 1% / 4% move 0.9% / 1.5% of groups.
+- **`SPATIAL_BASE`** — the per-peril systemic loadings (weather 0.50,
+  flood 0.40, subsidence 0.60, groundwater 0.70). Their overall scale is
+  solved, not assumed; setting all four equal moves 0.9% of groups.
+- **The subsidence susceptibility tables** (`LEX_SUSCEP`, `RCS_SUSCEP`,
+  `OLD_AGE_FACTOR`, `DEFAULT_SUSCEP`) have no scenario yet. The model
+  reads them through `data/subsidence_postcodes.csv`, which is scored once
+  at the unit postcodes, so each variant needs
+  `score_subsidence_postcodes.py` re-run against BGS and ONSPD.
 - **`SMD_CAP = 150 mm`** in the new climate work — not a model parameter;
   nothing reads it yet.
 

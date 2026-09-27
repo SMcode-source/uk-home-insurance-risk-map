@@ -65,6 +65,26 @@ def _steps_running(job, script):
             yield i, step
 
 
+@pytest.mark.parametrize("workflow", sorted(
+    os.path.basename(p) for p in glob.glob(os.path.join(WORKFLOWS, "*.yml"))))
+def test_every_site_build_makes_the_tiles_first(workflow):
+    """build_site.py hard-fails without map/tiles/*.pmtiles, which only
+    build_tiles.py writes, and a fresh runner has none. rebuild.yml missed
+    the step at the four-tabs restructure (run 33417982687), and
+    seed-sweep.yml missed it until 2026-09-27 (run 36277622557 - an hour's
+    sweep, then a red site check). Each job that builds the site must make
+    the tiles earlier in the same job."""
+    for name, job in (_load(workflow).get("jobs") or {}).items():
+        runs = "\n".join(step.get("run") or "" for step in job.get("steps", []))
+        at = runs.find("build_site.py")
+        if at < 0:
+            continue
+        tiles = runs.find("build_tiles.py")
+        assert 0 <= tiles < at, (
+            f"{workflow}:{name} runs build_site.py without build_tiles.py "
+            "before it")
+
+
 @pytest.mark.parametrize("workflow", BUILD_WORKFLOWS)
 def test_every_job_installs_ostn15_before_it_transforms(workflow):
     wf = _load(workflow)

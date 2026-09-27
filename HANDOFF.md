@@ -172,6 +172,56 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## MEASURED 2026-09-27: the rest of the unanchored constants - river/sea vs surface water leads
+
+Branch `exp/sensitivity-constants`. No model output changes (the
+refactor below is checked byte-for-byte by `rebuild.yml verify`). It
+adds nine rows to `data/sensitivity.json`, run beside a baseline that is
+dict-identical to the published one and merged in (21 rows now).
+
+**Refactor first.** The flood band frequencies were literals in
+`marginal_params` (0.015/0.003/0.010/0.002/0.0005) and named constants
+in `scores_real` (`RS_FREQ_*`/`SW_FREQ_*`, which the depth multipliers
+weight their bands by). Two copies of one number, the drift trap from the
+day before, and it made them impossible to perturb. `scores_real` now
+holds the only definition (plus `RS_FREQ_BACKGROUND`), read at call time.
+`test_flood_band_frequencies_have_one_definition` moves each one and
+requires p_fl to move by exactly its own term.
+
+| scenario | E[loss] | premium | churn |
+|---|---|---|---|
+| flood high:envelope ratio 2.5:1 / 10:1 (5:1) | 166.6 / 166.9 | 172.4 / 172.8 | 7.8% / 5.7% |
+| river/sea vs surface water ×2/3 / ×1.5 | 166.7 / 166.9 | 172.5 / 172.8 | **12.3% / 16.1%** |
+| `GW_SHARE_OF_FLOOD` 0.05 / 0.20 (0.10) | 166.0 / 168.3 | 171.8 / 174.2 | 2.0% / 4.2% |
+| `GW_BACKGROUND` 0.01 / 0.04 (0.02) | 166.8 / 166.8 | 172.6 / 172.7 | 0.9% / 1.5% |
+| `SPATIAL_BASE` all equal | 166.8 | 172.7 | 0.9% |
+
+Readings:
+- **River/sea against surface water is the most consequential
+  unanchored constant** measured: more than ignoring depth (11.2%), and
+  second only to flood frequency ×1.5 (24.9%). A partial anchor exists:
+  the EA's RoFRS band definitions (High >3.3%, Medium 1–3.3%). The
+  model's high band is codes 3+4 together at 1.5%, so High homes are
+  priced below their band's floor. That is a flood chance, not a claim
+  rate, so it bounds rather than fixes. **The next candidate model
+  change: split High from Medium** (exp, both grains, the user decides).
+- `GW_SHARE_OF_FLOOD` is the only level mover, because groundwater has no
+  anchor of its own.
+- Loadings and background barely move anything.
+
+Also on 2026-09-27: the seed sweep. `seed-sweep.yml` failed its
+site-check step after a clean six-seed sweep (run 36277622557) because
+it never gained `build_tiles.py`; fixed on `exp/seed-sweep` with
+`test_every_site_build_makes_the_tiles_first` over every workflow, and
+re-dispatched at the published 30 seeds (42–71): run 36280689584,
+committed as 1aefd3b. `data/seed_sensitivity.json` had measured the
+2026-08-22 model (E[loss] 171.1); on today's (164.2) almost nothing
+moved. The standalone TVaR99 range is 10,153–17,686 (published rounding
+10,200–17,700, was 10,200–17,600) with a 57% spread (was 56%). Portfolio
+TVaR99 spread 2.18% and premium 0.20% are unchanged to the second decimal,
+and diversification is still 97.4–98.5%. The measurement held; only its
+basis was stale.
+
 ## MEASURED 2026-09-26: the sensitivity table was seven weeks stale, and the depth curve moves the ranking
 
 Branch `exp/sensitivity-refresh`. No model change: `el_total`, the premium
@@ -582,12 +632,13 @@ Against a 5 m reference: coastal medium 1,136 vs 859 postcodes in (+32%),
 features) point the same way. Unsimplified coastal polygons 500 the
 server, so the fix is a small tolerance at one feature per page.
 
-Unanchored constants with no sensitivity scenario:
-`SPATIAL_BASE`, `SW_FREQ_HIGH/LOW`, `GW_SHARE_OF_FLOOD`, `GW_BACKGROUND`, the
-`LEX_SUSCEP`/`RCS_SUSCEP` table, `OLD_AGE_FACTOR`, `DEFAULT_SUSCEP`. None is
-wrong on evidence; none has a scenario in `sensitivity.py`. (`DEPTH_DAMAGE`
-was on this list until 2026-09-26; it now has four, see "MEASURED
-2026-09-26: the sensitivity table was seven weeks stale".)
+Unanchored constants with no sensitivity scenario: the
+`LEX_SUSCEP`/`RCS_SUSCEP` table, `OLD_AGE_FACTOR`, `DEFAULT_SUSCEP` (they
+reach the model through `subsidence_postcodes.csv`, so each variant needs
+`score_subsidence_postcodes.py` re-run). None is wrong on evidence.
+`DEPTH_DAMAGE` got scenarios 2026-09-26; `SPATIAL_BASE`, the flood band
+frequencies, `GW_SHARE_OF_FLOOD` and `GW_BACKGROUND` on 2026-09-27 - see
+"MEASURED 2026-09-27: the rest of the unanchored constants".
 
 All three flood findings are model changes: exp branches, both grains,
 the user decides. The two measurement scripts were scratch and are not
