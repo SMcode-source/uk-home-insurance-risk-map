@@ -27,7 +27,11 @@ This script does that for all of Great Britain in one pass:
              properties at risk (validate_flood_england.py) the extents
              ranked constituencies at Spearman +0.832 while surface
              water, already on the EA's risk product, ranked at +0.932.
-  Wales    : NRW FRAW rivers + sea, same masks.
+  Wales    : NRW FRAW rivers + sea polygons (WFS), point-in-polygon,
+             since exp/wales-vector: f_high = High + Medium, f_low = any
+             band. Until then these were the 100 m WMS masks of
+             fetch_flood.REGIONS, which inflated the >=1% zone (see
+             FRAW_LAYERS).
   Scotland : SEPA river + coastal likelihood polygons, point-in-polygon.
 
 Every postcode row carries its district and sector, so one fetch
@@ -75,7 +79,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fetch_flood as ff                          # noqa: E402
 from build_model import load_districts           # noqa: E402
 
-PX, TILE = ff.PX, ff.TILE
 DATA = "data"
 CENTROIDS = os.path.join(DATA, "postcode_centroids.csv")
 OUT = os.path.join(DATA, "flood_fractions.csv")
@@ -282,33 +285,149 @@ if "--flags-from" in sys.argv[1:]:
     FLAGS_FROM = sys.argv[sys.argv.index("--flags-from") + 1]
 
 
-def raster_region(name, pc, x, y, in_high, in_low):
-    region = ff.REGIONS[name]
-    minx, miny, maxx, maxy = region["bbox"]
-    nx = int(np.ceil((maxx - minx) / (TILE * PX)))
-    ny = int(np.ceil((maxy - miny) / (TILE * PX)))
-    ctry = (pc["country"] == name.capitalize()).values
-    for ix in range(nx):
-        for iy in range(ny):
-            x0, y0 = minx + ix * TILE * PX, miny + iy * TILE * PX
-            bbox = (x0, y0, x0 + TILE * PX, y0 + TILE * PX)
-            sel = ctry & (x >= bbox[0]) & (x < bbox[2]) & (y >= bbox[1]) & (y < bbox[3])
-            if not sel.any():
-                continue
-            idx = np.nonzero(sel)[0]
-            cols = np.clip(((x[idx] - bbox[0]) / PX).astype(int), 0, TILE - 1)
-            rows = np.clip(((bbox[3] - y[idx]) / PX).astype(int), 0, TILE - 1)
-            for band, layers in region["bands"].items():
-                mask = None
-                for kind, base, layer, cql in layers:
-                    m = ff.fetch_mask(kind, base, layer, cql, bbox)
-                    if m is not None:
-                        mask = m if mask is None else (mask | m)
-                if mask is None:
+# Wales is read from NRW's FRAW polygons themselves (WFS), point-in-polygon
+# at the unit postcodes, since exp/wales-vector. Until then it was
+# raster_region: WMS masks at 100 m a pixel, "flooded" wherever alpha > 16,
+# and NRW draws at 40% opacity, so a pixel a sixth covered by any band's
+# polygon counted - a buffer round every polygon. FRAW's High and Medium
+# are thin slivers along channels and shores, so the buffer inflated the
+# >=1% zone most: in a 4 km box round Grangetown, Cardiff, 46 postcodes
+# were in it at 100 m and 3 are inside the polygons (the whole envelope,
+# 812 vs 759, was nearly right). Re-reading the WMS at 10 m and 5 m did
+# not converge (0.37x and 0.29x the 100 m zone in six 10 km boxes), so
+# no pixel size fixes it; the polygons need no decoding at all.
+FRAW_LAYERS = ("inspire-nrw:NRW_FLOOD_RISK_FROM_RIVERS",
+               "inspire-nrw:NRW_FLOOD_RISK_FROM_SEA")
+FRAW_BAND = {"High": 3, "Medium": 2, "Low": 1}   # High >= 1 in 30
+# Read in bounding boxes, each fetched WHOLE, never in pages: this
+# GeoServer pages only when sorted, and the only sort key both layers
+# carry (mm_id) is not unique - paging on it read 105,431 distinct river
+# features of 105,679, and 248 polygons would have been written as dry.
+# A box that comes back at the cap, or errors, is split in four.
+FRAW_TILE_M = 20_000
+FRAW_CAP = 5_000
+
+
+def _fraw_get(layer, bbox, count, hits=False):
+    q = dict(service="WFS", version="2.0.0", request="GetFeature",
+             typeNames=layer, outputFormat="application/json",
+             srsName="EPSG:27700",
+             bbox=",".join(f"{v:.0f}" for v in bbox) + ",EPSG:27700")
+    if hits:
+        q["resultType"] = "hits"
+        q.pop("outputFormat")
+    else:
+        q["count"] = count
+    return ff.NRW + "?" + urllib.parse.urlencode(q)
+
+
+def fraw_matched(layer, bbox):
+    """numberMatched for a layer in a box - the completeness reference."""
+    for tries in range(4):
+        try:
+            with urllib.request.urlopen(_fraw_get(layer, bbox, 0, True),
+                                        timeout=300) as r:
+                m = re.search(rb'numberMatched="(\d+)"', r.read())
+            if m:
+                return int(m.group(1))
+        except Exception as e:                            # noqa: BLE001
+            print(f"    retry {tries + 1} {layer} hits: {e}", flush=True)
+        time.sleep(10)
+    raise SystemExit(f"{layer}: no feature count - refusing to write a "
+                     "partial Wales")
+
+
+def fraw_tile(layer, bbox, depth=0):
+    """Every feature of a layer intersecting bbox, splitting the box in
+    four when the reply is capped or the server errors."""
+    import urllib.error
+    tries = 0
+    while True:
+        try:
+            with urllib.request.urlopen(_fraw_get(layer, bbox, FRAW_CAP),
+                                        timeout=600) as r:
+                feats = json.load(r)["features"]
+            break
+        except urllib.error.HTTPError as e:
+            if e.code >= 500 and depth < 6:
+                feats = None
+                break
+            err = e
+        except Exception as e:                            # noqa: BLE001
+            err = e
+        tries += 1
+        if tries >= 4:
+            raise SystemExit(f"{layer}: no answer for {bbox} ({err}) - "
+                             "refusing to write a partial Wales")
+        print(f"    retry {tries} {layer}: {err}", flush=True)
+        time.sleep(10)
+    if feats is not None and len(feats) < FRAW_CAP:
+        return feats
+    if depth >= 6:
+        raise SystemExit(f"{layer}: {bbox} still capped at depth {depth}")
+    x0, y0, x1, y1 = bbox
+    xm, ym = (x0 + x1) / 2, (y0 + y1) / 2
+    out = []
+    for q in ((x0, y0, xm, ym), (xm, y0, x1, ym),
+              (x0, ym, xm, y1), (xm, ym, x1, y1)):
+        out += fraw_tile(layer, q, depth + 1)
+    return out
+
+
+def vector_wales(pc, x, y, in_high, in_low):
+    """FRAW rivers + sea at every Welsh postcode: in_high where a High or
+    Medium polygon holds it (>= 1% rivers, >= 0.5% sea), in_low for any
+    band. Returns the per-postcode FRAW band (FRAW_BAND, 0 = none, the
+    higher of rivers and sea) for the diagnostic cache."""
+    minx, miny, maxx, maxy = ff.REGIONS["wales"]["bbox"]
+    idx_all = np.nonzero((pc["country"] == "Wales").values)[0]
+    xs, ys = x[idx_all], y[idx_all]
+    if not ((xs >= minx) & (xs < maxx) & (ys >= miny) & (ys < maxy)).all():
+        raise SystemExit("a Welsh postcode lies outside the Wales box - "
+                         "widen ff.REGIONS['wales']['bbox']")
+    tree = shapely.STRtree(shapely.points(xs, ys))
+    band = np.zeros(len(pc), dtype=np.int8)
+    for layer in FRAW_LAYERS:
+        matched = fraw_matched(layer, (minx, miny, maxx, maxy))
+        ids = set()
+        for tx in np.arange(minx, maxx, FRAW_TILE_M):
+            for ty in np.arange(miny, maxy, FRAW_TILE_M):
+                tb = (tx, ty, min(tx + FRAW_TILE_M, maxx),
+                      min(ty + FRAW_TILE_M, maxy))
+                sel = ((xs >= tb[0] - 1) & (xs < tb[2] + 1)
+                       & (ys >= tb[1] - 1) & (ys < tb[3] + 1))
+                feats = fraw_tile(layer, tb)
+                # a polygon reaching into this box from a neighbour is
+                # fetched again there; the id set counts it once
+                ids.update(f["id"] for f in feats)
+                if not sel.any():
                     continue
-                (in_high if band == "high" else in_low)[idx] |= mask[rows, cols]
-            print(f"  {name} tile {ix},{iy}: {len(idx):,} postcodes", flush=True)
-            time.sleep(0.15)
+                risk = [f["properties"]["risk"] for f in feats]
+                unknown = set(risk) - set(FRAW_BAND)
+                if unknown:
+                    raise SystemExit(f"{layer}: unknown risk values {unknown}")
+                keep = [i for i, f in enumerate(feats) if f.get("geometry")]
+                if not keep:
+                    continue
+                geoms = shapely.make_valid(shapely.from_geojson(
+                    [json.dumps(feats[i]["geometry"]) for i in keep]))
+                code = np.array([FRAW_BAND[risk[i]] for i in keep],
+                                dtype=np.int8)
+                gi, pi = tree.query(geoms, predicate="intersects")
+                if len(pi):
+                    np.maximum.at(band, idx_all[pi], code[gi])
+                time.sleep(0.15)
+        if len(ids) != matched:
+            raise SystemExit(f"{layer}: read {len(ids)} distinct features "
+                             f"of {matched} in the Wales box - refusing to "
+                             "write a partial Wales")
+        print(f"  wales {layer.split(':')[1]}: {matched} features", flush=True)
+    in_high[idx_all] |= band[idx_all] >= 2
+    in_low[idx_all] |= band[idx_all] >= 1
+    w = band[idx_all]
+    print("  wales postcodes by FRAW band: " + ", ".join(
+        f"{k} {(w == v).mean():.3%}" for k, v in FRAW_BAND.items()), flush=True)
+    return band
 
 
 # SEPA serves its polygons generalised to `maxAllowableOffset` metres. This
@@ -438,7 +557,13 @@ def main():
         print(f"flags from {FLAGS_FROM} - nothing fetched", flush=True)
     else:
         if not CLIMATE:
-            raster_region("wales", pc, x, y, in_high, in_low)
+            wband = vector_wales(pc, x, y, in_high, in_low)
+            # per-postcode FRAW band, diagnostic like rofrs_bands.csv
+            os.makedirs(os.path.join(DATA, "cache"), exist_ok=True)
+            wal = (pc["country"] == "Wales").values
+            pd.DataFrame({"postcode": pc["postcode"][wal],
+                          "band": wband[wal]}).to_csv(
+                os.path.join(DATA, "cache", "fraw_bands.csv"), index=False)
             vector_scotland(pc, x, y, in_high, in_low)
         code = rofrs_england(pc, x, y, in_high, in_low)
         if ff.FAILED:
