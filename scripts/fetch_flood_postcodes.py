@@ -248,12 +248,49 @@ def rofrs_url(base, layer, bbox):
     return base + "?" + urllib.parse.urlencode(q)
 
 
-def rofrs_england(pc, x, y, in_high, in_low):
-    """Band codes for every English postcode, from the tiles that hold one."""
-    minx, miny, maxx, maxy = ENGLAND_BBOX
+# The service drops polygons from a render depending on where the request
+# box falls, not only on its pixel size. Measured at TN23 9 (Ashford), 35
+# postcodes all inside one High polygon, 6.5 m a pixel: with the box's
+# west edge at 15 positions the polygon drew at some and vanished at the
+# rest, at every box size tried (3.3, 6.7 and 13.3 km); the box's north-
+# south position made no difference, and the vanished polygon never
+# re-appeared as some other band. The single-grid reads had lost it (6.5 m
+# tiles) or kept it (13 m tiles) by luck of the grid. So England is read
+# on RS_PASSES tile grids, each shifted by a third of a tile, and combined
+# by combine_passes.
+#
+# Most disagreement between passes is NOT a dropout. Of the 5,504 English
+# postcodes banded by some passes but not all (present day, 2026-09-27),
+# 81% sat on a polygon outline in the passes that banded them and took
+# their neighbourhood's band - a pixel either side of an edge, which moves
+# with the grid's sub-pixel phase - and they were scattered: only 452 had
+# a postcode with the same pattern within 150 m. Taking any pass's band
+# (a union) would have buffered every polygon, as the Welsh masks did,
+# adding 956 postcodes to the >=1% zone; a majority of the passes adds 79.
+# A dropout is different: a whole polygon vanishes, taking its neighbours
+# with it. So a band fewer than half the passes drew is kept only where it
+# is one of at least RS_RESCUE_N postcodes with the same pattern, each
+# within RS_RESCUE_M of the next. Present day, that is exactly TN23 9's 34
+# postcodes at 100 or 150 m and any RS_RESCUE_N from 5 to 17 (at 250 m
+# and fewer than 8, a 7-postcode N17 9 group joins); the climate layer
+# drew TN23 9 in every pass, and the rule keeps two clusters of exactly
+# 5 (TR21 0, E14 9), which RS_RESCUE_N of 6 would drop. A 6-postcode dropout two passes drew
+# (SW11 7) the majority keeps on its own. Clusters found by one pass, 1,
+# and by two, 1: Chao's f1^2 / (2 f2) puts the dropouts every pass missed
+# at 0.5 of a cluster, so a fourth pass would buy nothing.
+RS_PASSES = ((0.0, 0.0), (1 / 3, 1 / 3), (2 / 3, 2 / 3))
+RS_RESCUE_M, RS_RESCUE_N = 150.0, 5
+
+
+def rofrs_pass(pc, x, y, shift):
+    """One read of every English postcode on a tile grid shifted by
+    `shift` (fractions of a tile, east and north). Returns (code, direct,
+    carried) arrays over pc; code -1 where not sampled."""
     T = RS_PX * RS_TILE
-    nx = int(np.ceil((maxx - minx) / T))
-    ny = int(np.ceil((maxy - miny) / T))
+    minx = ENGLAND_BBOX[0] - shift[0] * T
+    miny = ENGLAND_BBOX[1] - shift[1] * T
+    nx = int(np.ceil((ENGLAND_BBOX[2] - minx) / T))
+    ny = int(np.ceil((ENGLAND_BBOX[3] - miny) / T))
     code = np.full(len(pc), -1, dtype=np.int8)        # -1: not sampled
     direct = np.zeros(len(pc), dtype=bool)
     carried = np.zeros(len(pc), dtype=bool)     # climate gap -> present day
@@ -261,8 +298,9 @@ def rofrs_england(pc, x, y, in_high, in_low):
     ix_all = np.clip(((x - minx) // T).astype(int), 0, nx - 1)
     iy_all = np.clip(((y - miny) // T).astype(int), 0, ny - 1)
     tiles = sorted(set(zip(ix_all[eng].tolist(), iy_all[eng].tolist())))
-    print(f"england: {EA_RS_LAYER}, {len(tiles)} tiles of {T / 1000:.1f} km "
-          f"hold postcodes ({RS_PX} m/px)", flush=True)
+    print(f"england: {EA_RS_LAYER}, grid shifted {shift[0]:.2f},{shift[1]:.2f}: "
+          f"{len(tiles)} tiles of {T / 1000:.1f} km hold postcodes "
+          f"({RS_PX} m/px)", flush=True)
     t0 = time.time()
     for k, (ix, iy) in enumerate(tiles):
         x0, y0 = minx + ix * T, miny + iy * T
@@ -286,15 +324,92 @@ def rofrs_england(pc, x, y, in_high, in_low):
             print(f"  {k + 1}/{len(tiles)} tiles, {time.time() - t0:.0f}s",
                   flush=True)
         time.sleep(0.15)
+    return code, direct, carried
+
+
+def dropout_clusters(codes, x, y):
+    """Postcodes where fewer than half the passes drew a band but which lie
+    in a cluster of at least RS_RESCUE_N such postcodes with the same
+    presence pattern, each within RS_RESCUE_M of the next: a polygon that
+    vanished from some renders, not an edge (see RS_PASSES)."""
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import connected_components
+    from scipy.spatial import cKDTree
+    codes = np.asarray(codes)
+    k = codes.shape[0]
+    drew = codes > 0
+    pattern = (drew * (1 << np.arange(k))[:, None]).sum(axis=0)
+    minority = drew.any(axis=0) & (drew.sum(axis=0) < k // 2 + 1)
+    out = np.zeros(codes.shape[1], dtype=bool)
+    sel = np.nonzero(minority)[0]
+    if len(sel) < RS_RESCUE_N:
+        return out
+    pairs = cKDTree(np.c_[x[sel], y[sel]]).query_pairs(
+        RS_RESCUE_M, output_type="ndarray")
+    pairs = pairs[pattern[sel[pairs[:, 0]]] == pattern[sel[pairs[:, 1]]]]
+    graph = coo_matrix((np.ones(len(pairs)), (pairs[:, 0], pairs[:, 1])),
+                       shape=(len(sel), len(sel)))
+    _, label = connected_components(graph, directed=False)
+    out[sel] = np.bincount(label)[label] >= RS_RESCUE_N
+    return out
+
+
+def combine_passes(codes, rescue=None):
+    """One band per postcode from several passes (rows = passes): the most
+    common NON-ZERO band, ties going to the higher band, where more than
+    half the passes drew one - or where `rescue` (dropout_clusters) says a
+    minority band is a vanished polygon - and 0 otherwise. -1 (not
+    sampled) anywhere stays -1; 5 (Unavailable) is a band like any other
+    here, so the caller's guard still sees it."""
+    codes = np.asarray(codes)
+    out = np.zeros(codes.shape[1], dtype=np.int8)
+    best = np.zeros(codes.shape[1], dtype=int)
+    for c in (1, 2, 3, 4, 5):                    # ascending: ties go higher
+        n = (codes == c).sum(axis=0)
+        win = (n > 0) & (n >= best)
+        out[win], best[win] = c, n[win]
+    keep = (codes > 0).sum(axis=0) >= codes.shape[0] // 2 + 1
+    if rescue is not None:
+        keep |= rescue
+    out[~keep] = 0
+    out[(codes < 0).any(axis=0)] = -1
+    return out
+
+
+def rofrs_england(pc, x, y, in_high, in_low, passes=None):
+    """Band codes for every English postcode: RS_PASSES shifted reads,
+    combined by combine_passes. `passes` supplies already-read pass codes
+    (rows) instead of fetching, as the reproduction script does."""
+    eng = (pc["country"] == "England").values
+    if passes is None:
+        reads = [rofrs_pass(pc, x, y, sh) for sh in RS_PASSES]
+        passes = np.array([r[0] for r in reads])
+        direct = np.logical_and.reduce([r[1] for r in reads])
+        carried = np.logical_or.reduce([r[2] for r in reads])
+    else:
+        passes = np.asarray(passes)
+        direct = carried = None
+    rescue = np.zeros(len(pc), dtype=bool)
+    rescue[eng] = dropout_clusters(passes[:, eng], x[eng], y[eng])
+    code = combine_passes(passes, rescue)
     in_high[eng] = np.isin(code[eng], (3, 4))
     in_low[eng] = np.isin(code[eng], (2, 3, 4))
     n = int(eng.sum())
     tally = ", ".join(f"{RS_NAMES[c]} {int((code[eng] == c).sum()) / n:.3%}"
                       for c in (4, 3, 2, 1, 0, 5))
     print(f"  english postcodes by band: {tally}", flush=True)
-    print(f"  read directly by colour: {direct[eng].mean():.2%}; the rest sat "
-          f"on a polygon stroke and took their neighbourhood's band", flush=True)
-    if CLIMATE:
+    sampled = (passes[:, eng] >= 0).all(axis=0)
+    nz = (passes[:, eng] > 0).sum(axis=0)
+    k = passes.shape[0]
+    found = [int(((nz == j) & sampled).sum()) for j in range(1, k + 1)]
+    print(f"  postcodes with a band in exactly 1..{k} of {k} passes: {found}; "
+          f"a minority band kept as a dropout cluster: "
+          f"{int(rescue[eng].sum())} postcodes", flush=True)
+    if direct is not None:
+        print(f"  read directly by colour in every pass: {direct[eng].mean():.2%}; "
+              f"the rest sat on a polygon stroke in some pass and took its "
+              f"neighbourhood's band there", flush=True)
+    if CLIMATE and carried is not None:
         print(f"  climate band unavailable, present-day band carried: "
               f"{carried[eng].mean():.2%} of English postcodes", flush=True)
     if (code[eng] == 5).any():
