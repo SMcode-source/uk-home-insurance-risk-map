@@ -213,7 +213,14 @@ Also on 2026-09-27: the seed sweep. `seed-sweep.yml` failed its
 site-check step after a clean six-seed sweep (run 36277622557) because
 it never gained `build_tiles.py`; fixed on `exp/seed-sweep` with
 `test_every_site_build_makes_the_tiles_first` over every workflow, and
-re-dispatched at the published 30 seeds (42–71).
+re-dispatched at the published 30 seeds (42–71): run 36280689584,
+committed as 1aefd3b. `data/seed_sensitivity.json` had measured the
+2026-08-22 model (E[loss] 171.1); on today's (164.2) almost nothing
+moved. The standalone TVaR99 range is 10,153–17,686 (published rounding
+10,200–17,700, was 10,200–17,600) with a 57% spread (was 56%). Portfolio
+TVaR99 spread 2.18% and premium 0.20% are unchanged to the second decimal,
+and diversification is still 97.4–98.5%. The measurement held; only its
+basis was stale.
 
 ## MEASURED 2026-09-26: the sensitivity table was seven weeks stale, and the depth curve moves the ranking
 
