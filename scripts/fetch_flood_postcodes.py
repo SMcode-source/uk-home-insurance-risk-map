@@ -1,4 +1,6 @@
-"""River/sea flood fractions as the share of unit POSTCODES in the extent.
+"""River/sea flood fractions as the share of unit POSTCODES in the extent,
+each postcode weighted by its Census households since 2026-09-28
+(WEIGHT_BY_HOUSEHOLDS).
 
 fetch_flood.py measures the share of a district's AREA inside the
 national flood extents. The model's first external validation
@@ -213,7 +215,8 @@ EA_RS_PRESENT_LAYER = "rofrs_4band"
 # High reads 1.21x the EA's High (1.30x at 13 m), Medium 0.99x, the zone
 # 1.10x: the High share of the zone is 0.524 of postcodes against 0.473 of
 # the EA's properties. That residual is not resolution (converged above);
-# postcodes are not addresses, and it is left measured, not corrected.
+# postcodes are not addresses. Corrected 2026-09-28 by weighting each
+# postcode by its households (WEIGHT_BY_HOUSEHOLDS): High 0.95x.
 RS_PX, RS_TILE = 6.5, 2048
 ENGLAND_BBOX = (82000, 5000, 660000, 660000)
 

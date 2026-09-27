@@ -1,4 +1,5 @@
-"""River/sea DEPTH bands as the share of unit POSTCODES (England).
+"""River/sea DEPTH bands as the share of unit POSTCODES (England), weighted
+by Census households since 2026-09-28 as the frequency fractions are.
 
 Surface water has carried a depth-conditioned severity since 2026-08
 (fetch_sw_depth_postcodes.py, scores_real.sw_depth_severity); rivers

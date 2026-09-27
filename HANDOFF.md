@@ -37,8 +37,8 @@ and the map sits inside its own noise floor. Tab 4 SHIPPED as
 workstream, which is the honest headline: five gates of temperature
 work found one real map (subsidence geography) and no level.
 
-**The current premium is £169.7308 — £169.73 at 2dp, districts;
-£169.7346 at sector grain; loss cost £164.21.** `scripts/doc_figures.py
+**The current premium is £169.7516 — £169.75 at 2dp, districts;
+£169.7502 at sector grain; loss cost £164.23.** `scripts/doc_figures.py
 --check` holds this line and LIMITATIONS §3 to the committed output
 (its own step in `tests.yml`, on main); after a publish, run it with
 `--fix` and commit. Stated here because everything below this
@@ -171,6 +171,59 @@ and cost the level nothing. Climate
 uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
+
+## PUBLISHED 2026-09-28: river/sea flood shares of homes, not postcodes, both grains
+
+The follow-up the correction below named, chosen by the user and
+published on their yes (asked twice: once on the priced deltas, once
+more when the re-run validations showed Wales mixed). Every river/sea
+flood share - `f_high`, `f_low`, `f_top` and the depth distribution -
+now weighs each unit postcode by its Census households
+(`WEIGHT_BY_HOUSEHOLDS`, `postcode_households`, `weighted_counts` in
+`fetch_flood_postcodes.py`; DATA_SOURCES #45). England and Wales from
+Census 2021 P002, Scotland from the NRS Census 2022 index. A unit's
+count becomes n times its household-weighted share, so the shrinkage
+is unchanged and `K_PRIOR` stays in postcodes. With the switch off the
+code reproduces all eight published tables (four per grain)
+byte-for-byte; `tests/test_household_weights.py` pins the arithmetic.
+
+| vs EA residential (KSI, 534 constituencies, district fractions) | postcode share | households |
+|---|---|---|
+| High | 1.202x (Spearman +0.888) | 0.946x (+0.909) |
+| Medium | 0.981x (+0.888) | 0.894x (+0.905) |
+| Zone | 1.085x (+0.916) | 0.918x (+0.937) |
+| High share of zone | 0.518 | 0.481 (EA 0.468) |
+
+| priced, against live | districts (rebuild run 90) | sectors (sector-model run 48) |
+|---|---|---|
+| headline | 169.7308 -> 169.7516 | 169.7346 -> 169.7502 |
+| rating groups changed | 508 of 2,736 (16.8% of households) | 1,771 of 10,398 (16.9%) |
+| England / Wales / Scotland | +0.04 / -0.82 / +0.34 | +0.04 / -0.77 / +0.21 |
+| climate uplift | +4.94% -> +4.86% | +4.90% -> +4.87% |
+
+- **Movers are where postcodes and homes part company.** Down: B5
+  -71 (Digbeth; 20 zone postcodes in B5 5 hold 4 households), BD1,
+  PO3, BN9. Up: DN7 +99, DN14 +77, YO1 +61, TS2, L3. At sectors M3 1
+  +314 (7 riverside zone postcodes hold 218 of its 514 households) and
+  B5 5 -217.
+- **Flats.** The weight counts every flat in a flooded block and the
+  model has no floor level, so city-centre riverside blocks now price
+  as if every flat were at ground level. The EA's counts include flats
+  too, so KSI cannot see it. LIMITATIONS §7 states it.
+- **Validations re-run** (`flood_validation_england.csv`,
+  `flood_validation.csv`; the second had not been re-run since the
+  Wales-vector build). England rivers/sea High +0.913 -> +0.937, level
+  1.08x -> 0.93x; surface water unchanged, as it should be. Wales
+  against NRW people at risk is mixed: `f_high` +0.32 -> +0.35 and
+  river-only +0.35 -> +0.40, but `el_fl` +0.687 -> +0.655 and sea
+  +0.21 -> +0.13. Scotland's SEPA AAD moves by noise.
+- **Left open.** (1) Scotland's carried High share (0.527) is still
+  England's share of zone *postcodes*; of homes it is about 0.48, so
+  Scottish zone homes price ~3-4% above England's mix - a small,
+  known follow-up (`top_with_scotland` would take the household weights).
+  (2) Surface water is still postcode share; its 25% coverage
+  threshold was fitted on postcode shares, so weighting it means
+  refitting. (3) `RS_FREQ_TOP` is still the biggest unanchored lever.
 
 ## CORRECTED 2026-09-27: the High "overcount" is postcodes, not the decoder
 

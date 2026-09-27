@@ -139,7 +139,7 @@ of that change's headline effect.
 
 ## 3. Per-peril provenance, and what each driver actually is
 
-EL per policy and share of the **£164.21 priced** total. Note which line
+EL per policy and share of the **£164.23 priced** total. Note which line
 is outside it:
 
 | peril | EL | share | driver | resolution | coverage |
@@ -151,7 +151,7 @@ is outside it:
 | Subsidence | £19.81 | 12.06% | BGS clay shrink–swell | 1:625,000 | GB |
 | Storm | £15.74 | 9.59% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
 | Accidental damage | £14.65 | 8.92% | census child-share | LSOA | GB |
-| Groundwater | £1.46 | 0.89% | EA alert areas | postcode flag | **England only** |
+| Groundwater | £1.48 | 0.90% | EA alert areas | postcode flag | **England only** |
 | *Coastal erosion* | *£3.09* | *—* | *EA NCERM frontages; NatureScot Dynamic Coast* | *frontage / eroded-area polygons* | ***England + Scotland on two bases (`er_basis`); Welsh coast unmapped; UNPRICED*** |
 
 **Coastal erosion is deliberately outside `el_total`** — "no policy pays
@@ -423,23 +423,28 @@ Also unanchored, and worth naming:
   in England from `rofrs_4band` and in Wales from FRAW's own High.
   Scotland cannot supply the band (SEPA's High is 1 in 10), so each
   Scottish zone postcode carries England's High share, 0.527. **The
-  flood shares count postcodes, not homes, and High postcodes are the
-  sparsest.** Counted by postcode, High is 1.22x the EA's own count of
-  homes in High and Medium 0.99x, so the model's High share of the zone
-  is 0.526 where the EA's is 0.473. That is not the decoder: weighted
-  by Census 2021 households per postcode (Nomis P002), High is 0.95x,
-  Medium 0.90x and Low 0.90x, rank improves in all three, and the High
-  share of the zone is 0.486. A High postcode holds 11.8 households,
-  an unflooded one 16.5. So the published shares over-weight sparse
-  flood postcodes, High most, and the model prices them that way;
-  weighting the shares by households is the candidate fix (measured
-  2026-09-27, not yet priced). **`RS_FREQ_TOP` is now the most consequential unanchored
+  river/sea shares are of homes, not postcodes, since 2026-09-28.**
+  Counted by postcode, High was 1.20x the EA's own count of homes in
+  High, because High postcodes are the sparsest (11.8 households,
+  against 16.5 unflooded). Each postcode now weighs its Census
+  households, and High reads 0.95x, Medium 0.89x and the zone 0.92x,
+  with rank better in all three; the uniform shortfall left is
+  plausibly households against the EA's residential properties, which
+  include empty and second homes. One piece still counts postcodes:
+  the High share Scotland carries (0.527) is England's share of zone
+  postcodes, where England's share of zone homes is about 0.48, which
+  prices Scottish zone homes roughly 3-4% above England's mix. **The weight counts every flat in a
+  flooded block, and the model has no floor level.** A riverside block
+  is many homes in one postcode, most of them above the water: M3 1
+  has 7 zone postcodes holding 218 of its 514 households, and weighting
+  moved it +£314. The EA's counts include flats too, so the check above
+  cannot see this; an insurer rates by floor, and nothing free gives
+  floor level per address. Surface water is still counted by postcode,
+  because its 25% coverage threshold was fitted on postcode shares. **`RS_FREQ_TOP` is now the most consequential unanchored
   constant in the model.** High is open above 3.3%, and pricing it at
   5% moves **11.2%** of rating groups, at 10% **32.1%**, more than
   flood frequency ×1.5. The floor is the defensible end, since a flood
-  chance bounds a claim rate from above, but it is a choice, and the
-  postcode-share excess in High above pushes the same way as a higher
-  rate would.
+  chance bounds a claim rate from above, but it is a choice.
 - **`GW_SHARE_OF_FLOOD = 0.10`** — see §2. The one scenario here that
   moves a LEVEL, because groundwater has no anchor of its own: at 5% the
   sample premium falls £0.7 and at 20% rises £1.6, moving 2.2% / 3.8% of
@@ -555,7 +560,14 @@ Also unanchored, and worth naming:
    relative at the median unit and 11% at the 90th percentile,
    confined to city-centre LSOAs that mix offices with homes, which is
    where an equal split within the LSOA is itself least reliable. Not
-   applied.
+   applied. **Superseded for river/sea on 2026-09-28** by Census
+   households per postcode (P002), which the equal split could not
+   see because within an LSOA the flood postcodes are the sparse ones.
+   On that weighting Wales moved mixed against NRW: river/sea `f_high`
+   improved against people at risk (+0.32 -> +0.35; river-only +0.35
+   -> +0.40), the priced expected flood loss slipped (+0.687 ->
+   +0.655) and Welsh sea fell (+0.21 -> +0.13). NFRA is not on the
+   map's basis (above), so it cannot settle which is right.
    **Wales's LEVEL has no external anchor** (measured and published
    2026-09-27). Until then Wales was read from 100 m WMS
    masks that buffered every FRAW polygon: 5.20% of Welsh homes in the

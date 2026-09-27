@@ -249,10 +249,13 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    flags by a third; their map services have a 1:85k scale limit). Each district gets `f_high` / `f_low`
    / `f_top` (High alone; Wales from FRAW's own High, Scotland - whose SEPA
    High is 1 in 10, not 1 in 30 - carrying England's High share of the zone):
-   the share of its unit postcodes (ONSPD centroids) inside each band, shrunk
-   toward its postcode area when it has fewer than 20 postcodes (postcode share
-   since 2026-09-06; area share before, which put valley towns at the wrong end
-   of the ranking). These drive flood claim frequency directly (3.3%/yr on
+   the share of its homes inside each band, read at its unit postcodes (ONSPD
+   centroids) with each postcode weighted by its Census households, and shrunk
+   toward its postcode area when it has fewer than 20 postcodes (households
+   since 2026-09-28, when counting postcodes put England's High band at 1.20x
+   the EA's own count of homes in it, because flood postcodes are the sparse
+   ones; postcode share since 2026-09-06; area share before, which put valley
+   towns at the wrong end of the ranking). These drive flood claim frequency directly (3.3%/yr on
    High homes and 1.5%/yr on Medium - one band at 1.5% before 2026-09-27, which
    priced a High home below its band's floor - ~0.3%/yr in the rest of the
    envelope, 0.05%/yr background).
@@ -823,7 +826,9 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 # The three flood fraction products are POSTCODE shares (river/sea and surface
 # water since 2026-09-06, the depth conditional since 2026-09-20): the same EA /
 # NRW / SEPA masks, sampled at ONSPD unit-postcode centroids instead of measured
-# over a polygon's area. fetch_onspd.py writes the centroids and needs OSTN15.
+# over a polygon's area. River/sea (frequency and depth) weighs each postcode by
+# its Census households since 2026-09-28 (Nomis P002 + NRS 2022 index, fetched
+# on first run into data/cache). fetch_onspd.py writes the centroids and needs OSTN15.
 # The area fetchers below them still work and are how the masks were validated,
 # but their output is no longer model input - see DATA_SOURCES #41.
 .venv/Scripts/python -u scripts/fetch_onspd.py             # -> data/postcode_centroids.csv
