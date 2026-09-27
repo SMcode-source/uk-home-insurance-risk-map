@@ -234,6 +234,13 @@ split overprices the places with most High. That is stated in
 LIMITATIONS as the known bias of this publish. The next candidate is
 the decoder's High/Medium boundary, which is unstarted.
 
+**`RS_FREQ_TOP` is now the model's biggest unanchored lever.** The
+sensitivity table was re-run on this branch. High priced at 5% instead
+of its 3.3% floor moves 11.2% of rating groups; at 10%, 32.1%. That is
+more than flood frequency x1.5 (24.5%). The floor is the defensible
+end, because a flood chance bounds a claim rate from above, but it is
+a choice.
+
 ### As published
 
 | | districts | sectors |
