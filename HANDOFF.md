@@ -172,6 +172,45 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## CORRECTED 2026-09-27: the High "overcount" is postcodes, not the decoder
+
+The publish below said the decoded High was too large (1.22x the EA's
+count of homes in High) and named the decoder's High/Medium boundary as
+the next candidate. Chasing it the same evening measured something
+else. Nothing is priced; docs only.
+
+| vs EA residential (KSI, 534 constituencies) | postcode share | Census households per postcode |
+|---|---|---|
+| High | 1.225x | 0.948x (Spearman +0.933 -> +0.954) |
+| Medium | 1.000x | 0.896x (+0.938 -> +0.953) |
+| Low | 0.979x | 0.900x (+0.955 -> +0.974) |
+| High share of the zone | 0.523 | 0.486 (EA 0.472) |
+
+- **The decoder reads the map correctly.** At postcode level, with no
+  district smear, the ratios are the same as through the district
+  fractions, and the excess is diffuse (the top 10 constituencies hold
+  14% of it). Resolution is flat from 2 to 6.5 m. Postcodes read off an
+  outline are more often High (0.587 of the zone, against 0.506 read
+  by colour), but they are where polygons are small, and 2 m, where
+  outlines barely matter, agrees.
+- **The shares count postcodes, not homes.** A High postcode holds
+  11.8 households (Census 2021, Nomis table P002, 15 MB, downloaded
+  to `data/cache/pcd_p002.csv`), Medium 14.1, Low 15.1, unflooded
+  16.5. So every flood share over-weights sparse flood postcodes, High
+  most of all. The 2026-09-07 household weighting was parked as too
+  small, but it split each LSOA's households equally across its
+  postcodes and so could not see this: that weight gets High only to
+  1.153x.
+- The uniform 0.90-0.95x left over is plausibly households against
+  the EA's residential properties, which include empty and second
+  homes.
+- **Next, chosen by the user:** river/sea flood shares weighted by
+  households (P002 for England and Wales; Scotland from its 2022
+  postcode-to-output-area lookup, `nrs_census_2022_index.zip`),
+  measured at both grains. Surface water stays on postcode share for
+  now. Its 25% coverage threshold was fitted to the EA's counts on
+  postcode shares, so weighting it means refitting.
+
 ## PUBLISHED 2026-09-27: RoFRS High priced apart from Medium, and England read on three shifted grids, both grains
 
 Two changes to river/sea flood, measured and published together
@@ -228,11 +267,9 @@ basis, per constituency):
 | Zone | 1.098x |
 
 Zone rank is Spearman +0.915. The three passes moved High from 1.214x.
-**The decoded High is too big, and it is not the dropouts.** The
-model's High share of the zone is 0.526 against the EA's 0.473, so the
-split overprices the places with most High. That is stated in
-LIMITATIONS as the known bias of this publish. The next candidate is
-the decoder's High/Medium boundary, which is unstarted.
+The model's High share of the zone is 0.526 against the EA's 0.473.
+~~The decoded High is too big~~ - **corrected the same evening**: it
+is not the decoder but the denominator. See the entry above.
 
 **`RS_FREQ_TOP` is now the model's biggest unanchored lever.** The
 sensitivity table was re-run on this branch. High priced at 5% instead
