@@ -1750,12 +1750,13 @@ districts**, used as the exposure weight throughout.
     grids would have turned into a buffer (956 postcodes added to the
     zone, against 79 by majority). High is priced on its own
     (`f_top`, `RS_FREQ_TOP` 3.3%) since the same date. Counted by
-    postcode, High is 1.22x the EA's own residential count in High
-    and the whole zone 1.10x (KSI packs, #43), but that is the
-    denominator, not the decoder: weighted by Census 2021 households
-    per postcode (Nomis P002, `pcd_p002.csv`) High is 0.95x, Medium
-    0.90x and Low 0.90x, and rank improves in all three. High
-    postcodes are the sparsest (11.8 households against 16.5).
+    postcode, High was 1.20x the EA's own residential count in High
+    and the whole zone 1.09x (KSI packs, #43), but that was the
+    denominator, not the decoder: High postcodes are the sparsest
+    (11.8 households against 16.5). **Weighted by households since
+    2026-09-28** (#45): High 0.95x, Medium 0.89x, zone 0.92x, and
+    rank improves in all three (High +0.888 -> +0.909 on the district
+    fractions, household-weighted per constituency).
 
         rofrs_4band              four risk bands, defence-aware
         rofrs_4band_0_2m_depth   ... through rofrs_1_2m_depth
@@ -1785,6 +1786,30 @@ districts**, used as the exposure weight throughout.
       postcodes, 60% of them in PE: those are left out of envelope
       and depth alike, and a unit with none of its own (PE11, PE13,
       PE14) takes its postcode area's distribution.
+
+45. **Census households per unit postcode — the river/sea flood
+    weights, LIVE since 2026-09-28** (`fetch_flood_postcodes.
+    postcode_households`, `weighted_counts`, `WEIGHT_BY_HOUSEHOLDS`;
+    used by `fetch_flood_postcodes.py` and
+    `fetch_rs_depth_postcodes.py`; both files cached in `data/cache`
+    and fetched on first run). England and Wales: Census 2021 table
+    **P002**, households per postcode,
+    `https://www.nomisweb.co.uk/output/census/2021/pcd_p002.csv`
+    (ONS via Nomis, OGL, 15 MB, columns `Postcode`, `Count`).
+    Scotland: NRS **Census 2022 index**,
+    `https://www.nrscotland.gov.uk/media/utrbt5ze/census_2022_index.zip`,
+    member `Census_2022_Index/Postcode_To_OA.csv`, column
+    `HouseholdCount` (OGL). A live postcode in neither table is a
+    business address and weighs 0; a unit with no households at all
+    keeps its postcode share. Each unit's count becomes n times its
+    household-weighted share, so the shrinkage prior keeps its weight
+    in postcodes (`K_PRIOR`). The 2026-09-07 weighting (each LSOA's
+    households split equally across its postcodes, parked as too
+    small) could not see the effect: within an LSOA flood postcodes
+    are the sparse ones, and that weight gets High only to 1.15x.
+    Surface water stays on postcode share: its 25% coverage threshold
+    was fitted to the EA's counts on postcode shares, so weighting it
+    means refitting that threshold.
 
 ## Budget: zero, decided 2026-08-31
 
