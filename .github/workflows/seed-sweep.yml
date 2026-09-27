@@ -105,6 +105,11 @@ jobs:
       - name: Check the site still builds against the new measurement
         run: |
           python -u scripts/build_map.py
+          # The site build refuses without the vector tiles. This step
+          # missed the four-tabs restructure (as rebuild.yml once did) and
+          # failed run 36277622557 after a good sweep;
+          # test_every_site_build_makes_the_tiles_first now guards it.
+          python -u scripts/build_tiles.py
           python -u scripts/build_analysis.py
           python -u scripts/build_site.py
           python -m pytest tests -q -k placeholders
