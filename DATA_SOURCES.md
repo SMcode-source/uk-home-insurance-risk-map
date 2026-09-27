@@ -15,7 +15,7 @@ dates: 2026-07-29/30; 2026-08-01 for sources 20–21; 2026-08-08/09 for 23–24.
 | 5 | Annual count of ≥10 mm rain days 1991–2020 (HadUK-Grid obs) | Met Office Climate Data Portal | `scripts/fetch_metoffice.py` | `data/metoffice/rain10.csv` |
 | 6 | Annual precipitation 1991–2020, 12 km (HadUK-Grid obs) | Met Office Climate Data Portal | `scripts/fetch_metoffice.py` | `data/metoffice/precip.csv` |
 | 7 | Rivers & sea defended flood extents, present day (NaFRA2) | Environment Agency | `scripts/fetch_flood.py` | `data/flood_fractions.csv` (derived) |
-| 8 | Flood Map for Planning / FRAW rivers+seas merged zones | Natural Resources Wales | `scripts/fetch_flood.py` | ↳ same |
+| 8 | FRAW rivers and sea risk polygons (WFS; merged-zone WMS masks before 2026-09-27) | Natural Resources Wales | `scripts/fetch_flood_postcodes.py` | ↳ same |
 | 9 | River & coastal flood maps (medium/low likelihood) | SEPA | `scripts/fetch_flood.py` | ↳ same |
 | 10 | Risk of Flooding from Surface Water (NaFRA2 RoFSW) | Environment Agency | `scripts/fetch_surface_water.py` | `data/sw_fractions.csv` (derived) |
 | 11 | FRAW surface water & small watercourses | Natural Resources Wales | `scripts/fetch_surface_water.py` | ↳ same (+ `data/sw_wales20.csv` via `merge_sw_wales.py`) |
@@ -89,9 +89,27 @@ districts**, used as the exposure weight throughout.
    layers `Rivers_1in100_Sea_1in200_defended_extents` and
    `Rivers_1in1000_Sea_1in1000_defended_extents`, rasterised at 100 m in
    EPSG:27700 tiles.
-8. **NRW rivers/sea** — GeoServer WMS `https://datamap.gov.wales/geoserver/ows`,
-   layer `inspire-nrw:NRW_FLOODZONE_RIVERS_SEAS_MERGED` with
-   `cql_filter=risk='Flood Zone 3'` for the high band.
+8. **NRW rivers/sea** — *model input since 2026-09-27:* FRAW's own
+   polygons over WFS, `https://datamap.gov.wales/geoserver/ows`,
+   `request=GetFeature`, layers `inspire-nrw:NRW_FLOOD_RISK_FROM_RIVERS`
+   (105,679 features) and `inspire-nrw:NRW_FLOOD_RISK_FROM_SEA` (29,494;
+   29,328 inside the Wales box, which holds every Welsh postcode), field
+   `risk` = High (>= 1 in 30) / Medium / Low, `pub_date` 2026-05-21. Read
+   point-in-polygon at the unit postcodes (`fetch_flood_postcodes.vector_wales`):
+   f_high = High + Medium, f_low = any band, the higher of rivers and sea.
+   **Quirks:** GeoServer pages only when sorted (`startIndex` needs
+   `sortBy`), and the one sort key both layers carry, `mm_id`, is not
+   unique - paging on it read 105,431 distinct river features of 105,679.
+   So the read is by 20 km bounding box, each box fetched whole (a box
+   that returns the 5,000 cap, or a 5xx, splits in four), and the distinct
+   feature ids must equal `resultType=hits` for the whole box or nothing is
+   written. The geometry is a 1 m stair-step (raster-derived).
+   *Before 2026-09-27:* WMS masks of
+   `inspire-nrw:NRW_FLOODZONE_RIVERS_SEAS_MERGED` with
+   `cql_filter=risk='Flood Zone 3'`, rasterised at 100 m with a pixel
+   "flooded" at alpha > 16. NRW draws at 40% opacity, so any pixel about a
+   sixth covered counted: a buffer round every polygon that put 5,139
+   Welsh postcodes in the >= 1% band against 2,044 inside the polygons.
    **Quirk:** several NRW layers carry scale-dependent styling.
 9. **SEPA rivers/coastal** — FeatureServer **vector** queries (their MapServers
    have a 1:85,000 minScale, so image export at coarse scales renders nothing):
