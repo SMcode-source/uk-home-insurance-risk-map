@@ -1749,10 +1749,13 @@ districts**, used as the exposure weight throughout.
     disagreement between grids is edge noise, which a union of the
     grids would have turned into a buffer (956 postcodes added to the
     zone, against 79 by majority). High is priced on its own
-    (`f_top`, `RS_FREQ_TOP` 3.3%) since the same date. The decoded
-    High is 1.22x the EA's own residential count in High and the
-    whole zone 1.10x (KSI packs, #43): the High overcount is a
-    decoder bias the extra grids do not touch.
+    (`f_top`, `RS_FREQ_TOP` 3.3%) since the same date. Counted by
+    postcode, High is 1.22x the EA's own residential count in High
+    and the whole zone 1.10x (KSI packs, #43), but that is the
+    denominator, not the decoder: weighted by Census 2021 households
+    per postcode (Nomis P002, `pcd_p002.csv`) High is 0.95x, Medium
+    0.90x and Low 0.90x, and rank improves in all three. High
+    postcodes are the sparsest (11.8 households against 16.5).
 
         rofrs_4band              four risk bands, defence-aware
         rofrs_4band_0_2m_depth   ... through rofrs_1_2m_depth

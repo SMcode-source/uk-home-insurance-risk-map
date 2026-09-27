@@ -423,17 +423,23 @@ Also unanchored, and worth naming:
   in England from `rofrs_4band` and in Wales from FRAW's own High.
   Scotland cannot supply the band (SEPA's High is 1 in 10), so each
   Scottish zone postcode carries England's High share, 0.527. **The
-  decoded High is too large**: 1.22x the EA's own count of homes in
-  High, against 0.99x for Medium, so the model's High share of the zone
-  is 0.526 where the EA's is 0.473. That overprices the zone in the
-  places with most High, and it is not the tile dropouts - reading
-  England on three shifted grids moved the ratio from 1.214x to
-  1.222x. **`RS_FREQ_TOP` is now the most consequential unanchored
+  flood shares count postcodes, not homes, and High postcodes are the
+  sparsest.** Counted by postcode, High is 1.22x the EA's own count of
+  homes in High and Medium 0.99x, so the model's High share of the zone
+  is 0.526 where the EA's is 0.473. That is not the decoder: weighted
+  by Census 2021 households per postcode (Nomis P002), High is 0.95x,
+  Medium 0.90x and Low 0.90x, rank improves in all three, and the High
+  share of the zone is 0.486. A High postcode holds 11.8 households,
+  an unflooded one 16.5. So the published shares over-weight sparse
+  flood postcodes, High most, and the model prices them that way;
+  weighting the shares by households is the candidate fix (measured
+  2026-09-27, not yet priced). **`RS_FREQ_TOP` is now the most consequential unanchored
   constant in the model.** High is open above 3.3%, and pricing it at
   5% moves **11.2%** of rating groups, at 10% **32.1%**, more than
   flood frequency ×1.5. The floor is the defensible end, since a flood
   chance bounds a claim rate from above, but it is a choice, and the
-  High overcount above pushes the same way as a higher rate would.
+  postcode-share excess in High above pushes the same way as a higher
+  rate would.
 - **`GW_SHARE_OF_FLOOD = 0.10`** — see §2. The one scenario here that
   moves a LEVEL, because groundwater has no anchor of its own: at 5% the
   sample premium falls £0.7 and at 20% rises £1.6, moving 2.2% / 3.8% of
