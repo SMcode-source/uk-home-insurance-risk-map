@@ -223,7 +223,13 @@ byte-for-byte; `tests/test_household_weights.py` pins the arithmetic.
   known follow-up (`top_with_scotland` would take the household weights).
   (2) Surface water is still postcode share; its 25% coverage
   threshold was fitted on postcode shares, so weighting it means
-  refitting. (3) `RS_FREQ_TOP` is still the biggest unanchored lever.
+  refitting. (3) `RS_FREQ_TOP` is still the biggest unanchored lever:
+  the sensitivity table re-run on the weighted shares (committed after
+  the publish) has High at 5% / 10% moving 11.6% / 31.5% of groups
+  (11.2% / 32.1% before). The river/sea vs surface-water balance
+  flipped sides - x2/3 12.5% (was 14.6%), x1.5 14.7% (was 12.3%) - and
+  depth ignored altogether is 13.4% (12.6%). No other row moved more
+  than a point.
 
 ## CORRECTED 2026-09-27: the High "overcount" is postcodes, not the decoder
 
