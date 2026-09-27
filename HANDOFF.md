@@ -37,8 +37,8 @@ and the map sits inside its own noise floor. Tab 4 SHIPPED as
 workstream, which is the honest headline: five gates of temperature
 work found one real map (subsidence geography) and no level.
 
-**The current premium is £169.7796 — £169.78 at 2dp, districts;
-£169.7843 at sector grain; loss cost £164.26.** `scripts/doc_figures.py
+**The current premium is £169.7308 — £169.73 at 2dp, districts;
+£169.7346 at sector grain; loss cost £164.21.** `scripts/doc_figures.py
 --check` holds this line and LIMITATIONS §3 to the committed output
 (its own step in `tests.yml`, on main); after a publish, run it with
 `--fix` and commit. Stated here because everything below this
@@ -171,6 +171,103 @@ and cost the level nothing. Climate
 uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
+
+## PUBLISHED 2026-09-27: RoFRS High priced apart from Medium, and England read on three shifted grids, both grains
+
+Two changes to river/sea flood, measured and published together
+(exp/rofrs-split, rebuild run 88; exp/rofrs-split-sector, sector-model
+run 47).
+
+**The split.** Until now `f_high` (High + Medium, >= 1% a year) was one
+band priced at `RS_FREQ_HIGH` 1.5%. The EA defines High as >= 3.3%, so
+every High home was priced at less than half its band's floor. Now
+`f_top` (High alone) is priced at `RS_FREQ_TOP` 3.3% and the rest of the
+zone stays at 1.5% (`scores_real.rs_zone_freq`). calibrate_frequency
+re-pins flood's national level, so the change redistributes within
+flood rather than adding to it:
+- England reads `f_top` from `rofrs_4band` code 4.
+- Wales reads FRAW's own High (>= 1 in 30), 0.556 of its zone.
+- Scotland cannot supply the band: SEPA's High is 1 in 10. Each
+  Scottish zone postcode carries England's High share, 0.527
+  (`top_with_scotland`).
+
+**The read.** England is now decoded at 6.5 m, not 13 m (at 13 m the High
+polygons come out fat: 0.613 of the zone against 0.571-0.574 at 2, 4
+and 6.5 m). It is read on three tile grids a third of a tile apart
+(`RS_PASSES`), because the WMS leaves a whole polygon out of a render
+depending on where the tile's west edge falls. TN23 9 is 35 postcodes
+in one High polygon: 13 m kept it by luck of the grid, the first 6.5 m
+read lost it, and it drew at some of 15 edge positions tried.
+
+How the passes combine is the finding:
+- **Most disagreement between grids is not a dropout.** Of the 5,504
+  postcodes some passes banded and others did not, 81% were read off
+  a polygon outline, and only 452 had a same-pattern neighbour within
+  150 m. That is edge noise from the grid's sub-pixel phase.
+- **Taking any pass's band would have been a union**, buffering every
+  polygon as the Welsh 100 m masks did: +956 postcodes in the zone.
+- **So `combine_passes` takes the majority (+79)**, and
+  `dropout_clusters` keeps a minority band only when at least 5
+  postcodes with the same presence pattern chain within 150 m of each
+  other. Present day that is exactly TN23 9's 34, at 100-150 m and any
+  cluster size from 5 to 17. In the climate edition, which drew
+  TN23 9 in every pass, it keeps TR21 0 and E14 9 (5 each).
+- **The painting pass's `direct` flag cannot tell the two apart**:
+  TN23 9's recovery was read directly at 1 of 35 postcodes.
+- **Dropouts are rare**: one cluster that only one pass drew and one
+  (SW11 7, 6 postcodes) that two drew. Chao's estimate puts clusters
+  missed by all three passes at 0.5, so a fourth pass buys nothing.
+
+**Against the EA's own counts** (KSI packs, `validate_flood_england.py`
+basis, per constituency):
+
+| | model / EA |
+|---|---|
+| High | 1.222x |
+| Medium | 0.987x |
+| Zone | 1.098x |
+
+Zone rank is Spearman +0.915. The three passes moved High from 1.214x.
+**The decoded High is too big, and it is not the dropouts.** The
+model's High share of the zone is 0.526 against the EA's 0.473, so the
+split overprices the places with most High. That is stated in
+LIMITATIONS as the known bias of this publish. The next candidate is
+the decoder's High/Medium boundary, which is unstarted.
+
+**`RS_FREQ_TOP` is now the model's biggest unanchored lever.** The
+sensitivity table was re-run on this branch. High priced at 5% instead
+of its 3.3% floor moves 11.2% of rating groups; at 10%, 32.1%. That is
+more than flood frequency x1.5 (24.5%). The floor is the defensible
+end, because a flood chance bounds a claim rate from above, but it is
+a choice.
+
+### As published
+
+| | districts | sectors |
+|---|---|---|
+| premium | 169.7796 -> 169.7308 | 169.7843 -> 169.7346 |
+| rating groups changed | 528 of 2,736 (18.3% of households) | 1,749 of 10,398 (17.1%) |
+| England | -0.09 | -0.09 |
+| Wales | +0.12 | +0.10 |
+| Scotland | +0.20 | +0.28 (the national pin) |
+| climate uplift | +3.96% -> +4.94% | +3.92% -> +4.90% |
+
+- **Districts:** DN7 +109.1 (Hatfield/Thorne, High-heavy), DN14 +73.5,
+  BD1 +35.8. The fens fall where the zone is nearly all Medium: PE11
+  -18.7, PE14 -12.6, PE13 -11.8.
+- **Sectors:** DN7 4 +291, DN14 6 +204, and TN23 9 128.5 -> 282.5 now
+  its polygon is back.
+
+**Decomposition.** The read without the split is worth almost nothing:
+a local district build at live pricing (RS_FREQ_TOP = RS_FREQ_HIGH)
+gives 169.7792 (-0.0004), 92 groups, max 8.9. Against the single-pass
+split build the three passes move +0.0004 / +0.0005. So nearly all of
+the -0.049 is the split.
+
+The depth fetch (`fetch_rs_depth_postcodes.py`) still reads one 13 m
+grid. The surface-water and depth layers were probed for the same
+dropout at 3 places x 5 offsets and showed nothing large. That is
+checked-small, not proven-absent.
 
 ## PUBLISHED 2026-09-27: Wales's rivers/sea read from FRAW's own polygons, both grains
 

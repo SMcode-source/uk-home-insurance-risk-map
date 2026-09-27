@@ -1735,7 +1735,24 @@ districts**, used as the exposure weight throughout.
     where it is Unavailable). Found while writing
     #43, 2026-09-21. `environment.data.gov.uk/spatialdata/
     nafra2-risk-of-flooding-from-rivers-and-sea/wms`, GetCapabilities
-    200, `MaxScaleDenominator` 50000 (so 13 m/px, as #10 and #20).
+    200, `MaxScaleDenominator` 50000 (so 13 m/px or finer, as #10 and
+    #20). Read at **6.5 m** since 2026-09-27: at 13 m the High polygons
+    come out fat (High share of the >=1% zone 0.613 against 0.571-0.574
+    at 2, 4 and 6.5 m in four test boxes). And read on **three tile
+    grids** shifted a third of a tile apart, combined by majority plus
+    a cluster rescue (`RS_PASSES`, `combine_passes`,
+    `dropout_clusters`): the service leaves a whole polygon out of a
+    render depending on where the tile's west edge falls (TN23 9: 35
+    postcodes in one High polygon, drawn at some of 15 edge positions
+    and absent at the rest, at every tile size). Dropouts are rare -
+    two in present-day England, TN23 9 and SW11 7 - and most
+    disagreement between grids is edge noise, which a union of the
+    grids would have turned into a buffer (956 postcodes added to the
+    zone, against 79 by majority). High is priced on its own
+    (`f_top`, `RS_FREQ_TOP` 3.3%) since the same date. The decoded
+    High is 1.22x the EA's own residential count in High and the
+    whole zone 1.10x (KSI packs, #43): the High overcount is a
+    decoder bias the extra grids do not touch.
 
         rofrs_4band              four risk bands, defence-aware
         rofrs_4band_0_2m_depth   ... through rofrs_1_2m_depth

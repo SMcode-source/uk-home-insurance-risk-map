@@ -1,7 +1,7 @@
 """Guards on the NRW FRAW polygon read in fetch_flood_postcodes.py.
 
 Wales moved from 100 m WMS masks to FRAW's own polygons on
-exp/wales-vector: the masks buffered every polygon (alpha > 16 at 40%
+2026-09-27: the masks buffered every polygon (alpha > 16 at 40%
 opacity) and inflated the >=1% zone - 46 postcodes against 3 in a box
 round Grangetown. The polygons come from a GeoServer whose only common
 sort key (mm_id) is not unique, so paging on it skipped 248 river

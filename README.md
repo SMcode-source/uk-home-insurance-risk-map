@@ -233,9 +233,12 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
      0.10·precipitation, each normalised 5th–95th percentile.
 2. **Flood — rivers & sea** (`scripts/fetch_flood_postcodes.py`). Official
    flood maps sampled at every live unit-postcode centroid: **EA** NaFRA2 Risk
-   of Flooding from Rivers and Sea (`rofrs_4band`, 13 m, legend colours
-   decoded; high band = High + Medium, >= 1% a year; low envelope adds Low,
-   >= 0.1%) for England since 2026-09-25 (the *defended extents* before, which
+   of Flooding from Rivers and Sea (`rofrs_4band`, legend colours decoded at
+   6.5 m on three tile grids a third of a tile apart, because the service
+   drops whole polygons from some renders depending on where the tile falls;
+   high band = High + Medium, >= 1% a year, with High (>= 3.3%) priced
+   separately since 2026-09-27; low envelope adds Low, >= 0.1%) for England
+   since 2026-09-25 (the *defended extents* before, which
    ranked constituencies worse against the EA's own properties at risk),
    **NRW** FRAW for Wales (its rivers and sea polygons over WFS,
    point-in-polygon at each postcode, since 2026-09-27; 100 m WMS masks
@@ -243,12 +246,16 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    postcodes in the >= 1% band), **SEPA**
    river + coastal maps for Scotland (FeatureServer vector queries at a 5 m
    generalisation tolerance — 100 m before 2026-09-25, which inflated coastal
-   flags by a third; their map services have a 1:85k scale limit). Each district gets `f_high` / `f_low`:
+   flags by a third; their map services have a 1:85k scale limit). Each district gets `f_high` / `f_low`
+   / `f_top` (High alone; Wales from FRAW's own High, Scotland - whose SEPA
+   High is 1 in 10, not 1 in 30 - carrying England's High share of the zone):
    the share of its unit postcodes (ONSPD centroids) inside each band, shrunk
    toward its postcode area when it has fewer than 20 postcodes (postcode share
    since 2026-09-06; area share before, which put valley towns at the wrong end
-   of the ranking). These drive flood claim frequency directly (~1.5%/yr inside
-   the high band, ~0.3%/yr in the rest of the envelope, 0.05%/yr background).
+   of the ranking). These drive flood claim frequency directly (3.3%/yr on
+   High homes and 1.5%/yr on Medium - one band at 1.5% before 2026-09-27, which
+   priced a High home below its band's floor - ~0.3%/yr in the rest of the
+   envelope, 0.05%/yr background).
 3. **Flood — surface water** (`scripts/fetch_surface_water.py`). **EA** NaFRA2
    RoFSW for England (WMS at 13 m/px — the layer only draws below 1:50,000 —
    with the High/Medium/Low category colours decoded per pixel), **NRW** FRAW
@@ -545,23 +552,29 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    Re-run 2026-09-26, after seven weeks stale (the script had been failing
    since the council-tax severity landed — see HANDOFF). Four readings:
    - **The copula barely touches the ranking** now: every dependence
-     scenario moves ≤0.4% of districts, down from 7–26% in August. The
+     scenario moves ≤0.2% of districts, down from 7–26% in August. The
      attritional perils (escape of water, theft, fire, accidental damage)
      now carry most of the loss, and they are independent by construction.
    - **Flood's unanchored depth-damage curve moves the ranking** as much as
      anything short of a 50% flood-frequency shock: ignoring depth
-     altogether moves 11.2%, a curve half or 1.5× as steep 5.5% / 6.1%, and
-     the JRC Europe residential curve 6.8%, all at an unchanged level
+     altogether moves 12.6%, a curve half or 1.5× as steep 8.0% / 6.1%, and
+     the JRC Europe residential curve 7.2%, all at an unchanged level
      (LIMITATIONS §6).
-   - **The balance between river/sea and surface water moves it more**
-     (added 2026-09-27): their band frequencies ×2/3 or ×1.5 against each
-     other move 12.3% / 16.1% of districts. The rest of the unanchored
-     constants matter less: the high-zone ratio 5.7–7.8%, groundwater's
-     share of flood 2.0–4.2% (the only one that moves the level),
-     groundwater outside England and equal systemic loadings ≤1.5%.
+   - **The RoFRS High band's rate moves it most of all** (re-run
+     2026-09-27, with High priced apart from Medium): High is priced at
+     3.3%, its band's floor, and the band is open above. At 5% 11.2% of
+     districts move group; at 10%, 32.1% - more than a 50% flood-frequency
+     shock (24.5%). A flood chance bounds a claim rate from above, so the
+     floor is the defensible end, but nothing anchors it.
+   - **The balance between river/sea and surface water** moves it about as
+     much as depth: their band frequencies ×2/3 or ×1.5 against each other
+     move 14.6% / 12.3% of districts. The rest of the unanchored constants
+     matter less: the high-zone ratio 5.0–9.5%, groundwater's share of
+     flood 2.2–3.8% (the only one that moves the level), groundwater
+     outside England and equal systemic loadings ≤2.0%.
    - **Severity σ is a check, not a lever:** held at the mean it moves no
      premium and no rating group (Gate 3), but it raises catastrophic-year
-     cost by 12.5%, because the year view draws realised claim sizes.
+     cost by 12.3%, because the year view draws realised claim sizes.
      Until this re-run the row scaled σ after the median was fixed. That
      raised every mean severity unevenly, which is where its old churn
      came from.

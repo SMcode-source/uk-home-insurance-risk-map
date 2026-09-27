@@ -336,7 +336,7 @@ SCENARIOS = {
     "flood_band_ratio_10": lambda: flood_bands(ratio=10.0),
     "flood_rs_weight_067": lambda: flood_bands(rs_weight=2 / 3),
     "flood_rs_weight_150": lambda: flood_bands(rs_weight=1.5),
-    # the RoFRS High band's open upper end (added with exp/rofrs-split)
+    # the RoFRS High band's open upper end (added 2026-09-27)
     "rs_top_050": lambda: rs_top(0.050),
     "rs_top_100": lambda: rs_top(0.100),
     "gw_share_05": lambda: gw_share(0.05),

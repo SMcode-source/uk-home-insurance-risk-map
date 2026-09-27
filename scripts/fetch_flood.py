@@ -33,7 +33,7 @@ Since 2026-09-25 England's rivers/sea no longer come from these masks at
 all: fetch_flood_postcodes.py reads the EA's risk product (`rofrs_4band`,
 DATA_SOURCES #44) instead of the defended extents below. The England
 entry of REGIONS is kept only for area-share measurement. Since
-exp/wales-vector the same is true of Wales: fetch_flood_postcodes.py
+2026-09-27 the same is true of Wales: fetch_flood_postcodes.py
 reads NRW FRAW's polygons over WFS (the 100 m masks below buffered every
 polygon and inflated the >=1% zone). The SEPA services and ff.NRW are
 still used there.
