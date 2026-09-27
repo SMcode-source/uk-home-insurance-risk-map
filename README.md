@@ -237,7 +237,10 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    decoded; high band = High + Medium, >= 1% a year; low envelope adds Low,
    >= 0.1%) for England since 2026-09-25 (the *defended extents* before, which
    ranked constituencies worse against the EA's own properties at risk),
-   **NRW** FRAW for Wales (masks from `scripts/fetch_flood.py`, 100 m), **SEPA**
+   **NRW** FRAW for Wales (its rivers and sea polygons over WFS,
+   point-in-polygon at each postcode, since 2026-09-27; 100 m WMS masks
+   before, which buffered every polygon and put 2.5x as many Welsh
+   postcodes in the >= 1% band), **SEPA**
    river + coastal maps for Scotland (FeatureServer vector queries at a 5 m
    generalisation tolerance — 100 m before 2026-09-25, which inflated coastal
    flags by a third; their map services have a 1:85k scale limit). Each district gets `f_high` / `f_low`:
