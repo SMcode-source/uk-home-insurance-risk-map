@@ -139,7 +139,7 @@ of that change's headline effect.
 
 ## 3. Per-peril provenance, and what each driver actually is
 
-EL per policy and share of the **£164.25 priced** total. Note which line
+EL per policy and share of the **£164.26 priced** total. Note which line
 is outside it:
 
 | peril | EL | share | driver | resolution | coverage |
@@ -147,11 +147,11 @@ is outside it:
 | Escape of water | £42.39 | **25.81%** | air-frost days | 1991–2020 **climatology** | UK — **no year-to-year variation** |
 | Fire | £28.00 | 17.05% | MHCLG dwelling-fire incidents | fire-authority area | GB |
 | Theft | £22.04 | 13.42% | police.uk burglary points | **street level** | E&W; Scotland at council resolution |
-| Flood | £20.13 | 12.26% | EA RoFRS risk bands / NRW FRAW / SEPA polygons | share of unit postcodes in each band | UK; depth England only |
+| Flood | £20.13 | 12.25% | EA RoFRS risk bands / NRW FRAW / SEPA polygons | share of unit postcodes in each band | UK; depth England only |
 | Subsidence | £19.81 | 12.06% | BGS clay shrink–swell | 1:625,000 | GB |
 | Storm | £15.74 | 9.58% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
 | Accidental damage | £14.65 | 8.92% | census child-share | LSOA | GB |
-| Groundwater | £1.50 | 0.91% | EA alert areas | postcode flag | **England only** |
+| Groundwater | £1.50 | 0.92% | EA alert areas | postcode flag | **England only** |
 | *Coastal erosion* | *£3.09* | *—* | *EA NCERM frontages; NatureScot Dynamic Coast* | *frontage / eroded-area polygons* | ***England + Scotland on two bases (`er_basis`); Welsh coast unmapped; UNPRICED*** |
 
 **Coastal erosion is deliberately outside `el_total`** — "no policy pays
@@ -536,8 +536,8 @@ Also unanchored, and worth naming:
    confined to city-centre LSOAs that mix offices with homes, which is
    where an equal split within the LSOA is itself least reliable. Not
    applied.
-   **Wales's LEVEL has no external anchor** (measured 2026-09-27, on
-   `exp/wales-vector`). Until then Wales was read from 100 m WMS
+   **Wales's LEVEL has no external anchor** (measured and published
+   2026-09-27). Until then Wales was read from 100 m WMS
    masks that buffered every FRAW polygon: 5.20% of Welsh homes in the
    >= 1% band, against 2.08% inside the polygons themselves. The only
    count NRW publishes, NFRA people at risk, puts 7.5-8.9% of Welsh

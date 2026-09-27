@@ -37,8 +37,8 @@ and the map sits inside its own noise floor. Tab 4 SHIPPED as
 workstream, which is the honest headline: five gates of temperature
 work found one real map (subsidence geography) and no level.
 
-**The current premium is £169.7722 — £169.77 at 2dp, districts;
-£169.7777 at sector grain; loss cost £164.25.** `scripts/doc_figures.py
+**The current premium is £169.7796 — £169.78 at 2dp, districts;
+£169.7843 at sector grain; loss cost £164.26.** `scripts/doc_figures.py
 --check` holds this line and LIMITATIONS §3 to the committed output
 (its own step in `tests.yml`, on main); after a publish, run it with
 `--fix` and commit. Stated here because everything below this
@@ -172,7 +172,7 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
-## MEASURED 2026-09-27: Wales's rivers/sea read from FRAW's own polygons - both grains, NOT published
+## PUBLISHED 2026-09-27: Wales's rivers/sea read from FRAW's own polygons, both grains
 
 Branches `exp/wales-vector` (districts, rebuild run 83) and
 `exp/wales-vector-sector` (sectors, sector-model run 45). Found during
@@ -272,11 +272,10 @@ higher band winning, and a silent omission refusing.
   36323914987). Sector builds go through `sector-model.yml` with
   `skip_fetch=true`, as they always have.
 
-**To publish (the user's decision - not asked yet):** merge
-`exp/wales-vector` to main and `exp/wales-vector-sector` into
-sector-model (via main); copy the sector build to main's
-`data/sectors_risk.geojson`; carry `data/flood_validation*.csv` to
-sector-model; run `doc_figures.py --fix`. **Interplay with
+**Published on the user's yes, 2026-09-27:** `exp/wales-vector` to
+main with sector run 45's build as `data/sectors_risk.geojson` and
+`doc_figures.py --fix`, then `exp/wales-vector-sector` and main into
+sector-model. **Interplay with
 `exp/rofrs-split`:** that branch makes Wales carry England's High share
 (0.5244) because the masks were untrustworthy; on the vector read FRAW
 High (>= 1 in 30, the EA's own threshold) can supply Wales's f_top
