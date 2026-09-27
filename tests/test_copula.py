@@ -214,7 +214,7 @@ def test_inv_mixed_cdf_matches_bernoulli_lognormal():
 def fields(**over):
     """Default marginal_params inputs, overridable per test."""
     f = dict(sub=0.5, sub_rel=1.0, wx=0.5, f_high=0.1, f_low=0.2,
-             sw_high=0.1,
+             f_top=0.05, sw_high=0.1,
              sw_low=0.2, gw_frac=0.1, sw_sev=1.0, rs_sev=1.0, er=0.0, th=0.009,
              eow=1.0, fire=0.002, ad=0.009,
              ct_th=1.0, ct_eow=1.0, ct_fire=1.0, ct_ad=1.0)
@@ -624,7 +624,7 @@ def test_erosion_expected_loss_is_analytic_not_simulated(monkeypatch):
         "sub_score": [0.5, 0.2], "wx_score": [0.5, 0.4],
         "fl_score": [0.3, 0.6], "gw_score": [0.2, 0.1],
         "er_score": [0.8, 0.0],
-        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05],
+        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05], "f_top": [0.05, 0.0],
         "sw_high": [0.05, 0.01], "sw_low": [0.1, 0.03],
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "rs_sev": [1.0, 1.0],
@@ -651,7 +651,7 @@ def _cover_split_frame():
         "sub_score": [0.5, 0.2], "wx_score": [0.5, 0.4],
         "fl_score": [0.3, 0.6], "gw_score": [0.2, 0.1],
         "er_score": [0.0, 0.0],
-        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05],
+        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05], "f_top": [0.05, 0.0],
         "sw_high": [0.05, 0.01], "sw_low": [0.1, 0.03],
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "rs_sev": [1.0, 1.0],
@@ -724,7 +724,7 @@ def test_theft_expected_loss_is_analytic_not_simulated(monkeypatch):
         "sub_score": [0.5, 0.2], "wx_score": [0.5, 0.4],
         "fl_score": [0.3, 0.6], "gw_score": [0.2, 0.1],
         "er_score": [0.0, 0.0],
-        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05],
+        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05], "f_top": [0.05, 0.0],
         "sw_high": [0.05, 0.01], "sw_low": [0.1, 0.03],
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "rs_sev": [1.0, 1.0],
@@ -762,10 +762,11 @@ def test_flood_band_frequencies_have_one_definition():
     sensitivity.py could not perturb them. Moving each constant must move
     p_fl by exactly its own term - which fails if a literal creeps back."""
     import scores_real as sr
-    f = fields(f_high=0.1, f_low=0.3, sw_high=0.2, sw_low=0.5)
+    f = fields(f_high=0.1, f_low=0.3, f_top=0.04, sw_high=0.2, sw_low=0.5)
     base = float(bm.marginal_params(f)["p_fl"][0])
     k = bm.FREQ_SCALE["fl"]
-    terms = {"RS_FREQ_HIGH": 0.1, "RS_FREQ_LOW": 0.3 - 0.1,
+    terms = {"RS_FREQ_TOP": 0.04, "RS_FREQ_HIGH": 0.1 - 0.04,
+             "RS_FREQ_LOW": 0.3 - 0.1,
              "SW_FREQ_HIGH": 0.2, "SW_FREQ_LOW": 0.5 - 0.2,
              "RS_FREQ_BACKGROUND": 1.0}
     for name, weight in terms.items():
@@ -776,6 +777,22 @@ def test_flood_band_frequencies_have_one_definition():
         finally:
             setattr(sr, name, old)
         assert abs((moved - base) - 0.001 * weight * k) < 1e-12, name
+
+
+def test_rofrs_high_band_is_priced_at_its_own_rate():
+    """Until exp/rofrs-split the RoFRS High and Medium bands were one
+    zone priced at 1.5%, below High's own floor (>= 3.3%). A unit whose
+    zone is all High must now claim at RS_FREQ_TOP on that zone, one that
+    is all Medium at RS_FREQ_HIGH, and f_top above f_high (a fallback
+    median can do that) must not price a High home outside its zone."""
+    import scores_real as sr
+    k = bm.FREQ_SCALE["fl"]
+    p = lambda **o: float(bm.marginal_params(fields(**o))["p_fl"][0])
+    medium = p(f_high=0.1, f_top=0.0)
+    high = p(f_high=0.1, f_top=0.1)
+    assert abs((high - medium) - (sr.RS_FREQ_TOP - sr.RS_FREQ_HIGH) * 0.1 * k) < 1e-12
+    assert sr.RS_FREQ_TOP >= 1 / 30 - 1e-3, "High priced below the EA floor"
+    assert p(f_high=0.1, f_top=0.3) == high
 
 
 def test_fire_frequency_is_the_dwelling_rate_scaled():
@@ -812,7 +829,7 @@ def test_fire_expected_loss_is_analytic_not_simulated(monkeypatch):
         "sub_score": [0.5, 0.2], "wx_score": [0.5, 0.4],
         "fl_score": [0.3, 0.6], "gw_score": [0.2, 0.1],
         "er_score": [0.0, 0.0],
-        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05],
+        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05], "f_top": [0.05, 0.0],
         "sw_high": [0.05, 0.01], "sw_low": [0.1, 0.03],
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "rs_sev": [1.0, 1.0],
@@ -848,7 +865,7 @@ def test_eow_expected_loss_is_analytic_not_simulated(monkeypatch):
         "sub_score": [0.5, 0.2], "wx_score": [0.5, 0.4],
         "fl_score": [0.3, 0.6], "gw_score": [0.2, 0.1],
         "er_score": [0.0, 0.0],
-        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05],
+        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05], "f_top": [0.05, 0.0],
         "sw_high": [0.05, 0.01], "sw_low": [0.1, 0.03],
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "rs_sev": [1.0, 1.0],
@@ -908,7 +925,7 @@ def test_ad_expected_loss_is_analytic_not_simulated(monkeypatch):
         "sub_score": [0.5, 0.2], "wx_score": [0.5, 0.4],
         "fl_score": [0.3, 0.6], "gw_score": [0.2, 0.1],
         "er_score": [0.0, 0.0],
-        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05],
+        "f_high": [0.1, 0.0], "f_low": [0.2, 0.05], "f_top": [0.05, 0.0],
         "sw_high": [0.05, 0.01], "sw_low": [0.1, 0.03],
         "gw_frac": [0.1, 0.0], "sw_sev": [1.0, 1.0],
         "rs_sev": [1.0, 1.0],
@@ -962,6 +979,7 @@ def test_capital_allocation_is_stable_across_seeds():
         "gw_score": rng.uniform(0.0, 1.0, n),
         "er_score": rng.uniform(0.0, 0.5, n),
         "f_high": rng.uniform(0, 0.2, n), "f_low": rng.uniform(0.2, 0.5, n),
+        "f_top": rng.uniform(0, 0.1, n),
         "sw_high": rng.uniform(0, 0.1, n), "sw_low": rng.uniform(0.1, 0.3, n),
         "gw_frac": rng.uniform(0, 0.3, n),
         "sw_sev": rng.uniform(0.8, 1.3, n),
@@ -1018,13 +1036,14 @@ def test_climate_scenario_does_not_clamp_away_the_districts_that_improve():
     if not os.path.exists(os.path.join(data, "flood_fractions_cc.csv")):
         pytest.skip("climate flood fractions not fetched")
 
-    names, f_high, f_low, sw_high, sw_low = [], [], [], [], []
+    names, f_high, f_low, f_top, sw_high, sw_low = [], [], [], [], [], []
     with open(os.path.join(data, "flood_fractions.csv"), newline="") as fh:
         import csv as _csv
         for row in _csv.DictReader(fh):
             names.append(row["name"])
             f_high.append(float(row["f_high"]))
             f_low.append(float(row["f_low"]))
+            f_top.append(float(row["f_top"]))
     sw = {}
     with open(os.path.join(data, "sw_fractions.csv"), newline="") as fh:
         import csv as _csv
@@ -1035,12 +1054,14 @@ def test_climate_scenario_does_not_clamp_away_the_districts_that_improve():
 
     names = np.array(names)
     out = sr.flood_future(names, np.array(f_high), np.array(f_low),
-                          np.array(sw_high), np.array(sw_low))
+                          np.array(f_top), np.array(sw_high),
+                          np.array(sw_low))
     assert out is not None
-    fh_cc, fl_cc, swh_cc, swl_cc, covered = out
+    fh_cc, fl_cc, ft_cc, swh_cc, swl_cc, covered = out
 
     # the band nesting the clamp DOES enforce
     assert (fl_cc >= fh_cc - 1e-12).all(), "1-in-1000 envelope lost its zone"
+    assert (ft_cc <= fh_cc + 1e-12).all(), "High band left its zone"
     assert (swl_cc >= swh_cc - 1e-12).all(), "surface-water envelope broke"
 
     # and the decreases that must NOT be clamped away
@@ -1163,6 +1184,7 @@ def test_thread_count_does_not_change_a_single_bit():
         "gw_score": rng.uniform(0.0, 1.0, n),
         "er_score": rng.uniform(0.0, 0.8, n),
         "f_high": np.full(n, 0.05), "f_low": np.full(n, 0.10),
+        "f_top": np.full(n, 0.03),
         "sw_high": np.full(n, 0.02), "sw_low": np.full(n, 0.05),
         "gw_frac": rng.uniform(0.0, 0.5, n),
         "sw_sev": rng.uniform(0.6, 2.5, n),
@@ -1344,6 +1366,12 @@ def test_published_geojson_satisfies_the_models_own_identities():
 
     # band nesting survives the write
     assert (col("f_low") >= col("f_high") - 1e-9).all()
+    # f_top arrives with exp/rofrs-split. rebuild.yml's pre-flight run sees
+    # the committed geojson from before it (no column: all NaN); its
+    # post-build run (-k identities) sees the new one. Drop the NaN
+    # allowance in the push that publishes the split.
+    top = col("f_top")
+    assert np.isnan(top).all() or (top <= col("f_high") + 1e-9).all()
     assert (col("sw_low") >= col("sw_high") - 1e-9).all()
 
     # tail measures order correctly
@@ -1961,7 +1989,8 @@ def test_simulate_returns_the_columns_the_map_and_site_read():
         df = pd.DataFrame({
             "sub_score": [0.4], "wx_score": [0.4], "fl_score": [0.4],
             "gw_score": [0.2], "er_score": [0.3], "f_high": [0.05],
-            "f_low": [0.1], "sw_high": [0.02], "sw_low": [0.05],
+            "f_low": [0.1], "f_top": [0.03],
+            "sw_high": [0.02], "sw_low": [0.05],
             "gw_frac": [0.05], "sw_sev": [1.0], "rs_sev": [1.0],
             "er_frac": [0.01],
             "households": [500.0], "th_rate": [0.009], "eow_rate": [0.011],
@@ -2499,8 +2528,8 @@ def test_analytic_el_check_builds_every_column_the_model_scores(
              "gust_rp50": np.full(n, 150.0)}),
         "flood_from_agencies": lambda nm: (
             np.array([0.2, 0.4, 0.6]), np.array([0.02, 0.05, 0.09]),
-            np.array([0.05, 0.10, 0.20]), np.array([0.01, 0.02, 0.03]),
-            np.array([0.03, 0.05, 0.08])),
+            np.array([0.05, 0.10, 0.20]), np.array([0.01, 0.03, 0.05]),
+            np.array([0.01, 0.02, 0.03]), np.array([0.03, 0.05, 0.08])),
         "groundwater_from_ea": lambda nm: (
             np.array([0.1, 0.2, 0.3]), np.array([0.02, 0.05, 0.09])),
         "load_country": lambda nm: np.array(["England"] * n),
@@ -2509,7 +2538,7 @@ def test_analytic_el_check_builds_every_column_the_model_scores(
         "load_households": lambda nm: np.array([400.0, 800.0, 1600.0]),
         "sw_depth_severity": lambda nm, hi, lo, hh: (
             np.array([0.9, 1.0, 1.3]), np.array([0.2, 0.4, 0.8])),
-        "rs_depth_severity": lambda nm, hh, climate=False: (
+        "rs_depth_severity": lambda nm, hh, fh, ft, climate=False: (
             np.array([1.1, 1.0, 0.8]), np.array([0.5, 0.3, 0.2])),
         "theft_from_police": lambda nm, hh: np.array([0.006, 0.008, 0.011]),
         "frost_from_metoffice": lambda t: np.array([20.0, 45.0, 80.0]),

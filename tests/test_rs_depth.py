@@ -29,7 +29,7 @@ def _reset_reference():
 
 
 def fields(**over):
-    f = dict(sub=0.5, sub_rel=1.0, wx=0.5, f_high=0.1, f_low=0.2,
+    f = dict(sub=0.5, sub_rel=1.0, wx=0.5, f_high=0.1, f_low=0.2, f_top=0.0,
              sw_high=0.1, sw_low=0.2, gw_frac=0.1, sw_sev=1.0, rs_sev=1.0,
              er=0.0, th=0.009, eow=1.0, fire=0.002, ad=0.009,
              ct_th=1.0, ct_eow=1.0, ct_fire=1.0, ct_ad=1.0)
@@ -75,7 +75,8 @@ def test_normalised_monotone_and_england_only(tmp_path, monkeypatch):
     monkeypatch.setattr(sr, "DATA", str(tmp_path))
     names = np.array(["SHALLOW", "DEEP", "DRY", "WELSH"])
     hh = np.array([1000.0, 1000.0, 1000.0, 1000.0])
-    mult, depth = sr.rs_depth_severity(names, hh)
+    mult, depth = sr.rs_depth_severity(names, hh, np.full(4, 0.1),
+                                       np.full(4, 0.05))
     assert mult[1] > mult[0]
     assert depth[1] > depth[0]
     assert mult[2] == 1.0 and mult[3] == 1.0
@@ -93,9 +94,14 @@ def test_normalised_over_claims_not_households(tmp_path, monkeypatch):
     ], {"SHALLOW": "England", "DEEP": "England"})
     monkeypatch.setattr(sr, "DATA", str(tmp_path))
     hh = np.array([1000.0, 1000.0])
-    mult, _ = sr.rs_depth_severity(np.array(["SHALLOW", "DEEP"]), hh)
+    # SHALLOW's zone is all Medium, DEEP's all High: the claim weight
+    # must follow the frequency leg's own High/Medium mix per unit
+    f_high, f_top = np.array([0.01, 0.20]), np.array([0.0, 0.20])
+    mult, _ = sr.rs_depth_severity(np.array(["SHALLOW", "DEEP"]), hh,
+                                   f_high, f_top)
     env_hi, env_lo = np.array([0.01, 0.20]), np.array([0.02, 0.40])
-    claims = hh * (sr.RS_FREQ_HIGH * env_hi + sr.RS_FREQ_LOW * (env_lo - env_hi))
+    zone = np.array([sr.RS_FREQ_HIGH, sr.RS_FREQ_TOP])
+    claims = hh * (zone * env_hi + sr.RS_FREQ_LOW * (env_lo - env_hi))
     assert abs(float(np.average(mult, weights=claims)) - 1.0) < 1e-9
     assert float(np.average(mult, weights=hh)) < 1.0
 
@@ -103,7 +109,8 @@ def test_normalised_over_claims_not_households(tmp_path, monkeypatch):
 def test_missing_file_is_flat(tmp_path, monkeypatch):
     monkeypatch.setattr(sr, "DATA", str(tmp_path))
     mult, depth = sr.rs_depth_severity(np.array(["A", "B"]),
-                                       np.array([1.0, 1.0]))
+                                       np.array([1.0, 1.0]),
+                                       np.zeros(2), np.zeros(2))
     assert np.all(mult == 1.0) and np.all(np.isnan(depth))
 
 
@@ -119,7 +126,8 @@ def test_climate_is_on_the_present_day_scale(tmp_path, monkeypatch):
         "B,0.05,0.10,0.05,0.10,0.05,0.09,0.04,0.08,0.03,0.06,0.02,0.04,postcode"]))
     monkeypatch.setattr(sr, "DATA", str(tmp_path))
     names, hh = np.array(["A", "B"]), np.array([1.0, 1.0])
-    now, _ = sr.rs_depth_severity(names, hh)
-    fut, _ = sr.rs_depth_severity(names, hh, climate=True)
+    fh, ft = np.full(2, 0.05), np.full(2, 0.02)
+    now, _ = sr.rs_depth_severity(names, hh, fh, ft)
+    fut, _ = sr.rs_depth_severity(names, hh, fh, ft, climate=True)
     assert abs(now.mean() - 1.0) < 1e-9          # equal envelopes: claims = households
     assert np.all(fut > now)

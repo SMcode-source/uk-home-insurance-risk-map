@@ -98,7 +98,7 @@ OUTPUT_COLUMNS = [
     "geol", "sup_geol", "sup_frac",
     "wind_ms", "wdr_idx", "rain10_days", "precip_mm",
     "gust_rp50",
-    "f_high", "f_low", "sw_high", "sw_low", "gw_frac",
+    "f_high", "f_low", "f_top", "sw_high", "sw_low", "gw_frac",
     "sw_sev", "sw_depth_m", "rs_sev", "rs_depth_m",
     "th_rate", "frost_days", "eow_rate",
     "sub_drought_mm", "sub_rel",
@@ -756,7 +756,7 @@ def marginal_params(f):
     """Per-district claim frequency and severity for each peril.
 
     `f` is a mapping of same-shaped per-district arrays: sub, wx, f_high,
-    f_low, sw_high, sw_low, gw_frac, sw_sev and rs_sev (surface-water and
+    f_low, f_top, sw_high, sw_low, gw_frac, sw_sev and rs_sev (surface-water and
     river/sea depth severity multipliers)
     and er (erosion zone fraction). Passing a mapping rather than nine
     positional arguments keeps the three call sites legible.
@@ -778,9 +778,10 @@ def marginal_params(f):
     # silently price geology-only.
     p_sub = (0.002 + 0.028 * sub ** 1.5) * f["sub_rel"]
     p_wx = 0.010 + 0.090 * wx ** 1.2
-    # river/sea flood frequency from actual zone fractions: ~1.5%/yr for a
-    # property in the defended 1in100/200 zone, ~0.3%/yr in the rest of
-    # the 1in1000 envelope, 0.05%/yr background. Surface water: ~1%/yr in
+    # river/sea flood frequency from actual zone fractions: 3.3%/yr for a
+    # property in the RoFRS High band (f_top), ~1.5%/yr in the rest of
+    # the >=1% zone (Medium), ~0.3%/yr in the rest of the 1in1000
+    # envelope, 0.05%/yr background. Surface water: ~1%/yr in
     # the >=1% AEP zone, shallower/cheaper events outside it.
     #
     # The band frequencies live in scores_real, read at call time, and
@@ -788,7 +789,9 @@ def marginal_params(f):
     # constants there (the depth multipliers weight their bands by them),
     # so the two could drift apart and sensitivity.py could not perturb
     # them. Only the RATIOS matter: calibrate_frequency re-pins the level.
-    p_rs_zone = (scores_real.RS_FREQ_HIGH * f["f_high"]
+    top = np.minimum(f["f_top"], f["f_high"])
+    p_rs_zone = (scores_real.RS_FREQ_TOP * top
+                 + scores_real.RS_FREQ_HIGH * (f["f_high"] - top)
                  + scores_real.RS_FREQ_LOW
                  * np.maximum(f["f_low"] - f["f_high"], 0))
     p_rs = scores_real.RS_FREQ_BACKGROUND + p_rs_zone
@@ -946,7 +949,8 @@ def _fields(src):
     return {k: src[v].values for k, v in
             [("sub", "sub_score"), ("sub_rel", "sub_rel"),
              ("wx", "wx_score"), ("f_high", "f_high"),
-             ("f_low", "f_low"), ("sw_high", "sw_high"), ("sw_low", "sw_low"),
+             ("f_low", "f_low"), ("f_top", "f_top"),
+             ("sw_high", "sw_high"), ("sw_low", "sw_low"),
              ("gw_frac", "gw_frac"), ("sw_sev", "sw_sev"), ("rs_sev", "rs_sev"),
              ("er", "er_frac"),
              ("th", "th_rate"), ("eow", "eow_rate"),
@@ -1862,7 +1866,7 @@ def score_districts(gdf):
     gdf["gust_rp50"] = wx_raw["gust_rp50"]
 
     print("scoring flood from EA/NRW/SEPA zone fractions...")
-    (gdf["fl_score"], gdf["f_high"], gdf["f_low"],
+    (gdf["fl_score"], gdf["f_high"], gdf["f_low"], gdf["f_top"],
      gdf["sw_high"], gdf["sw_low"]) = flood_from_agencies(gdf["name"].values)
 
     print("scoring groundwater from EA alert-area fractions...")
@@ -1892,7 +1896,8 @@ def score_districts(gdf):
 
     print("conditioning river/sea severity on EA RoFRS depth bands...")
     gdf["rs_sev"], gdf["rs_depth_m"] = rs_depth_severity(
-        gdf["name"].values, gdf["households"].values)
+        gdf["name"].values, gdf["households"].values,
+        gdf["f_high"].values, gdf["f_top"].values)
 
     print("scoring theft from police.uk burglary counts...")
     gdf["th_rate"] = theft_from_police(gdf["name"].values,
@@ -2030,12 +2035,12 @@ def main():
     # nothing else: recalibrating would absorb the change and report no
     # repricing at all. Common random numbers make it a paired comparison.
     future = flood_future(gdf["name"].values, gdf["f_high"].values,
-                          gdf["f_low"].values, gdf["sw_high"].values,
-                          gdf["sw_low"].values)
+                          gdf["f_low"].values, gdf["f_top"].values,
+                          gdf["sw_high"].values, gdf["sw_low"].values)
     if future is not None:
-        fh_cc, fl_cc, swh_cc, swl_cc, cc_covered = future
+        fh_cc, fl_cc, ft_cc, swh_cc, swl_cc, cc_covered = future
         fut = gdf.copy()
-        fut["f_high"], fut["f_low"] = fh_cc, fl_cc
+        fut["f_high"], fut["f_low"], fut["f_top"] = fh_cc, fl_cc, ft_cc
         fut["sw_high"], fut["sw_low"] = swh_cc, swl_cc
         fut["fl_score"] = flood_score_from_fractions(
             fh_cc, fl_cc, swh_cc, swl_cc, climate=True)
@@ -2043,7 +2048,8 @@ def main():
             gdf["name"].values, swh_cc, swl_cc, gdf["households"].values,
             climate=True)
         fut["rs_sev"], _ = rs_depth_severity(
-            gdf["name"].values, gdf["households"].values, climate=True)
+            gdf["name"].values, gdf["households"].values, fh_cc, ft_cc,
+            climate=True)
         print(f"running climate-change simulation "
               f"({N_SIM:,} years/district)...")
         sim_cc, _ = simulate(fut)

@@ -15,7 +15,7 @@ This script does that for all of Great Britain in one pass:
 
   England  : EA NaFRA2 Risk of Flooding from Rivers and Sea
              (`rofrs_4band`, DATA_SOURCES #44), decoded per pixel at
-             13 m from its four legend colours and sampled at the
+             6.5 m from its four legend colours and sampled at the
              postcode's pixel: f_high = High + Medium (>= 1% a year),
              f_low = High + Medium + Low (>= 0.1%). Very Low is below
              the low band and counts as neither. Until
@@ -27,12 +27,28 @@ This script does that for all of Great Britain in one pass:
              properties at risk (validate_flood_england.py) the extents
              ranked constituencies at Spearman +0.832 while surface
              water, already on the EA's risk product, ranked at +0.932.
+             f_top = High alone (>= 3.3%), since exp/rofrs-split: until
+             then High and Medium were one band priced at 1.5%, below
+             High's own floor, and 52% of the English postcodes in
+             f_high are High.
   Wales    : NRW FRAW rivers + sea polygons (WFS), point-in-polygon,
              since exp/wales-vector: f_high = High + Medium, f_low = any
              band. Until then these were the 100 m WMS masks of
              fetch_flood.REGIONS, which inflated the >=1% zone (see
-             FRAW_LAYERS).
+             FRAW_LAYERS). f_top = FRAW High (>= 1 in 30, the EA's own
+             threshold for High), since exp/rofrs-split.
   Scotland : SEPA river + coastal likelihood polygons, point-in-polygon.
+
+Scotland does not supply f_top from its own data: SEPA's High
+likelihood is 1 in 10, not 1 in 30, so read as the top band it would
+put only the >= 10% homes there. A Scottish zone postcode carries
+ENGLAND's share of zone postcodes that are High (TOP_SHARE_ENGLAND,
+measured by the same run) as a fractional in_top: it keeps the blended
+zone rate, and no geography is invented. Wales does supply it, from the
+polygons: FRAW High is 0.556 of the Welsh zone postcodes against 0.524
+for England. The 100 m masks the polygons replaced had said 0.757, and
+this split was first measured carrying England's share into Wales for
+exactly that reason.
 
 Every postcode row carries its district and sector, so one fetch
 serves both grains; the grain written is the one whose names
@@ -46,9 +62,9 @@ the national median inside scores_real._load_fraction_csv, as before.
 
 Needs data/postcode_centroids.csv (fetch_onspd.py). Same output file
 and columns as fetch_flood.py, same meaning of high/low, different
-denominator:
+denominator, plus f_top (always <= f_high):
 
-    data/flood_fractions.csv   name, f_high, f_low
+    data/flood_fractions.csv   name, f_high, f_low, f_top
 
 --climate: England only, the EA's climate-change edition of the same
 risk product (`rofrs_cc01_4band`, same legend, same scale cap), sampled
@@ -97,7 +113,7 @@ if CLIMATE:
 
 # England: the EA's risk product. Same service family, legend and
 # 1:50,000 scale cap as the surface-water product fetch_surface_water.py
-# decodes, so the same 13 m / 2048 px tiles.
+# decodes, and the same 2048 px tiles (at 6.5 m a pixel: RS_PX below).
 EA_RS = ("https://environment.data.gov.uk/spatialdata/"
          "nafra2-risk-of-flooding-from-rivers-and-sea"
          + ("-climate-change" if CLIMATE else "") + "/wms")
@@ -116,7 +132,22 @@ EA_RS_LAYER = "rofrs_cc01_4band" if CLIMATE else "rofrs_4band"
 EA_RS_PRESENT = ("https://environment.data.gov.uk/spatialdata/"
                  "nafra2-risk-of-flooding-from-rivers-and-sea/wms")
 EA_RS_PRESENT_LAYER = "rofrs_4band"
-RS_PX, RS_TILE = 13.0, 2048
+# 6.5 m, not the 13 m of the surface-water product, since exp/rofrs-split.
+# The service paints every band's polygons at any scale, but at 13 m the
+# High polygons come out FAT: re-reading ~3,400 postcodes in four 4 km
+# boxes (York, Staines, Thorne, Hatfield), the High share of the >=1% zone
+# was 0.571 at 2 m, 0.573 at 4 m, 0.574 at 6.5 m and 0.613 at 13 m - so
+# 13 m moved ~10% of Medium homes into High while High and Medium were
+# one priced band and nobody could see it. Converged by 6.5 m; 2 m would
+# cost 42x the tiles for nothing. 851 tiles hold English postcodes here,
+# against 239 at 13 m. Nationally the re-read moved the English zone +1.1%
+# and the envelope +5.4% against 13 m. Checked against the EA's own
+# residential counts per constituency (KSI, not validation - same raster)
+# High reads 1.21x the EA's High (1.30x at 13 m), Medium 0.99x, the zone
+# 1.10x: the High share of the zone is 0.524 of postcodes against 0.473 of
+# the EA's properties. That residual is not resolution (converged above);
+# postcodes are not addresses, and it is left measured, not corrected.
+RS_PX, RS_TILE = 6.5, 2048
 ENGLAND_BBOX = (82000, 5000, 660000, 660000)
 
 # The legend (GetLegendGraphic, read 2026-09-22), in code order. The fill
@@ -435,7 +466,7 @@ def vector_wales(pc, x, y, in_high, in_low):
 # point-in-polygon at a postcode: against a 5 m reference, the coastal
 # medium layer flagged 1,136 Scottish postcodes instead of 859 (+32%) and
 # 85% of the true set was misplaced (HANDOFF "REVIEWED 2026-09-25").
-# 5 m is under the ~13 m pixel the English and Welsh masks are read at;
+# 5 m is under the 6.5 m pixel England's bands are read at;
 # the 5-vs-1 m check is in the HANDOFF entry for this change.
 SEPA_TOLERANCE_M = 5
 SEPA_PAGE = 1000
@@ -521,6 +552,22 @@ def vector_scotland(pc, x, y, in_high, in_low):
             print(f"  scotland {svc}: {total} features", flush=True)
 
 
+def top_with_scotland(country, in_high, in_top):
+    """Per-postcode top-band weight: 0/1 in England and Wales, where the
+    maps supply the band, and in Scotland England's share of zone
+    postcodes that are High, carried by each zone postcode (see the
+    module docstring for why SEPA cannot supply it). Returns floats."""
+    country = np.asarray(country)
+    eng = country == "England"
+    sco = country == "Scotland"
+    share = in_top[eng].sum() / max(in_high[eng].sum(), 1)
+    top = np.where(sco, 0, in_top).astype(float)
+    top[sco] = share * in_high[sco]
+    print(f"  TOP_SHARE_ENGLAND: {share:.4f} of English zone postcodes are "
+          "High; carried by each Scottish zone postcode", flush=True)
+    return top
+
+
 def main():
     if not os.path.exists(CENTROIDS):
         raise SystemExit(f"{CENTROIDS} missing - run scripts/fetch_onspd.py first")
@@ -542,6 +589,7 @@ def main():
     y = pc["northing"].values.astype(float)
     in_high = np.zeros(len(pc), dtype=bool)
     in_low = np.zeros(len(pc), dtype=bool)
+    in_top = np.zeros(len(pc), dtype=bool)      # England code 4, FRAW High
 
     if FLAGS_FROM:
         # Aggregate an earlier fetch's per-postcode flags instead of
@@ -552,8 +600,13 @@ def main():
         if miss.any():
             raise SystemExit(f"{int(miss.sum())} postcodes are not in "
                              f"{FLAGS_FROM} - it is from another ONSPD vintage")
+        if "in_top" not in fl.columns:
+            raise SystemExit(f"{FLAGS_FROM} has no in_top column - it "
+                             "predates the High/Medium split; refetch")
         in_high = fl.loc[pc["postcode"], "in_high"].values.astype(bool)
         in_low = fl.loc[pc["postcode"], "in_low"].values.astype(bool)
+        # float: a Scottish zone postcode carries TOP_SHARE_ENGLAND
+        top = fl.loc[pc["postcode"], "in_top"].values.astype(float)
         print(f"flags from {FLAGS_FROM} - nothing fetched", flush=True)
     else:
         if not CLIMATE:
@@ -564,11 +617,15 @@ def main():
             pd.DataFrame({"postcode": pc["postcode"][wal],
                           "band": wband[wal]}).to_csv(
                 os.path.join(DATA, "cache", "fraw_bands.csv"), index=False)
+            in_top[wal] = wband[wal] == FRAW_BAND["High"]
             vector_scotland(pc, x, y, in_high, in_low)
         code = rofrs_england(pc, x, y, in_high, in_low)
         if ff.FAILED:
             raise SystemExit(f"{len(ff.FAILED)} tiles failed - refusing to "
                              "write a partial file")
+        eng = (pc["country"] == "England").values
+        in_top[eng] = code[eng] == 4
+        top = top_with_scotland(pc["country"].values, in_high, in_top)
         # The per-postcode bands, kept for diagnosis (which postcodes fell
         # in "Unavailable", which sit on a stroke). Not model input;
         # fetch_rs_depth_postcodes.py reads the same layer in its own
@@ -580,10 +637,12 @@ def main():
             index=False)
     pc["in_high"] = in_high
     pc["in_low"] = in_low | in_high
+    pc["in_top"] = np.minimum(top, pc["in_high"].values)
     if not FLAGS_FROM:
         os.makedirs(os.path.dirname(FLAGS_OUT), exist_ok=True)
-        pc[["postcode", "country", "in_high", "in_low"]].astype(
-            {"in_high": int, "in_low": int}).to_csv(FLAGS_OUT, index=False)
+        pc[["postcode", "country", "in_high", "in_low", "in_top"]].astype(
+            {"in_high": int, "in_low": int}).to_csv(
+            FLAGS_OUT, index=False, float_format="%.6g")
         print(f"wrote {FLAGS_OUT}", flush=True)
 
     names = load_districts()["name"].tolist()
@@ -602,45 +661,51 @@ def main():
     # The prior is itself shrunk one level up: a sector in a district
     # with one postcode (PH44 4 in PH44) otherwise inherits a prior that
     # is as thin as it is, and 0/1 comes back through the back door.
+    # f_top shrinks exactly as f_high does, with the same weight toward
+    # the same parents, so f_top <= f_high holds in every unit.
     parent_of = {"sector": "district", "district": "area"}[grain]
     own = pc.groupby(grain).agg(n=("in_high", "size"), h=("in_high", "sum"),
-                                l=("in_low", "sum"))
+                                l=("in_low", "sum"), t=("in_top", "sum"))
     area = pc.groupby("area").agg(f_high=("in_high", "mean"),
-                                  f_low=("in_low", "mean"))
+                                  f_low=("in_low", "mean"),
+                                  f_top=("in_top", "mean"))
     if grain == "district":
         prior = area
     else:
         dist = pc.groupby("district").agg(n=("in_high", "size"),
                                           h=("in_high", "sum"),
-                                          l=("in_low", "sum"))
+                                          l=("in_low", "sum"),
+                                          t=("in_top", "sum"))
         pa = area.reindex(dist.index.map(area_of)).set_index(dist.index)
         prior = pd.DataFrame({
             "f_high": (dist["h"] + K_PRIOR * pa["f_high"]) / (dist["n"] + K_PRIOR),
-            "f_low": (dist["l"] + K_PRIOR * pa["f_low"]) / (dist["n"] + K_PRIOR)})
+            "f_low": (dist["l"] + K_PRIOR * pa["f_low"]) / (dist["n"] + K_PRIOR),
+            "f_top": (dist["t"] + K_PRIOR * pa["f_top"]) / (dist["n"] + K_PRIOR)})
     rows, thin, missing = [], 0, 0
     for n in names:
         p = n.split(" ")[0] if grain == "sector" else area_of(n)
         if p not in prior.index:
             missing += 1
             continue
-        ph, pl = prior.loc[p, "f_high"], prior.loc[p, "f_low"]
+        ph, pl, pt = prior.loc[p, ["f_high", "f_low", "f_top"]]
         if n in own.index:
-            cnt, h, l = own.loc[n, ["n", "h", "l"]]
+            cnt, h, l, t = own.loc[n, ["n", "h", "l", "t"]]
             if cnt < K_PRIOR:
                 thin += 1
             fh = (h + K_PRIOR * ph) / (cnt + K_PRIOR)
             fl = (l + K_PRIOR * pl) / (cnt + K_PRIOR)
+            ft = (t + K_PRIOR * pt) / (cnt + K_PRIOR)
         else:
             thin += 1
-            fh, fl = ph, pl
-        rows.append((n, fh, fl))
-    pd.DataFrame(rows, columns=["name", "f_high", "f_low"]).to_csv(
+            fh, fl, ft = ph, pl, pt
+        rows.append((n, fh, fl, ft))
+    pd.DataFrame(rows, columns=["name", "f_high", "f_low", "f_top"]).to_csv(
         OUT, index=False, float_format="%.6f")
     print(f"wrote {OUT}: {len(rows)} {grain}s ({thin} with fewer than "
           f"{K_PRIOR} postcodes, shrunk toward their {parent_of}; {missing} "
           f"left to the median fallback); postcodes in high "
-          f"{pc['in_high'].mean():.3%}, low {pc['in_low'].mean():.3%}")
-
+          f"{pc['in_high'].mean():.3%}, low {pc['in_low'].mean():.3%}, "
+          f"top {pc['in_top'].mean():.3%}")
 
 if __name__ == "__main__":
     main()

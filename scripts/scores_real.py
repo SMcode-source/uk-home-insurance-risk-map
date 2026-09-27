@@ -475,19 +475,26 @@ def flood_from_agencies(names):
     """Per-district flood-zone area fractions (EA / NRW / SEPA; see
     fetch_flood.py and fetch_surface_water.py).
 
-    Returns (score, f_high, f_low, sw_high, sw_low):
+    Returns (score, f_high, f_low, f_top, sw_high, sw_low):
       f_high : fraction in the ~1in100 river / 1in200 sea zone
       f_low  : fraction in the river/sea 1in1000 envelope (incl. f_high)
+      f_top  : fraction in the High band alone (>= 3.3%, incl. in f_high)
       sw_high: fraction in the surface-water >=1% AEP zone
       sw_low : fraction in the surface-water 1in1000 envelope
+
+    The flood index (score) is unchanged by f_top: it is a display and
+    ordering index, and the price reads the fractions directly.
     """
-    f_high, f_low = _load_fraction_csv(
-        "flood_fractions.csv", ["f_high", "f_low"], names)
+    f_high, f_low, f_top = _load_fraction_csv(
+        "flood_fractions.csv", ["f_high", "f_low", "f_top"], names)
+    # the median fallback takes each column's median separately, which
+    # need not nest
+    f_top = np.minimum(f_top, f_high)
     sw_high, sw_low = _load_fraction_csv(
         "sw_fractions.csv", ["sw_high", "sw_low"], names)
 
     score = flood_score_from_fractions(f_high, f_low, sw_high, sw_low)
-    return score, f_high, f_low, sw_high, sw_low
+    return score, f_high, f_low, f_top, sw_high, sw_low
 
 
 # 95th percentile of the present-day flood index, held so the climate run
@@ -822,20 +829,39 @@ def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
 
 # ---------------------------------------------------- river/sea depth
 
-# Frequencies of the two RoFRS likelihood bands: ~1.5%/yr inside the >=1%
-# AEP zone, ~0.3%/yr in the rest of the 0.1% envelope, plus a 0.05%/yr
-# background everywhere. build_model.marginal_params reads these (and
-# SW_FREQ_* above) at call time - this is their only definition. The
-# background carries no depth information and is kept at flat severity.
-RS_FREQ_HIGH, RS_FREQ_LOW = 0.015, 0.003
+# Frequencies of the RoFRS likelihood bands: 3.3%/yr for High (f_top),
+# ~1.5%/yr for the rest of the >=1% AEP zone (Medium), ~0.3%/yr in the
+# rest of the 0.1% envelope (Low), plus a 0.05%/yr background everywhere.
+# build_model.marginal_params reads these (and SW_FREQ_* above) at call
+# time - this is their only definition. The background carries no depth
+# information and is kept at flat severity.
+#
+# Until exp/rofrs-split High and Medium were one band at 1.5%, which
+# priced High homes below the EA's own floor for High (>= 3.3%, 1 in 30).
+# RS_FREQ_TOP is that floor, the smallest value the band's definition
+# allows: High has no published upper bound, so anything above it would
+# be invented, and the sensitivity scenarios bracket it (5%, 10%). 1.5%
+# already sits inside Medium's 1-3.3% and is kept. Only the RATIOS
+# matter; calibrate_frequency re-pins the level.
+RS_FREQ_TOP, RS_FREQ_HIGH, RS_FREQ_LOW = 0.033, 0.015, 0.003
 RS_FREQ_BACKGROUND = 0.0005
+
+
+def rs_zone_freq(f_high, f_top):
+    """Mean claim frequency inside a unit's >=1% zone: its High share at
+    RS_FREQ_TOP and its Medium share at RS_FREQ_HIGH. A unit with no zone
+    takes the Medium rate (it has no zone claims to weight)."""
+    f_high = np.asarray(f_high, dtype=float)
+    top = np.minimum(np.asarray(f_top, dtype=float), f_high)
+    mix = np.divide(top, f_high, out=np.zeros_like(f_high), where=f_high > 0)
+    return RS_FREQ_HIGH + (RS_FREQ_TOP - RS_FREQ_HIGH) * mix
 
 # Present-day reference for the climate run, as _DEPTH_REF is for surface
 # water. Separate because the two multipliers are normalised separately.
 _RS_DEPTH_REF = None
 
 
-def rs_depth_severity(names, households, climate=False):
+def rs_depth_severity(names, households, f_high, f_top, climate=False):
     """Per-district relative severity multiplier for river/sea claims.
 
     Reads data/rs_depth.csv (fetch_rs_depth_postcodes.py): the EA RoFRS
@@ -849,6 +875,13 @@ def rs_depth_severity(names, households, climate=False):
     in places where rofrs_4band has a band (about 2% of postcodes), so
     the fetch drops those postcodes from envelope and depth alike and the
     two stay on one basis. The frequency leg still uses f_high / f_low.
+
+    f_high / f_top set only the claim weight of the >=1% zone, per unit:
+    the zone is its High share at RS_FREQ_TOP and its Medium share at
+    RS_FREQ_HIGH (rs_zone_freq), exactly as marginal_params prices it, so
+    the per-claim normalisation weights claims the way the frequency leg
+    makes them. Required, not defaulted: without them the weight would
+    silently be the Medium rate everywhere.
 
     England only: NRW and SEPA publish no river/sea depth product, so
     Wales, Scotland and English units with no mapped envelope keep 1.0.
@@ -885,7 +918,8 @@ def rs_depth_severity(names, households, climate=False):
     # normalised per claim, on this file's envelope: see _depth_multiplier
     mult, mean_depth, own_ref = _depth_multiplier(
         names, env_hi, env_lo, frac_hi, frac_lo, households,
-        RS_FREQ_HIGH, RS_FREQ_LOW, _RS_DEPTH_REF if climate else None,
+        rs_zone_freq(f_high, f_top), RS_FREQ_LOW,
+        _RS_DEPTH_REF if climate else None,
         climate, "rs depth")
     if not climate:
         _RS_DEPTH_REF = own_ref
@@ -895,7 +929,7 @@ def rs_depth_severity(names, households, climate=False):
 # ------------------------------------------------ climate-change scenario
 
 
-def flood_future(names, f_high, f_low, sw_high, sw_low):
+def flood_future(names, f_high, f_low, f_top, sw_high, sw_low):
     """Swap in the EA's climate-change flood extents where they exist.
 
     The EA publishes a climate-change edition of the two products this
@@ -909,8 +943,8 @@ def flood_future(names, f_high, f_low, sw_high, sw_low):
     repricing must be reported over covered districts rather than
     nationally, where it would be diluted into meaninglessness.
 
-    Returns (f_high, f_low, sw_high, sw_low, covered) or None if the
-    climate files have not been fetched.
+    Returns (f_high, f_low, f_top, sw_high, sw_low, covered) or None if
+    the climate files have not been fetched.
     """
     fl = os.path.join(DATA, "flood_fractions_cc.csv")
     sw = os.path.join(DATA, "sw_fractions_cc.csv")
@@ -927,17 +961,18 @@ def flood_future(names, f_high, f_low, sw_high, sw_low):
                 t[row["name"]] = tuple(float(row[c]) for c in cols)
         return t
 
-    tfl = read(fl, ["f_high", "f_low"])
+    tfl = read(fl, ["f_high", "f_low", "f_top"])
     tsw = read(sw, ["sw_high", "sw_low"])
     covered = england_mask(names)
 
     out = [np.array(f_high, dtype=float), np.array(f_low, dtype=float),
-           np.array(sw_high, dtype=float), np.array(sw_low, dtype=float)]
+           np.array(sw_high, dtype=float), np.array(sw_low, dtype=float),
+           np.array(f_top, dtype=float)]
     for i, n in enumerate(names):
         if not covered[i]:
             continue
         if n in tfl:
-            out[0][i], out[1][i] = tfl[n]
+            out[0][i], out[1][i], out[4][i] = tfl[n]
         if n in tsw:
             out[2][i], out[3][i] = tsw[n]
     # Enforce the BAND nesting within the future: the 1-in-1000 envelope
@@ -957,10 +992,13 @@ def flood_future(names, f_high, f_low, sw_high, sw_low):
     # break.
     out[1] = np.maximum(out[1], out[0])
     out[3] = np.maximum(out[3], out[2])
+    # and the High band inside the >=1% zone, which the fetch already
+    # guarantees per postcode
+    out[4] = np.minimum(out[4], out[0])
     print(f"  climate-change flood: {int(covered.sum())} districts repriced "
           f"(England); f_high mean {np.mean(f_high):.5f} -> "
           f"{out[0].mean():.5f}")
-    return out[0], out[1], out[2], out[3], covered
+    return out[0], out[1], out[4], out[2], out[3], covered
 
 
 # --------------------------------------------------------- coastal erosion
