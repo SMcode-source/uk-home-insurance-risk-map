@@ -233,9 +233,12 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
      0.10·precipitation, each normalised 5th–95th percentile.
 2. **Flood — rivers & sea** (`scripts/fetch_flood_postcodes.py`). Official
    flood maps sampled at every live unit-postcode centroid: **EA** NaFRA2 Risk
-   of Flooding from Rivers and Sea (`rofrs_4band`, 13 m, legend colours
-   decoded; high band = High + Medium, >= 1% a year; low envelope adds Low,
-   >= 0.1%) for England since 2026-09-25 (the *defended extents* before, which
+   of Flooding from Rivers and Sea (`rofrs_4band`, legend colours decoded at
+   6.5 m on three tile grids a third of a tile apart, because the service
+   drops whole polygons from some renders depending on where the tile falls;
+   high band = High + Medium, >= 1% a year, with High (>= 3.3%) priced
+   separately since 2026-09-27; low envelope adds Low, >= 0.1%) for England
+   since 2026-09-25 (the *defended extents* before, which
    ranked constituencies worse against the EA's own properties at risk),
    **NRW** FRAW for Wales (its rivers and sea polygons over WFS,
    point-in-polygon at each postcode, since 2026-09-27; 100 m WMS masks
@@ -243,12 +246,16 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    postcodes in the >= 1% band), **SEPA**
    river + coastal maps for Scotland (FeatureServer vector queries at a 5 m
    generalisation tolerance — 100 m before 2026-09-25, which inflated coastal
-   flags by a third; their map services have a 1:85k scale limit). Each district gets `f_high` / `f_low`:
+   flags by a third; their map services have a 1:85k scale limit). Each district gets `f_high` / `f_low`
+   / `f_top` (High alone; Wales from FRAW's own High, Scotland - whose SEPA
+   High is 1 in 10, not 1 in 30 - carrying England's High share of the zone):
    the share of its unit postcodes (ONSPD centroids) inside each band, shrunk
    toward its postcode area when it has fewer than 20 postcodes (postcode share
    since 2026-09-06; area share before, which put valley towns at the wrong end
-   of the ranking). These drive flood claim frequency directly (~1.5%/yr inside
-   the high band, ~0.3%/yr in the rest of the envelope, 0.05%/yr background).
+   of the ranking). These drive flood claim frequency directly (3.3%/yr on
+   High homes and 1.5%/yr on Medium - one band at 1.5% before 2026-09-27, which
+   priced a High home below its band's floor - ~0.3%/yr in the rest of the
+   envelope, 0.05%/yr background).
 3. **Flood — surface water** (`scripts/fetch_surface_water.py`). **EA** NaFRA2
    RoFSW for England (WMS at 13 m/px — the layer only draws below 1:50,000 —
    with the High/Medium/Low category colours decoded per pixel), **NRW** FRAW

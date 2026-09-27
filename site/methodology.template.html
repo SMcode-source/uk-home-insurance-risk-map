@@ -333,7 +333,12 @@ __NAV__
     each), giving the share of each district's postcodes in a high band (&ge;1% a year) and a
     low envelope (&ge;0.1%). England's rivers and sea come from the EA's Risk of Flooding from
     Rivers and Sea, whose four risk bands already account for defences, decoded from the
-    legend colours at 13 m per pixel; Wales from NRW FRAW's own polygons, tested at each
+    legend colours at 6.5 m per pixel, three times on grids shifted a third of a tile apart
+    (the service leaves whole polygons out of some renders depending on where the tile falls,
+    so a band most reads drew is kept, and so is a cluster of homes only one read drew);
+    High (&ge;3.3% a year) is priced apart from Medium, as it is in Wales, where FRAW supplies
+    its own High; Scotland's SEPA High is 1 in 10, so its homes carry England's High share
+    of the band. Wales from NRW FRAW's own polygons, tested at each
     postcode; Scotland from SEPA's polygons,
     queried at a 5 m tolerance. Surface water is handled the same way: England's RoFSW
     layer only renders below 1:50,000, so it is fetched at 13 m per pixel with the three

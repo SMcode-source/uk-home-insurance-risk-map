@@ -139,7 +139,7 @@ of that change's headline effect.
 
 ## 3. Per-peril provenance, and what each driver actually is
 
-EL per policy and share of the **£164.26 priced** total. Note which line
+EL per policy and share of the **£164.21 priced** total. Note which line
 is outside it:
 
 | peril | EL | share | driver | resolution | coverage |
@@ -147,11 +147,11 @@ is outside it:
 | Escape of water | £42.39 | **25.81%** | air-frost days | 1991–2020 **climatology** | UK — **no year-to-year variation** |
 | Fire | £28.00 | 17.05% | MHCLG dwelling-fire incidents | fire-authority area | GB |
 | Theft | £22.04 | 13.42% | police.uk burglary points | **street level** | E&W; Scotland at council resolution |
-| Flood | £20.13 | 12.25% | EA RoFRS risk bands / NRW FRAW / SEPA polygons | share of unit postcodes in each band | UK; depth England only |
+| Flood | £20.13 | 12.26% | EA RoFRS risk bands / NRW FRAW / SEPA polygons | share of unit postcodes in each band | UK; depth England only |
 | Subsidence | £19.81 | 12.06% | BGS clay shrink–swell | 1:625,000 | GB |
-| Storm | £15.74 | 9.58% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
+| Storm | £15.74 | 9.59% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
 | Accidental damage | £14.65 | 8.92% | census child-share | LSOA | GB |
-| Groundwater | £1.50 | 0.92% | EA alert areas | postcode flag | **England only** |
+| Groundwater | £1.46 | 0.89% | EA alert areas | postcode flag | **England only** |
 | *Coastal erosion* | *£3.09* | *—* | *EA NCERM frontages; NatureScot Dynamic Coast* | *frontage / eroded-area polygons* | ***England + Scotland on two bases (`er_basis`); Welsh coast unmapped; UNPRICED*** |
 
 **Coastal erosion is deliberately outside `el_total`** — "no policy pays
@@ -418,8 +418,17 @@ Also unanchored, and worth naming:
   prices every home at ≥1% as if it were mid-Medium, and a High home at
   less than half its band's floor. That is a flood chance, not a claim
   rate: not every flood becomes a claim, so the bands bound rather than
-  fix the frequencies. Splitting High from Medium is a model change and
-  has not been made.
+  fix the frequencies. High has been priced apart from Medium since
+  2026-09-27 (`RS_FREQ_TOP` 3.3%, High's floor; Medium stays at 1.5%),
+  in England from `rofrs_4band` and in Wales from FRAW's own High.
+  Scotland cannot supply the band (SEPA's High is 1 in 10), so each
+  Scottish zone postcode carries England's High share, 0.527. **The
+  decoded High is too large**: 1.22x the EA's own count of homes in
+  High, against 0.99x for Medium, so the model's High share of the zone
+  is 0.526 where the EA's is 0.473. That overprices the zone in the
+  places with most High, and it is not the tile dropouts - reading
+  England on three shifted grids moved the ratio from 1.214x to
+  1.222x. The scenario numbers above were measured before the split.
 - **`GW_SHARE_OF_FLOOD = 0.10`** — see §2. The one scenario here that
   moves a LEVEL, because groundwater has no anchor of its own: at 5% the
   sample premium falls £0.8 and at 20% rises £1.6, moving 2.0% / 4.2% of

@@ -836,7 +836,7 @@ def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
 # time - this is their only definition. The background carries no depth
 # information and is kept at flat severity.
 #
-# Until exp/rofrs-split High and Medium were one band at 1.5%, which
+# Until 2026-09-27 High and Medium were one band at 1.5%, which
 # priced High homes below the EA's own floor for High (>= 3.3%, 1 in 30).
 # RS_FREQ_TOP is that floor, the smallest value the band's definition
 # allows: High has no published upper bound, so anything above it would

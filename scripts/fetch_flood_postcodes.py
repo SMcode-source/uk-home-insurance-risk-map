@@ -15,8 +15,8 @@ This script does that for all of Great Britain in one pass:
 
   England  : EA NaFRA2 Risk of Flooding from Rivers and Sea
              (`rofrs_4band`, DATA_SOURCES #44), decoded per pixel at
-             6.5 m from its four legend colours and sampled at the
-             postcode's pixel: f_high = High + Medium (>= 1% a year),
+             6.5 m from its four legend colours on three shifted tile
+             grids (RS_PASSES) and sampled at the postcode's pixel: f_high = High + Medium (>= 1% a year),
              f_low = High + Medium + Low (>= 0.1%). Very Low is below
              the low band and counts as neither. Until
              exp/rofrs-4band this read the defended EXTENTS
@@ -27,16 +27,16 @@ This script does that for all of Great Britain in one pass:
              properties at risk (validate_flood_england.py) the extents
              ranked constituencies at Spearman +0.832 while surface
              water, already on the EA's risk product, ranked at +0.932.
-             f_top = High alone (>= 3.3%), since exp/rofrs-split: until
+             f_top = High alone (>= 3.3%), since 2026-09-27: until
              then High and Medium were one band priced at 1.5%, below
              High's own floor, and 52% of the English postcodes in
              f_high are High.
   Wales    : NRW FRAW rivers + sea polygons (WFS), point-in-polygon,
-             since exp/wales-vector: f_high = High + Medium, f_low = any
+             since 2026-09-27: f_high = High + Medium, f_low = any
              band. Until then these were the 100 m WMS masks of
              fetch_flood.REGIONS, which inflated the >=1% zone (see
              FRAW_LAYERS). f_top = FRAW High (>= 1 in 30, the EA's own
-             threshold for High), since exp/rofrs-split.
+             threshold for High), since 2026-09-27.
   Scotland : SEPA river + coastal likelihood polygons, point-in-polygon.
 
 Scotland does not supply f_top from its own data: SEPA's High
@@ -132,7 +132,7 @@ EA_RS_LAYER = "rofrs_cc01_4band" if CLIMATE else "rofrs_4band"
 EA_RS_PRESENT = ("https://environment.data.gov.uk/spatialdata/"
                  "nafra2-risk-of-flooding-from-rivers-and-sea/wms")
 EA_RS_PRESENT_LAYER = "rofrs_4band"
-# 6.5 m, not the 13 m of the surface-water product, since exp/rofrs-split.
+# 6.5 m, not the 13 m of the surface-water product, since 2026-09-27.
 # The service paints every band's polygons at any scale, but at 13 m the
 # High polygons come out FAT: re-reading ~3,400 postcodes in four 4 km
 # boxes (York, Staines, Thorne, Hatfield), the High share of the >=1% zone
@@ -432,7 +432,7 @@ if "--flags-from" in sys.argv[1:]:
 
 
 # Wales is read from NRW's FRAW polygons themselves (WFS), point-in-polygon
-# at the unit postcodes, since exp/wales-vector. Until then it was
+# at the unit postcodes, since 2026-09-27. Until then it was
 # raster_region: WMS masks at 100 m a pixel, "flooded" wherever alpha > 16,
 # and NRW draws at 40% opacity, so a pixel a sixth covered by any band's
 # polygon counted - a buffer round every polygon. FRAW's High and Medium

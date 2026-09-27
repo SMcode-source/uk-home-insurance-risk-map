@@ -780,7 +780,7 @@ def test_flood_band_frequencies_have_one_definition():
 
 
 def test_rofrs_high_band_is_priced_at_its_own_rate():
-    """Until exp/rofrs-split the RoFRS High and Medium bands were one
+    """Until 2026-09-27 the RoFRS High and Medium bands were one
     zone priced at 1.5%, below High's own floor (>= 3.3%). A unit whose
     zone is all High must now claim at RS_FREQ_TOP on that zone, one that
     is all Medium at RS_FREQ_HIGH, and f_top above f_high (a fallback
@@ -1366,12 +1366,7 @@ def test_published_geojson_satisfies_the_models_own_identities():
 
     # band nesting survives the write
     assert (col("f_low") >= col("f_high") - 1e-9).all()
-    # f_top arrives with exp/rofrs-split. rebuild.yml's pre-flight run sees
-    # the committed geojson from before it (no column: all NaN); its
-    # post-build run (-k identities) sees the new one. Drop the NaN
-    # allowance in the push that publishes the split.
-    top = col("f_top")
-    assert np.isnan(top).all() or (top <= col("f_high") + 1e-9).all()
+    assert (col("f_top") <= col("f_high") + 1e-9).all()
     assert (col("sw_low") >= col("sw_high") - 1e-9).all()
 
     # tail measures order correctly

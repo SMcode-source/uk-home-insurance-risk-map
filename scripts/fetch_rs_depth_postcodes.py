@@ -94,7 +94,7 @@ AREA_RE = re.compile(r"[A-Z]+")
 PRESENT = fp.EA_RS_PRESENT
 CLIMATE_SVC = PRESENT.replace("rivers-and-sea/wms", "rivers-and-sea-climate-change/wms")
 # The depth layers are still read at the 13 m they were published on.
-# fetch_flood_postcodes.RS_PX halved to 6.5 m with exp/rofrs-split, for
+# fetch_flood_postcodes.RS_PX halved to 6.5 m on 2026-09-27, for
 # the High/Medium boundary; whether depth moves at 6.5 m has not been
 # measured, so this does not follow it silently.
 DEPTH_PX = 13.0
