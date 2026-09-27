@@ -99,6 +99,73 @@ DATA = "data"
 CENTROIDS = os.path.join(DATA, "postcode_centroids.csv")
 OUT = os.path.join(DATA, "flood_fractions.csv")
 K_PRIOR = 20        # postcodes of prior weight; see main()
+
+# Each unit's share is of its HOMES, not its postcodes, since 2026-09-27:
+# every postcode weighs its Census households. Flood postcodes are the
+# sparse ones - a High postcode holds 11.8 households, an unflooded one
+# 16.5 (England, Census 2021) - so counting postcodes put England's
+# High band at 1.22x the EA's own count of homes in High, Medium at
+# 1.00x and Low at 0.98x. Weighted by households the three read 0.95x,
+# 0.90x and 0.90x (the rest is plausibly households against the EA's
+# residential properties, which include empty and second homes), and
+# rank against the EA improves in all three. England and Wales: Census
+# 2021 households per postcode (Nomis table P002). Scotland: NRS's
+# Census 2022 index, which carries each postcode's households. A live
+# postcode in neither has no households (a business address) and
+# weighs 0; a unit with no households at all keeps its postcode share.
+# The shrinkage prior keeps its weight in postcodes (K_PRIOR): it says
+# how much evidence a unit has, which is its number of readings.
+WEIGHT_BY_HOUSEHOLDS = True
+HH_EW = os.path.join(DATA, "cache", "pcd_p002.csv")
+HH_EW_URL = "https://www.nomisweb.co.uk/output/census/2021/pcd_p002.csv"
+HH_SCO = os.path.join(DATA, "cache", "nrs_census_2022_index.zip")
+HH_SCO_URL = ("https://www.nrscotland.gov.uk/media/utrbt5ze/"
+              "census_2022_index.zip")
+HH_SCO_MEMBER = "Census_2022_Index/Postcode_To_OA.csv"
+
+
+def postcode_households(postcodes):
+    """Census households at each postcode (see WEIGHT_BY_HOUSEHOLDS)."""
+    import zipfile
+    for path, url in ((HH_EW, HH_EW_URL), (HH_SCO, HH_SCO_URL)):
+        if not os.path.exists(path):
+            print(f"  downloading {url}", flush=True)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            urllib.request.urlretrieve(url, path)
+    ew = pd.read_csv(HH_EW).set_index("Postcode")["Count"]
+    with zipfile.ZipFile(HH_SCO).open(HH_SCO_MEMBER) as fh:
+        sco = pd.read_csv(fh, usecols=["Postcode", "HouseholdCount"])
+    sco = sco.set_index("Postcode")["HouseholdCount"]
+    hh = pd.concat([ew, sco])
+    if hh.index.duplicated().any():
+        raise SystemExit("a postcode is in both household tables")
+    postcodes = pd.Series(np.asarray(postcodes))
+    found = postcodes.isin(hh.index)
+    w = postcodes.map(hh).fillna(0.0).values.astype(float)
+    print(f"  households per postcode: {int(found.sum()):,} of "
+          f"{len(postcodes):,} postcodes in the Census tables, "
+          f"{w.sum():,.0f} households", flush=True)
+    return w
+
+
+def weighted_counts(df, key, cols, w):
+    """Per group of `key`: n, its number of postcodes, and per column n
+    times the column's household-weighted mean - the count it would have
+    if every postcode held the group's mean households, so the shrinkage
+    downstream works unchanged. A group with no households keeps its
+    plain count; with WEIGHT_BY_HOUSEHOLDS off every group does."""
+    g = df.groupby(key)
+    n = g.size().rename("n")
+    plain = g[cols].sum()
+    if not WEIGHT_BY_HOUSEHOLDS:
+        return pd.concat([n, plain], axis=1)
+    w = pd.Series(np.asarray(w, dtype=float), index=df.index)
+    W = w.groupby(df[key]).sum()
+    out = pd.DataFrame({"n": n})
+    for c in cols:
+        ws = (df[c].astype(float) * w).groupby(df[key]).sum()
+        out[c] = np.where(W > 0, n * ws / W.where(W > 0, 1.0), plain[c])
+    return out
 AREA_RE = re.compile(r"[A-Z]+")
 
 
@@ -779,18 +846,18 @@ def main():
     # f_top shrinks exactly as f_high does, with the same weight toward
     # the same parents, so f_top <= f_high holds in every unit.
     parent_of = {"sector": "district", "district": "area"}[grain]
-    own = pc.groupby(grain).agg(n=("in_high", "size"), h=("in_high", "sum"),
-                                l=("in_low", "sum"), t=("in_top", "sum"))
-    area = pc.groupby("area").agg(f_high=("in_high", "mean"),
-                                  f_low=("in_low", "mean"),
-                                  f_top=("in_top", "mean"))
+    flags = ["in_high", "in_low", "in_top"]
+    hlt = dict(zip(flags, ["h", "l", "t"]))
+    w = postcode_households(pc["postcode"]) if WEIGHT_BY_HOUSEHOLDS else None
+    own = weighted_counts(pc, grain, flags, w).rename(columns=hlt)
+    a = weighted_counts(pc, "area", flags, w)
+    area = pd.DataFrame({"f_high": a["in_high"] / a["n"],
+                         "f_low": a["in_low"] / a["n"],
+                         "f_top": a["in_top"] / a["n"]})
     if grain == "district":
         prior = area
     else:
-        dist = pc.groupby("district").agg(n=("in_high", "size"),
-                                          h=("in_high", "sum"),
-                                          l=("in_low", "sum"),
-                                          t=("in_top", "sum"))
+        dist = weighted_counts(pc, "district", flags, w).rename(columns=hlt)
         pa = area.reindex(dist.index.map(area_of)).set_index(dist.index)
         prior = pd.DataFrame({
             "f_high": (dist["h"] + K_PRIOR * pa["f_high"]) / (dist["n"] + K_PRIOR),
