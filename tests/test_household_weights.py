@@ -70,3 +70,17 @@ def test_off_gives_the_plain_postcode_counts(monkeypatch):
     df, w = frame()
     got = fp.weighted_counts(df, "unit", COLS, w)
     assert got.loc["A", "in_high"] == 1 and got.loc["A", "in_low"] == 2
+
+
+def test_scotland_carries_englands_high_share_of_homes(monkeypatch):
+    monkeypatch.setattr(fp, "WEIGHT_BY_HOUSEHOLDS", True)
+    country = np.array(["England", "England", "Scotland", "Wales"])
+    in_high = np.array([1, 1, 1, 1])
+    in_top = np.array([1.0, 0.0, 0.0, 1.0])
+    # England: the High postcode holds 1 household, the Medium one 3, so
+    # a quarter of zone homes are High though half the zone postcodes are
+    top = fp.top_with_scotland(country, in_high, in_top, np.array([1, 3, 5, 5]))
+    assert np.isclose(top[2], 0.25)
+    assert top[0] == 1 and top[1] == 0 and top[3] == 1
+    # unweighted, the postcode share
+    assert np.isclose(fp.top_with_scotland(country, in_high, in_top)[2], 0.5)
