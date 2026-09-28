@@ -210,6 +210,10 @@ table moves are the weighting and nothing upstream.
   Tests pin (2) and (3); (2) fails on the old code.
 - `validate_flood_england.py` carries districts to constituencies by
   households, matching fractions that are shares of homes.
+- Sensitivity re-run after the publish on the final inputs (all three
+  weighting changes): `RS_FREQ_TOP` at 5% / 10% moves 10.7% / 30.7% of
+  groups, flood x1.5 25.2%, depth ignored 13.2%, JRC curve 8.6%, the
+  10:1 band ratio 6.4% (was 4.8%); the copula still <= 0.7%.
 
 ## PUBLISHED 2026-09-28 (second): Scotland carries England's High share of zone homes, both grains
 
