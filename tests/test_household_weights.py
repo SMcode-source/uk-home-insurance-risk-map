@@ -84,3 +84,31 @@ def test_scotland_carries_englands_high_share_of_homes(monkeypatch):
     assert top[0] == 1 and top[1] == 0 and top[3] == 1
     # unweighted, the postcode share
     assert np.isclose(fp.top_with_scotland(country, in_high, in_top)[2], 0.5)
+
+
+def test_a_households_depth_table_conditions_on_the_callers_envelope(
+        tmp_path, monkeypatch):
+    """basis = "households" must be read like "postcode" - conditioned on
+    the caller's own envelope - and never fall into the area branch,
+    which would divide by sw_fractions_area.csv whenever it exists."""
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, "scripts"))
+    import scores_real as sr
+    head = ("name,d02_high,d02_low,d03_high,d03_low,d06_high,d06_low,"
+            "d09_high,d09_low,d12_high,d12_low,basis")
+    body = ["SHALLOW,0.004,0.010,0.001,0.002,0.0,0.0,0.0,0.0,0.0,0.0,{b}",
+            "DEEP,0.20,0.38,0.18,0.35,0.15,0.30,0.10,0.20,0.05,0.10,{b}"]
+    (tmp_path / "country.csv").write_text(
+        "name,country,share\nSHALLOW,England,1.0\nDEEP,England,1.0\n")
+    # an area envelope ten times smaller: reading it would change the answer
+    (tmp_path / "sw_fractions_area.csv").write_text(
+        "name,sw_high,sw_low\nSHALLOW,0.001,0.002\nDEEP,0.02,0.04\n")
+    monkeypatch.setattr(sr, "DATA", str(tmp_path))
+    names = np.array(["SHALLOW", "DEEP"])
+    hi, lo, hh = np.array([0.01, 0.20]), np.array([0.02, 0.40]), np.array([1e3, 1e3])
+    got = {}
+    for b in ("postcode", "households"):
+        (tmp_path / "sw_depth.csv").write_text(
+            "\n".join([head] + [r.format(b=b) for r in body]))
+        got[b] = sr.sw_depth_severity(names, hi, lo, hh)[0]
+    assert np.allclose(got["postcode"], got["households"])
