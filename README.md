@@ -237,7 +237,8 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    6.5 m on three tile grids a third of a tile apart, because the service
    drops whole polygons from some renders depending on where the tile falls;
    high band = High + Medium, >= 1% a year, with High (>= 3.3%) priced
-   separately since 2026-09-27; low envelope adds Low, >= 0.1%) for England
+   separately since 2026-09-27, at 1.67x Medium since 2026-09-29, the ratio
+   the EA's recorded floods show (`scripts/validate_flood_history.py`); low envelope adds Low, >= 0.1%) for England
    since 2026-09-25 (the *defended extents* before, which
    ranked constituencies worse against the EA's own properties at risk),
    **NRW** FRAW for Wales (its rivers and sea polygons over WFS,
@@ -255,10 +256,11 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    since 2026-09-28, when counting postcodes put England's High band at 1.20x
    the EA's own count of homes in it, because flood postcodes are the sparse
    ones; postcode share since 2026-09-06; area share before, which put valley
-   towns at the wrong end of the ranking). These drive flood claim frequency directly (3.3%/yr on
-   High homes and 1.5%/yr on Medium - one band at 1.5% before 2026-09-27, which
-   priced a High home below its band's floor - ~0.3%/yr in the rest of the
-   envelope, 0.05%/yr background).
+   towns at the wrong end of the ranking). These drive flood claim frequency directly (2.5%/yr on
+   High homes and 1.5%/yr on Medium - one band at 1.5% before 2026-09-27, and
+   High at its band's floor, 3.3%, until 2026-09-29, when the EA's Recorded
+   Flood Outlines showed High homes flooding 1.67x as often as Medium ones,
+   not 2.2x - ~0.3%/yr in the rest of the envelope, 0.05%/yr background).
 3. **Flood — surface water** (`scripts/fetch_surface_water.py`). **EA** NaFRA2
    RoFSW for England (WMS at 13 m/px — the layer only draws below 1:50,000 —
    with the High/Medium/Low category colours decoded per pixel), **NRW** FRAW
@@ -569,13 +571,13 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
      altogether moves 13.2%, a curve half or 1.5× as steep 7.1% / 7.7%, and
      the JRC Europe residential curve 8.6%, all at an unchanged level
      (LIMITATIONS §6).
-   - **The RoFRS High band's rate moves it most of all** (re-run
-     2026-09-27, with High priced apart from Medium, and 2026-09-28 on
-     household-weighted shares): High is priced at
-     3.3%, its band's floor, and the band is open above. At 5% 10.7% of
-     districts move group; at 10%, 30.7% - more than a 50% flood-frequency
-     shock (25.2%). A flood chance bounds a claim rate from above, so the
-     floor is the defensible end, but nothing anchors it.
+   - **The RoFRS High band's rate is anchored since 2026-09-29.** It
+     was the biggest lever while it sat at its band's floor, 3.3%, with
+     nothing above it: 5% moved 10.7% of districts and 10% moved 30.7%.
+     The EA's Recorded Flood Outlines put High homes at 1.67x Medium's
+     flood rate over 1990-2025 (90% 1.30-2.18), so High is priced at
+     1.67x Medium (2.5%) and the scenarios are now the ends of that
+     range, which leaves 5% and 10% far outside the evidence.
    - **The balance between river/sea and surface water** moves it about as
      much as depth: their band frequencies ×2/3 or ×1.5 against each other
      move 12.3% / 14.3% of districts. The rest of the unanchored constants

@@ -139,7 +139,7 @@ of that change's headline effect.
 
 ## 3. Per-peril provenance, and what each driver actually is
 
-EL per policy and share of the **£164.22 priced** total. Note which line
+EL per policy and share of the **£164.24 priced** total. Note which line
 is outside it:
 
 | peril | EL | share | driver | resolution | coverage |
@@ -149,9 +149,9 @@ is outside it:
 | Theft | £22.04 | 13.42% | police.uk burglary points | **street level** | E&W; Scotland at council resolution |
 | Flood | £20.13 | 12.26% | EA RoFRS risk bands / NRW FRAW / SEPA polygons | share of homes in each band (unit postcodes weighted by Census households) | UK; depth England only |
 | Subsidence | £19.81 | 12.06% | BGS clay shrink–swell | 1:625,000 | GB |
-| Storm | £15.74 | 9.59% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
+| Storm | £15.74 | 9.58% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
 | Accidental damage | £14.65 | 8.92% | census child-share | LSOA | GB |
-| Groundwater | £1.48 | 0.90% | EA alert areas | postcode flag | **England only** |
+| Groundwater | £1.49 | 0.91% | EA alert areas | postcode flag | **England only** |
 | *Coastal erosion* | *£3.09* | *—* | *EA NCERM frontages; NatureScot Dynamic Coast* | *frontage / eroded-area polygons* | ***England + Scotland on two bases (`er_basis`); Welsh coast unmapped; UNPRICED*** |
 
 **Coastal erosion is deliberately outside `el_total`** — "no policy pays
@@ -405,7 +405,7 @@ Also unanchored, and worth naming:
   about as much as the brackets (8.6% against 7.1% / 7.7%). So the
   one outside curve available disagrees with ours by about as much as
   the brackets do, and that is not evidence that ours is wrong.
-- **The flood band frequencies** — `RS_FREQ_TOP/HIGH/LOW = 3.3%/1.5%/0.3%`
+- **The flood band frequencies** — `RS_FREQ_TOP/HIGH/LOW = 2.5%/1.5%/0.3%`
   a year for river/sea (High, Medium, Low), `SW_FREQ_HIGH/LOW = 1.0%/0.2%`
   for surface water, and a 0.05% background (`scores_real.py`, their only
   definition since 2026-09-27). calibrate_frequency re-pins flood's
@@ -420,7 +420,7 @@ Also unanchored, and worth naming:
   and a High home at less than half its band's floor. That is a flood chance, not a claim
   rate: not every flood becomes a claim, so the bands bound rather than
   fix the frequencies. High has been priced apart from Medium since
-  2026-09-27 (`RS_FREQ_TOP` 3.3%, High's floor; Medium stays at 1.5%),
+  2026-09-27 (`RS_FREQ_TOP`, at High's floor of 3.3% until 2026-09-29; Medium stays at 1.5%),
   in England from `rofrs_4band` and in Wales from FRAW's own High.
   Scotland cannot supply the band (SEPA's High is 1 in 10), so each
   Scottish zone postcode carries England's High share of zone homes,
@@ -442,11 +442,19 @@ Also unanchored, and worth naming:
   its 25% coverage threshold (fitted on postcode shares; weighting moved
   England's level 1.19x -> 1.15x in High and 1.01x -> 0.99x overall, and
   its rank against the EA slipped +0.944 -> +0.938 while Wales against
-  NRW rose +0.721 -> +0.730). **`RS_FREQ_TOP` is now the most consequential unanchored
-  constant in the model.** High is open above 3.3%, and pricing it at
-  5% moves **10.7%** of rating groups, at 10% **30.7%**, more than
-  flood frequency ×1.5. The floor is the defensible end, since a flood
-  chance bounds a claim rate from above, but it is a choice.
+  NRW rose +0.721 -> +0.730). **`RS_FREQ_TOP` is anchored on observed floods since
+  2026-09-29.** At High's floor, 3.3%, with the band open above, it was
+  the most consequential unanchored constant: 5% moved **10.7%** of
+  rating groups and 10% **30.7%**. The EA's Recorded Flood Outlines
+  (river and sea, 1990-2025, `validate_flood_history.py`) show High
+  homes flooding **1.67x** as often as Medium homes, 90% 1.30-2.18 by
+  event or district bootstrap, so High is priced at 1.67x Medium, 2.5%.
+  The floor's 2.2x was the top of that range. Three things this does
+  not settle: the ratio assumes flood recording is equally complete in
+  every band; it is lower since 2007 (1.31) and swings by region
+  (1.0 in the north third of England, 3.6 in the middle); and a flood
+  is not a claim. The same records put Medium at about 2x Low against
+  the model's 5x, measured and not acted on.
 - **`GW_SHARE_OF_FLOOD = 0.10`** — see §2. The one scenario here that
   moves a LEVEL, because groundwater has no anchor of its own: at 5% the
   sample premium falls £0.8 and at 20% rises £1.6, moving 2.2% / 4.1% of
