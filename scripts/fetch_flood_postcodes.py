@@ -44,9 +44,11 @@ This script does that for all of Great Britain in one pass:
 Scotland does not supply f_top from its own data: SEPA's High
 likelihood is 1 in 10, not 1 in 30, so read as the top band it would
 put only the >= 10% homes there. A Scottish zone postcode carries
-ENGLAND's share of zone postcodes that are High (TOP_SHARE_ENGLAND,
-measured by the same run) as a fractional in_top: it keeps the blended
-zone rate, and no geography is invented. Wales does supply it, from the
+ENGLAND's share of zone homes that are High (TOP_SHARE_ENGLAND,
+measured by the same run, household-weighted since 2026-09-28 as the
+shares themselves are - by postcode it was 0.527, of homes 0.48) as a
+fractional in_top: it keeps the blended zone rate, and no geography is
+invented. Wales does supply it, from the
 polygons: FRAW High is 0.556 of the Welsh zone postcodes against 0.524
 for England. The 100 m masks the polygons replaced had said 0.757, and
 this split was first measured carrying England's share into Wales for
@@ -737,19 +739,23 @@ def vector_scotland(pc, x, y, in_high, in_low):
             print(f"  scotland {svc}: {total} features", flush=True)
 
 
-def top_with_scotland(country, in_high, in_top):
+def top_with_scotland(country, in_high, in_top, w=None):
     """Per-postcode top-band weight: 0/1 in England and Wales, where the
-    maps supply the band, and in Scotland England's share of zone
-    postcodes that are High, carried by each zone postcode (see the
-    module docstring for why SEPA cannot supply it). Returns floats."""
+    maps supply the band, and in Scotland England's share of zone homes
+    that are High, carried by each zone postcode (see the module
+    docstring for why SEPA cannot supply it). `w` weighs each postcode
+    (its households); None counts postcodes. Returns floats."""
     country = np.asarray(country)
     eng = country == "England"
     sco = country == "Scotland"
-    share = in_top[eng].sum() / max(in_high[eng].sum(), 1)
+    w = np.ones(len(country)) if w is None else np.asarray(w, dtype=float)
+    share = ((w * in_top)[eng].sum()
+             / max((w * in_high)[eng].sum(), 1e-9))
     top = np.where(sco, 0, in_top).astype(float)
     top[sco] = share * in_high[sco]
-    print(f"  TOP_SHARE_ENGLAND: {share:.4f} of English zone postcodes are "
-          "High; carried by each Scottish zone postcode", flush=True)
+    print(f"  TOP_SHARE_ENGLAND: {share:.4f} of English zone "
+          f"{'homes' if WEIGHT_BY_HOUSEHOLDS else 'postcodes'} are High; "
+          "carried by each Scottish zone postcode", flush=True)
     return top
 
 
@@ -790,7 +796,8 @@ def main():
                              "predates the High/Medium split; refetch")
         in_high = fl.loc[pc["postcode"], "in_high"].values.astype(bool)
         in_low = fl.loc[pc["postcode"], "in_low"].values.astype(bool)
-        # float: a Scottish zone postcode carries TOP_SHARE_ENGLAND
+        # Scotland's fractional in_top is recomputed below, not trusted
+        # from the file, so a flags file cannot carry an older share
         top = fl.loc[pc["postcode"], "in_top"].values.astype(float)
         print(f"flags from {FLAGS_FROM} - nothing fetched", flush=True)
     else:
@@ -810,7 +817,7 @@ def main():
                              "write a partial file")
         eng = (pc["country"] == "England").values
         in_top[eng] = code[eng] == 4
-        top = top_with_scotland(pc["country"].values, in_high, in_top)
+        top = in_top.astype(float)
         # The per-postcode bands, kept for diagnosis (which postcodes fell
         # in "Unavailable", which sit on a stroke). Not model input;
         # fetch_rs_depth_postcodes.py reads the same layer in its own
@@ -820,6 +827,8 @@ def main():
             os.path.join(DATA, "cache",
                          f"rofrs_bands{'_cc' if CLIMATE else ''}.csv"),
             index=False)
+    w = postcode_households(pc["postcode"]) if WEIGHT_BY_HOUSEHOLDS else None
+    top = top_with_scotland(pc["country"].values, in_high, top, w)
     pc["in_high"] = in_high
     pc["in_low"] = in_low | in_high
     pc["in_top"] = np.minimum(top, pc["in_high"].values)
@@ -851,7 +860,6 @@ def main():
     parent_of = {"sector": "district", "district": "area"}[grain]
     flags = ["in_high", "in_low", "in_top"]
     hlt = dict(zip(flags, ["h", "l", "t"]))
-    w = postcode_households(pc["postcode"]) if WEIGHT_BY_HOUSEHOLDS else None
     own = weighted_counts(pc, grain, flags, w).rename(columns=hlt)
     a = weighted_counts(pc, "area", flags, w)
     area = pd.DataFrame({"f_high": a["in_high"] / a["n"],
