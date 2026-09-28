@@ -37,8 +37,8 @@ and the map sits inside its own noise floor. Tab 4 SHIPPED as
 workstream, which is the honest headline: five gates of temperature
 work found one real map (subsidence geography) and no level.
 
-**The current premium is £169.7425 — £169.74 at 2dp, districts;
-£169.7423 at sector grain; loss cost £164.22.** `scripts/doc_figures.py
+**The current premium is £169.7611 — £169.76 at 2dp, districts;
+£169.7617 at sector grain; loss cost £164.24.** `scripts/doc_figures.py
 --check` holds this line and LIMITATIONS §3 to the committed output
 (its own step in `tests.yml`, on main); after a publish, run it with
 `--fix` and commit. Stated here because everything below this
@@ -171,6 +171,66 @@ and cost the level nothing. Climate
 uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
+
+## PUBLISHED 2026-09-29: RS_FREQ_TOP anchored on the EA's recorded floods, both grains
+
+The user asked to anchor the biggest unanchored lever, and said publish
+on the measured result. `RS_FREQ_TOP` goes 3.3% -> 2.5%: High priced
+at 1.67x Medium (1.5%, unchanged), not 2.2x.
+
+**The evidence** (`scripts/validate_flood_history.py`, DATA_SOURCES
+#46). The EA's Recorded Flood Outlines (OGL, 84 MB GeoPackage, 31,744
+event outlines since 1946) overlaid on the English postcode centroids
+the RoFRS bands are read at. River and sea only; distinct start dates
+per postcode, since one flood is many outlines; household-weighted.
+
+| window | High/yr | Medium/yr | Low/yr | H/M | 90% (events) | 90% (districts) |
+|---|---|---|---|---|---|---|
+| 1990-2025 | 0.452% | 0.271% | 0.141% | **1.67** | 1.30-2.18 | 1.31-2.17 |
+| 2000-2025 | 0.547% | 0.328% | 0.168% | 1.66 | 1.25-2.36 | 1.29-2.14 |
+| 2007-2025 | 0.458% | 0.349% | 0.174% | 1.31 | 1.05-1.77 | 1.06-1.71 |
+
+- **Outline edges are not the cause.** Postcodes 10-50 m inside an
+  outline give 1.44-1.60, lower not higher; median inset is 21-28 m in
+  every band.
+- **Not dominated by one flood.** Without the three biggest dates
+  (2015-12-25, 2002-12-23, 2013-12-23) 1990-2025 gives 1.73.
+- **Regionally noisy**: north / middle / south thirds of England by
+  northing 1.00 / 3.64 / 1.96.
+- **Only the ratio is used.** Recorded rates are about a sixth of the
+  band definitions, so the ratio assumes recording is equally complete
+  in each band. A flood is not a claim.
+- **Measured, not acted on:** the records put Medium at ~2x Low; the
+  model uses 5x.
+
+**Priced** (exp/rs-top-anchor, rebuild run 98; exp/rs-top-anchor-sector,
+sector-model run 51):
+
+| against live | districts | sectors |
+|---|---|---|
+| headline | 169.7425 -> 169.7611 | 169.7423 -> 169.7617 |
+| rating groups changed | 190 of 2,736 (6.4% of households) | 564 of 10,398 (5.5%) |
+| England / Wales / Scotland | +0.04 / -0.01 / -0.13 | +0.04 / -0.01 / -0.14 |
+| climate uplift | +4.89% -> +4.47% | +4.91% -> +4.49% |
+
+- High-heavy zones fall: DN7 -69.9, DN14 -41.3, OX1 -19.2, LL42 -18.2;
+  sectors DN7 4 -136, M3 1 -77, BD1 9 -71. About two thirds of DN7's
+  +109 from the 2026-09-27 split comes back.
+- Medium-heavy zones rise a little as the national flood level is
+  re-pinned: PE11 +6.3, PE13 +4.0.
+- Scotland falls because its zone homes carry England's High share.
+- Validations re-run: Wales el_fl against NRW people at risk (>= 1%)
+  +0.657 -> +0.687, rivers +0.514 -> +0.528; Scotland against SEPA AAD
+  high +0.284 -> +0.285. England's KSI check reads the fractions, which
+  did not move.
+- `sensitivity.py`'s `rs_top_050/100` become `rs_top_ratio_130/218`,
+  the records' 90% range; re-run as a follow-up (hours on the laptop).
+- `test_copula` now pins High:Medium inside 1.30-2.18 rather than High
+  at or above the EA floor: a flood chance bounds a claim rate, it
+  does not set one.
+- Download lesson: a `curl -r 0-0` size probe streamed the whole 84 MB
+  file because the server ignores ranges on 200. Probe with the
+  dataset page, not the file.
 
 ## PUBLISHED 2026-09-28 (third): surface water by homes too, both grains
 

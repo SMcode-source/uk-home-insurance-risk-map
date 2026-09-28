@@ -1749,7 +1749,8 @@ districts**, used as the exposure weight throughout.
     disagreement between grids is edge noise, which a union of the
     grids would have turned into a buffer (956 postcodes added to the
     zone, against 79 by majority). High is priced on its own
-    (`f_top`, `RS_FREQ_TOP` 3.3%) since the same date. Counted by
+    (`f_top`, `RS_FREQ_TOP`) since the same date: 3.3% until
+    2026-09-29, then 2.5% on the recorded floods (#46). Counted by
     postcode, High was 1.20x the EA's own residential count in High
     and the whole zone 1.09x (KSI packs, #43), but that was the
     denominator, not the decoder: High postcodes are the sparsest
@@ -1820,6 +1821,36 @@ districts**, used as the exposure weight throughout.
     the other fetchers use, and every fetch stage calls it before its
     first tile. `validate_flood_england.py` carries districts to
     constituencies by households too.
+
+46. **EA Recorded Flood Outlines — the anchor for the RoFRS High
+    band's rate, LIVE since 2026-09-29**
+    (`scripts/validate_flood_history.py`; not read by the model, which
+    takes one number from it). `Recorded_Flood_Outlines.gpkg.zip`,
+    84 MB, from
+    `https://environment.data.gov.uk/api/file/download?fileDataSetId=ed73f2e8-a3c2-44db-952d-6e359c7c3987&fileName=Recorded_Flood_Outlines.gpkg.zip`
+    (dataset page
+    `https://www.data.gov.uk/dataset/16e32c53-35a6-4d54-a111-ca09031eaaaf/recorded-flood-outlines1`;
+    also WFS / OGC API Features). OGL, England, 31,744 outlines of
+    individual flood events since 1946, updated quarterly, each with a
+    start date, source (`flood_src`) and cause (`flood_caus`); 24
+    `rec_out_id`s repeat, always with the same date and source. Kept:
+    source main river, ordinary watercourse or sea, cause not surface
+    water or groundwater (21,784). Overlaid on the English unit-postcode
+    centroids the RoFRS bands are read at, counting distinct start dates
+    per postcode (one flood is often several outlines), household-
+    weighted. **1990-2025: High 0.452% a year, Medium 0.271%, Low
+    0.141%: High/Medium 1.67, 90% 1.30-2.18 resampling the 308 events
+    and 1.31-2.17 resampling districts**; 2000-2025 1.66; 2007-2025
+    1.31 (1.05-1.77). Robust to outline edges: counting only postcodes
+    10-50 m inside an outline gives 1.44-1.60. Regionally noisy (north,
+    middle and south thirds of England by northing 1.00, 3.64, 1.96).
+    `RS_FREQ_TOP` = `RS_FREQ_HIGH` x 1.67. **Only the ratio is used**:
+    the recorded rates are far below the band definitions (Medium is
+    1-3.3% a year by definition), because not every flood is recorded
+    and an outline is not a flooded home, and the ratio assumes that
+    recording is equally complete in each band. The same records put
+    Medium at about 2x Low, where the model uses 5x (`RS_FREQ_HIGH` /
+    `RS_FREQ_LOW`); that is measured and not acted on.
 
 ## Budget: zero, decided 2026-08-31
 

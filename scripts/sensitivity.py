@@ -35,8 +35,10 @@ Scenarios:
                     10:1 on both flood legs (5:1 as shipped); level re-pinned
   flood_rs_weight_067/150   river/sea band frequencies x2/3 / x1.5 against
                     surface water; level re-pinned
-  rs_top_050/100    RS_FREQ_TOP 5% / 10% (3.3%, the floor of the EA's
-                    High band, which has no upper bound); level re-pinned
+  rs_top_ratio_130/218   RS_FREQ_TOP at 1.30x / 2.18x RS_FREQ_HIGH (1.67x
+                    as shipped): the 90% range of the High/Medium ratio
+                    in the EA's recorded floods, 1990-2025
+                    (validate_flood_history.py); level re-pinned
   gw_share_05/20   GW_SHARE_OF_FLOOD 0.05 / 0.20 (0.10) - moves a LEVEL
   gw_background_01/04   GW_BACKGROUND 0.01 / 0.04 (0.02): groundwater
                     outside the EA alert areas (Wales, Scotland)
@@ -249,12 +251,14 @@ def flood_bands(ratio=None, rs_weight=1.0):
     rederive()
 
 
-def rs_top(freq):
-    """RS_FREQ_TOP, the RoFRS High band's claim rate: 3.3%/yr as shipped,
-    the floor of the EA's definition (>= 1 in 30), which has no upper
-    bound. The scenarios move it up; below the floor is outside the band."""
-    scores_real.RS_FREQ_TOP = freq
-    print(f"  RS_FREQ_TOP -> {freq:.4f}", flush=True)
+def rs_top(ratio):
+    """RS_FREQ_TOP, the RoFRS High band's claim rate, as a multiple of
+    Medium's (RS_FREQ_HIGH): 1.67x as shipped since 2026-09-29, the
+    ratio in the EA's recorded floods. Until then it was 3.3%, the band's
+    floor, and the scenarios moved it up to 5% / 10%, far outside what
+    the records show; now they are the ends of the records' 90% range."""
+    scores_real.RS_FREQ_TOP = scores_real.RS_FREQ_HIGH * ratio
+    print(f"  RS_FREQ_TOP -> {scores_real.RS_FREQ_TOP:.4f}", flush=True)
     rederive()
 
 
@@ -336,9 +340,10 @@ SCENARIOS = {
     "flood_band_ratio_10": lambda: flood_bands(ratio=10.0),
     "flood_rs_weight_067": lambda: flood_bands(rs_weight=2 / 3),
     "flood_rs_weight_150": lambda: flood_bands(rs_weight=1.5),
-    # the RoFRS High band's open upper end (added 2026-09-27)
-    "rs_top_050": lambda: rs_top(0.050),
-    "rs_top_100": lambda: rs_top(0.100),
+    # the RoFRS High band against Medium: the recorded floods' 90% range
+    # (added 2026-09-27 as 5% / 10%, re-aimed 2026-09-29)
+    "rs_top_ratio_130": lambda: rs_top(1.30),
+    "rs_top_ratio_218": lambda: rs_top(2.18),
     "gw_share_05": lambda: gw_share(0.05),
     "gw_share_20": lambda: gw_share(0.20),
     "gw_background_01": lambda: gw_background(0.01),
