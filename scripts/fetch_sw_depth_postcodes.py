@@ -56,6 +56,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fetch_sw_depth as sd                       # noqa: E402
+import fetch_flood_postcodes as fp               # noqa: E402
 from build_model import load_districts           # noqa: E402
 
 DATA = "data"
@@ -184,13 +185,17 @@ def stage_aggregate(climate):
 
     names = load_districts()["name"].tolist()
     grain = "sector" if any(" " in n for n in names) else "district"
-    own = pc.groupby(grain).agg(n=(COLS[0], "size"), **{c: (c, "sum") for c in COLS})
-    area = pc.groupby("area")[COLS].mean()
+    # weighted by households exactly as the frequency fractions are
+    # (fetch_flood_postcodes.WEIGHT_BY_HOUSEHOLDS), so depth and frequency
+    # stay on one denominator
+    w = fp.postcode_households(pc["postcode"]) if fp.WEIGHT_BY_HOUSEHOLDS else None
+    own = fp.weighted_counts(pc, grain, COLS, w)
+    a = fp.weighted_counts(pc, "area", COLS, w)
+    area = a[COLS].div(a["n"], axis=0)
     if grain == "district":
         prior = area
     else:
-        dist = pc.groupby("district").agg(n=(COLS[0], "size"),
-                                          **{c: (c, "sum") for c in COLS})
+        dist = fp.weighted_counts(pc, "district", COLS, w)
         pa = area.reindex(dist.index.map(area_of)).set_index(dist.index)
         prior = pd.DataFrame({c: (dist[c] + K_PRIOR * pa[c]) / (dist["n"] + K_PRIOR)
                               for c in COLS})
@@ -233,12 +238,12 @@ def stage_aggregate(climate):
                 vals = np.minimum(vals, cap)
         rows.append([n] + vals.tolist())
     out = pd.DataFrame(rows, columns=["name"] + COLS)
-    out["basis"] = "postcode"
+    out["basis"] = "households" if fp.WEIGHT_BY_HOUSEHOLDS else "postcode"
     path = os.path.join(DATA, f"sw_depth{suffix}.csv")
     keep = os.path.join(DATA, f"sw_depth_area{suffix}.csv")
     if os.path.exists(path) and not os.path.exists(keep):
         prev = pd.read_csv(path, nrows=1)
-        if "basis" not in prev.columns or prev["basis"].iloc[0] != "postcode":
+        if "basis" not in prev.columns or prev["basis"].iloc[0] not in ("postcode", "households"):
             shutil.copy(path, keep)
             print(f"kept the area-share table as {keep}", flush=True)
     out.to_csv(path, index=False, float_format="%.6f")

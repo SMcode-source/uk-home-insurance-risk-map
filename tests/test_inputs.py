@@ -143,7 +143,7 @@ def test_surface_water_fractions_are_shares(name):
 @pytest.mark.parametrize("suffix", ["", "_cc"])
 def test_depth_by_postcode_is_zero_outside_england(suffix):
     depth, _ = _read(f"sw_depth{suffix}.csv")
-    if {r.get("basis", "area") for r in depth.values()} != {"postcode"}:
+    if {r.get("basis", "area") for r in depth.values()} not in ({"postcode"}, {"households"}):
         pytest.skip("area-share depth table: England-only coverage is by tile")
     country = _country()
     missing = [n for n in depth if n not in country]

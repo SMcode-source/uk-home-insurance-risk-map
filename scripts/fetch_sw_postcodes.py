@@ -52,6 +52,7 @@ import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fetch_surface_water as sw                 # noqa: E402
+import fetch_flood_postcodes as fp               # noqa: E402
 from build_model import load_districts           # noqa: E402
 
 DATA = "data"
@@ -161,16 +162,20 @@ def stage_aggregate(climate):
 
     names = load_districts()["name"].tolist()
     grain = "sector" if any(" " in n for n in names) else "district"
-    own = pc.groupby(grain).agg(n=("in_high", "size"), h=("in_high", "sum"),
-                                l=("in_low", "sum"))
-    area = pc.groupby("area").agg(f_high=("in_high", "mean"),
-                                  f_low=("in_low", "mean"))
+    # Shares of homes, weighted by Census households exactly as the
+    # river/sea shares are (fetch_flood_postcodes.WEIGHT_BY_HOUSEHOLDS,
+    # one switch for every flood share).
+    flags = ["in_high", "in_low"]
+    hl = dict(zip(flags, ["h", "l"]))
+    w = fp.postcode_households(pc["postcode"]) if fp.WEIGHT_BY_HOUSEHOLDS else None
+    own = fp.weighted_counts(pc, grain, flags, w).rename(columns=hl)
+    a = fp.weighted_counts(pc, "area", flags, w)
+    area = pd.DataFrame({"f_high": a["in_high"] / a["n"],
+                         "f_low": a["in_low"] / a["n"]})
     if grain == "district":
         prior = area
     else:
-        dist = pc.groupby("district").agg(n=("in_high", "size"),
-                                          h=("in_high", "sum"),
-                                          l=("in_low", "sum"))
+        dist = fp.weighted_counts(pc, "district", flags, w).rename(columns=hl)
         pa = area.reindex(dist.index.map(area_of)).set_index(dist.index)
         prior = pd.DataFrame({
             "f_high": (dist["h"] + K_PRIOR * pa["f_high"]) / (dist["n"] + K_PRIOR),

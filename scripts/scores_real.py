@@ -801,9 +801,11 @@ def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
     # envelope to condition on is the caller's postcode share as it is.
     area_name = "sw_fractions_area_cc.csv" if climate else "sw_fractions_area.csv"
     area_path = os.path.join(DATA, area_name)
-    if basis == "postcode":
-        print(f"  sw depth: {fname} is by postcode share; envelope is the "
-              "caller's postcode-share sw_high / sw_low")
+    if basis in ("postcode", "households"):
+        # "households": the same postcodes, each weighted by its Census
+        # households, and so is the caller's envelope (2026-09-28)
+        print(f"  sw depth: {fname} is by {basis} share; envelope is the "
+              f"caller's {basis}-share sw_high / sw_low")
     elif os.path.exists(area_path):
         env_hi, env_lo = env_hi.copy(), env_lo.copy()
         with open(area_path, newline="") as fh:
