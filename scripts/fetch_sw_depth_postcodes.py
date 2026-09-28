@@ -1,4 +1,6 @@
-"""Surface-water DEPTH bands as the share of unit POSTCODES (England).
+"""Surface-water DEPTH bands as the share of unit POSTCODES (England),
+weighted by Census households since 2026-09-28 as the frequency is
+(basis = "households").
 
 fetch_sw_depth.py measures, for each unit, the share of its AREA where
 modelled surface-water depth exceeds 0.2 / 0.3 / 0.6 / 0.9 / 1.2 m, in

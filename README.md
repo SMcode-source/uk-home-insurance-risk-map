@@ -272,9 +272,14 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    its old rule, which NRW's own counts favour (`MIN_ALPHA`, HANDOFF
    2026-09-26). The masks are sampled at every
    live unit-postcode centroid (`scripts/fetch_sw_postcodes.py`), so `sw_high` /
-   `sw_low` are the share of a district's postcodes in the ≥1% AEP band and in
-   the whole envelope, shrunk toward the postcode area under 20 postcodes
-   (postcode share since 2026-09-06; area share before). `sw_high` adds ~1%/yr
+   `sw_low` are the share of a district's homes in the ≥1% AEP band and in
+   the whole envelope - each postcode weighted by its Census households, as
+   for river/sea - shrunk toward the postcode area under 20 postcodes
+   (households since 2026-09-28, which moved mostly city centres, where office
+   postcodes hold few homes; postcode share since 2026-09-06; area share
+   before). The 25% threshold was kept: weighting moved England's level from
+   1.19x to 1.15x (High) and 1.01x to 0.99x (envelope), small next to the
+   step between thresholds. `sw_high` adds ~1%/yr
    claim frequency at full coverage; surface-water severity is modelled cheaper
    (median ~£15k vs ~£30k river/sea) via a probability-weighted lognormal mix.
    - **Depth-conditioned severity** (`scripts/fetch_sw_depth_postcodes.py`).
@@ -282,8 +287,9 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
      (>0.2/0.3/0.6/0.9/1.2 m), sampled at the same unit-postcode centroids.
      Their differences give, for each district, the depth distribution
      *within the water its homes are standing in* — conditioned on the same
-     postcode-share `sw_high` / `sw_low` the frequency uses, so the peril has
-     one denominator (postcode share since 2026-09-20; the depth distribution
+     household-weighted `sw_high` / `sw_low` the frequency uses, so the peril
+     has one denominator (households since 2026-09-28, postcode share since
+     2026-09-20; the depth distribution
      was taken over the flooded *area* before, against a second envelope kept
      as `sw_fractions_area.csv`). People build on the higher ground of a
      floodplain, so the water under the homes is not the water's average:
@@ -827,9 +833,10 @@ git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data
 # The three flood fraction products are POSTCODE shares (river/sea and surface
 # water since 2026-09-06, the depth conditional since 2026-09-20): the same EA /
 # NRW / SEPA masks, sampled at ONSPD unit-postcode centroids instead of measured
-# over a polygon's area. River/sea (frequency and depth) weighs each postcode by
-# its Census households since 2026-09-28 (Nomis P002 + NRS 2022 index, fetched
-# on first run into data/cache). fetch_onspd.py writes the centroids and needs OSTN15.
+# over a polygon's area. Every flood share (frequency and depth, both perils)
+# weighs each postcode by its Census households since 2026-09-28 (Nomis P002 +
+# NRS 2022 index, fetched into data/cache before the first tile). fetch_onspd.py
+# writes the centroids and needs OSTN15.
 # The area fetchers below them still work and are how the masks were validated,
 # but their output is no longer model input - see DATA_SOURCES #41.
 .venv/Scripts/python -u scripts/fetch_onspd.py             # -> data/postcode_centroids.csv

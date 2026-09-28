@@ -1,4 +1,6 @@
-"""Surface-water flood fractions as the share of unit POSTCODES in the extent.
+"""Surface-water flood fractions as the share of unit POSTCODES in the extent,
+each postcode weighted by its Census households since 2026-09-28
+(fetch_flood_postcodes.WEIGHT_BY_HOUSEHOLDS).
 
 fetch_surface_water.py measures the share of a unit's AREA inside the
 national surface-water extents. The river/sea fractions moved to the
@@ -30,7 +32,7 @@ It runs in two stages so the slow part can be split across machines:
 The depth product follows the same basis since 2026-09-20:
 fetch_sw_depth_postcodes.py samples the depth layers at the same
 postcodes, clipped to the envelope written by --flags here, and writes
-data/sw_depth.csv with basis = "postcode". scores_real.sw_depth_severity
+data/sw_depth.csv with basis = "households" ("postcode" until 2026-09-28). scores_real.sw_depth_severity
 then conditions on this file's own sw_high / sw_low. The first
 aggregation still keeps an area-share copy as data/sw_fractions_area.csv
 (and _cc) for the record; the model reads it only if handed an old

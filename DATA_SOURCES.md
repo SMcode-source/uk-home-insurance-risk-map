@@ -1810,9 +1810,16 @@ districts**, used as the exposure weight throughout.
     The High share each Scottish zone postcode carries (#44) is
     England's share of zone homes on the same weights, 0.4815, since
     the same day (0.527 of zone postcodes before).
-    Surface water stays on postcode share: its 25% coverage threshold
-    was fitted to the EA's counts on postcode shares, so weighting it
-    means refitting that threshold.
+    Surface water (frequency and depth, `fetch_sw_postcodes.py`,
+    `fetch_sw_depth_postcodes.py`) on the same weights since the same
+    day, so every flood share is of homes; the depth table's `basis` is
+    `households`. Its 25% coverage threshold, fitted on postcode shares,
+    was kept: weighting moved England's level 1.19x -> 1.15x (High) and
+    1.01x -> 0.99x (envelope). **Runners:** NRS answers Python's default
+    User-Agent with 403, so `household_tables()` sends the User-Agent
+    the other fetchers use, and every fetch stage calls it before its
+    first tile. `validate_flood_england.py` carries districts to
+    constituencies by households too.
 
 ## Budget: zero, decided 2026-08-31
 

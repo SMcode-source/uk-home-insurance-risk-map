@@ -37,8 +37,8 @@ and the map sits inside its own noise floor. Tab 4 SHIPPED as
 workstream, which is the honest headline: five gates of temperature
 work found one real map (subsidence geography) and no level.
 
-**The current premium is £169.7506 — £169.75 at 2dp, districts;
-£169.7513 at sector grain; loss cost £164.23.** `scripts/doc_figures.py
+**The current premium is £169.7425 — £169.74 at 2dp, districts;
+£169.7423 at sector grain; loss cost £164.22.** `scripts/doc_figures.py
 --check` holds this line and LIMITATIONS §3 to the committed output
 (its own step in `tests.yml`, on main); after a publish, run it with
 `--fix` and commit. Stated here because everything below this
@@ -171,6 +171,45 @@ and cost the level nothing. Climate
 uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
+
+## PUBLISHED 2026-09-28 (third): surface water by homes too, both grains
+
+The last flood share still counting postcodes, on the user's yes.
+`fetch_sw_postcodes.py` and `fetch_sw_depth_postcodes.py` aggregate with
+`weighted_counts` under the same switch as river/sea, so every flood
+share and both depth tables are of homes; `sw_depth.csv`'s basis is
+`households`. Refetched by `sw-refetch.yml` at both grains (runs
+36458431569 / 36458442857); the per-postcode flag counts equal the
+published 2026-09-25 fetch in every band to three decimals, so the
+table moves are the weighting and nothing upstream.
+
+| against live | districts (rebuild run 95) | sectors (sector-model run 50) |
+|---|---|---|
+| headline | 169.7506 -> 169.7425 | 169.7513 -> 169.7423 |
+| rating groups changed | 182 of 2,736 (6.2% of households) | 794 of 10,398 (7.2%) |
+| England / Wales / Scotland | -0.00 / -0.05 / -0.02 | -0.00 / -0.03 / -0.04 |
+
+- **Movers are city centres**, where postcodes are offices with few
+  homes: EC4V +46, W1B +16, WC2A -24, EC4A -18; sectors CV1 1 +51,
+  EC4A 4 -63. The 2026-09-07 LSOA-split weighting found the same places.
+- **Checks, mixed and small.** England (KSI, carried by households):
+  High +0.944 -> +0.938, level 1.195x -> 1.154x; envelope +0.959 ->
+  +0.956, 1.007x -> 0.989x. Wales sw_high vs NRW +0.721 -> +0.730;
+  Scotland vs SEPA AAD +0.10 -> +0.15. Two grains agree (sector roll-up
+  vs districts Spearman 0.994, means within 0.4%).
+- **Threshold kept at 25%.** The level moved 4%, small next to the step
+  between candidate thresholds; not refitted, on the user's choice.
+- **Three traps closed on the way.** (1) NRS 403s Python's default
+  User-Agent from a runner: the first refetch died after 45 minutes of
+  tiles, and the published river/sea fetchers carried the same latent
+  bug (only ever run with the tables cached). `household_tables()` now
+  sends a User-Agent, writes through `.part`, and runs before the first
+  tile. (2) A `households` depth basis would have fallen into
+  `scores_real`'s AREA branch and divided by `sw_fractions_area.csv`.
+  (3) `test_inputs`' England-only depth check would have skipped it.
+  Tests pin (2) and (3); (2) fails on the old code.
+- `validate_flood_england.py` carries districts to constituencies by
+  households, matching fractions that are shares of homes.
 
 ## PUBLISHED 2026-09-28 (second): Scotland carries England's High share of zone homes, both grains
 

@@ -747,9 +747,9 @@ def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
     times less often, so it is weighted accordingly.
 
     The envelope the conditional is taken against must share the depth
-    table's basis. The published table is postcode share (basis =
-    "postcode", since 2026-09-20), so the caller's postcode-share sw_high /
-    sw_low are used as they are. An old area-basis table is conditioned on
+    table's basis. The published table is household-weighted postcode share
+    (basis = "households" since 2026-09-28, "postcode" from 2026-09-20), so
+    the caller's sw_high / sw_low, on the same basis, are used as they are. An old area-basis table is conditioned on
     the area envelope (data/sw_fractions_area[_cc].csv) instead: dividing
     area bands by a postcode-share envelope corrupts the conditional.
 
