@@ -781,7 +781,7 @@ def test_flood_band_frequencies_have_one_definition():
 
 def test_rofrs_high_band_is_priced_at_its_own_rate():
     """Until 2026-09-27 the RoFRS High and Medium bands were one
-    zone priced at 1.5%, below High's own floor (>= 3.3%). A unit whose
+    zone priced at 1.5%. A unit whose
     zone is all High must now claim at RS_FREQ_TOP on that zone, one that
     is all Medium at RS_FREQ_HIGH, and f_top above f_high (a fallback
     median can do that) must not price a High home outside its zone."""
@@ -791,7 +791,10 @@ def test_rofrs_high_band_is_priced_at_its_own_rate():
     medium = p(f_high=0.1, f_top=0.0)
     high = p(f_high=0.1, f_top=0.1)
     assert abs((high - medium) - (sr.RS_FREQ_TOP - sr.RS_FREQ_HIGH) * 0.1 * k) < 1e-12
-    assert sr.RS_FREQ_TOP >= 1 / 30 - 1e-3, "High priced below the EA floor"
+    # the observed High:Medium ratio, Recorded Flood Outlines 1990-2025,
+    # 90% interval (validate_flood_history.py)
+    assert 1.3 - 1e-9 <= sr.RS_FREQ_TOP / sr.RS_FREQ_HIGH <= 2.2 + 1e-9, \
+        "High:Medium outside the range the recorded floods support"
     assert p(f_high=0.1, f_top=0.3) == high
 
 

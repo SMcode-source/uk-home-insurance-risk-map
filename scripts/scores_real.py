@@ -831,21 +831,25 @@ def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
 
 # ---------------------------------------------------- river/sea depth
 
-# Frequencies of the RoFRS likelihood bands: 3.3%/yr for High (f_top),
+# Frequencies of the RoFRS likelihood bands: 2.5%/yr for High (f_top),
 # ~1.5%/yr for the rest of the >=1% AEP zone (Medium), ~0.3%/yr in the
 # rest of the 0.1% envelope (Low), plus a 0.05%/yr background everywhere.
 # build_model.marginal_params reads these (and SW_FREQ_* above) at call
 # time - this is their only definition. The background carries no depth
 # information and is kept at flat severity.
 #
-# Until 2026-09-27 High and Medium were one band at 1.5%, which
-# priced High homes below the EA's own floor for High (>= 3.3%, 1 in 30).
-# RS_FREQ_TOP is that floor, the smallest value the band's definition
-# allows: High has no published upper bound, so anything above it would
-# be invented, and the sensitivity scenarios bracket it (5%, 10%). 1.5%
-# already sits inside Medium's 1-3.3% and is kept. Only the RATIOS
-# matter; calibrate_frequency re-pins the level.
-RS_FREQ_TOP, RS_FREQ_HIGH, RS_FREQ_LOW = 0.033, 0.015, 0.003
+# Until 2026-09-27 High and Medium were one band at 1.5%. From then
+# until 2026-09-28 High was priced at 3.3%, the floor of the EA's High
+# band (>= 1 in 30), because High has no published upper bound. Only the
+# RATIOS matter (calibrate_frequency re-pins the level), and a flood
+# chance is not a claim rate, so the band edges do not fix the ratio.
+# What does is observation: validate_flood_history.py overlays the EA's
+# Recorded Flood Outlines (river and sea, 1990-2025) on the postcodes,
+# and High homes flooded 1.67x as often as Medium homes (90% 1.3-2.2 by
+# event or by district bootstrap; 1.31 since 2007). So RS_FREQ_TOP is
+# RS_FREQ_HIGH x 1.67. The floor's 2.2 was the top of that range, and the
+# old 5% / 10% scenarios (3.3x / 6.7x) far outside it.
+RS_FREQ_TOP, RS_FREQ_HIGH, RS_FREQ_LOW = 0.025, 0.015, 0.003
 RS_FREQ_BACKGROUND = 0.0005
 
 
