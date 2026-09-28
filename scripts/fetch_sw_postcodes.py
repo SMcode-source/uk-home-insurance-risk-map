@@ -116,6 +116,8 @@ def sample_region(region_name, pc, part):
 
 
 def stage_flags(regions, climate, part):
+    if fp.WEIGHT_BY_HOUSEHOLDS:
+        fp.household_tables()   # before any tile, see household_tables
     pc = pd.read_csv(CENTROIDS)
     for region_name in regions:
         p = pc[pc["country"] == COUNTRY[region_name]].reset_index(drop=True)

@@ -128,14 +128,34 @@ HH_SCO_URL = ("https://www.nrscotland.gov.uk/media/utrbt5ze/"
 HH_SCO_MEMBER = "Census_2022_Index/Postcode_To_OA.csv"
 
 
+def household_tables():
+    """Download the two Census household tables if they are not cached.
+    The fetch stages call this FIRST: on 2026-09-28 NRS refused Python's
+    default User-Agent (403) from a runner after 45 minutes of surface-
+    water tiles, which a download at aggregation time only found at the
+    end. Written through a temporary name, so a failed download leaves
+    nothing a later run would mistake for the table."""
+    for path, url in ((HH_EW, HH_EW_URL), (HH_SCO, HH_SCO_URL)):
+        if os.path.exists(path):
+            continue
+        print(f"  downloading {url}", flush=True)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "Mozilla/5.0 (uk-risk-map)"})
+        with urllib.request.urlopen(req, timeout=300) as r, \
+                open(path + ".part", "wb") as out:
+            while True:
+                chunk = r.read(1 << 20)
+                if not chunk:
+                    break
+                out.write(chunk)
+        os.replace(path + ".part", path)
+
+
 def postcode_households(postcodes):
     """Census households at each postcode (see WEIGHT_BY_HOUSEHOLDS)."""
     import zipfile
-    for path, url in ((HH_EW, HH_EW_URL), (HH_SCO, HH_SCO_URL)):
-        if not os.path.exists(path):
-            print(f"  downloading {url}", flush=True)
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            urllib.request.urlretrieve(url, path)
+    household_tables()
     ew = pd.read_csv(HH_EW).set_index("Postcode")["Count"]
     with zipfile.ZipFile(HH_SCO).open(HH_SCO_MEMBER) as fh:
         sco = pd.read_csv(fh, usecols=["Postcode", "HouseholdCount"])
@@ -762,6 +782,8 @@ def top_with_scotland(country, in_high, in_top, w=None):
 def main():
     if not os.path.exists(CENTROIDS):
         raise SystemExit(f"{CENTROIDS} missing - run scripts/fetch_onspd.py first")
+    if WEIGHT_BY_HOUSEHOLDS:
+        household_tables()      # before any tile, see household_tables
     pc = pd.read_csv(CENTROIDS)
     countries = ["England"] if CLIMATE else ["England", "Wales", "Scotland"]
     pc = pc[pc["country"].isin(countries)].reset_index(drop=True)
