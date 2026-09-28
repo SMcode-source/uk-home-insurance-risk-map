@@ -139,7 +139,7 @@ of that change's headline effect.
 
 ## 3. Per-peril provenance, and what each driver actually is
 
-EL per policy and share of the **£164.23 priced** total. Note which line
+EL per policy and share of the **£164.22 priced** total. Note which line
 is outside it:
 
 | peril | EL | share | driver | resolution | coverage |
@@ -147,7 +147,7 @@ is outside it:
 | Escape of water | £42.39 | **25.81%** | air-frost days | 1991–2020 **climatology** | UK — **no year-to-year variation** |
 | Fire | £28.00 | 17.05% | MHCLG dwelling-fire incidents | fire-authority area | GB |
 | Theft | £22.04 | 13.42% | police.uk burglary points | **street level** | E&W; Scotland at council resolution |
-| Flood | £20.13 | 12.26% | EA RoFRS risk bands / NRW FRAW / SEPA polygons | share of homes in each band (river/sea: unit postcodes weighted by households; surface water: share of postcodes) | UK; depth England only |
+| Flood | £20.13 | 12.26% | EA RoFRS risk bands / NRW FRAW / SEPA polygons | share of homes in each band (unit postcodes weighted by Census households) | UK; depth England only |
 | Subsidence | £19.81 | 12.06% | BGS clay shrink–swell | 1:625,000 | GB |
 | Storm | £15.74 | 9.59% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
 | Accidental damage | £14.65 | 8.92% | census child-share | LSOA | GB |
@@ -438,8 +438,11 @@ Also unanchored, and worth naming:
   has 7 zone postcodes holding 218 of its 514 households, and weighting
   moved it +£314. The EA's counts include flats too, so the check above
   cannot see this; an insurer rates by floor, and nothing free gives
-  floor level per address. Surface water is still counted by postcode,
-  because its 25% coverage threshold was fitted on postcode shares. **`RS_FREQ_TOP` is now the most consequential unanchored
+  floor level per address. Surface water joined on 2026-09-28, keeping
+  its 25% coverage threshold (fitted on postcode shares; weighting moved
+  England's level 1.19x -> 1.15x in High and 1.01x -> 0.99x overall, and
+  its rank against the EA slipped +0.944 -> +0.938 while Wales against
+  NRW rose +0.721 -> +0.730). **`RS_FREQ_TOP` is now the most consequential unanchored
   constant in the model.** High is open above 3.3%, and pricing it at
   5% moves **11.6%** of rating groups, at 10% **31.5%**, more than
   flood frequency ×1.5. The floor is the defensible end, since a flood
