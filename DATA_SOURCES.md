@@ -1807,6 +1807,9 @@ districts**, used as the exposure weight throughout.
     households split equally across its postcodes, parked as too
     small) could not see the effect: within an LSOA flood postcodes
     are the sparse ones, and that weight gets High only to 1.15x.
+    The High share each Scottish zone postcode carries (#44) is
+    England's share of zone homes on the same weights, 0.4815, since
+    the same day (0.527 of zone postcodes before).
     Surface water stays on postcode share: its 25% coverage threshold
     was fitted to the EA's counts on postcode shares, so weighting it
     means refitting that threshold.

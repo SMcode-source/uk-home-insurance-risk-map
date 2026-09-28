@@ -37,8 +37,8 @@ and the map sits inside its own noise floor. Tab 4 SHIPPED as
 workstream, which is the honest headline: five gates of temperature
 work found one real map (subsidence geography) and no level.
 
-**The current premium is £169.7516 — £169.75 at 2dp, districts;
-£169.7502 at sector grain; loss cost £164.23.** `scripts/doc_figures.py
+**The current premium is £169.7506 — £169.75 at 2dp, districts;
+£169.7513 at sector grain; loss cost £164.23.** `scripts/doc_figures.py
 --check` holds this line and LIMITATIONS §3 to the committed output
 (its own step in `tests.yml`, on main); after a publish, run it with
 `--fix` and commit. Stated here because everything below this
@@ -172,6 +172,29 @@ uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
 
+## PUBLISHED 2026-09-28 (second): Scotland carries England's High share of zone homes, both grains
+
+The first open item of the entry below, closed the same day on the
+user's yes. `top_with_scotland` takes the household weights, so each
+Scottish zone postcode carries England's High share of zone HOMES
+(0.4815) instead of zone postcodes (0.527); it now runs once for the
+fetch and `--flags-from` alike, so a flags file cannot carry an older
+share (test in `tests/test_household_weights.py`). Only `f_top` moves:
+x0.915 in 444 Scottish districts and 1,071 sectors; the climate file is
+England-only and unchanged.
+
+| against live | districts (rebuild run 93) | sectors (sector-model run 49) |
+|---|---|---|
+| headline | 169.7516 -> 169.7506 | 169.7502 -> 169.7513 |
+| rating groups changed | 18 of 2,736 (0.4% of households) | 30 of 10,398 (0.3%) |
+| England / Wales / Scotland | +0.02 / +0.02 / -0.23 | +0.02 / +0.02 / -0.23 |
+
+Largest moves PH6 -3.5, EH44 -2.9 (districts); G82 1 -6.6, DD1 3 -5.0
+(sectors). The sensitivity table was not re-run for a move this size
+confined to one country's High share. Surface water by homes (open
+item 2 below) remains, and needs a CI refetch plus a decision on
+refitting the 25% coverage threshold.
+
 ## PUBLISHED 2026-09-28: river/sea flood shares of homes, not postcodes, both grains
 
 The follow-up the correction below named, chosen by the user and
@@ -217,7 +240,7 @@ byte-for-byte; `tests/test_household_weights.py` pins the arithmetic.
   against NRW people at risk is mixed: `f_high` +0.32 -> +0.35 and
   river-only +0.35 -> +0.40, but `el_fl` +0.687 -> +0.655 and sea
   +0.21 -> +0.13. Scotland's SEPA AAD moves by noise.
-- **Left open.** (1) Scotland's carried High share (0.527) is still
+- **Left open.** (1) CLOSED the same day, entry above: Scotland's carried High share (0.527) was still
   England's share of zone *postcodes*; of homes it is about 0.48, so
   Scottish zone homes price ~3-4% above England's mix - a small,
   known follow-up (`top_with_scotland` would take the household weights).

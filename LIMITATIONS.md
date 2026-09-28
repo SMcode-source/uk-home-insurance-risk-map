@@ -423,7 +423,8 @@ Also unanchored, and worth naming:
   2026-09-27 (`RS_FREQ_TOP` 3.3%, High's floor; Medium stays at 1.5%),
   in England from `rofrs_4band` and in Wales from FRAW's own High.
   Scotland cannot supply the band (SEPA's High is 1 in 10), so each
-  Scottish zone postcode carries England's High share, 0.527. **The
+  Scottish zone postcode carries England's High share of zone homes,
+  0.48 (0.527 of zone postcodes until 2026-09-28). **The
   river/sea shares are of homes, not postcodes, since 2026-09-28.**
   Counted by postcode, High was 1.20x the EA's own count of homes in
   High, because High postcodes are the sparsest (11.8 households,
@@ -431,10 +432,7 @@ Also unanchored, and worth naming:
   households, and High reads 0.95x, Medium 0.89x and the zone 0.92x,
   with rank better in all three; the uniform shortfall left is
   plausibly households against the EA's residential properties, which
-  include empty and second homes. One piece still counts postcodes:
-  the High share Scotland carries (0.527) is England's share of zone
-  postcodes, where England's share of zone homes is about 0.48, which
-  prices Scottish zone homes roughly 3-4% above England's mix. **The weight counts every flat in a
+  include empty and second homes. **The weight counts every flat in a
   flooded block, and the model has no floor level.** A riverside block
   is many homes in one postcode, most of them above the water: M3 1
   has 7 zone postcodes holding 218 of its 514 households, and weighting
