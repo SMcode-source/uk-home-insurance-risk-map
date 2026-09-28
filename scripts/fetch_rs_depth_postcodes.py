@@ -123,6 +123,8 @@ def bands_path(part, climate):
 
 
 def stage_flags(climate, part):
+    if fp.WEIGHT_BY_HOUSEHOLDS:
+        fp.household_tables()   # before any tile, see household_tables
     pc = pd.read_csv(CENTROIDS)
     pc = pc[pc["country"] == "England"].reset_index(drop=True)
     x = pc["easting"].values.astype(float)
