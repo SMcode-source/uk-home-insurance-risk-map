@@ -235,12 +235,21 @@ def main():
     print(f"  {len(cen):,} English model postcodes joined "
           f"({missing:,} had no ONSPD constituency)", flush=True)
 
-    # A district's rate is carried to a constituency by the postcodes it
-    # actually has there. Weighted by postcode COUNT, not area, because
-    # the model's own fractions have been postcode shares since
-    # 2026-09-06 - weighting them by area would reintroduce the very
-    # thing the Welsh check condemned.
-    w = cen.groupby(["pcon", "district"]).size().rename("n").reset_index()
+    # A district's rate is carried to a constituency by the HOMES it
+    # actually has there: its postcodes in the constituency, each
+    # weighted by its Census households, because the model's fractions
+    # are shares of homes (households since 2026-09-28; postcode count
+    # before, and area never - that would reintroduce the very thing the
+    # Welsh check condemned). A district's postcodes in a constituency
+    # with no households at all fall back to their count.
+    import sys
+    sys.path.insert(0, HERE)
+    import fetch_flood_postcodes as fp
+    cen["hh"] = (fp.postcode_households(cen["postcode"])
+                 if fp.WEIGHT_BY_HOUSEHOLDS else 1.0)
+    w = cen.groupby(["pcon", "district"]).agg(
+        n=("hh", "size"), hh=("hh", "sum")).reset_index()
+    w["hh"] = w["hh"].where(w["hh"] > 0, w["n"])
 
     rows = []
     for product, (_, _, hi_col, lo_col) in PACKS.items():
@@ -251,9 +260,9 @@ def main():
         agg = w2.groupby("pcon").apply(
             lambda g: pd.Series(
                 {"n": g["n"].sum(),
-                 "nest": g["n"].max() / g["n"].sum(),
-                 "hi": float(np.average(g[hi_col], weights=g["n"])),
-                 "lo": float(np.average(g[lo_col], weights=g["n"]))}),
+                 "nest": g["hh"].max() / g["hh"].sum(),
+                 "hi": float(np.average(g[hi_col], weights=g["hh"])),
+                 "lo": float(np.average(g[lo_col], weights=g["hh"]))}),
             include_groups=False)
         matched = 0
         for pcon, r in agg.iterrows():
