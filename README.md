@@ -561,26 +561,26 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    Re-run 2026-09-26, after seven weeks stale (the script had been failing
    since the council-tax severity landed — see HANDOFF). Four readings:
    - **The copula barely touches the ranking** now: every dependence
-     scenario moves ≤0.4% of districts, down from 7–26% in August. The
+     scenario moves ≤0.7% of districts, down from 7–26% in August. The
      attritional perils (escape of water, theft, fire, accidental damage)
      now carry most of the loss, and they are independent by construction.
    - **Flood's unanchored depth-damage curve moves the ranking** as much as
      anything short of a 50% flood-frequency shock: ignoring depth
-     altogether moves 13.4%, a curve half or 1.5× as steep 7.2% / 6.4%, and
-     the JRC Europe residential curve 7.3%, all at an unchanged level
+     altogether moves 13.2%, a curve half or 1.5× as steep 7.1% / 7.7%, and
+     the JRC Europe residential curve 8.6%, all at an unchanged level
      (LIMITATIONS §6).
    - **The RoFRS High band's rate moves it most of all** (re-run
      2026-09-27, with High priced apart from Medium, and 2026-09-28 on
      household-weighted shares): High is priced at
-     3.3%, its band's floor, and the band is open above. At 5% 11.6% of
-     districts move group; at 10%, 31.5% - more than a 50% flood-frequency
-     shock (24.5%). A flood chance bounds a claim rate from above, so the
+     3.3%, its band's floor, and the band is open above. At 5% 10.7% of
+     districts move group; at 10%, 30.7% - more than a 50% flood-frequency
+     shock (25.2%). A flood chance bounds a claim rate from above, so the
      floor is the defensible end, but nothing anchors it.
    - **The balance between river/sea and surface water** moves it about as
      much as depth: their band frequencies ×2/3 or ×1.5 against each other
-     move 12.5% / 14.7% of districts. The rest of the unanchored constants
-     matter less: the high-zone ratio 4.8–9.5%, groundwater's share of
-     flood 2.7–4.2% (the only one that moves the level), groundwater
+     move 12.3% / 14.3% of districts. The rest of the unanchored constants
+     matter less: the high-zone ratio 6.4–9.6%, groundwater's share of
+     flood 2.2–4.1% (the only one that moves the level), groundwater
      outside England and equal systemic loadings ≤1.5%.
    - **Severity σ is a check, not a lever:** held at the mean it moves no
      premium and no rating group (Gate 3), but it raises catastrophic-year

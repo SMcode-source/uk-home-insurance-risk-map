@@ -389,12 +389,12 @@ Also unanchored, and worth naming:
   re-solved, so E[loss] held at £166.6–166.9 in every scenario. They
   DO move the ranking. Measured 2026-09-26, re-run 2026-09-27 with
   the RoFRS High/Medium split and 2026-09-28 on household-weighted
-  river/sea shares (`sensitivity.py`, 1-in-3 sample, rating-group churn
-  vs baseline): depth ignored altogether **13.4%**; the curve half as
-  steep (`**0.5`) **7.2%**; 1.5× as steep (`**1.5`) **6.4%**; the JRC
-  Europe residential curve **7.3%**. That is well above anything the
-  copula does (≤0.4%). Only flood frequency ×1.5 (24.5%) and the High
-  band's rate at 10% (31.5%, below) move more.
+  flood shares (`sensitivity.py`, 1-in-3 sample, rating-group churn
+  vs baseline): depth ignored altogether **13.2%**; the curve half as
+  steep (`**0.5`) **7.1%**; 1.5× as steep (`**1.5`) **7.7%**; the JRC
+  Europe residential curve **8.6%**. That is well above anything the
+  copula does (≤0.7%). Only flood frequency ×1.5 (25.2%) and the High
+  band's rate at 10% (30.7%, below) move more.
   The JRC curve (Huizinga, de Moel & Szewczyk 2017, EUR 28552 EN) is
   the only free, citable curve available, and it is **not a drop-in
   anchor**. It is an unconditional damage fraction that runs to 0 at
@@ -402,7 +402,7 @@ Also unanchored, and worth naming:
   prices in frequency; `DEPTH_DAMAGE` is severity given a claim. Read
   at the band midpoints it is steeper than ours, mostly at the shallow
   end (0.22 vs 0.45 relative to the 0.3–0.6 m band), and it moves
-  about as much as the brackets (7.3% against 7.2% / 6.4%). So the
+  about as much as the brackets (8.6% against 7.1% / 7.7%). So the
   one outside curve available disagrees with ours by about as much as
   the brackets do, and that is not evidence that ours is wrong.
 - **The flood band frequencies** — `RS_FREQ_TOP/HIGH/LOW = 3.3%/1.5%/0.3%`
@@ -411,9 +411,9 @@ Also unanchored, and worth naming:
   definition since 2026-09-27). calibrate_frequency re-pins flood's
   national level, so only RATIOS are live, and each was measured 2026-09-27 (same run basis
   as `DEPTH_DAMAGE` above). River/sea against surface water moves about
-  as much as depth does: ×2/3 moves **12.5%** of rating groups and ×1.5
-  **14.7%**. The 5:1 high-zone-to-envelope ratio matters less: 2.5:1
-  moves 9.5%, 10:1 moves 4.8%. There is a partial anchor for the river/sea
+  as much as depth does: ×2/3 moves **12.3%** of rating groups and ×1.5
+  **14.3%**. The 5:1 high-zone-to-envelope ratio matters less: 2.5:1
+  moves 9.6%, 10:1 moves 6.4%. There is a partial anchor for the river/sea
   bands. The EA defines RoFRS High as >3.3% a year and Medium as 1–3.3%,
   and until 2026-09-27 the model's "high" band was both together (codes
   3 and 4). So 1.5% priced every home at ≥1% as if it were mid-Medium,
@@ -444,20 +444,20 @@ Also unanchored, and worth naming:
   its rank against the EA slipped +0.944 -> +0.938 while Wales against
   NRW rose +0.721 -> +0.730). **`RS_FREQ_TOP` is now the most consequential unanchored
   constant in the model.** High is open above 3.3%, and pricing it at
-  5% moves **11.6%** of rating groups, at 10% **31.5%**, more than
+  5% moves **10.7%** of rating groups, at 10% **30.7%**, more than
   flood frequency ×1.5. The floor is the defensible end, since a flood
   chance bounds a claim rate from above, but it is a choice.
 - **`GW_SHARE_OF_FLOOD = 0.10`** — see §2. The one scenario here that
   moves a LEVEL, because groundwater has no anchor of its own: at 5% the
-  sample premium falls £0.8 and at 20% rises £1.6, moving 2.7% / 4.2% of
+  sample premium falls £0.8 and at 20% rises £1.6, moving 2.2% / 4.1% of
   rating groups.
 - **`GW_BACKGROUND = 0.02`** — the groundwater fraction given to the 623
   districts outside the EA alert areas (§5). The peg to flood holds the
   national total, so it only moves groundwater between England and the
-  rest: 1% / 4% move 1.3% / 1.5% of groups.
+  rest: 1% / 4% move 1.1% / 1.5% of groups.
 - **`SPATIAL_BASE`** — the per-peril systemic loadings (weather 0.50,
   flood 0.40, subsidence 0.60, groundwater 0.70). Their overall scale is
-  solved, not assumed; setting all four equal moves 1.3% of groups.
+  solved, not assumed; setting all four equal moves 0.4% of groups.
 - **The subsidence susceptibility tables** (`LEX_SUSCEP`, `RCS_SUSCEP`,
   `OLD_AGE_FACTOR`, `DEFAULT_SUSCEP`) have no scenario yet. The model
   reads them through `data/subsidence_postcodes.csv`, which is scored once
