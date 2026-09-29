@@ -224,7 +224,10 @@ sector-model run 51):
   high +0.284 -> +0.285. England's KSI check reads the fractions, which
   did not move.
 - `sensitivity.py`'s `rs_top_050/100` become `rs_top_ratio_130/218`,
-  the records' 90% range; re-run as a follow-up (hours on the laptop).
+  the records' 90% range. Re-run the same night: they move 5.3% / 6.4%
+  of rating groups (5% / 10% had moved 10.7% / 30.7%), so High is no
+  longer the biggest lever; flood frequency x1.5 (24.0%) and river/sea
+  against surface water (13.2% / 14.9%) now are.
 - `test_copula` now pins High:Medium inside 1.30-2.18 rather than High
   at or above the EA floor: a flood chance bounds a claim rate, it
   does not set one.
