@@ -832,7 +832,7 @@ def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
 # ---------------------------------------------------- river/sea depth
 
 # Frequencies of the RoFRS likelihood bands: 2.5%/yr for High (f_top),
-# ~1.5%/yr for the rest of the >=1% AEP zone (Medium), ~0.3%/yr in the
+# ~1.5%/yr for the rest of the >=1% AEP zone (Medium), 0.78%/yr in the
 # rest of the 0.1% envelope (Low), plus a 0.05%/yr background everywhere.
 # build_model.marginal_params reads these (and SW_FREQ_* above) at call
 # time - this is their only definition. The background carries no depth
@@ -849,7 +849,13 @@ def sw_depth_severity(names, sw_high, sw_low, households, climate=False):
 # event or by district bootstrap; 1.31 since 2007). So RS_FREQ_TOP is
 # RS_FREQ_HIGH x 1.67. The floor's 2.2 was the top of that range, and the
 # old 5% / 10% scenarios (3.3x / 6.7x) far outside it.
-RS_FREQ_TOP, RS_FREQ_HIGH, RS_FREQ_LOW = 0.025, 0.015, 0.003
+# Low was 0.3%, a 5:1 Medium:Low ratio shared with surface water and
+# anchored on nothing. The same records put Medium homes at 1.92x Low
+# homes (1990-2025; 90% 1.47-2.47 by event, 1.39-2.69 by district;
+# 1.95 and 2.00 in the later windows), so RS_FREQ_LOW is RS_FREQ_HIGH /
+# 1.92 since 2026-10-06, inside Low's own 0.1-1% definition. Surface
+# water keeps its 5:1 (SW_FREQ_HIGH / SW_FREQ_LOW).
+RS_FREQ_TOP, RS_FREQ_HIGH, RS_FREQ_LOW = 0.025, 0.015, 0.0078
 RS_FREQ_BACKGROUND = 0.0005
 
 
