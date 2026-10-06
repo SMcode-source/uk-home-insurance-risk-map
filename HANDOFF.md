@@ -37,8 +37,8 @@ and the map sits inside its own noise floor. Tab 4 SHIPPED as
 workstream, which is the honest headline: five gates of temperature
 work found one real map (subsidence geography) and no level.
 
-**The current premium is £169.7611 — £169.76 at 2dp, districts;
-£169.7617 at sector grain; loss cost £164.24.** `scripts/doc_figures.py
+**The current premium is £169.7288 — £169.73 at 2dp, districts;
+£169.7286 at sector grain; loss cost £164.21.** `scripts/doc_figures.py
 --check` holds this line and LIMITATIONS §3 to the committed output
 (its own step in `tests.yml`, on main); after a publish, run it with
 `--fix` and commit. Stated here because everything below this
@@ -171,6 +171,53 @@ and cost the level nothing. Climate
 uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
 peril dilutes these — same £ of repricing on a bigger base; the site
 injects them, only this file and README carry them by hand).
+
+## PUBLISHED 2026-10-06: RS_FREQ_LOW anchored on the same recorded floods, both grains
+
+The user asked to anchor Medium:Low next and said publish on the
+measured result. `RS_FREQ_LOW` goes 0.3% -> 0.78%: Medium priced at
+1.92x Low (it was 5:1, the ratio surface water still uses).
+
+**The evidence** (`validate_flood_history.py`, which now reports
+Medium:Low intervals too; the High:Medium ones reproduce exactly):
+
+| window | Medium:Low | 90% (events) | 90% (districts) |
+|---|---|---|---|
+| 1990-2025 | **1.92** | 1.47-2.47 | 1.39-2.69 |
+| 2000-2025 | 1.95 | 1.46-2.61 | 1.40-2.80 |
+| 2007-2025 | 2.00 | 1.41-2.88 | 1.37-2.95 |
+
+5:1 is outside every interval, and the ratio is steadier across windows
+than High:Medium. Outline edges are not driving it (1.91-1.94 counting
+postcodes 10-25 m inside an outline). 0.78% sits inside Low's own
+0.1-1% definition.
+
+**Priced** (exp/rs-low-anchor, rebuild run 101; exp/rs-low-anchor-sector,
+sector-model run 52):
+
+| against live | districts | sectors |
+|---|---|---|
+| headline | 169.7611 -> 169.7288 | 169.7617 -> 169.7286 |
+| rating groups changed | 325 of 2,736 (12.3% of households) | 1,179 of 10,398 (11.4%) |
+| England / Wales / Scotland | -0.16 / +3.86 / -0.91 | -0.16 / +3.83 / -0.88 |
+| premium_cc / premium | +3.87% -> +3.58% | +3.88% -> +3.59% |
+
+- Places behind defences rise: PE21 Boston +59, CF11 Cardiff +51, LN12
+  +51, PE25 +46, E6 +40, TA8 +36; sectors M7 1 +88, E6 6 +82. High-
+  heavy zones fall as the level re-pins: DN7 -43, DN14 -31, DN14 6 -73.
+- **Wales +3.9** because 8.1% of Welsh homes are Low-only (England
+  2.6%, Scotland 1.8%). The Welsh ordering against NRW improved on every
+  measure: people at risk (>= 1%) +0.687 -> +0.715, river +0.528 ->
+  +0.558, sea +0.145 -> +0.214; Scotland against SEPA flat (+0.285).
+- Caveats: big floods (the ones reaching Low) are likelier recorded,
+  and a Low area defended after it last flooded counts its old floods;
+  both pull the ratio toward 1. The ratio is English, applied GB-wide.
+- Measured, not acted on: Low against no zone is ~50x in the records,
+  16x in the model (`RS_FREQ_BACKGROUND`); surface water's 5:1 is
+  unanchored, and the same outlines hold ~2,500 surface-water records.
+- `sensitivity.py`: `flood_band_ratio_2_5/10` (both legs) split into
+  `sw_band_ratio_2_5/10` and `rs_low_ratio_147/247`; re-run follows.
+  `test_copula` pins Medium:Low inside 1.47-2.47.
 
 ## PUBLISHED 2026-09-29: RS_FREQ_TOP anchored on the EA's recorded floods, both grains
 

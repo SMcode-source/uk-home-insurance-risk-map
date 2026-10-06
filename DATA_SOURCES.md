@@ -1848,9 +1848,13 @@ districts**, used as the exposure weight throughout.
     the recorded rates are far below the band definitions (Medium is
     1-3.3% a year by definition), because not every flood is recorded
     and an outline is not a flooded home, and the ratio assumes that
-    recording is equally complete in each band. The same records put
-    Medium at about 2x Low, where the model uses 5x (`RS_FREQ_HIGH` /
-    `RS_FREQ_LOW`); that is measured and not acted on.
+    recording is equally complete in each band. **Medium:Low, live
+    since 2026-10-06**: 1990-2025 1.92, 90% 1.47-2.47 by event and
+    1.39-2.69 by district (2000-2025 1.95, 2007-2025 2.00), against
+    the 5:1 the model had shared with surface water; `RS_FREQ_LOW` =
+    `RS_FREQ_HIGH` / 1.92 = 0.78%. Low homes against homes outside the
+    envelope are about 50x (0.141% against 0.003%), where the model's
+    background makes it 16x; measured and not acted on.
 
 ## Budget: zero, decided 2026-08-31
 

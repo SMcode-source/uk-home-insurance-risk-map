@@ -31,8 +31,12 @@ Scenarios:
                     depth-damage curve (Huizinga et al. 2017) - a
                     citable shape, though on a different basis (see
                     JRC_EU_RESIDENTIAL).
-  flood_band_ratio_2_5/10   high-zone : envelope claim-rate ratio 2.5:1 /
-                    10:1 on both flood legs (5:1 as shipped); level re-pinned
+  sw_band_ratio_2_5/10   surface water's high-zone : envelope claim-rate
+                    ratio 2.5:1 / 10:1 (5:1 as shipped, unanchored); level
+                    re-pinned
+  rs_low_ratio_147/247   river/sea Medium : Low at 1.47 / 2.47 (1.92 as
+                    shipped): the 90% range in the EA's recorded floods,
+                    1990-2025 (validate_flood_history.py); level re-pinned
   flood_rs_weight_067/150   river/sea band frequencies x2/3 / x1.5 against
                     surface water; level re-pinned
   rs_top_ratio_130/218   RS_FREQ_TOP at 1.30x / 2.18x RS_FREQ_HIGH (1.67x
@@ -228,20 +232,22 @@ FLOOD_FREQS = ("SW_FREQ_HIGH", "SW_FREQ_LOW", "RS_FREQ_TOP",
                "RS_FREQ_HIGH", "RS_FREQ_LOW")
 
 
-def flood_bands(ratio=None, rs_weight=1.0):
-    """Reshape the unanchored flood band frequencies (scores_real, read by
+def flood_bands(ratio=None, rs_weight=1.0, legs=("SW", "RS")):
+    """Reshape the flood band frequencies (scores_real, read by
     marginal_params and by both depth weightings).
 
-    ratio: the high-zone : rest-of-envelope claim-rate ratio, 5:1 on both
-    legs as shipped (1.5%/0.3% river/sea Medium/Low, 1.0%/0.2% surface
-    water); the high band is held and the low one moved, and the river/sea
-    High band (RS_FREQ_TOP) is held too. rs_weight: river/sea against
-    surface water, all three of its bands scaled. The background 0.05%/yr
-    is left alone. Only shape can move - rederive() re-pins the level.
+    ratio: the high-zone : rest-of-envelope claim-rate ratio on the
+    named legs - surface water 5:1 as shipped (1.0%/0.2%, unanchored),
+    river/sea Medium:Low 1.92 since 2026-10-06 (1.5%/0.78%, the recorded
+    floods); the high band is held and the low one moved, and the
+    river/sea High band (RS_FREQ_TOP) is held too. rs_weight: river/sea
+    against surface water, all three of its bands scaled. The background
+    0.05%/yr is left alone. Only shape can move - rederive() re-pins the
+    level.
     """
     for leg in ("SW", "RS"):
         hi = ORIG[f"{leg}_FREQ_HIGH"] * (rs_weight if leg == "RS" else 1.0)
-        lo = (hi / ratio if ratio else
+        lo = (hi / ratio if ratio and leg in legs else
               ORIG[f"{leg}_FREQ_LOW"] * (rs_weight if leg == "RS" else 1.0))
         setattr(scores_real, f"{leg}_FREQ_HIGH", hi)
         setattr(scores_real, f"{leg}_FREQ_LOW", lo)
@@ -336,8 +342,13 @@ SCENARIOS = {
     "depth_steep": lambda: depth_curve(1.5),
     "depth_jrc_eu": depth_jrc,
     # the other unanchored constants (added 2026-09-27)
-    "flood_band_ratio_2_5": lambda: flood_bands(ratio=2.5),
-    "flood_band_ratio_10": lambda: flood_bands(ratio=10.0),
+    # surface water's band ratio (unanchored) and river/sea Medium:Low
+    # across the recorded floods' 90% range (split 2026-10-06 from one
+    # flood_band_ratio_2_5 / _10 pair applied to both legs)
+    "sw_band_ratio_2_5": lambda: flood_bands(ratio=2.5, legs=("SW",)),
+    "sw_band_ratio_10": lambda: flood_bands(ratio=10.0, legs=("SW",)),
+    "rs_low_ratio_147": lambda: flood_bands(ratio=1.47, legs=("RS",)),
+    "rs_low_ratio_247": lambda: flood_bands(ratio=2.47, legs=("RS",)),
     "flood_rs_weight_067": lambda: flood_bands(rs_weight=2 / 3),
     "flood_rs_weight_150": lambda: flood_bands(rs_weight=1.5),
     # the RoFRS High band against Medium: the recorded floods' 90% range

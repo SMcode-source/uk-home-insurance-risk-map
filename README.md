@@ -260,7 +260,9 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
    High homes and 1.5%/yr on Medium - one band at 1.5% before 2026-09-27, and
    High at its band's floor, 3.3%, until 2026-09-29, when the EA's Recorded
    Flood Outlines showed High homes flooding 1.67x as often as Medium ones,
-   not 2.2x - ~0.3%/yr in the rest of the envelope, 0.05%/yr background).
+   not 2.2x - 0.78%/yr in the rest of the envelope, 0.05%/yr background; Low
+   was 0.3%, a 5:1 ratio to Medium, until 2026-10-06, when the same records
+   put Medium homes at 1.92x Low ones).
 3. **Flood — surface water** (`scripts/fetch_surface_water.py`). **EA** NaFRA2
    RoFSW for England (WMS at 13 m/px — the layer only draws below 1:50,000 —
    with the High/Medium/Low category colours decoded per pixel), **NRW** FRAW
@@ -585,7 +587,9 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
      much as depth: their band frequencies ×2/3 or ×1.5 against each other
      move 13.2% / 14.9% of districts, the largest after a 50% flood-
      frequency shock (24.0%). The rest of the unanchored constants
-     matter less: the high-zone ratio 5.3–9.5%, groundwater's share of
+     matter less: river/sea Medium:Low across its recorded range (anchored
+     since 2026-10-06) and surface water's unanchored 5:1 (re-run pending),
+     groundwater's share of
      flood 2.5–4.5% (the only one that moves the level), groundwater
      outside England and equal systemic loadings ≤1.8%.
    - **Severity σ is a check, not a lever:** held at the mean it moves no

@@ -139,7 +139,7 @@ of that change's headline effect.
 
 ## 3. Per-peril provenance, and what each driver actually is
 
-EL per policy and share of the **£164.24 priced** total. Note which line
+EL per policy and share of the **£164.21 priced** total. Note which line
 is outside it:
 
 | peril | EL | share | driver | resolution | coverage |
@@ -149,9 +149,9 @@ is outside it:
 | Theft | £22.04 | 13.42% | police.uk burglary points | **street level** | E&W; Scotland at council resolution |
 | Flood | £20.13 | 12.26% | EA RoFRS risk bands / NRW FRAW / SEPA polygons | share of homes in each band (unit postcodes weighted by Census households) | UK; depth England only |
 | Subsidence | £19.81 | 12.06% | BGS clay shrink–swell | 1:625,000 | GB |
-| Storm | £15.74 | 9.58% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
+| Storm | £15.74 | 9.59% | wind, WDR, rain days, 191 gust stations | 5–12 km | UK |
 | Accidental damage | £14.65 | 8.92% | census child-share | LSOA | GB |
-| Groundwater | £1.49 | 0.91% | EA alert areas | postcode flag | **England only** |
+| Groundwater | £1.46 | 0.89% | EA alert areas | postcode flag | **England only** |
 | *Coastal erosion* | *£3.09* | *—* | *EA NCERM frontages; NatureScot Dynamic Coast* | *frontage / eroded-area polygons* | ***England + Scotland on two bases (`er_basis`); Welsh coast unmapped; UNPRICED*** |
 
 **Coastal erosion is deliberately outside `el_total`** — "no policy pays
@@ -407,15 +407,17 @@ Also unanchored, and worth naming:
   about as much as the brackets (7.1% against 7.7% / 5.8%). So the
   one outside curve available disagrees with ours by about as much as
   the brackets do, and that is not evidence that ours is wrong.
-- **The flood band frequencies** — `RS_FREQ_TOP/HIGH/LOW = 2.5%/1.5%/0.3%`
+- **The flood band frequencies** — `RS_FREQ_TOP/HIGH/LOW = 2.5%/1.5%/0.78%`
   a year for river/sea (High, Medium, Low), `SW_FREQ_HIGH/LOW = 1.0%/0.2%`
   for surface water, and a 0.05% background (`scores_real.py`, their only
   definition since 2026-09-27). calibrate_frequency re-pins flood's
   national level, so only RATIOS are live, and each was measured 2026-09-27 (same run basis
   as `DEPTH_DAMAGE` above). River/sea against surface water moves about
   as much as depth does: ×2/3 moves **13.2%** of rating groups and ×1.5
-  **14.9%**. The 5:1 high-zone-to-envelope ratio matters less: 2.5:1
-  moves 9.5%, 10:1 moves 5.3%. There is a partial anchor for the river/sea
+  **14.9%**. The high-zone-to-envelope ratio was 5:1 on both legs and
+  mattered less (2.5:1 moved 9.5%, 10:1 5.3%); since 2026-10-06 river/sea
+  takes its own from the recorded floods (below) and surface water keeps
+  an unanchored 5:1. There is a partial anchor for the river/sea
   bands. The EA defines RoFRS High as >3.3% a year and Medium as 1–3.3%,
   and until 2026-09-27 the model's "high" band was both together (codes
   3 and 4). So 1.5% priced every home at ≥1% as if it were mid-Medium,
@@ -457,8 +459,22 @@ Also unanchored, and worth naming:
   not settle: the ratio assumes flood recording is equally complete in
   every band; it is lower since 2007 (1.31) and swings by region
   (1.0 in the north third of England, 3.6 in the middle); and a flood
-  is not a claim. The same records put Medium at about 2x Low against
-  the model's 5x, measured and not acted on.
+  is not a claim. **`RS_FREQ_LOW` is anchored on the same records
+  since 2026-10-06.** Medium homes flooded **1.92x** as often as Low
+  homes over 1990-2025 (90% 1.47-2.47 by event, 1.39-2.69 by district;
+  1.95 and 2.00 in the later windows, so steadier than High:Medium),
+  against the model's 5:1, outside every interval. Low is now Medium /
+  1.92, 0.78%, inside Low's own 0.1-1% definition. It reprices the
+  places behind defences: Wales rises about £3.9, because 8.1% of Welsh
+  homes are Low-only against 2.6% in England, and the Welsh ordering
+  against NRW improved on every measure (people at risk +0.687 ->
+  +0.715, river +0.528 -> +0.558, sea +0.145 -> +0.214). Two biases
+  could pull the ratio toward 1: big floods, the ones that reach Low,
+  are likelier to be recorded, and a Low area defended after it last
+  flooded counts its old floods. The ratio is English and is applied
+  in Wales and Scotland. The records put Low homes at about 50x the
+  rate outside the zones, against the model's 16x (`RS_FREQ_BACKGROUND`),
+  measured and not acted on.
 - **`GW_SHARE_OF_FLOOD = 0.10`** — see §2. The one scenario here that
   moves a LEVEL, because groundwater has no anchor of its own: at 5% the
   sample premium falls £0.8 and at 20% rises £1.6, moving 2.5% / 4.5% of
