@@ -216,7 +216,11 @@ sector-model run 52):
   16x in the model (`RS_FREQ_BACKGROUND`); surface water's 5:1 is
   unanchored, and the same outlines hold ~2,500 surface-water records.
 - `sensitivity.py`: `flood_band_ratio_2_5/10` (both legs) split into
-  `sw_band_ratio_2_5/10` and `rs_low_ratio_147/247`; re-run follows.
+  `sw_band_ratio_2_5/10` and `rs_low_ratio_147/247`. Re-run the same
+  day: Medium:Low at 1.47 / 2.47 moves 5.3% of rating groups either
+  way, surface water's 2.5:1 / 10:1 3.9% / 2.9%; flood frequency x1.5
+  (23.7%) and river/sea against surface water (15.5% / 13.6%) remain
+  the biggest levers.
   `test_copula` pins Medium:Low inside 1.47-2.47.
 
 ## PUBLISHED 2026-09-29: RS_FREQ_TOP anchored on the EA's recorded floods, both grains
