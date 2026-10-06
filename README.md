@@ -564,15 +564,14 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
 
    Re-run 2026-09-26, after seven weeks stale (the script had been failing
    since the council-tax severity landed — see HANDOFF). Four readings:
-   - **The copula barely touches the ranking** now: no dependence
-     scenario moves a single district's group (≤0.7% before 2026-09-29),
-     down from 7–26% in August. The
+   - **The copula barely touches the ranking** now: every dependence
+     scenario moves ≤0.7% of districts, down from 7–26% in August. The
      attritional perils (escape of water, theft, fire, accidental damage)
      now carry most of the loss, and they are independent by construction.
    - **Flood's unanchored depth-damage curve moves the ranking** as much as
      anything short of a 50% flood-frequency shock: ignoring depth
-     altogether moves 12.7%, a curve half or 1.5× as steep 7.7% / 5.8%, and
-     the JRC Europe residential curve 7.1%, all at an unchanged level
+     altogether moves 12.3%, a curve half or 1.5× as steep 7.8% / 8.6%, and
+     the JRC Europe residential curve 8.3%, all at an unchanged level
      (LIMITATIONS §6).
    - **The RoFRS High band's rate is anchored since 2026-09-29.** It
      was the biggest lever while it sat at its band's floor, 3.3%, with
@@ -580,21 +579,21 @@ Gaussian / independence, each pair's θ and tail dependence λᵤ).
      The EA's Recorded Flood Outlines put High homes at 1.67x Medium's
      flood rate over 1990-2025 (90% 1.30-2.18), so High is priced at
      1.67x Medium (2.5%) and the scenarios are now the ends of that
-     range, 1.30x and 2.18x, which move 5.3% / 6.4% of districts: no
+     range, 1.30x and 2.18x, which move 4.8% / 5.5% of districts: no
      longer the biggest lever, and 5% and 10% sit far outside the
      evidence.
    - **The balance between river/sea and surface water** moves it about as
      much as depth: their band frequencies ×2/3 or ×1.5 against each other
-     move 13.2% / 14.9% of districts, the largest after a 50% flood-
-     frequency shock (24.0%). The rest of the unanchored constants
-     matter less: river/sea Medium:Low across its recorded range (anchored
-     since 2026-10-06) and surface water's unanchored 5:1 (re-run pending),
-     groundwater's share of
-     flood 2.5–4.5% (the only one that moves the level), groundwater
-     outside England and equal systemic loadings ≤1.8%.
+     move 15.5% / 13.6% of districts, the largest after a 50% flood-
+     frequency shock (23.7%). The rest matter less: river/sea Medium:Low
+     across its recorded range (anchored since 2026-10-06, 1.47 / 2.47)
+     5.3% either way, surface water's unanchored 5:1 at 2.5:1 / 10:1
+     3.9% / 2.9%, groundwater's share of flood 2.1–3.4% (the only one
+     that moves the level), groundwater outside England and equal
+     systemic loadings ≤1.8%.
    - **Severity σ is a check, not a lever:** held at the mean it moves no
      premium and no rating group (Gate 3), but it raises catastrophic-year
-     cost by 12.2%, because the year view draws realised claim sizes.
+     cost by 12.1%, because the year view draws realised claim sizes.
      Until this re-run the row scaled σ after the median was fixed. That
      raised every mean severity unevenly, which is where its old churn
      came from.
