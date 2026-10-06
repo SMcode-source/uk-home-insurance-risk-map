@@ -1,4 +1,6 @@
-"""Observed river/sea flooding by RoFRS band: the anchor for RS_FREQ_TOP.
+"""Observed river/sea flooding by RoFRS band: the anchor for the band
+ratios, RS_FREQ_TOP / RS_FREQ_HIGH (High:Medium, since 2026-09-29) and
+RS_FREQ_HIGH / RS_FREQ_LOW (Medium:Low).
 
 The EA's Recorded Flood Outlines (OGL, England, events since 1946) are
 overlaid on the unit-postcode centroids the model's flood fractions are
@@ -105,28 +107,30 @@ def main():
     rng = np.random.default_rng(1)
     pc_w = pc.groupby(["district", "band"]).hh.sum().unstack(fill_value=0)
     print("\nwindow      High/yr  Medium/yr  Low/yr   H/M   M/L   "
-          "H/M 90% (events)  H/M 90% (districts)")
+          "H/M 90% (events / districts)    M/L 90% (events / districts)")
     for y0, y1 in WINDOWS:
         h = hits[hits.date.dt.year.between(y0, y1)]
         r = band_rates(h, W) / (y1 - y0 + 1)
         hm, ml = r["High"] / r["Medium"], r["Medium"] / r["Low"]
         by_date = [g for _, g in h.groupby("date")]
-        ev = []
+        ev, ev_ml = [], []
         for _ in range(N_BOOT):
             q = band_rates(pd.concat([by_date[k] for k in
                                       rng.integers(0, len(by_date), len(by_date))]), W)
             ev.append(q["High"] / q["Medium"])
+            ev_ml.append(q["Medium"] / q["Low"])
         e_d = (h.groupby(["district", "band"]).hh.sum().unstack(fill_value=0)
                .reindex(index=pc_w.index, columns=pc_w.columns, fill_value=0))
-        di = []
+        di, di_ml = [], []
         for _ in range(N_BOOT):
             k = rng.integers(0, len(pc_w), len(pc_w))
             q = e_d.iloc[k].sum() / pc_w.iloc[k].sum()
             di.append(q["High"] / q["Medium"])
+            di_ml.append(q["Medium"] / q["Low"])
         p = lambda a: "%.2f-%.2f" % tuple(np.percentile(a, [5, 95]))
         print(f"{y0}-{y1}  {100 * r['High']:.3f}%   {100 * r['Medium']:.3f}%   "
-              f"{100 * r['Low']:.3f}%  {hm:.2f}  {ml:.2f}   {p(ev):>14}   {p(di):>14}"
-              f"   ({len(by_date)} events)")
+              f"{100 * r['Low']:.3f}%  {hm:.2f}  {ml:.2f}   {p(ev)} / {p(di)}"
+              f"      {p(ev_ml)} / {p(di_ml)}   ({len(by_date)} events)")
 
 
 if __name__ == "__main__":

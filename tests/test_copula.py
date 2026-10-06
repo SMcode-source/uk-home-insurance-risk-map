@@ -795,6 +795,9 @@ def test_rofrs_high_band_is_priced_at_its_own_rate():
     # 90% interval (validate_flood_history.py)
     assert 1.3 - 1e-9 <= sr.RS_FREQ_TOP / sr.RS_FREQ_HIGH <= 2.2 + 1e-9, \
         "High:Medium outside the range the recorded floods support"
+    # and Medium:Low, same records and window (90% by event bootstrap)
+    assert 1.47 - 1e-9 <= sr.RS_FREQ_HIGH / sr.RS_FREQ_LOW <= 2.47 + 1e-9, \
+        "Medium:Low outside the range the recorded floods support"
     assert p(f_high=0.1, f_top=0.3) == high
 
 

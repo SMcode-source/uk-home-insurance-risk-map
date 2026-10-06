@@ -773,7 +773,7 @@ def marginal_params(f):
     p_wx = 0.010 + 0.090 * wx ** 1.2
     # river/sea flood frequency from actual zone fractions: 2.5%/yr for a
     # property in the RoFRS High band (f_top), ~1.5%/yr in the rest of
-    # the >=1% zone (Medium), ~0.3%/yr in the rest of the 1in1000
+    # the >=1% zone (Medium), 0.78%/yr in the rest of the 1in1000
     # envelope, 0.05%/yr background. Surface water: ~1%/yr in
     # the >=1% AEP zone, shallower/cheaper events outside it.
     #
