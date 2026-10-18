@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Temperature — UK Home Insurance Risk Map</title>
+<link rel="stylesheet" href="assets/site.css">
+__HEAD__
+<style>
+  section.doc { padding: 40px 0 8px; scroll-margin-top: 64px; }
+  section.doc > h2 { margin-bottom: 10px; }
+  .toc { display: flex; gap: 6px; flex-wrap: wrap; margin: 22px 0 0; }
+  .toc a {
+    font-size: 13px; text-decoration: none; color: var(--ink-2);
+    border: 1px solid var(--border); background: var(--surface-1);
+    border-radius: 8px; padding: 6px 11px;
+  }
+  .toc a:hover { border-color: var(--axis); color: var(--ink-1); }
+  .chart-card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px 20px 10px; margin: 18px 0;
+  }
+  .chart-card h3 { margin: 0 0 2px; font-size: 15px; }
+  .chart-card .cap { margin: 0 0 10px; font-size: 13px; color: var(--ink-muted); }
+  .chart-card svg { display: block; width: 100%; height: auto; }
+  /* Same rule as the methodology diagrams: a single viewBox scales its
+     TYPE down with the drawing, and a phone gets a correct layout at
+     3.4px. Each chart therefore ships a wide and a narrow drawing and
+     the breakpoint picks one. */
+  .chart-narrow { display: none; }
+  @media (max-width: 640px) {
+    svg.chart-wide { display: none; }
+    .chart-narrow { display: block; }
+  }
+  .tick-label { font-size: 12px; fill: var(--ink-muted); }
+  /* Two-column "what moved / what did not" summary */
+  .doors { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 20px 0 4px; }
+  .door {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 14px; padding: 16px 18px;
+  }
+  .door h3 { margin: 0 0 6px; font-size: 15px; }
+  .door .tag {
+    display: inline-block; font-size: 11.5px; letter-spacing: .04em;
+    text-transform: uppercase; font-weight: 700; border-radius: 6px;
+    padding: 3px 8px; margin-bottom: 8px;
+  }
+  .door .tag.on { background: rgba(235,104,52,.14); color: var(--sub); }
+  .door .tag.off { background: rgba(111,92,196,.14); color: var(--gw); }
+  .door p { margin: 6px 0 0; font-size: 14px; }
+  @media (max-width: 640px) { .doors { grid-template-columns: 1fr; } }
+  .keyline { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px;
+             color: var(--ink-muted); margin: 2px 0 0; }
+  .keyline span { display: inline-flex; align-items: center; gap: 6px; }
+  .keyline i { width: 22px; height: 0; border-top: 2px solid currentColor; }
+  .keyline i.dash { border-top-style: dashed; }
+  .keyline i.mark { border-top: none; width: 3px; height: 13px;
+                    background: var(--sub); opacity: .45; }
+</style>
+</head>
+<body>
+__NAV__
+
+<div class="wrap narrow">
+
+  <section class="hero" style="padding:44px 0 18px">
+    <div class="eyebrow">Temperature</div>
+    <h1 style="font-size:clamp(26px,4vw,34px)">What temperature does to this model</h1>
+    <p class="lede">This page does not forecast anything. It shows what
+    __TEMP_Y0__–__TEMP_Y1__ of measured UK weather did to the two perils temperature
+    actually reaches, what that evidence changed in the model, and — the harder
+    half — what it deliberately did not.</p>
+    <div class="toc">
+      <a href="#doors">The two doors</a>
+      <a href="#drought">Summer drought</a>
+      <a href="#frost">Winter frost</a>
+      <a href="#badyear">What a bad year is</a>
+      <a href="#limits">What this is not</a>
+      <a href="#sources">Sources</a>
+    </div>
+  </section>
+
+  <section class="doc" id="doors">
+    <h2>Temperature reaches home insurance through two doors, and they open opposite ways</h2>
+    <p>Warmer summers dry clay soils, clay soils shrink, and buildings on them subside.
+    Milder winters freeze fewer pipes, and frozen pipes are what turns a cold snap into an
+    escape-of-water claim. One peril gets worse as the country warms and the other gets
+    better, so "climate change raises premiums" is not a statement this model can make
+    without saying which peril it means.</p>
+    <div class="doors">
+      <div class="door">
+        <span class="tag on">now in the model</span>
+        <h3>Drought → subsidence</h3>
+        <p>Subsidence is __PCT_SUB__% of modelled claim cost. Its frequency now carries a
+        drought climatology built from the same daily grids as the chart below — the model's
+        subsidence map used to be geology alone.</p>
+      </div>
+      <div class="door">
+        <span class="tag off">measured, left alone</span>
+        <h3>Frost → escape of water</h3>
+        <p>Escape of water is __PCT_EOW__% of claim cost, and __EOW_FREEZE_PCT__% of it rides on frost days.
+        Frost has fallen by a fifth since the 1961–1990 normal — and the model is blind to
+        that by construction. Why, and whether that is defensible, is below.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="doc" id="drought">
+    <h2>Summer drought: measured, and now priced</h2>
+    <p>The index is the peak of each year's running soil water deficit — rainfall minus
+    evaporative demand, accumulated from 1 January and reset every year. It is computed
+    per postcode district from HadUK-Grid 1 km <em>daily</em> grids and weighted here by
+    households, so the national line is what an average policy experienced rather than what
+    an average square kilometre did.</p>
+
+    <div class="chart-card">
+      <h3>Peak annual soil water deficit, national, household-weighted</h3>
+      <p class="cap">__TEMP_NDIST__ postcode districts · millimetres · marked years are the
+      surges UK subsidence is canonically dated to</p>
+      __TEMP_DROUGHT_CHART__
+      <div class="chart-narrow">__TEMP_DROUGHT_CHART_N__</div>
+      <p class="keyline">
+        <span><i style="color:var(--sub)"></i> annual peak deficit</span>
+        <span><i class="dash" style="color:var(--ink-1)"></i> least-squares trend</span>
+        <span><i class="mark"></i> canonical subsidence year</span>
+      </p>
+    </div>
+
+    <p>The trend is upward — <strong>__TEMP_DROUGHT_DECADE__% of the mean per decade</strong>
+    (p = __TEMP_DROUGHT_P__), against a __TEMP_CLIM0__–__TEMP_CLIM1__ average of
+    __TEMP_DROUGHT_CLIM__ mm — but the trend is not what earns the index its place in the
+    model. This does: <strong>__TEMP_HITS__ of the __TEMP_CANON_N__ canonical UK subsidence
+    surges land in the index's own top ten years</strong> (__TEMP_HIT_YEARS__), and it was
+    never fitted to them. The miss is __TEMP_MISS_YEARS__.</p>
+
+    <p>On that evidence the subsidence frequency surface stopped being geology alone. Each
+    district's frequency is now multiplied by a relativity that is __SUB_FLAT_PCT__% flat and
+    __SUB_DROUGHT_PCT__% drought climatology, the __SUB_DROUGHT_PCT__% being the ABI's own
+    attribution arithmetic rather than a tuned number. The national loss cost cannot move —
+    the calibration re-pins it — so the change is purely about who carries it: __SMD_CHURN__ of
+    __N_DISTRICTS__ districts changed rating group, __SMD_CHURN2__ of them by two, and the
+    headline premium moved by less than a penny, to £__PREM_MEAN__.
+    <a href="methodology.html#perils">How the subsidence surface is built →</a></p>
+  </section>
+
+  <section class="doc" id="frost">
+    <h2>Winter frost: measured, and deliberately not acted on</h2>
+    <p>The same extraction gives air-frost days, the index behind the freeze-sensitive part
+    of escape of water. The decline here is the clearest temperature signal in the whole
+    dataset.</p>
+
+    <div class="chart-card">
+      <h3>Air-frost days per year, national, household-weighted</h3>
+      <p class="cap">__TEMP_NDIST__ postcode districts · days</p>
+      __TEMP_FROST_CHART__
+      <div class="chart-narrow">__TEMP_FROST_CHART_N__</div>
+      <p class="keyline">
+        <span><i style="color:var(--gw)"></i> air-frost days</span>
+        <span><i class="dash" style="color:var(--ink-1)"></i> least-squares trend</span>
+      </p>
+    </div>
+
+    <p>Frost days are falling at <strong>__TEMP_FROST_DECADE__% of the mean per decade</strong>
+    (p = __TEMP_FROST_P__): __TEMP_FROST_PREV__ days a year across __TEMP_PREV0__–__TEMP_PREV1__
+    against __TEMP_FROST_CLIM__ across __TEMP_CLIM0__–__TEMP_CLIM1__, a fall of
+    __TEMP_FROST_DROP__%. And the model cannot feel any of it.</p>
+
+    <p>That is arithmetic, not an oversight. Each district's freeze exposure enters as its
+    frost days <em>divided by the national household-weighted mean</em>, so a decline that is
+    roughly proportional across the country cancels exactly. Only two things could move a
+    premium: the <strong>shape</strong> of the frost map, and the <strong>share</strong> of
+    escape of water assigned to freeze at all.</p>
+
+    <p>The shape was tested against the obvious objection — that a climatology measured over
+    __TEMP_CLIM0__–__TEMP_CLIM1__ is out of date — and it survived. Re-aiming the window at
+    the most recent twenty years moves the relativity map less than two halves of the current
+    window move it against each other. A shorter, more recent window is a noisier estimate as
+    well as a more current one, and here the noise is larger than the signal: the difference
+    between the 1961–1990 frost map and today's is no bigger than the difference between two
+    arbitrary decades inside the current one. Re-aiming would buy a worse estimate of the same
+    map, so the map stays.</p>
+
+    <p>That leaves the share — and rather than argue about it, it was priced. Re-running the
+    full model across a __FREEZE_LOW__–__FREEZE_HIGH__ range, nearly a doubling of the dial,
+    moves the national premium by <strong>at most __FREEZE_MAX_PENCE__ pence</strong>. The
+    expected loss for escape of water does not move at all: it is identical to the last bit of
+    floating-point precision in every run, because the relativity is normalised and the
+    calibration re-pins the level. Re-aiming the climatology window costs
+    __FREEZE_ERA_PENCE__ pence, which is the measurement above confirmed by simulation rather
+    than merely asserted.</p>
+
+    <p>What the dial <em>does</em> do is decide who pays. At the low end
+    __FREEZE_MAX_CHURN__ districts change rating group, and the largest single-district move is
+    about <strong>£__FREEZE_BIG_MOVE__ a year</strong> — Highland districts such as Inverness-shire
+    falling, the Isles of Scilly rising, which is exactly the shape you would expect from
+    turning frost sensitivity down. So this is a distributional question wearing a pricing
+    question's clothes, and there is no evidence with which to answer it: no UK publication
+    breaks escape-of-water claims down by freeze <em>by era</em>. The share stays at its
+    anchored value and the gap is recorded as a limitation rather than filled with a judgement.
+    <a href="methodology.html#caveats">The caveats list →</a></p>
+  </section>
+
+  <section class="doc" id="badyear">
+    <h2>What a bad year actually looks like</h2>
+    <p>Temperature is not the only way weather reaches a premium, and the model has a direct
+    measurement of what separates a bad year from a normal one. It is not what most people
+    assume. A catastrophic year — the worst 1% the simulation produces — carries
+    <strong>__BY_COUNT__× the claim count but __BY_VALUE__× the claim value</strong> of a
+    typical year. Bad years are made of dearer claims, not many more of them; the count
+    saturates while the value keeps climbing.</p>
+    <p>Of that __BY_VALUE__×, about __BY_MIX__× is the <em>mix</em> of claims shifting (storm
+    falls from __BY_WX_FROM__% to __BY_WX_TO__% of claims while flood rises from
+    __BY_FL_FROM__% to __BY_FL_TO__%) and __BY_WITHIN__× is severity rising within perils.
+    Storm is nearly flat at __BY_WX_COUNT__× count and __BY_WX_VALUE__× value; flood is the
+    engine, at __BY_FL_COUNT__× count and __BY_FL_VALUE__× value.
+    <a href="years.html#sens-section">The year analysis →</a></p>
+  </section>
+
+  <section class="doc" id="limits">
+    <h2>What this page is not</h2>
+    <p><strong>It is not a forecast.</strong> Every number here is measured over
+    __TEMP_Y0__–__TEMP_Y1__. No temperature projection is applied anywhere in the model, and
+    the two trends above are descriptions of what happened, not extrapolations of what will.</p>
+    <p><strong>The climate scenario on the map is flood only.</strong> The
+    <a href="methodology.html#climate">climate repricing</a> uses the Environment Agency's own
+    future flood extents. It contains no drought term and no freeze term, so it cannot show
+    subsidence worsening or escape of water easing. The uplift it reports is a flood uplift,
+    and reading it as a total climate effect would overstate one direction and ignore the
+    other.</p>
+    <p><strong>The drought index is a relativity, not a soil-physics quantity.</strong> Its
+    evaporation term uses the Hargreaves–Samani formula, which runs about a third high in a
+    maritime climate. That was measured rather than assumed: re-running the integrals at 85%
+    and 70% of the evaporation moves the level but leaves the map almost exactly where it was
+    (rank correlation ≥ +0.998), and the level is precisely what the calibration re-pins. Only
+    the map is used.</p>
+    <p><strong>One number in the freeze half has no anchor at all</strong> — the share of
+    escape of water attributed to freeze. It is carried at its published value, and the
+    section above says why it was not adjusted.</p>
+  </section>
+
+  <section class="doc" id="sources">
+    <h2>Sources and how to reproduce this</h2>
+    <p>Both series on this page come from <strong>HadUK-Grid 1 km daily</strong> observations
+    (Met Office, via the CEDA archive, Open Government Licence), integrated over every one of
+    __TEMP_NDIST__ postcode districts and weighted by census households. The daily grids are
+    roughly 174 GB and are never stored whole: the extraction streams them a year at a time
+    and keeps only the annual reductions.</p>
+    <ul>
+      <li><a href="https://github.com/SMcode-source/uk-home-insurance-risk-map/blob/main/DATA_SOURCES.md">DATA_SOURCES.md</a>
+      — every dataset, endpoint, licence and quirk, including the full construction of the
+      drought climatology and the frost layer.</li>
+      <li><a href="https://github.com/SMcode-source/uk-home-insurance-risk-map/blob/main/scripts/make_temperature_series.py">make_temperature_series.py</a>
+      — the reduction that produces the two series drawn above.</li>
+      <li><a href="https://github.com/SMcode-source/uk-home-insurance-risk-map/blob/main/scripts/measure_frost_era.py">measure_frost_era.py</a>
+      — the re-aim test, including the within-era controls that decided it.</li>
+      <li><a href="https://github.com/SMcode-source/uk-home-insurance-risk-map/blob/main/LIMITATIONS.md">LIMITATIONS.md</a>
+      — the open questions this page refers to, stated as limitations rather than resolved.</li>
+    </ul>
+    <p>Every figure on this page is injected from the committed series at build time. None of
+    them is typed into the page, because a number typed into a page is a number that goes
+    stale. <a href="methodology.html#repro">How to rebuild the whole thing →</a></p>
+  </section>
+
+  <footer class="site-footer">
+    <p>Modelled estimates from open data. Not a quote, not advice, and not affiliated with any
+    insurer. <a href="methodology.html#caveats">Caveats</a> ·
+    <a href="https://github.com/SMcode-source/uk-home-insurance-risk-map">Source</a></p>
+  </footer>
+
+</div>
+</body>
+</html>

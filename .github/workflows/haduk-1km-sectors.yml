@@ -1,0 +1,166 @@
+# The SECTOR-grain drought extraction, 1991-2020, on CI.
+#
+# The user decided to publish the Gate 2 SMD curve (cwd_yr at share
+# 0.565). The ct_bands lesson (HANDOFF, 2026-08-27) applies verbatim: a
+# model change that adds a name-keyed data file is not priced until
+# that file exists at SECTOR grain too - district keys are "AB10",
+# sector keys are "AB10 1", and every row would silently miss. This run
+# builds the sector-grain equivalent of data/smd_climatology.csv by the
+# IDENTICAL construction: the same streamer, the same daily integrals,
+# the same 1 km HadUK grids - only the polygon set changes, to the
+# 10,398 published sectors in data/sectors_risk.geojson (committed on
+# main, so the checkout has it).
+#
+# Same window and slicing as haduk-1km-pet.yml: 1991-2020 (the
+# climatology window) plus one spin-up year per slice, four slices per
+# the probe's account-ceiling finding. cwd_yr_max_mm - THE published
+# index - resets each 1 January by definition and is exact in every
+# slice.
+#
+# Timing is again not incidental: the CEDA token expires
+# 2026-09-01 16:27 UTC. This is the last CEDA-dependent run planned.
+#
+# Nothing here is wired into the model YET - the merged CSV feeds
+# make_smd_climatology.py on the publish branch, and the sector table
+# lands on sector-model with the same publish decision that wires the
+# district one into main.
+name: haduk 1km sector extraction
+
+# Push trigger retired 2026-08-31, answer recorded. Run 33416724855
+# built the sector table; make_smd_climatology.py turned it into the
+# sector smd_climatology.csv (13 empty-geometry sectors filled from
+# their parent districts, printed per sector), and Gate 2 published at
+# both grains in one push (6f323aa). exp/haduk-1km-pet merged (fb8f957)
+# and is deleted. workflow_dispatch is ADDED here rather than kept:
+# this workflow only ever had a push trigger, so retiring it without a
+# replacement would leave the extraction unrunnable. It is dispatch-only
+# in name for now regardless - the CEDA token expires 2026-09-01
+# 16:27 UTC and this was the last CEDA-dependent run planned, so a
+# re-run needs a fresh secret first.
+on:
+  workflow_dispatch:
+
+# fetch_haduk.py reads CEDA_TOKEN before ~/.ceda_token, so the secret
+# needs no file and is never written to disk. Only its expiry is printed.
+env:
+  CEDA_TOKEN: ${{ secrets.CEDA_TOKEN }}
+
+concurrency:
+  group: haduk-1km-sectors
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    name: ${{ matrix.slice.from }}-${{ matrix.slice.to }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        slice:
+          - { from: 1990, to: 1997, emit: 1991 }
+          - { from: 1997, to: 2004, emit: 1998 }
+          - { from: 2004, to: 2012, emit: 2005 }
+          - { from: 2012, to: 2020, emit: 2013 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install
+        run: pip install -r requirements.txt xarray netCDF4
+
+      - name: Extract ${{ matrix.slice.from }}-${{ matrix.slice.to }} over sectors
+        run: |
+          test -n "$CEDA_TOKEN" || {
+            echo "::error::CEDA_TOKEN secret is not set on this repo."
+            exit 1
+          }
+          ok=0
+          for attempt in 1 2 3; do
+            if python -u scripts/haduk_1km_stream.py \
+                --from ${{ matrix.slice.from }} --to ${{ matrix.slice.to }} \
+                --polygons data/sectors_risk.geojson --tag _sectors \
+                --hours 4.8; then
+              ok=1; break
+            fi
+            echo "attempt $attempt failed; resuming from the checkpoint"
+            sleep 90
+          done
+          test "$ok" = 1
+
+      - name: Drop the spin-up year
+        run: |
+          python - <<'PY'
+          import csv
+          path = "data/haduk_district_annual_1km_sectors.csv"
+          with open(path, newline="") as f:
+              rows = [r for r in csv.DictReader(f)
+                      if int(r["year"]) >= ${{ matrix.slice.emit }}]
+          years = sorted({r["year"] for r in rows})
+          print(f"emitting {len(rows)} rows, years {years[0]}-{years[-1]}"
+                if rows else "NOTHING TO EMIT")
+          with open(path, "w", newline="") as f:
+              w = csv.DictWriter(f, fieldnames=list(rows[0]))
+              w.writeheader()
+              w.writerows(rows)
+          PY
+
+      - name: Upload slice
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: haduk-1km-sectors-${{ matrix.slice.from }}-${{ matrix.slice.to }}
+          path: |
+            data/haduk_district_annual_1km_sectors.csv
+            data/haduk_1km_state_sectors.npz
+          if-no-files-found: warn
+
+  merge:
+    needs: extract
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: haduk-1km-sectors-*
+          path: slices
+
+      - name: Merge and verify coverage
+        run: |
+          python - <<'PY'
+          import csv, glob, sys
+          rows = []
+          for p in sorted(glob.glob(
+                  "slices/*/haduk_district_annual_1km_sectors.csv")):
+              with open(p, newline="") as f:
+                  got = list(csv.DictReader(f))
+              print(f"{p}: {len(got)} rows")
+              rows += got
+          keys = [(r["district"], r["year"]) for r in rows]
+          assert len(keys) == len(set(keys)), "duplicate sector-years"
+          rows.sort(key=lambda r: (r["district"], int(r["year"])))
+          with open("haduk_sector_annual_1km.csv", "w", newline="") as f:
+              w = csv.DictWriter(f, fieldnames=list(rows[0]))
+              w.writeheader()
+              w.writerows(rows)
+          years = {int(r["year"]) for r in rows}
+          missing = sorted(set(range(1991, 2021)) - years)
+          n_s = len({r["district"] for r in rows})
+          print(f"{len(rows)} rows, {n_s} sectors, "
+                f"{len(years)} years, missing: {missing or 'none'}")
+          if missing or n_s != 10398 or len(rows) != n_s * 30:
+              sys.exit("INCOMPLETE - see the slice artifacts")
+          PY
+
+      - name: Upload merged table
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: haduk-sector-annual-1km
+          path: haduk_sector_annual_1km.csv
+          if-no-files-found: error

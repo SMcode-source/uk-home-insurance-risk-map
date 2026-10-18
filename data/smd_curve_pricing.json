@@ -1,0 +1,93 @@
+[
+ {
+  "key": "baseline",
+  "index": null,
+  "share": 0.0,
+  "el_total": 164.12134061919204,
+  "el_sub": 19.806451612903192,
+  "tvar99_euler": 256.35027393792774,
+  "capital": 5.533735999124141,
+  "premium": 169.65507661831617,
+  "churn": 0,
+  "churn2": 0,
+  "el_sub_drift": 0.0
+ },
+ {
+  "key": "cwd_yr_s400",
+  "index": "cwd_yr",
+  "share": 0.4,
+  "el_total": 164.12134061919198,
+  "el_sub": 19.8064516129032,
+  "tvar99_euler": 256.2717274230733,
+  "capital": 5.529023208232874,
+  "premium": 169.6503638274249,
+  "churn": 336,
+  "churn2": 0,
+  "el_sub_drift": 7.105427357601002e-15
+ },
+ {
+  "key": "cwd_yr_s565",
+  "index": "cwd_yr",
+  "share": 0.565,
+  "el_total": 164.12134061919204,
+  "el_sub": 19.806451612903192,
+  "tvar99_euler": 256.23738906629944,
+  "capital": 5.526962906826443,
+  "premium": 169.64830352601845,
+  "churn": 455,
+  "churn2": 1,
+  "el_sub_drift": 0.0
+ },
+ {
+  "key": "cwd_yr_s700",
+  "index": "cwd_yr",
+  "share": 0.7,
+  "el_total": 164.12134061919207,
+  "el_sub": 19.806451612903192,
+  "tvar99_euler": 256.20867594436237,
+  "capital": 5.525240119510221,
+  "premium": 169.64658073870223,
+  "churn": 547,
+  "churn2": 1,
+  "el_sub_drift": 0.0
+ },
+ {
+  "key": "smd_jja_s400",
+  "index": "smd_jja",
+  "share": 0.4,
+  "el_total": 164.12134061919204,
+  "el_sub": 19.806451612903192,
+  "tvar99_euler": 256.3050903128661,
+  "capital": 5.531024981620447,
+  "premium": 169.6523656008125,
+  "churn": 234,
+  "churn2": 0,
+  "el_sub_drift": 0.0
+ },
+ {
+  "key": "smd_jja_s565",
+  "index": "smd_jja",
+  "share": 0.565,
+  "el_total": 164.12134061919204,
+  "el_sub": 19.8064516129032,
+  "tvar99_euler": 256.28533995849386,
+  "capital": 5.529839960358109,
+  "premium": 169.65118057955013,
+  "churn": 330,
+  "churn2": 0,
+  "el_sub_drift": 7.105427357601002e-15
+ },
+ {
+  "key": "smd_jja_s700",
+  "index": "smd_jja",
+  "share": 0.7,
+  "el_total": 164.12134061919207,
+  "el_sub": 19.806451612903192,
+  "tvar99_euler": 256.2686682653189,
+  "capital": 5.528839658767613,
+  "premium": 169.65018027795966,
+  "churn": 386,
+  "churn2": 0,
+  "el_sub_drift": 0.0
+ }
+]

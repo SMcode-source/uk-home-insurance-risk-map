@@ -1,0 +1,216 @@
+name: rebuild model
+
+# Runs the full model off a laptop. Manual only - it is a ~20-minute job
+# and regenerating published premiums should be a decision, not something
+# that fires on every push.
+#
+# Everything the model reads is either committed (the derived per-district
+# CSVs) or refetched here (boundaries + the two BGS geology layers, which
+# are gitignored as large and refetchable). data/ea_postcode_risk.csv is a
+# manual download and is NOT needed: the derived data/gw_fractions.csv is
+# committed. So is data/subsidence_postcodes.csv (the BGS geology read at
+# the unit postcodes since 2026-09-06): regenerate it from a laptop with
+# scripts/score_subsidence_postcodes.py after fetch_bgs.py and
+# fetch_onspd.py, as sector-model.yml does on a full fetch.
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: "Commit the regenerated model and site back to main"
+        type: boolean
+        default: false
+      threads:
+        description: "Worker threads (0 = auto, capped at 6)"
+        default: "0"
+      verify:
+        description: "Fail unless the rebuild reproduces the committed model output byte-for-byte"
+        type: boolean
+        default: false
+      runner:
+        description: "Runner (ubuntu-24.04-arm is a different ISA: a real cross-architecture check)"
+        type: choice
+        options: [ubuntu-latest, ubuntu-24.04-arm]
+        default: ubuntu-latest
+      ostn15:
+        description: "Transform with the OSTN15 datum grid (the published model since 2026-09-05; off = the Helmert approximation, for measurement only)"
+        type: boolean
+        default: true
+
+concurrency:
+  group: rebuild
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    name: full model rebuild
+    # ostn15=false builds the Helmert approximation on purpose; tell the
+    # model's own guard (build_model.require_ostn15) that it is meant.
+    env:
+      UKRISK_ALLOW_HELMERT: ${{ inputs.ostn15 && '0' || '1' }}
+    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    # Two 20,000-year simulations (present-day + climate). Generous ceiling
+    # so a slow runner fails loudly rather than being killed at the default.
+    timeout-minutes: 240
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      # Before the fetches, not after: the first attempt at this workflow
+      # spent 37 minutes downloading geology and then fell over on a
+      # missing pytest. Environment problems should cost seconds.
+      - name: Property tests (pre-flight)
+        run: python -m pytest tests -q
+
+      - name: Clone postcode-district boundaries
+        run: |
+          git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git \
+            data/uk-postcode-polygons
+
+      # The geology comes from the repo's own data mirror, not from BGS.
+      # Nine consecutive runs established that the BGS endpoint first
+      # throttles and now outright drops packets from GitHub's IP ranges
+      # (connection timeouts on the FIRST request, while the same call
+      # answers in 0.3s from a residential connection), so CI cannot fetch
+      # it directly at any pace or page size. The mirror is a GitHub
+      # release - same infrastructure as the runner, fast, never blocked -
+      # published under OGL v3 with attribution; see the release notes and
+      # DATA_SOURCES.md. Refresh it from a laptop via fetch_bgs.py, which
+      # remains the tool for talking to BGS itself.
+      #
+      # sha256 pinned: the model's subsidence surface is built from these
+      # files, and a truncated layer once shipped a silently wrong model.
+      # Verify bytes, then let --verify check feature counts as a second,
+      # independent opinion.
+      - name: Download BGS geology from the data mirror
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download data-bgs-625k-v1 --dir data             --pattern 'bgs_625k_*.geojson.gz'
+          gunzip data/bgs_625k_bedrock.geojson.gz                  data/bgs_625k_superficial.geojson.gz
+          sha256sum -c <<'SUMS'
+          66524b94dfeb491a746994dfa5e334b52a9b15a42f82c15977df1d5c100c3fb7  data/bgs_625k_bedrock.geojson
+          a029e2ab61190c7103983c33d77c24743c7bb2c9fcfcd25ebd063ab9f3c38aee  data/bgs_625k_superficial.geojson
+          SUMS
+
+      # Two separate checks, because they catch different things.
+      #
+      # .partial catches a fetch that knew it fell short. The feature-count
+      # check catches everything else - including a layer restored from
+      # CACHE, which skips the fetcher and so is never validated by it. A
+      # truncated superficial layer got cached exactly once and would have
+      # rebuilt the model with half the country's drift cover missing.
+      # Validate the file, not the process that produced it.
+      - name: Reject incomplete geology
+        run: |
+          if ls data/*.partial 2>/dev/null; then
+            echo "::error::a geology layer is incomplete (.partial) - refusing to build"
+            exit 1
+          fi
+          python -u scripts/fetch_bgs.py --verify
+
+      # Again with the geology present, so the superficial-vocabulary test
+      # runs for real instead of skipping on a missing layer.
+      - name: Property tests (with geology)
+        run: python -m pytest tests -q
+
+      # A runner has no datum grid, so PROJ takes WGS84 to British National
+      # Grid with a Helmert approximation; a laptop that ever downloaded
+      # OSTN15 shifts by up to a few metres instead, the KD-tree picks
+      # different weather neighbours, and that is the WHOLE of the
+      # local-vs-CI gap (HANDOFF 2026-09-05). This step gives the runner
+      # the grid. It was measured first (run 33966869539: headline
+      # +0.0002, 19 premiums by up to 0.8, no rating group) and adopted
+      # the same day, so the published model is the OSTN15 one and the
+      # input exists to build the Helmert approximation for comparison.
+      # sector-model.yml carries the same step: the two grains must use
+      # the same transform. sha256 pinned as for the geology: the file
+      # is from cdn.proj.org, PROJ's own CDN.
+      - name: Install the OSTN15 datum grid
+        if: ${{ inputs.ostn15 }}
+        run: |
+          dir=$(python -c "from pyproj import datadir; print(datadir.get_user_data_dir())")
+          mkdir -p "$dir"
+          curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif"             https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
+          echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif"             | sha256sum -c
+          python -c "from pyproj.transformer import TransformerGroup as G; print('proj pipeline', G(4326, 27700, always_xy=True).transformers[0].description)"
+
+      - name: Rebuild model
+        env:
+          UKRISK_THREADS: ${{ inputs.threads }}
+        run: python -u scripts/build_model.py
+
+      # Order matters and is not obvious: build_site.py wraps outputs that
+      # build_map.py and build_analysis.py produce, and both of those are
+      # gitignored, so on a fresh checkout they simply do not exist.
+      # make_images.py renders the favicon and social card FROM the model
+      # output, so it has to follow the rebuild too. This is the canonical
+      # order from README's rebuild section - I had already tripped over
+      # the missing build_analysis.py step once locally.
+      - name: Rebuild images, map, analysis and site
+        # build_tiles.py joined the order with the four-tabs restructure
+        # (the maps read vector tiles now; tests.yml builds them the same
+        # way) - this workflow was not updated then and failed on its
+        # first post-restructure dispatch (run 33417982687).
+        run: |
+          python -u scripts/make_images.py
+          python -u scripts/build_map.py
+          python -u scripts/build_tiles.py
+          python -u scripts/build_analysis.py
+          python -u scripts/build_site.py
+
+      - name: Check the output against the model's own identities
+        run: python -m pytest tests -q -k identities
+
+      - name: Show what changed
+        run: git --no-pager diff --stat
+
+      # Reproducibility as a red light, not something noticed by diffing.
+      # Three nondeterminism findings in HANDOFF (the seed-swap slip, the
+      # runner wobble, the partition order) were all found by hand; this
+      # step turns that whole class into a failed run. Model artifacts
+      # only: docs/ carries the same numbers but is not the thing being
+      # asked about.
+      - name: Verify the model reproduced the committed output
+        if: ${{ inputs.verify }}
+        run: |
+          if git diff --quiet -- data/districts_risk.geojson data/year_analysis.json; then
+            echo "reproduced byte-for-byte on ${{ inputs.runner || 'ubuntu-latest' }}"
+          else
+            git --no-pager diff --stat -- data/districts_risk.geojson data/year_analysis.json
+            echo "::error::the rebuild did not reproduce the committed model output"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model-output
+          path: |
+            data/districts_risk.geojson
+            data/year_analysis.json
+            docs/
+          retention-days: 14
+
+      - name: Commit regenerated output
+        if: ${{ inputs.commit }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/districts_risk.geojson data/year_analysis.json docs/
+          if git diff --cached --quiet; then
+            echo "model reproduced exactly - nothing to commit"
+          else
+            git commit -m "Rebuild model output (GitHub Actions run ${{ github.run_number }})"
+            git push
+          fi

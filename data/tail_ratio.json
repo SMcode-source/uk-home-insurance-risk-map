@@ -1,0 +1,71 @@
+{
+ "generated_by": "scripts/tail_ratio_from_history.py",
+ "measured_range_primary": [
+  1.777,
+  2.351
+ ],
+ "primary_proxy": "storm_days",
+ "proxies": {
+  "max_gust": {
+   "cv": 0.07704692171813161,
+   "gamma": 1.1879164235682527,
+   "gev": 1.170895394395136,
+   "gev_shape": 2.888755120407284,
+   "lognormal": 1.1924541042478456,
+   "mean": 106.41428571428571,
+   "n": 35,
+   "observed_max_over_mean": 1.1708954222043226,
+   "sd": 8.198893141119463
+  },
+  "rain5d": {
+   "cv": 0.12914460263402994,
+   "gamma": 1.3247066382609314,
+   "gev": 1.383814935961956,
+   "gev_shape": 0.030962957254338418,
+   "lognormal": 1.3376620983466894,
+   "mean": 60.354285714285716,
+   "n": 35,
+   "observed_max_over_mean": 1.3288202991857603,
+   "sd": 7.794430245832138
+  },
+  "storm_days": {
+   "cv": 0.2841680046583091,
+   "gamma": 1.776705815977484,
+   "gev": 1.6877119107367835,
+   "gev_shape": 0.2192309093090073,
+   "lognormal": 1.8394258561273291,
+   "mean": 27.203142857142858,
+   "n": 35,
+   "observed_max_over_mean": 1.6663515770236632,
+   "sd": 7.73026282614922
+  },
+  "storm_days^1.5": {
+   "cv": 0.4190376878816664,
+   "gamma": 2.222079721536563,
+   "gev": 2.150184880615541,
+   "gev_shape": 0.10340623948888146,
+   "lognormal": 2.350886878411764,
+   "mean": 146.08584730656406,
+   "n": 35,
+   "observed_max_over_mean": 2.0891539037559097,
+   "sd": 61.21547568757677
+  },
+  "storm_days^2": {
+   "cv": 0.5590867862489194,
+   "gamma": 2.7321135945624424,
+   "gev": null,
+   "gev_shape": -4.997333460965299,
+   "lognormal": 2.9366303721995495,
+   "mean": 798.0606028571428,
+   "n": 35,
+   "observed_max_over_mean": 2.5747529606693567,
+   "sd": 446.1851376832752
+  }
+ },
+ "quantile": 0.99,
+ "shipped_inside_range": true,
+ "shipped_tail_freq_ratio": 2.0,
+ "source": "data/history.csv (ERA5 via Open-Meteo, 1990-2024)",
+ "storm_days_trend_p": 0.7663,
+ "storm_days_trend_per_yr": -0.0393
+}

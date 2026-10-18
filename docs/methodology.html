@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Methodology — UK Home Insurance Risk Map</title>
+<link rel="stylesheet" href="assets/site.css">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+<meta name="description" content="How the peril scores are built from open data, how the 5-dim C-vine joins them, why coastal erosion is modelled but not priced, why the measure is TVaR, and how to reproduce it all.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="UK Home Insurance Risk Map">
+<meta property="og:title" content="Methodology — UK Home Insurance Risk Map">
+<meta property="og:description" content="How the peril scores are built from open data, how the 5-dim C-vine joins them, why coastal erosion is modelled but not priced, why the measure is TVaR, and how to reproduce it all.">
+<meta property="og:url" content="https://smcode-source.github.io/uk-home-insurance-risk-map/methodology.html">
+<meta property="og:image" content="https://smcode-source.github.io/uk-home-insurance-risk-map/assets/social.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Choropleth of Great Britain shaded by home-insurance rating group, with the title UK Home Insurance Risk Map">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Methodology — UK Home Insurance Risk Map">
+<meta name="twitter:description" content="How the peril scores are built from open data, how the 5-dim C-vine joins them, why coastal erosion is modelled but not priced, why the measure is TVaR, and how to reproduce it all.">
+<meta name="twitter:image" content="https://smcode-source.github.io/uk-home-insurance-risk-map/assets/social.png">
+<style>
+  .toc { display: flex; gap: 6px; flex-wrap: wrap; margin: 22px 0 0; }
+  .toc a {
+    font-size: 13px; text-decoration: none; color: var(--ink-2);
+    border: 1px solid var(--border); background: var(--surface-1);
+    border-radius: 8px; padding: 6px 11px;
+  }
+  .toc a:hover { border-color: var(--axis); color: var(--ink-1); }
+  section.doc { padding: 40px 0 8px; scroll-margin-top: 64px; }
+  section.doc > h2 { margin-bottom: 10px; }
+  .formula {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 16px; margin: 14px 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px; color: var(--ink-1); overflow-x: auto;
+  }
+  .diagram-card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px; margin: 18px 0;
+  }
+  /* Diagram type is sized for its RENDERED size, not its viewBox size.
+     A fixed viewBox scales text down with everything else: at the content
+     column's ~0.75 scale a 10px label renders at 7.5px, and on a phone at
+     ~0.34 it rendered at 3.4px — measured, and guarded by the layout tests.
+     So: fonts big enough to survive the desktop scale, and below 640px the
+     diagrams restack (vertical pipeline, vine panels stacked) instead of
+     shrinking. */
+  .node-label { font-size: 13.5px; fill: var(--ink-1); font-weight: 600; }
+  .edge-label { font-size: 12.5px; fill: var(--ink-muted); }
+  .tree-title { font-size: 13px; fill: var(--ink-muted); font-weight: 600; letter-spacing: .04em; }
+  .step-label { font-size: 13.5px; fill: var(--ink-1); font-weight: 600; }
+  .step-sub { font-size: 12.5px; fill: var(--ink-muted); }
+  /* districts-vs-sectors figure: two panels of the same ground */
+  .res-figure { display: flex; gap: 14px; align-items: flex-start; }
+  .res-figure svg { display: block; width: 100%; height: auto; flex: 1 1 0; }
+  .panel-title { font-size: 13px; fill: var(--ink-1); font-weight: 650; }
+  .focus-label { font-size: 12.5px; fill: var(--ink-1); font-weight: 700; }
+  @media (max-width: 640px) {
+    /* stack, and reset the row's flex-basis - in a column it applies to
+       HEIGHT and collapses each panel to nothing (learned on the vine) */
+    .res-figure { flex-direction: column; align-items: center; }
+    .res-figure svg { flex: 0 0 auto; max-width: 330px; }
+  }
+  .diagram-v { display: none; }
+  .vine-row { display: flex; gap: 16px; align-items: flex-start; }
+  .vine-row svg { display: block; height: auto; width: 100%; }
+  /* flex-grow proportional to each panel's viewBox width, so all three
+     panels render at the SAME scale side by side */
+  .vine-row .vine-t1 { flex: 270 1 0; }
+  .vine-row .vine-t2 { flex: 386 1 0; }
+  .vine-row .vine-t3 { flex: 204 1 0; }
+  @media (max-width: 640px) {
+    /* svg.diagram in site.css sets display:block at (0,1,1); a bare
+       .diagram-h at (0,1,0) loses to it, so match the element too */
+    svg.diagram-h { display: none; }
+    .diagram-v { display: block; max-width: 250px; margin: 0 auto; }
+    .vine-row { flex-direction: column; gap: 4px; align-items: center; }
+    /* stacked: the row layout's flex-basis 0 now applies to HEIGHT and
+       collapses every panel to zero (measured), so reset it — then cap
+       each panel near its native size so the type does not balloon */
+    .vine-row .vine-t1 { flex: 0 0 auto; width: 100%; max-width: 280px; }
+    .vine-row .vine-t2 { flex: 0 0 auto; width: 100%; max-width: 390px; }
+    .vine-row .vine-t3 { flex: 0 0 auto; width: 100%; max-width: 215px; }
+  }
+</style>
+</head>
+<body>
+<nav class="site-nav"><a class="brand" href="index.html"><span class="dots"><i style="background:var(--sub)"></i><i style="background:var(--wx)"></i><i style="background:var(--fl)"></i><i style="background:var(--gw)"></i></span><span class="txt">UK Home Insurance Risk Map</span></a><a class="navlink" href="index.html">Overview</a><a class="navlink" href="years.html"><span class="nav-full">What happened</span><span class="nav-short">History</span></a><a class="navlink" href="map.html"><span class="nav-full">The model</span><span class="nav-short">Model</span></a><a class="navlink" href="relative.html"><span class="nav-full">Relative risk</span><span class="nav-short">Relative</span></a><a class="navlink" href="temperature.html"><span class="nav-full">Temperature</span><span class="nav-short">Temp</span></a><a class="navlink" href="methodology.html" aria-current="page"><span class="nav-full">Methodology</span><span class="nav-short">Method</span></a><span class="spacer"></span><a class="ghlink" href="https://github.com/SMcode-source/uk-home-insurance-risk-map">GitHub ↗</a></nav>
+
+<div class="wrap narrow">
+
+  <section class="hero" style="padding:44px 0 18px">
+    <div class="eyebrow">Methodology</div>
+    <h1 style="font-size:clamp(26px,4vw,34px)">How the model works</h1>
+    <p class="lede">Every step from raw open data to a rating group, including the two
+    modelling decisions that changed the answer materially — and every assumption that is
+    an assumption rather than a measurement.</p>
+    <div class="toc">
+      <a href="#pipeline">Pipeline</a>
+      <a href="#perils">The perils</a>
+      <a href="#erosion">Coastal erosion</a>
+      <a href="#climate">Climate repricing</a>
+      <a href="#vine">Vine copula</a>
+      <a href="#calibration">Calibration</a>
+      <a href="#dependence-effect">Does it matter?</a>
+      <a href="#tvar">Why TVaR</a>
+      <a href="#years">Good vs bad years</a>
+      <a href="#sectors">Two resolutions</a>
+      <a href="#data">Data sources</a>
+      <a href="#repro">Reproduce it</a>
+      <a href="#caveats">Caveats</a>
+    </div>
+  </section>
+
+  <section class="doc" id="pipeline">
+    <h2>The pipeline</h2>
+    <p>Six stages, each a script in the repository. Everything is seeded, so a rebuild
+    reproduces the published numbers exactly.</p>
+    <div class="diagram-card">
+      <svg class="diagram diagram-h" viewBox="0 0 860 132" role="img" aria-label="Pipeline: open data to peril scores to marginals to vine copula to simulation to premium">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--axis)"/>
+          </marker>
+        </defs>
+        <g>
+          <rect x="2" y="30" width="126" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="step-label" x="65" y="52" text-anchor="middle">Open data</text>
+          <text class="step-sub" x="65" y="67" text-anchor="middle">all OGL · 24-entry register</text>
+
+          <rect x="150" y="30" width="126" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="step-label" x="213" y="52" text-anchor="middle">Peril scores</text>
+          <text class="step-sub" x="213" y="67" text-anchor="middle">per district, 0–1</text>
+
+          <rect x="298" y="30" width="126" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="step-label" x="361" y="52" text-anchor="middle">Marginals</text>
+          <text class="step-sub" x="361" y="67" text-anchor="middle">freq × severity</text>
+
+          <rect x="446" y="30" width="126" height="54" rx="9" fill="var(--surface-1)" stroke="var(--accent)"/>
+          <text class="step-label" x="509" y="52" text-anchor="middle">C-vine copula</text>
+          <text class="step-sub" x="509" y="67" text-anchor="middle">5-dimensional</text>
+
+          <rect x="594" y="30" width="126" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="step-label" x="657" y="52" text-anchor="middle">Simulation</text>
+          <text class="step-sub" x="657" y="67" text-anchor="middle">20,000 years</text>
+
+          <rect x="742" y="30" width="116" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="step-label" x="800" y="52" text-anchor="middle">Premium</text>
+          <text class="step-sub" x="800" y="67" text-anchor="middle">10 rating groups</text>
+
+          <g stroke="var(--axis)" stroke-width="1.4" marker-end="url(#ar)" fill="none">
+            <path d="M130 57 h14"/><path d="M278 57 h14"/><path d="M426 57 h14"/>
+            <path d="M574 57 h14"/><path d="M722 57 h14"/>
+          </g>
+        </g>
+      </svg>
+      <!-- Same pipeline, stacked, for narrow screens: at phone width the
+           horizontal variant scales its type to ~34% (3.4px), which is not
+           text any more. The two variants are toggled by CSS only. -->
+      <svg class="diagram-v" viewBox="0 0 240 496" role="img" aria-label="Pipeline: open data to peril scores to marginals to vine copula to simulation to premium">
+        <defs>
+          <marker id="arv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--axis)"/>
+          </marker>
+        </defs>
+        <g>
+          <rect x="25" y="4" width="190" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="step-label" x="120" y="26" text-anchor="middle">Open data</text>
+          <text class="step-sub" x="120" y="43" text-anchor="middle">all OGL · 24-entry register</text>
+
+          <rect x="25" y="90" width="190" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="step-label" x="120" y="112" text-anchor="middle">Peril scores</text>
+          <text class="step-sub" x="120" y="129" text-anchor="middle">per district, 0–1</text>
+
+          <rect x="25" y="176" width="190" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="step-label" x="120" y="198" text-anchor="middle">Marginals</text>
+          <text class="step-sub" x="120" y="215" text-anchor="middle">freq × severity</text>
+
+          <rect x="25" y="262" width="190" height="54" rx="9" fill="var(--surface-1)" stroke="var(--accent)"/>
+          <text class="step-label" x="120" y="284" text-anchor="middle">C-vine copula</text>
+          <text class="step-sub" x="120" y="301" text-anchor="middle">5-dimensional</text>
+
+          <rect x="25" y="348" width="190" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="step-label" x="120" y="370" text-anchor="middle">Simulation</text>
+          <text class="step-sub" x="120" y="387" text-anchor="middle">20,000 years</text>
+
+          <rect x="25" y="434" width="190" height="54" rx="9" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="step-label" x="120" y="456" text-anchor="middle">Premium</text>
+          <text class="step-sub" x="120" y="473" text-anchor="middle">10 rating groups</text>
+
+          <g stroke="var(--axis)" stroke-width="1.4" marker-end="url(#arv)" fill="none">
+            <path d="M120 62 v22"/><path d="M120 148 v22"/><path d="M120 234 v22"/>
+            <path d="M120 320 v22"/><path d="M120 406 v22"/>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <p class="note">Scripts, in order: <code>fetch_*.py</code> → <code>scores_real.py</code> →
+    <code>build_model.py</code> → <code>build_map.py</code> / <code>build_analysis.py</code> /
+    <code>build_site.py</code>.</p>
+  </section>
+
+  <section class="doc" id="perils">
+    <h2>The perils — eight insured, and one that is not</h2>
+    <p>Each hazard peril is scored 0–1 per district from real hazard data, then converted
+    to an annual loss distribution: <b>Bernoulli(p) × LogNormal(μ, σ)</b> — at most one
+    claim per policy per year, which is adequate at district granularity. Theft,
+    escape of water, fire and accidental damage skip the 0–1 score: theft's input is
+    already a measured burglary rate per household, escape of water's is a claim
+    frequency built from the ABI level and each district's air-frost days, fire's is
+    the district's own dwelling-fire rate from eight years of attended incidents, and
+    accidental damage's is a claim frequency tilted by the census share of households
+    with dependent children.</p>
+
+    <div class="tablewrap" style="margin:16px 0">
+      <table class="data">
+        <tr>
+          <th>Peril</th><th>Hazard data</th><th>What is measured</th>
+          <th class="num">Claim freq.</th><th class="num">Median severity</th>
+          <th class="num">% of claim cost</th><th class="num">Buildings</th><th class="num">Contents</th>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--sub)">Subsidence</strong></td>
+          <td>BGS Geology 625k bedrock</td>
+          <td>Shrink–swell susceptibility of the formation under each unit postcode, averaged over the district's postcodes</td>
+          <td class="num">to 3.0%/yr</td><td class="num">£11,515</td><td class="num">12.1%</td><td class="num">100%</td><td class="num">0%</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--wx)">Weather</strong></td>
+          <td>Met Office (incl. MIDAS station gusts)</td>
+          <td>Winter wind, wind-driven rain index, 1-in-50 gust, ≥10 mm rain days, annual rainfall</td>
+          <td class="num">to 10.0%/yr</td><td class="num">£1,338</td><td class="num">9.6%</td><td class="num" colspan="2"><span class="pill">unsplit</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--fl)">Flood</strong></td>
+          <td>EA NaFRA2, NRW FRAW, SEPA</td>
+          <td>Share of homes inside river/sea and surface-water flood zones (unit postcodes weighted by Census households)</td>
+          <td class="num">from zone share</td><td class="num">£23,344 / £12,006</td><td class="num">12.3%</td><td class="num">48%<sup>†</sup></td><td class="num">52%<sup>†</sup></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--gw)">Groundwater</strong></td>
+          <td>EA flood-alert areas</td>
+          <td>Share of unit postcodes inside a groundwater flood alert target area</td>
+          <td class="num">to 0.8%/yr</td><td class="num">£14,523</td><td class="num">0.9%</td><td class="num">48%<sup>†</sup></td><td class="num">52%<sup>†</sup></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--th)">Theft</strong></td>
+          <td>police.uk street-level crime, 36 months</td>
+          <td>Burglary rate over households + VOA non-domestic premises (the residential share), p99.9 backstop cap</td>
+          <td class="num">to 3.4%/yr</td><td class="num">£2,305</td><td class="num">13.4%</td><td class="num">24%</td><td class="num">76%</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--eow)">Escape of water</strong></td>
+          <td>Met Office HadUK-Grid air-frost days</td>
+          <td>Flat base plus a freeze-attributable slice scaled by annual air-frost days (1991–2020 normal)</td>
+          <td class="num">0.9–1.5%/yr</td><td class="num">£2,426</td><td class="num">25.8%</td><td class="num" colspan="2"><span class="pill">unsplit</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--fire)">Fire</strong></td>
+          <td>Home Office / SFRS / Welsh FRA incident data</td>
+          <td>Dwelling fires per household — England at LSOA level, Scotland and Wales by local authority / FRA</td>
+          <td class="num">0.03–0.56%/yr</td><td class="num">£6,014</td><td class="num">17.1%</td><td class="num">78%</td><td class="num">22%</td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--ad)">Accidental damage</strong></td>
+          <td>Census 2021 (E&amp;W) / Scotland's Census 2022</td>
+          <td>Flat base plus a child-attributable slice scaled by the district's share of households with dependent children</td>
+          <td class="num">0.8–1.0%/yr</td><td class="num">£1,101</td><td class="num">8.9%</td><td class="num" colspan="2"><span class="pill">unsplit</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--er)">Erosion</strong> <span class="pill">not insured</span></td>
+          <td>EA NCERM National 2024</td>
+          <td>Share of district area projected lost to coastal erosion by 2105 (England) or 2100 (Scotland)</td>
+          <td class="num">zone ÷ 80 yr</td><td class="num">£235,147</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>
+        </tr>
+      </table>
+      <p class="note"><sup>†</sup> Three published conventions for
+      flood's buildings/contents split disagree: Flood Re's statutory
+      premium caps imply 66/34, the Multi-Coloured Manual's depth-damage
+      curves 48/52, and the Environment Agency's appraisal convention
+      25/75. The MCM figure is used here because it is the only one of the
+      three that measures damage to the property - the other two are a
+      reinsurance pricing artefact and a public-benefit appraisal rule.
+      Across all three the portfolio buildings share moves 4.9 percentage
+      points, against 42.8 points for the three perils left unsplit.
+      Groundwater follows flood. Weather, escape of water and accidental
+      damage have no published split and are shown unsplit rather than
+      given an invented one.</p>
+    </div>
+    <p class="note">Coastal erosion is the odd one out and is treated as such: it is
+    modelled inside the vine but <b>excluded from the premium</b>, because standard UK
+    household policies do not cover gradual erosion. See
+    <a href="#erosion">Coastal erosion: modelled, not priced</a>.</p>
+
+    <h3>Subsidence — from geology, not a lookup table</h3>
+    <p>All 11,244 bedrock formations in the BGS 625k map are classified for shrink–swell
+    susceptibility — London Clay and the Thames Group at the top, then the Gault, Weald,
+    Oxford, Kimmeridge and Ampthill Clays, down through Mercia Mudstone — and pre-Mesozoic
+    mudstones are down-weighted because they are indurated and low-plasticity. Each
+    district's score is the susceptibility of the formation <b>under each of its unit
+    postcodes</b>, averaged over the postcodes (point-in-polygon in British National Grid;
+    area-weighted by polygon intersection before 2026-09-06, which read a district whose
+    clay lies under fields and whose homes stand on gravel terraces as clay). This mirrors
+    how BGS's own GeoSure shrink–swell layer is derived, using only the open 625k mapping.</p>
+    <p>Bedrock is not the whole story, though: shrink–swell happens in the soil shallow
+    foundations actually bear on, and over about <b>58% of Great Britain</b> that is
+    <b>superficial deposits</b> lying on top. The 625k superficial map is blended in as a
+    modifier — lacustrine clay, clay-with-flints and brickearth pull a district's score up,
+    glacial sand and gravel and river terrace deposits pull it down, because a granular
+    layer genuinely buffers the seasonal moisture change that drives shrink–swell. It cuts
+    both ways: Vale of York lake clays over benign bedrock rise, while the City of London,
+    sitting on metres of terrace gravel above London Clay, falls — which is why insurers'
+    subsidence maps light up the outer-London clay outcrop rather than the centre.</p>
+    <p class="note">Two deliberate limits. The blend is <b>capped at half weight</b> because
+    625k publishes no <b>thickness</b>, so a 0.5 m gravel skin and a 20 m clay sequence look
+    identical in this data — drift can shift the ranking but never override mapped bedrock
+    outright. And <b>peat is excluded</b>: it subsides badly, but by consolidation and
+    oxidation rather than shrink–swell, so pricing it inside this peril would conflate two
+    mechanisms under one calibration.</p>
+    <p>Geology says which ground <i>can</i> shrink; weather says how often it is made to.
+    Each district also carries a <b>drought climatology</b> built from the Met Office's
+    HadUK-Grid <b>1&nbsp;km daily</b> observations: the running water deficit
+    max(cumsum(PET&nbsp;−&nbsp;rain),&nbsp;0), reset every 1&nbsp;January, peaked within each
+    year and averaged over 1991–2020 — the same index that, aggregated nationally, recovers
+    five of the six canonical UK subsidence years (1976, 1995, 2003, 2018, 2022). It enters
+    claim <b>frequency</b> as a blend: <b>56.5%</b> of subsidence frequency rides the
+    district's deficit relative to the national exposure-weighted mean, the rest stays on
+    the flat geology base. The share is the ABI's own attribution arithmetic — its 2022
+    release counts 13,000 of that year's 23,000 claims as drought-driven, and its pre-surge
+    baseline of 2,500 claims a quarter implies the same split — bracketed by Zurich's
+    engineering attribution (~60% of upheld claims are root-induced clay shrinkage in an
+    average year, ~85% in a surge year). The blend is normalised so the national claim level
+    is untouched: it moves <i>who</i> carries subsidence risk, not how much of it there
+    is.</p>
+    <p class="note">One measured caveat. The PET inside the deficit is Hargreaves–Samani,
+    which runs roughly a third high in a maritime climate — so the deficit's <b>level</b> in
+    millimetres is not a soil-physics quantity. Re-running the whole integral with PET
+    scaled to 0.85× and 0.70× leaves the district <b>ranking</b> essentially unchanged
+    (rank correlation +0.998 and better, at both the 1&nbsp;km and 5&nbsp;km grids), and the
+    level is exactly what the ABI calibration re-pins — so the map survives the formula, and
+    only the map is used.</p>
+
+    <h3>Flood — official maps, read at the homes</h3>
+    <p>The published flood maps are sampled at every live unit postcode (about 15 addresses
+    each), giving the share of each district's homes in a high band (&ge;1% a year) and a
+    low envelope (&ge;0.1%). Each postcode counts for its Census households: flooded postcodes
+    are the sparse ones, so counting postcodes put England's river and sea high band at
+    1.2 times the EA's own count of homes in it. England's rivers and sea come from the EA's Risk of Flooding from
+    Rivers and Sea, whose four risk bands already account for defences, decoded from the
+    legend colours at 6.5 m per pixel, three times on grids shifted a third of a tile apart
+    (the service leaves whole polygons out of some renders depending on where the tile falls,
+    so a band most reads drew is kept, and so is a cluster of homes only one read drew);
+    High (&ge;3.3% a year) is priced apart from Medium, as it is in Wales, where FRAW supplies
+    its own High; Scotland's SEPA High is 1 in 10, so its homes carry England's High share
+    of the band. High homes claim at 1.67 times Medium's rate and Medium homes at 1.92 times
+    Low's: the ratios between the bands in the Environment Agency's recorded floods since 1990. Wales from NRW FRAW's own polygons, tested at each
+    postcode; Scotland from SEPA's polygons,
+    queried at a 5 m tolerance. Surface water is handled the same way: England's RoFSW
+    layer only renders below 1:50,000, so it is fetched at 13 m per pixel with the three
+    legend colours decoded per pixel into likelihood bands. A pixel counts only when at
+    least a quarter of it is covered: the layer is drawn from 2&nbsp;m flow paths, so a
+    faint 13&nbsp;m pixel is a thin path through its edge, and counting those put England
+    at 1.6 times the EA's own count of homes at risk. A quarter was chosen on half the
+    constituencies and checked on the other half.
+    Surface-water claims are modelled as more frequent but cheaper than fluvial ones.</p>
+
+    <h3>How deep, not just how wet</h3>
+    <p>Depth is the single strongest driver of flood damage to a house, and the same EA
+    service publishes five nested depth layers alongside the headline extent —
+    the parts of the surface-water envelope deeper than 0.2, 0.3, 0.6, 0.9 and 1.2 m.
+    Differencing them gives, for each district, the <b>distribution of depth within its own
+    flooded area</b>, which becomes an expected-damage relativity following the familiar
+    depth–damage shape: damage climbs steeply through the first half-metre as water passes
+    floor level and reaches sockets and plaster, then flattens once the ground floor is a
+    write-off either way.</p>
+    <p>The EA publishes the same five depth thresholds for its river and sea risk bands,
+    so river and sea claims — the larger half of flood — get the same treatment. Where the
+    river water is deep (Goole, Thorne and Fishlake, over a metre) the claim is dearer; on
+    wide, shallow tidal plains (Grimsby, Cleethorpes, Weston-super-Mare, around 0.2&nbsp;m) it
+    is cheaper. The EA marks river depth "unavailable" for about a sixth of the homes in its
+    higher risk bands, mostly in the Fens; those districts take the depth of their wider
+    postcode area.</p>
+    <p>Each multiplier is deliberately <b>renormalised to a mean of 1.0 per claim</b>. That
+    keeps it doing one job — re-shaping severity <em>between</em> districts — without moving
+    the national level that the ABI calibration already fixes. Per claim rather than per
+    household matters: deep water sits where the claims are, so a multiplier averaging 1.0
+    per household averages more per claim, and because the national flood total is fixed,
+    the difference would be paid for by Welsh and Scottish homes whose flood risk had not
+    changed. It is the same discipline the frequency calibration follows: the data decides
+    the relativities, the published aggregates decide the level.</p>
+    <p class="note">England only. Neither NRW nor SEPA publishes an equivalent depth
+    product, so Welsh and Scottish districts keep the flat severity. That is an asymmetry in
+    the spread of severity, not in its level. Nothing external measures flood depth at
+    homes, so neither multiplier is validated.</p>
+
+    <h3 id="theft">Theft — burglary geography from police.uk</h3>
+    <p><b>668,609 street-level burglaries</b> over the latest 36 months
+    of the police.uk open archive, each anonymised to a snap point and placed into its
+    district by point-in-polygon, become an annual burglary rate per household. That rate
+    is then scaled by one national multiplier so the implied claim count matches the ABI's
+    theft aggregates — which means the burglary→claim propensity (how many burglaries
+    become home-insurance claims) <b>cancels out and never has to be assumed</b>. The
+    police data contributes only what it actually knows: which districts have more
+    burglaries than which.</p>
+    <p>Three corrections the raw data needs, all visible in the map:</p>
+    <ul style="color:var(--ink-2); font-size:14px; line-height:1.7">
+      <li><b>Commercial contamination.</b> The police "burglary" category includes shops,
+      offices and warehouses, and a city-core district can have few households under
+      thousands of retail break-ins — the raw per-household rate exceeds 50%/yr in the
+      worst case, which is not a household risk. The rate is therefore formed over
+      <b>households plus non-domestic premises</b> (VOA stock-of-properties counts at
+      LSOA, apportioned like the households are), which hands each district only its
+      residential share of the burglary points: the City of London and Mayfair fall to
+      the rate their actual residents face, while dense residential city centres keep
+      their measured rates — nothing is clipped away to achieve it.</li>
+      <li><b>A backstop cap.</b> Rates are still <b>winsorised at the exposure-weighted
+      99.9th percentile</b> (3.4% per year, <b>15</b> districts at
+      it) — no longer doing the commercial correction's job, just guarding the handful of
+      districts whose combined denominator is so small that a few incidents would
+      otherwise swing the rate wildly.</li>
+      <li><b>Scotland.</b> Police Scotland does not publish to police.uk, so Scotland is
+      <b>overridden, not filled</b>: the only "Scottish" rows in the archive are British
+      Transport Police railway incidents, which would otherwise masquerade as tiny local
+      rates. Scottish areas instead carry recorded <b>housebreaking</b> from
+      <a href="https://statistics.gov.scot/data/recorded-crime">Recorded Crime in
+      Scotland</a>, which publishes it for all <b>32 council areas</b> — apportioned onto
+      postcode geography by the households each area contributes to each council, and
+      averaged over three years (2023-24 to 2025-26) because a single year is noisy in
+      the smallest councils. Scottish rates run
+      <b>0.040%–0.630%/yr</b> (mean 0.311%), a
+      16× spread where until 1 September 2026 this map showed one flat
+      national rate. It remains a 32-value step function: areas inside the same council
+      still share a value, which is the resolution of the source rather than a defect of
+      the join.</li>
+    </ul>
+    <p><b>Theft sits outside the vine copula, on purpose.</b> Burglary does not arrive on
+    the storm track: the correlation between a district's theft expected loss and its
+    four-peril catastrophe expected loss is <b>0.25</b> — theft re-ranks the
+    book rather than reinforcing it. It is simulated as an independent compound leg, and
+    its systemic loading is derived, not assumed: national annual burglary counts vary by
+    roughly ±10–15%, so the loading is solved to reproduce that, which makes a 1-in-100
+    theft year about 1.3× an average one. The consequence is visible in the price:
+    theft adds <b>£22.04</b> of expected loss per policy and <i>almost no capital
+    charge</i> — the portfolio's bad years are still weather years, and an independent,
+    stable peril earns nearly a full diversification credit.</p>
+    <p class="note">One mechanical side effect to read correctly: percentage figures
+    <i>divided by the premium</i> — the dependence uplift, the climate-scenario uplift —
+    are all diluted by theft's arrival, because the denominator grew while the
+    weather-driven numerator did not. Nothing about the flood or climate modelling
+    changed.</p>
+
+    <h3 id="eow">Escape of water — a flat base with a freeze slice</h3>
+    <p>Escape of water is the UK's most frequent home claim — the ABI puts it at
+    <b>£1.8m a day</b>, about £657m a year, roughly 164,000 claims at ~£4,000 each. It
+    is also the hardest of the eight to give a geography: burst pipes and failed
+    appliances follow plumbing age and dwelling type, neither of which is open data at
+    district level. Pretending otherwise would be invention, so the base frequency is
+    deliberately <b>flat</b>.</p>
+    <p>What <i>is</i> open is the freeze. Around <b>31%</b> of
+    escape-of-water claims are freeze-attributable — the January burst-pipe peak, with
+    insurers reporting ~25% of claims in July–September as the no-freeze floor — and
+    that slice scales with each district's <b>annual air-frost days</b> from the Met
+    Office HadUK-Grid 1991–2020 normal: 13 days a year on the mildest
+    coasts to 147 in the Scottish Highlands. The result is a modest,
+    physical spread: expected loss runs from <b>£25</b> (ZE3) to
+    <b>£89</b> (IV4) per policy, around a national mean of
+    <b>£42.39</b>.</p>
+    <p><b>Like theft it sits outside the vine — but for capital it is the opposite
+    case.</b> The vine's root is the storm track, and cold is the one weather axis the
+    vine does not carry: the correlation between a district's escape-of-water expected
+    loss and its four-peril catastrophe expected loss is <b>0.15</b> — the
+    frost map is close to an inversion of the storm map, so this peril re-ranks the
+    book more than any other addition. But a hard national freeze <i>is</i> genuinely
+    systemic: winter 2010 pushed around 103,000 burst-pipe claims (£680m) through in
+    six weeks, roughly doubling that year's escape-of-water bill. The factor loading is
+    solved against exactly that observation — a 1-in-100 freeze year costs about twice
+    the mean — which makes it twenty times theft's loading. Escape of water therefore
+    pays a real, if small, capital charge where theft pays almost none.</p>
+    <p class="note">The same dilution note as theft's applies, at larger scale: adding
+    ~£42.39 of weather-independent expected loss grows the premium denominator, so
+    percentage-of-premium figures — the dependence uplift, the climate-scenario
+    uplift — fall again without any change to the flood or climate modelling.</p>
+
+    <h3 id="fire">Fire — the strongest geography of the attritional four</h3>
+    <p>Fire is the opposite data problem to escape of water: the ABI no longer
+    publishes a domestic fire total at all (recent releases fold it into an
+    aggregate and say only that fire payouts "declined"), but the geography is
+    the best of any non-weather peril. The level is therefore a documented
+    triangle: <b>31,001 attended dwelling fires</b> across Great Britain in
+    2024/25 (Home Office FIRE0201) give a frequency of ~0.20% per policy; the
+    ABI's average fire payout (£10,200–£11,000, of ~2019 vintage, indexed for
+    claims inflation to ~£14,000) gives severity; together <b>~£434m a
+    year</b> — about 13% of what all home claims cost, consistent with the
+    remainder once every published per-peril total is subtracted. The
+    weakest leg of that triangle is the undated severity quote, and the
+    methodology says so rather than pretending otherwise.</p>
+    <p>The geography comes from incident-level open data: 33,696
+    dwelling fires a year located to <b>LSOA level in England</b> (eight
+    complete years of the Home Office low-level-geography dataset,
+    reconciling with the national FIRE0201 totals to the exact incident),
+    council level in Scotland and fire-authority level in Wales, apportioned
+    to postcode districts through the same ONS lookup the household counts
+    use. Expected loss runs from <b>£4</b> (DN39) to
+    <b>£144</b> (W1J) per policy around a mean of
+    <b>£28.00</b> — a wider real spread than theft or escape of water,
+    with Glasgow's peripheral estates and dense urban cores at the top and
+    rural districts at a fifth of the mean. Rates are winsorised at the
+    exposure-weighted 99.9th percentile (0.56% of households a
+    year; 28 districts sit at the cap), the same
+    tiny-denominator backstop theft keeps.</p>
+    <p><b>Fire buys no capital at all.</b> Forty-five years of national
+    counts show a steady secular decline with year-to-year residuals of
+    ±2–3%: there are no systemic fire years in the record (even the 2022
+    heatwave summer barely registers at annual grain), so the factor loading
+    comes out effectively zero and fire prices as pure expected loss — the
+    purest diversifier in the book. Correlation with the four-peril
+    catastrophe expected loss: <b>0.27</b>. The severity sigma
+    is 1.3, the heaviest tail of the attritional perils (~2% of claims above
+    £100k), which the analytic expected-loss identity absorbs exactly as for
+    theft and escape of water.</p>
+    <p class="note">The dilution note applies a third time: ~£28.00
+    more weather-independent expected loss in the denominator pulls every
+    percentage-of-premium figure down again — nothing about the flood or
+    climate modelling changed.</p>
+
+    <h3 id="ad">Accidental damage — the peril with no published total, ever</h3>
+    <p>Accidental damage completes the attritional four, and it is the extreme
+    case of fire's data problem: no UK body has <b>ever</b> published a domestic
+    AD payout total — not the ABI, not anyone. The level is therefore a triangle
+    with every leg documented: the ABI's <b>560,000</b> home claims settled in
+    2025; an at-home AD share of <b>24.5%</b> of those claims (a published
+    claims-mix table: 23.4% accidental damage at home plus 1.2% accidental loss
+    at home — the 6.5% <i>away-from-home</i> slice is deliberately excluded,
+    because that is personal-possessions cover, not the buildings-and-contents
+    policy this models); and Aviva's average AD payout, interpolated to
+    <b>£1,650</b> for 2025 from its published £1,148 (2022) and £1,869 (2026)
+    figures. Together: ~137,000 claims, 0.89% per policy, <b>~£227m a
+    year</b>. The cross-check is that two independent books agree on the
+    overall share — Aviva reports AD as 32% of its home claims, the
+    claims-mix table sums to 31%. The weakest leg is the severity
+    interpolation between two press-release vintages, and the methodology
+    says so.</p>
+    <p>The geography is deliberately the gentlest in the book. The only
+    demographic driver any insurer has published is Aviva's: children cause
+    <b>8%</b> of its accidental-damage claims. So the rate is
+    a flat base plus an 8% slice scaled by each district's
+    census share of households with dependent children — Census 2021 at LSOA
+    level for England &amp; Wales, Scotland's Census 2022 at output-area
+    level, 27.3m households conserved through the postcode joins. That share
+    runs from 27% of households (CF43) to
+    18% (SW1X), so expected loss runs only from
+    <b>£10</b> to <b>£28</b> per policy around a mean of
+    <b>£14.65</b> — a driver that moves 8% of claims
+    cannot honestly move the rate more than that. No winsorisation is
+    needed: a share of households is bounded by construction, and its
+    denominator is the same census the exposure weights come from.</p>
+    <p><b>Accidental damage buys no capital at all.</b> Its systemic ceiling
+    comes from the cleanest natural experiment on record: the 2020–21
+    lockdowns put the whole country at home for months — the largest
+    behavioural shock UK housing has had — and home AD claim declarations
+    moved by about <b>6%</b>. (The widely quoted "+39% accidental damage
+    after lockdown" is <i>motor</i> insurance, a trap documented in
+    DATA_SOURCES.md.) A 6% worst-shock pins the factor loading at
+    <b>0.012%</b>, effectively zero, so AD prices as pure expected loss.
+    Correlation with the four-peril catastrophe expected loss:
+    <b>0.49</b>. The severity sigma is 0.90, the narrowest tail
+    of the attritional perils (~0.7% of claims above £10,000): dropped
+    televisions and stained carpets cluster tightly around the mean.</p>
+    <p class="note">The dilution note applies a fourth and final time:
+    ~£14.65 more weather-independent expected loss in the denominator
+    pulls every percentage-of-premium figure down once more — nothing about
+    the flood or climate modelling changed.</p>
+  </section>
+
+
+  <section class="doc" id="cover">
+    <h2>Buildings or contents? Only where something says so</h2>
+    <p>A real policy has two sections — <b>buildings</b> (the structure:
+    walls, roof, fitted kitchen, foundations) and <b>contents</b> (what
+    you would take with you). Every figure elsewhere on this site is the
+    two combined. Splitting them is worth doing, and this model splits
+    only the part that a published source can settle.</p>
+
+    <p>The split is <b>per peril</b>, and that is the honest unit: a
+    subsidence claim is nearly all structure, a burglary is nearly all
+    stolen goods. Five of the eight perils have an anchor for that ratio.
+    <b>Three do not, and they are 44.3% of claim
+    cost.</b> Those three are left named and blank rather than filled in
+    with a guess.</p>
+
+    <div class="tablewrap">
+      <table class="data">
+        <thead><tr>
+          <th>risk type</th><th class="num">£/policy/yr</th>
+          <th class="num">% of cost</th><th class="num">buildings</th>
+          <th class="num">£ buildings</th><th class="num">£ contents</th>
+        </tr></thead>
+        <tbody>
+        <tr><td><strong>escape of water</strong></td><td class="num">£42.39</td><td class="num">25.8%</td><td class="num">—</td><td class="num" colspan="2"><em>no anchor</em></td></tr>
+        <tr><td><strong>fire</strong></td><td class="num">£28.00</td><td class="num">17.1%</td><td class="num">78%</td><td class="num">£21.84</td><td class="num">£6.16</td></tr>
+        <tr><td><strong>theft</strong></td><td class="num">£22.04</td><td class="num">13.4%</td><td class="num">24%</td><td class="num">£5.33</td><td class="num">£16.71</td></tr>
+        <tr><td><strong>flood</strong></td><td class="num">£20.13</td><td class="num">12.3%</td><td class="num">48%</td><td class="num">£9.66</td><td class="num">£10.47</td></tr>
+        <tr><td><strong>subsidence</strong></td><td class="num">£19.81</td><td class="num">12.1%</td><td class="num">100%</td><td class="num">£19.81</td><td class="num">£0.00</td></tr>
+        <tr><td><strong>weather</strong></td><td class="num">£15.74</td><td class="num">9.6%</td><td class="num">—</td><td class="num" colspan="2"><em>no anchor</em></td></tr>
+        <tr><td><strong>accidental damage</strong></td><td class="num">£14.65</td><td class="num">8.9%</td><td class="num">—</td><td class="num" colspan="2"><em>no anchor</em></td></tr>
+        <tr><td><strong>groundwater</strong></td><td class="num">£1.46</td><td class="num">0.9%</td><td class="num">48%</td><td class="num">£0.70</td><td class="num">£0.76</td></tr>
+        <tr class="sub"><td><strong>anchored subtotal</strong></td><td class="num"><strong>£91.44</strong></td><td class="num"><strong>55.7%</strong></td><td class="num"><strong>63%</strong></td><td class="num"><strong>£57.34</strong></td><td class="num"><strong>£34.09</strong></td></tr>
+        <tr class="sub"><td><strong>not split</strong></td><td class="num"><strong>£72.77</strong></td><td class="num"><strong>44.3%</strong></td><td class="num" colspan="3"><em>named and left blank</em></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note">Anchors, all in
+    <a href="https://github.com/SMcode-source/uk-home-insurance-risk-map/blob/main/DATA_SOURCES.md">DATA_SOURCES</a> #31:
+    theft from the ONS Crime Survey's nature-of-crime tables (damage to
+    doors, windows and frames is 24.2% of burglary cost, the rest being
+    the goods); fire from the Home Office's <i>Economic and social cost
+    of fire</i>; subsidence at ~100% because it damages foundations and
+    walls and contents are excluded in every policy wording checked;
+    flood at 48% from the Multi-Coloured Manual's depth-damage curves;
+    groundwater on the same curves, being the same water in the same
+    dwelling.</p>
+
+    <h3>Why there is no total row</h3>
+    <p>Because it would be an opinion. Send the unanchored
+    44.3% all one way and the portfolio is
+    <b>34.9% buildings</b>; send it the other and it is
+    <b>79.2%</b>. That is a band tens of points wide, and a
+    band that wide is not a number — publishing its midpoint would be
+    inventing the answer rather than measuring it. The anchored
+    55.7% of claim cost comes out
+    <b>63% buildings</b>, and that figure is real because
+    every input to it is published.</p>
+
+    <p>The gap is not evenly spread, either. <b>Escape of water alone is
+    25.8% of claim cost with no anchor at all</b> — more
+    than the entire spread between the three contradictory flood
+    conventions the literature offers. Anyone extending this should go
+    at escape of water and ignore everything else.</p>
+
+    <p class="note">The model can also split each district's capital
+    charge between the two covers, and does so exactly — buildings and
+    contents earn different diversification credits, so it is a real
+    calculation rather than a pro-rata carve-up. It is deliberately not
+    published: a per-district pounds split would need all eight
+    fractions, and three of them do not exist.</p>
+  </section>
+  <section class="doc" id="erosion">
+    <h2>Coastal erosion: modelled, not priced</h2>
+    <p>The model carries one further peril, <b style="color:var(--er)">coastal erosion</b>, from
+    the Environment Agency's <b>NCERM National 2024</b> mapping of ~7,500 stretches of the
+    English coast and, since 3 September 2026, from NatureScot's
+    <a href="https://www.dynamiccoast.com/">Dynamic Coast</a> phase 2 for Scotland. It is in
+    the vine, and it is deliberately <b>not in the premium</b>.</p>
+
+    <h3>Why it is excluded from the premium</h3>
+    <p>Gradual coastal erosion is not covered by standard UK household policies. Pricing it
+    as an insured loss would charge for something no policy pays — and it would quietly
+    wreck the rating, because erosion is a <em>total</em> loss of the property rather than a
+    repair, so wherever it bites it dwarfs every other peril. It is carried instead as
+    <b>blight and valuation exposure</b>: the thing that actually drives mortgage and
+    insurability decisions on an eroding coast.</p>
+
+    <h3>Why it is still in the copula</h3>
+    <p>Erosion is storm-driven — cliffs and beaches retreat in a handful of surge events,
+    not on calm days. So it belongs in the dependence structure whether or not it is priced.
+    It enters as a fifth vine dimension with a Gumbel pair to weather, and, conditional on
+    weather, the <b>strongest</b> of the second-tree pairs to flood (ρ = 0.35): coastal
+    flooding and coastal erosion are driven by the same storms.</p>
+
+    <h3>Defences are most of the story</h3>
+    <p>NCERM publishes two policy scenarios — the adopted <b>Shoreline Management Plan</b>
+    (defences maintained as planned) and <b>No Further Intervention</b> (defences allowed to
+    lapse). The gap between them is the clearest result here: nationally the adopted plans
+    hold the 2105 land loss to <b>250 km²</b> against <b>435 km²</b> undefended, and several
+    major seafronts — Blackpool, Eastbourne, Bognor, Crosby — fall from substantial
+    unmanaged erosion to <b>exactly zero</b> under their "hold the line" plans. Where the
+    defences are not there, the fastest-eroding coastline in Europe shows up as you would
+    expect: Hornsea and Withernsea on Holderness lead, then Southwold on the Suffolk
+    coast.</p>
+
+    <h3>Scotland: a second source, and not the same measurement</h3>
+    <p>Until 3 September 2026 every Scottish district scored <b>exactly zero</b> here,
+    because NCERM stops at the English border. It now takes
+    <b>Dynamic Coast phase 2</b> instead — NatureScot's FutureCoast projections, open under
+    OGL — which puts <b>80 km²</b> of Scottish land inside the 2100
+    erosion zone across <b>179</b> districts, worst
+    <b>AB23</b> at 1.9% of its area.</p>
+    <p>The two sources are <b>not the same measurement</b>, and the model says so per
+    district in the <code>er_basis</code> column rather than blending them into one number
+    that hides it. Three differences, in descending order of how much they matter:</p>
+    <ul>
+      <li><b>Management.</b> NCERM publishes the pair above — defences maintained against
+      defences abandoned. Dynamic Coast publishes one case: <em>"do nothing"</em> meaning no
+      new intervention, with existing defences standing and capping retreat at 25 m where
+      they exist. That is much nearer NCERM's SMP than its NFI, but it is one point on an
+      axis England resolves into two — so Scotland has <b>no</b> unmanaged worst case here,
+      and its <code>er_nfi</code> columns are empty rather than zero.</li>
+      <li><b>Climate.</b> England is priced on the 70th-percentile allowance. Scotland's
+      ladder is RCP2.6 and RCP8.5 at the 95th percentile, a
+      <b>2.5×</b> spread with no central rung, so the headline takes
+      RCP8.5 — the nearer of the two to England's central case, on England's own numbers.</li>
+      <li><b>Horizon.</b> 2105 in England, 2100 in Scotland, both annualised over the same
+      80 years. Dynamic Coast also baselines at 2020 rather than 2025, which dilutes the
+      Scottish annual rate by about 6%. Left in rather than corrected: a second horizon
+      constant would buy precision an unpriced peril does not justify.</li>
+    </ul>
+    <p><b>Wales still has no projection of its own</b>, and its zero is still not a real
+    one. Three border districts are the exception and not a Welsh source: NCERM's Severn
+    and Dee frontages cross into Chepstow, Monmouth and Deeside, so those three carry a
+    trace figure while the whole Welsh coast proper reads zero. Natural Resources Wales
+    publishes shoreline management plan <em>policies</em> but no projected shoreline
+    geometry, so there is nothing to build a Welsh erosion extent from. Northern Ireland
+    does not arise: the boundary set is GB-only.</p>
+
+    <h3>What the numbers assume</h3>
+    <p>A property inside the strip projected to be lost by the horizon is lost within it,
+    so the annual hazard is the district's zone fraction spread over 80 years, at a
+    sum-insured severity. Two assumptions are worth stating plainly: households are taken as
+    spread evenly across the district, when coastal populations in fact cluster towards the
+    shore — so this if anything <em>understates</em> it — and the realistic scenario is the
+    one used for the peril itself, SMP in England and the single Dynamic Coast case in
+    Scotland.</p>
+    <p class="note">Erosion is also absent from the good-vs-bad-years view, and from the
+    capital allocation. It is a chronic process, not an event: including it would add a
+    near-constant charge to every simulated year and blur exactly the contrast that view
+    exists to show.</p>
+  </section>
+
+  <section class="doc" id="climate">
+    <h2>What climate change does to the premium</h2>
+    <p>The Environment Agency publishes a climate-change edition of the two flood products
+    this model already uses. Running the model again on those extents — with the calibration
+    held <b>fixed</b>, so nothing moves except the hazard map — gives a per-district
+    repricing.</p>
+
+    <h3>Why the matched pair matters</h3>
+    <p>Comparing two differently derived products would mix a <i>method</i> change in
+    with the <i>climate</i> change and produce a number that looks fine and means nothing.
+    England's rivers and sea read NaFRA2 <code>rofrs_4band</code>; its climate sibling
+    <code>rofrs_cc01_4band</code> is the same product, legend and resolution. That is the
+    pair used. Where the climate edition is not published (about 2% of English postcodes:
+    the fens, the Somerset Levels, the Lincolnshire coast) a postcode keeps its present-day
+    band, so those places show no uplift rather than a fall to zero.</p>
+
+    <h3>Three things it is not</h3>
+    <ul style="color:var(--ink-2); font-size:14px; line-height:1.7">
+      <li><b>Not a forecast.</b> It is the EA's climate allowance scenario. Read it as
+      "if the flood map looked like this", not "this will happen".</li>
+      <li><b>Nearly, not strictly, an uplift.</b> Each future layer is a separate EA model
+      run, so it need not contain the present one. <b>70 districts
+      (3.4%)</b> see their share of homes in the river/sea high band fall,
+      worst -1.3pp; <b>54 districts</b> fall for surface
+      water. Where no climate band is published, the present-day band is carried: an
+      understatement there, not a fall.</li>
+      <li><b>Not national.</b> Neither NRW nor SEPA publishes an equivalent, so Wales and
+      Scotland are not modelled at all. The headline is quoted over covered districts; a
+      national average would dilute it with two countries that cannot move.</li>
+    </ul>
+
+    <div class="callout" style="margin:16px 0">Over the <b>2,087</b> districts the EA
+    models, holding the calibration fixed and moving only the flood map changes the
+    exposure-weighted technical premium by <b>+4%</b>. The hardest-hit district
+    is <b>DN32</b> at <b>+82%</b>. Averaged over England's districts,
+    the share of a district's homes (unit postcodes) in the river/sea high band (&ge;1% a year) grows
+    <b>+61.5%</b> and inside the surface-water ≥1% AEP zone
+    <b>+41.4%</b>.</div>
+
+    <h3>Holding the calibration still</h3>
+    <p>Two normalisations had to be pinned to the present day rather than recomputed, or the
+    exercise would have measured nothing. The depth severity multipliers are normalised to a
+    mean of 1.0 per claim — recomputing that on the future data would divide out
+    exactly the "water gets deeper everywhere" signal. The flood score is anchored to the
+    95th percentile of the <i>present-day</i> index for the same reason. Both runs also
+    share their random draws, so the comparison is paired rather than two independent
+    simulations differenced.</p>
+  </section>
+
+  <section class="doc" id="vine">
+    <h2>The vine copula</h2>
+    <p>A single multivariate distribution would force one dependence shape on all five
+    perils. A <b>vine</b> (pair-copula construction) instead builds the joint distribution
+    from bivariate pieces, so each pair gets the dependence structure it deserves. This is a
+    <b>C-vine with weather at the root</b>, because weather is the common driver: storms bring
+    the rain that floods rivers and recharges aquifers, the same climate variability
+    produces the droughts that shrink clay, and the same surges strip the coast.
+    <b>Theft, escape of water, fire and accidental damage are deliberately not vine
+    dimensions</b>: burglary has no meteorological driver, burst pipes answer to cold
+    — the one weather axis a storm-rooted vine does not carry — dwelling fires follow
+    deprivation and dwelling type, not the storm track, and accidental damage follows
+    the household itself. All four are simulated as independent legs
+    alongside the vine, with their systemic behaviour handled by factor loadings
+    instead — see <a href="#theft">the theft section</a>,
+    <a href="#eow">the escape-of-water section</a>,
+    <a href="#fire">the fire section</a> and
+    <a href="#ad">the accidental-damage section</a>.</p>
+
+    <div class="diagram-card">
+      <!-- Three panels, one per tree, so they can sit in a row on a wide
+           screen and STACK on a phone. As one 860-unit SVG this scaled its
+           type to ~34% at phone width — unreadable, and exactly the bug the
+           year charts had. The wrapper carries the accessible name; the
+           panels are presentational parts of it. -->
+      <div class="vine-row" role="img" aria-label="Five-dimensional C-vine structure: tree 1 has weather at the root with Gumbel pairs to flood, subsidence, groundwater and erosion; tree 2 has conditional Gaussian pairs from flood given weather to subsidence, erosion and groundwater; tree 3 is independence">
+        <svg class="vine-t1" viewBox="0 0 270 210" aria-hidden="true" focusable="false">
+          <text class="tree-title" x="8" y="16">TREE 1 — unconditional</text>
+          <line x1="122" y1="112" x2="122" y2="52" stroke="var(--axis)" stroke-width="1.5"/>
+          <line x1="122" y1="112" x2="122" y2="172" stroke="var(--axis)" stroke-width="1.5"/>
+          <line x1="122" y1="112" x2="54" y2="112" stroke="var(--axis)" stroke-width="1.5"/>
+          <line x1="122" y1="112" x2="190" y2="112" stroke="var(--axis)" stroke-width="1.5"/>
+          <circle cx="122" cy="112" r="25" fill="var(--wx)"/>
+          <text class="node-label" x="122" y="116" text-anchor="middle" fill="#fff">W</text>
+          <circle cx="122" cy="45" r="19" fill="var(--fl)"/>
+          <text class="node-label" x="122" y="49" text-anchor="middle" fill="#fff">F</text>
+          <circle cx="122" cy="179" r="19" fill="var(--gw)"/>
+          <text class="node-label" x="122" y="183" text-anchor="middle" fill="#fff">G</text>
+          <circle cx="197" cy="112" r="19" fill="var(--sub)"/>
+          <text class="node-label" x="197" y="116" text-anchor="middle" fill="#fff">S</text>
+          <circle cx="47" cy="112" r="19" fill="var(--er)"/>
+          <text class="node-label" x="47" y="116" text-anchor="middle" fill="#fff">E</text>
+          <text class="edge-label" x="132" y="80">θ≤3.0</text>
+          <text class="edge-label" x="132" y="152">θ≤2.4</text>
+          <text class="edge-label" x="152" y="104">θ≤2.5</text>
+          <text class="edge-label" x="62" y="104">θ≤2.6</text>
+          <text class="edge-label" x="8" y="196">all Gumbel</text>
+        </svg>
+        <svg class="vine-t2" viewBox="0 0 386 210" aria-hidden="true" focusable="false">
+          <text class="tree-title" x="22" y="16">TREE 2 — given weather</text>
+          <line x1="122" y1="112" x2="122" y2="176" stroke="var(--axis)" stroke-width="1.5"/>
+          <line x1="122" y1="112" x2="270" y2="52" stroke="var(--axis)" stroke-width="1.5"/>
+          <line x1="122" y1="112" x2="270" y2="140" stroke="var(--axis)" stroke-width="1.5"/>
+          <ellipse cx="122" cy="112" rx="44" ry="20" fill="var(--fl)"/>
+          <text class="node-label" x="122" y="116" text-anchor="middle" fill="#fff">F | W</text>
+          <ellipse cx="122" cy="180" rx="44" ry="20" fill="var(--gw)"/>
+          <text class="node-label" x="122" y="184" text-anchor="middle" fill="#fff">G | W</text>
+          <ellipse cx="304" cy="46" rx="44" ry="20" fill="var(--sub)"/>
+          <text class="node-label" x="304" y="50" text-anchor="middle" fill="#fff">S | W</text>
+          <ellipse cx="304" cy="146" rx="44" ry="20" fill="var(--er)"/>
+          <text class="node-label" x="304" y="150" text-anchor="middle" fill="#fff">E | W</text>
+          <text class="edge-label" x="130" y="152">ρ = 0.25</text>
+          <text class="edge-label" x="178" y="70">ρ = 0.15</text>
+          <text class="edge-label" x="178" y="140">ρ = 0.35</text>
+          <text class="edge-label" x="22" y="196">all Gaussian</text>
+        </svg>
+        <svg class="vine-t3" viewBox="0 0 204 210" aria-hidden="true" focusable="false">
+          <text class="tree-title" x="22" y="16">TREE 3</text>
+          <ellipse cx="106" cy="100" rx="82" ry="21" fill="var(--surface-2)" stroke="var(--border)"/>
+          <text class="node-label" x="106" y="104" text-anchor="middle">G, S, E | W, F</text>
+          <text class="edge-label" x="106" y="142" text-anchor="middle">independence</text>
+          <text class="edge-label" x="106" y="161" text-anchor="middle">— nothing left to link</text>
+        </svg>
+      </div>
+    </div>
+
+    <p><b>Why Gumbel in tree 1.</b> The Gumbel copula has <i>upper-tail dependence</i>: as one
+    peril goes to its extreme, the probability the other does too stays positive. That is
+    exactly the behaviour of a bad UK winter. Its tail-dependence coefficient is</p>
+    <div class="formula">λᵤ = 2 − 2<sup>1/θ</sup>   ·   Kendall τ = 1 − 1/θ</div>
+    <p>and θ is not a constant — it rises with both districts' exposures, so a district that
+    is both storm-exposed and flood-exposed gets a stronger joint tail than one that is
+    neither:</p>
+    <div class="formula">θ<sub>WF</sub> = 1.40 + 1.60·√(s<sub>wx</sub>·s<sub>fl</sub>)      θ<sub>WG</sub> = 1.30 + 1.10·√(s<sub>wx</sub>·s<sub>gw</sub>)      θ<sub>WS</sub> = 1.25 + 1.25·√(s<sub>wx</sub>·s<sub>sub</sub>)      θ<sub>WE</sub> = 1.35 + 1.30·√(s<sub>wx</sub>·s<sub>er</sub>)</div>
+    <p><b>Why flood–erosion is the strongest tree-2 pair.</b> Once weather is accounted for,
+    what is left linking two perils is whatever they share beyond general storminess.
+    Coastal flooding and coastal erosion share the specific thing that matters — the storm
+    surge — so their residual link (ρ = 0.35) is set above flood–groundwater (0.25) and
+    flood–subsidence (0.15). A test asserts the sampler actually reproduces that ordering.</p>
+    <p><b>Sampling.</b> The root pair (weather, flood) is drawn by Marshall–Olkin sampling
+    with a positive-stable frailty; the remaining margins are recovered by inverting the
+    conditional distribution (h-function) — closed form for the Gaussian pairs in tree 2,
+    numeric bisection for the Gumbel pairs in tree 1. Common random numbers are used
+    throughout, so scenario comparisons differ only by the assumption being tested. Two
+    comparators run alongside every simulation: a <b>5-dimensional Gaussian copula</b> matched
+    pairwise to the same rank correlations (dependence without tail dependence) and a full
+    <b>independence</b> run.</p>
+  </section>
+
+  <section class="doc" id="calibration">
+    <h2>Calibration — anchoring to published UK aggregates</h2>
+    <p>The hazard data decides which districts are riskier than which. It says nothing
+    about how much a claim costs, so each peril's loss level is anchored to what the ABI
+    publishes for that peril in the UK domestic market.</p>
+
+    <div class="tablewrap" style="margin:16px 0">
+      <table class="data">
+        <tr><th>Peril</th><th class="num">Paid, 2025</th><th class="num">Average claim</th>
+            <th class="num">Implied claims</th><th class="num">Frequency</th></tr>
+        <tr><td><strong style="color:var(--wx)">Storm</strong></td><td class="num">£244m</td>
+            <td class="num">£2,450</td><td class="num">~99,600</td><td class="num">0.643%</td></tr>
+        <tr><td><strong style="color:var(--fl)">Flood</strong></td><td class="num">£312m</td>
+            <td class="num">£30,000</td><td class="num">~10,400</td><td class="num">0.0671%</td></tr>
+        <tr><td><strong style="color:var(--sub)">Subsidence</strong></td><td class="num">£307m</td>
+            <td class="num">£17,264</td><td class="num">~17,800</td><td class="num">0.115%</td></tr>
+        <tr><td><strong style="color:var(--gw)">Groundwater</strong></td><td class="num">—</td>
+            <td class="num">£20,000</td><td class="num">—</td><td class="num">pegged at 10% of flood</td></tr>
+        <tr><td><strong style="color:var(--th)">Theft</strong></td><td class="num">£342m <small>(envelope floor)</small></td>
+            <td class="num">£3,800</td><td class="num">~89,900</td><td class="num">0.580%</td></tr>
+        <tr><td><strong style="color:var(--eow)">Escape of water</strong></td><td class="num">~£657m <small>(£1.8m/day)</small></td>
+            <td class="num">£4,000</td><td class="num">~164,000</td><td class="num">1.06%</td></tr>
+        <tr><td><strong style="color:var(--fire)">Fire</strong></td><td class="num">~£434m <small>(triangle)</small></td>
+            <td class="num">£14,000</td><td class="num">~31,000</td><td class="num">0.200%</td></tr>
+        <tr><td><strong style="color:var(--ad)">Accidental damage</strong></td><td class="num">~£227m <small>(triangle)</small></td>
+            <td class="num">£1,650</td><td class="num">~138,000</td><td class="num">0.888%</td></tr>
+      </table>
+    </div>
+    <p class="note">Over ~15.5m policies (ABI premium-tracker coverage), these eight perils
+    come to <b>£164</b> per policy per year — <b>75%</b> of the
+    £219 that all home claims cost. Groundwater is not reported separately by the ABI, so
+    it is a documented assumption rather than a calibration. Theft has no current published
+    total at all: the ABI's last theft-specific figure is 2018's £450m and its
+    £3,800 average claim is present-day, so pairing them implies 0.97–0.76%
+    of policies against ~0.58% if claims fell with recorded burglary. That 0.58–0.97%
+    spread is the documented envelope on theft's LEVEL, and the model sits at its
+    <b>floor</b> — £342m, i.e. 0.58% × 15.5m × £3,800 — because
+    theft was otherwise carrying the whole of the model's claim-count overshoot. Escape of water has no single published total either: its £657m is the
+    ABI's rolling <b>"£1.8m a day"</b> figure, and the £4,000 average follows from
+    escape-of-water's ~29% share of 2025's 560,000 home claims — three independent public
+    numbers that close into one self-consistent triangle, which is the cross-check. Fire
+    has <b>no published total at all</b>: its £434m is claim counts the fire services
+    actually attended times the ABI's average payout, sanity-checked against the
+    remainder of the £3.4bn all-claims total — the same triangle discipline, with the
+    <a href="#fire">weak leg named</a>. Accidental damage has never had one: its £227m
+    is the ABI claim count times the market's at-home AD share times Aviva's average
+    payout — a <a href="#ad">third documented triangle</a>, cross-checked by two
+    independent books agreeing on AD's share of all home claims.</p>
+
+    <div class="callout" style="margin:16px 0"><b>These are eight-peril premiums, not home
+    insurance premiums.</b> A real policy also carries expenses,
+    commission and profit. Expect the numbers here to be a fraction of what you actually
+    pay, and don't compare them directly.</div>
+
+    <h3>What is fitted, and what isn't</h3>
+    <p>What <i>is</i> fitted: one frequency multiplier per peril, so each peril's national
+    claim count matches the published figure, and severity distributions whose <i>means</i>
+    are the published average claims. The national loss level is therefore correct by
+    construction — which is the point, since a level that is wrong by a factor of several
+    makes every downstream number meaningless.</p>
+    <p>What is <b>not</b> fitted, and is where the model actually earns its keep:</p>
+    <ul style="color:var(--ink-2); font-size:14px; line-height:1.7">
+      <li>the <b>geography</b> — which districts carry that national total, driven entirely
+      by BGS geology, Met Office climate and the agencies' flood maps;</li>
+      <li>the <b>dependence</b> — how the perils co-occur, and what that does to the tail;</li>
+      <li>the <b>spread</b> of frequency and severity within each peril.</li>
+    </ul>
+    <p>An earlier version of this page calibrated to the all-claims figures instead
+    (560,000 claims, 3.6% frequency). That was wrong: most of those claims are the
+    attritional perils — escape of water and theft — so scaling four catastrophe perils
+    up to that frequency while applying catastrophe severities overstated the loss cost
+    by about 77%. The per-peril anchors above replace it, and the attritional perils now
+    carry their own anchors with their own (much cheaper) severities.</p>
+
+    <h3>How national is a bad year?</h3>
+    <p>The portfolio view needs one more anchor: how widely claims spread in a bad year.
+    An early version assumed strongly correlated districts and produced catastrophic years
+    in which nearly half of the country claimed at once — around ten times anything in the
+    record. The spatial loading is now solved so that a 1-in-100 year has roughly
+    <b>twice</b> the claim frequency of an average year, which is already generous next to
+    a record year like 2025.</p>
+    <div class="callout">The solved loading is <b>much weaker than assumed</b>, and that is
+    a result worth stating plainly: UK <i>weather</i> is strongly correlated across the
+    country, but UK <i>claims</i> are not. A storm crosses every county; only a small and
+    weakly correlated fraction of homes end up claiming. Conflating the two is what makes a
+    catastrophe model overstate portfolio risk.</div>
+
+    <h3>Exposure — districts are not the same size</h3>
+    <p>The ABI anchors are national totals, so the model's average has to be a
+    <i>national</i> average, which means weighting districts by how many homes they
+    actually contain. Croydon has about 56,000 households; plenty of rural districts have a
+    few hundred. Counting them equally would let sparse geography outvote the population.</p>
+    <p>Postcode districts aren't an ONS geography, so household counts are built up from
+    census small areas: <b>ONS Census 2021</b> households by LSOA for England and Wales,
+    mapped through the ONS postcode→small-area lookup (the outward half of a postcode
+    <i>is</i> the district, so no spatial join is needed), with each small area's households
+    shared between the postcodes inside it. Scotland's data zones don't join — the lookup
+    uses the 2011 vintage and the available census table the 2001 one — so Scotland's
+    <b>Census 2022</b> national total of 2,509,300 is spread across Scottish postcodes
+    instead. Only <b>live</b> postcodes count — ONSPD retains terminated ones, a third of
+    its rows, and apportioning households across them credited ~730,000 homes to addresses
+    that no longer exist until 2026-08-12. Total: <b>27.3m households across
+    2,866 districts</b>.</p>
+    <p>Everything downstream is exposure-weighted: the calibration average, the portfolio
+    loss in each simulated year, the tail that capital is held against, and the Euler
+    allocation.</p>
+
+    <h3>Capital is a portfolio quantity</h3>
+    <p>The earlier version charged each district 6% of <i>its own</i> 1-in-100 loss. That is
+    wrong in a way worth being explicit about: an insurer does not hold capital against each
+    policy's private worst year — those bad years mostly happen in different years and
+    offset. Capital is held against the portfolio, then allocated back. The model now uses
+    the standard <b>Euler allocation</b>:</p>
+    <div class="formula">TVaR<sub>i</sub> = E[ L<sub>i</sub> | L<sub>portfolio</sub> ≥ VaR₉₉(L<sub>portfolio</sub>) ]</div>
+    <p>Each district is charged for the loss it contributes <i>when the portfolio is having
+    a bad year</i>, not when it personally is. These allocations sum exactly to the
+    portfolio TVaR, so diversification is credited rather than ignored — which is why
+    premiums here are a fraction of what the standalone calculation produced.</p>
+
+    <h3>Averaging expectations, not accidents</h3>
+    <p>There is a trap hiding in that formula, and it took a seed test to find it. The
+    worst 1% of 20,000 simulated years is <b>200 draws</b>. At calibrated UK frequencies a
+    district claims in <b>one or two</b> of them. So averaging its <i>realised</i> loss over
+    that window is not measuring the district's risk — it is mostly measuring whether the
+    dice happened to land on it.</p>
+    <p>The symptom was unmistakable once looked for. Re-running with nothing changed but
+    the random seed, the allocation correlated just <b>0.49</b> with itself; and a <b>0.4%</b>
+    change in flood expected loss was enough to move one district <b>eight rating deciles</b>.
+    The published premium was substantially noise.</p>
+    <p>The fix costs nothing. The factor model already gives the claim probability in closed
+    form for any given year's systemic draw, so instead of averaging what happened, the
+    allocation averages what was <i>expected to</i> happen given that draw:</p>
+    <div class="formula">E[L<sub>i</sub> | year] = Φ( (√w·z − Φ⁻¹(1−p<sub>i</sub>)) / √(1−w) ) × E[severity<sub>i</sub>]</div>
+    <p>That removes the coin-flip entirely and keeps only the genuine year-to-year
+    variation. Seed-to-seed correlation goes from 0.49 to <b>0.9985</b> at full resolution.
+    It is exact rather than approximate, because the bad years are ranked by the same
+    smoothed quantity — so the choice of which years count depends only on the systemic
+    draws, and the tower property applies. A test now guards it.</p>
+    <p class="note">This is the same lesson as the deleted "copula uplift" layer, in a place
+    that mattered more: at these frequencies, any per-district Monte Carlo estimate of a
+    tail quantity is noise unless you condition on something.</p>
+  </section>
+
+  <section class="doc" id="dependence-effect">
+    <h2>So how much does the copula actually change?</h2>
+    <p>Worth asking bluntly of any model that spends this much effort on dependence. Once
+    frequencies are calibrated to real levels, the answer splits in two.</p>
+
+    <h3>First, what the copula is and is not joining</h3>
+    <p>The vine joins the <b>five perils of one district</b> — whether that home's bad
+    subsidence year is also its bad storm year. It says nothing about whether Croydon and
+    Hull flood in the <i>same</i> year. Dependence <i>across the map</i> is a
+    <b>separate mechanism</b>, a Gaussian factor model described under
+    <a href="#years">good years vs bad years</a>.</p>
+    <p>The two meet at one point: the vine draws <i>are</i> the systemic factors that model
+    mixes in. So the vine decides that a bad national storm year is also likely a bad flood
+    year, and the spatial loading decides how much of that reaches any particular district.
+    Keeping them apart is what lets each be calibrated against something real — the vine
+    against per-peril physics, the loading against how widely a 1-in-100 year claims.</p>
+
+    <h3>Where it can reach the price at all</h3>
+    <p>Only one place, and it is a small one. The technical premium is
+    <b>97% expected loss and 3% cost of capital</b>, and the
+    expected-loss part is <b>dependence-free by construction</b> — the mean of a sum is the
+    sum of the means whatever the copula does. So the entire effect of the dependence
+    structure on what a household pays runs through that 3% capital charge.</p>
+    <p>And that charge is an <i>aggregate</i> quantity, not a personal one: it is
+    <b>6% of the district's Euler-allocated share of the portfolio's</b> worst 1% of years,
+    not of its own. The gap is the whole point — a single policy's standalone TVaR₉₉ ran
+    <b>£10,100–£17,700</b> across 30 simulation seeds, while
+    its allocated share of the portfolio tail held at about <b>£261</b>, a
+    <b>98% diversification credit</b>. An earlier version charged 6% of
+    the standalone figure and inflated premiums roughly tenfold.</p>
+    <p class="note"><b>Why the first of those is a range and the other two are not.</b>
+    The standalone figure is the mean of each district's worst 200 years out of
+    20,000, and every district is simulated against the <i>same</i> draws — so its Monte
+    Carlo error is common to all 2,736 of them and does not average away. Across
+    30 seeds the national mean moved 57%, while the allocated
+    share moved 2.2%, the diversification credit stayed within
+    97.4–98.5%, and the premium moved 0.20%. Quoting one
+    standalone number would imply a precision the simulation does not have; the premium
+    map does not inherit the problem. The per-district <code>tvar99_vine</code> column in
+    the <a href="assets/uk_district_risk.csv">download</a> carries the same caveat.
+    Measured by <code>scripts/seed_sweep.py</code>.</p>
+    <div class="callout">So the copula is doing real work, but only where many policies are
+    added together. That is not a limitation of this implementation — it follows from the
+    frequencies. It is also why the two halves below say such different things.</div>
+    <p><b>For a single home, dependence transforms the rare case and barely touches the
+    typical one.</b> Modelling the perils jointly makes it <b>99 times</b> more
+    likely that one property suffers two or more perils in the same year — 0.12%
+    of years, against 0.0012% under independence. But at UK frequencies a home
+    claims on any of these perils in well under 1% of years, so its own 99% TVaR is
+    essentially "the average claim, if one happens" — a statistic almost blind to
+    dependence. Measured, the vine-versus-independence difference on a single policy's
+    TVaR₉₉ is <b>+3.1%, with a 95% bootstrap interval of -7.6% to +14.6%</b>:
+    indistinguishable from zero, exactly as it should be. The interval straddling zero is
+    the finding; the point estimate wanders between runs precisely because it is noise,
+    which is why nothing is priced off it.</p>
+    <div class="callout">This is why the map no longer carries a per-district "copula
+    uplift" layer. An earlier version did, at frequencies several times too high; at correct
+    frequencies that layer would have been drawing Monte Carlo noise across the country.
+    Removing it is the finding, not a retreat from it.</div>
+    <p><b>For the portfolio, it shows up where capital is set.</b> Aggregate over 2,736
+    districts and the rare joint events stop cancelling: catastrophic years cost
+    <b>4.6%</b> more under the vine than under independence. That is the number
+    that matters for solvency, and it is the reason the vine is here.</p>
+    <p class="note">Measured by <code>scripts/dependence_check.py</code>: 60 districts ×
+    400,000 simulated years, with a bootstrap interval on the TVaR comparison so the noise
+    is stated rather than assumed away.</p>
+  </section>
+
+  <section class="doc" id="tvar">
+    <h2>Why the risk measure is TVaR, not VaR</h2>
+    <p>This was a genuine surprise from the model, and it changed the headline numbers.</p>
+    <p>The first version priced on the 1-in-200 loss — the 99.5% Value-at-Risk — and the
+    "copula uplift" came out <i>negative</i> for most districts. Modelling dependence appeared
+    to <i>reduce</i> risk, which is nonsense.</p>
+    <p>It is not a bug. Claims here are rare and compound: flood strikes around 1% of years.
+    When perils are positively tail-dependent, their claims <b>coincide</b> — the same years get
+    hit several times over, and other years get nothing. That concentrates loss into fewer,
+    far worse years, pushing it <i>past</i> the 99.5% quantile. VaR only reads the height of the
+    quantile, not what lies beyond it, and it is famously not monotone with respect to
+    concordance ordering. Expected shortfall is.</p>
+    <div class="callout">Premiums and every dependence comparison therefore use
+    <b>TVaR 99%</b> — the mean of the worst 1% of years. The 1-in-200 VaR is still reported
+    in every district popup, so both views are visible.</div>
+    <div class="formula">technical premium = E[loss] + 6% × (TVaR₉₉ − E[loss])</div>
+    <p>Districts are then ranked on that premium and banded into deciles — rating groups 1
+    to 10.</p>
+  </section>
+
+  <section class="doc" id="years">
+    <h2>Good years vs bad years</h2>
+    <p>Pricing a district and describing a portfolio year are different questions, and they
+    need different spatial assumptions. The pricing simulation gives every district the same
+    random draws, which is right per district but degenerate as a portfolio view: it implies
+    every district floods in the same year and none in any other.</p>
+    <p>The year analysis therefore mixes in a <b>Gaussian factor model</b>. Each district's
+    draw combines the national systemic factor for that peril — which carries all of the
+    vine dependence — with district-level idiosyncratic noise:</p>
+    <div class="formula">u<sub>district</sub> = Φ( √w · Φ⁻¹(u<sub>systemic</sub>) + √(1−w) · ε )</div>
+    <p>The loading <b>w</b> sets how national each peril is: weather 50%, flood 40%,
+    subsidence 60%, groundwater 70% — storms, droughts and aquifer recharge are large-scale
+    phenomena, while flooding is more localised. Those base ratios are then scaled by a
+    single multiplier, solved analytically so that a 1-in-100 year claims twice as widely as
+    an average one. Theft's loading is far smaller — <b>0.13%</b> — and is derived rather
+    than assumed: at these frequencies the year-to-year spread of the national claim count
+    goes as <span style="white-space:nowrap">≈ 2.75·√w</span>, and the observed national
+    burglary series varies by ±10–15% a year, which pins w near 0.001. A "felt reasonable"
+    loading of 0.20 would have implied worst years with 8–14× average claims — nothing in
+    the crime record looks like that — and charged every policy ~£13 of phantom capital.
+    Escape of water's loading is derived the same way but from a very different record:
+    winter 2010's six-week freeze roughly <b>doubled</b> the year's burst-pipe bill, which
+    pins its loading at <b>2.6%</b> — twenty times theft's, and the reason escape of
+    water buys real capital where theft buys almost none. Fire's is derived from
+    forty-five years of Home Office dwelling-fire counts: once the secular decline is
+    removed, the residuals are ±2–3% a year with no spike years at all, which pins its
+    loading at <b>0.004%</b> — effectively zero, thirty times below even theft's.
+    Accidental damage's comes from a natural experiment: the 2020–21 lockdowns — the
+    hardest a behavioural peril can plausibly be shocked — moved home AD declarations
+    by only ~6%, which pins its loading at <b>0.012%</b>, the second-smallest in the
+    book. The four attritional perils thus span the whole loading spectrum, each
+    pinned by its own record rather than by assumption.</p>
+    <p>The transformation preserves each district's marginal distribution exactly, so
+    <b>expected loss is untouched</b> — bit-for-bit, whatever the loading. But it is not
+    cosmetic: <b>capital is allocated from the portfolio tail measured in this view</b>, so
+    the loading does move the cost-of-capital component. Raising it eightfold leaves every
+    expected loss unchanged while raising the capital charge fourfold and the premium by
+    about a fifth. That is precisely why the multiplier is calibrated against how widely a
+    bad year claims, rather than picked.</p>
+    <p><a href="years.html">See the resulting analysis →</a></p>
+  </section>
+
+  <section class="doc" id="sectors">
+    <h2>Two resolutions: districts and sectors</h2>
+    <p>The same model is published at two grains — <b>2,736 postcode districts</b>
+    (<a href="map.html">the map</a>) and <b>10,398 postcode sectors</b>
+    (<a href="sectors.html">the sector map</a>). Same perils, same C-vine, same ABI
+    calibration; only the unit of geography changes. Sectors matter because a district
+    can be large enough to average away the thing being priced: a river runs through
+    some of its sectors and not others.</p>
+
+    <h3>Where the sector boundaries come from</h3>
+    <p>They are <b>derived, not published</b>. Only Scotland releases postcode-sector
+    polygons; England &amp; Wales publish lookups. But a sector is a district plus one
+    inward digit, so sectors <i>nest</i> inside districts by definition — which turns one
+    national problem into 2,736 small independent ones. For each district we take its own
+    unit-postcode centroids (OS <b>Code-Point Open</b>, 1.75m live GB postcodes),
+    partition the district between them with a Voronoi diagram, and dissolve the cells by
+    sector digit. The result is an exact partition of every district, by construction.</p>
+
+    <p><b>How wrong is that?</b> Scotland is the one place the answer can be measured, so
+    we scored the derivation against the National Records of Scotland's official sector
+    polygons. Two numbers matter, and the gap between them is the honest one:</p>
+    <div class="formula">district-level IoU (boundary sets only) &nbsp; 0.689<br>
+    sector-level IoU (boundaries + derivation) &nbsp; 0.706</div>
+    <p>Sector agreement is <i>no worse</i> than district agreement, so the Voronoi step
+    adds no measurable error: essentially all the disagreement with NRS already exists in
+    the underlying district outlines, which this project has always used. (Those outlines
+    are community-maintained approximations — that is the number, now measured, behind the
+    boundary caveat below.) 82% of derived Scottish sectors exceed 0.5 IoU
+    against the official ones, 51% exceed 0.7.</p>
+
+    <h3>What the finer grain reveals</h3>
+    <p>Aggregating sector premiums back to their districts by household weight reproduces
+    the district model closely — <b>0.996 correlation</b>, exposure-weighted level
+    within <b>0.0%</b> — so this is the same model resolved more finely, not
+    a different one.
+    Within districts, though, it is not close at all:</p>
+    <div class="finding" style="margin:14px 0">
+      <div class="num">2%<small>of districts hide a &gt;2&times; premium spread</small></div>
+      <div>
+        <h3>One district, two very different risks</h3>
+        <p>Of the <b>2,248</b> districts holding more than one sector, the
+        median contains sectors whose technical premiums differ by
+        <b>1.25&times;</b>; in <b>52</b> of them the gap exceeds
+        twofold. The widest is <b>DN14</b> at <b>4.0&times;</b> —
+        £162 to £657 across 7 sectors.
+        The pattern is physical, not noise: the extremes are flood-led districts split by
+        a river or estuary (Maidenhead SL6, Leeds LS1 and LS7, Wells BA5, the Dee at CH64)
+        and subsidence-led ones split by a clay boundary (WV5, PO7, RG8, PE7). A single
+        district price charges both halves the average of a risk only one of them has.</p>
+      </div>
+    </div>
+
+    <h3>The climate scenario, and what averaging was hiding</h3>
+    <p>The EA's climate-change flood maps are sampled at the sectors' postcodes too, so
+    the sector map carries the climate repricing:
+    <b>+4.2%</b> exposure-weighted across the
+    <b>8,730</b> sectors the EA models, against <b>+4%</b> over
+    2,087 districts — the same national answer, as it should be.</p>
+    <p>The tails are not the same answer at all. The worst district is
+    <b>DN32</b> at <b>+82%</b>; the worst sector is
+    <b>ME4 3</b> at <b>+187%</b>. And where the
+    district model finds just <b>15</b> district whose flood risk falls
+    under the scenario, the sector model finds <b>225</b> sectors.
+    Those improvements are real — the EA's future run is a separate model, not a
+    uniform uplift — but at district resolution they are averaged against
+    worsening neighbours until they vanish. Climate change does not arrive
+    evenly across a postcode district, and a district-level map cannot show
+    that.</p>
+
+    <div class="diagram-card">
+      <div class="res-figure"><svg viewBox="0 0 330 389" role="img" aria-label="Districts">
+      <text class="panel-title" x="0" y="14">Districts</text>
+      <g clip-path="url(#frameclip)"><path d="M37.4 327.6L-38.3 329.5L-59.1 348.5L-95.1 352.4L-103.8 407.9L-98.2 412.5L-91.7 447.4L-52.3 440.8L-46.4 454.3L-36.4 459.6L-15.6 438.2L-10.7 444.6L-9.3 466.8L14.4 470.9L25.4 480.0L38.5 463.1L75.0 463.9L82.7 452.8L77.0 436.7L47.7 432.1L50.2 418.6L40.5 409.9L55.8 376.0L35.2 352.8L37.4 327.6Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M55.8 376.0L40.5 409.9L50.2 418.6L47.7 432.1L77.0 436.7L89.5 413.8L114.0 423.8L128.3 408.2L146.4 414.0L164.4 398.2L174.3 379.9L216.0 356.3L191.0 304.9L154.3 291.7L37.4 327.6L35.2 352.8L55.8 376.0Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M294.0 497.9L306.9 498.8L339.5 467.6L278.0 397.9L233.2 361.6L216.0 356.3L174.3 379.9L150.3 411.5L163.0 430.4L139.5 448.7L172.9 474.4L182.5 493.3L171.2 509.9L177.0 524.2L188.9 524.7L209.1 541.3L231.1 539.1L240.0 523.0L258.8 525.4L294.0 497.9Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M115.3 299.3L135.8 296.0L129.1 253.6L108.3 259.2L106.8 270.7L112.8 270.8L110.5 279.0L115.3 299.3Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M102.3 251.4L102.1 258.8L127.5 253.8L125.4 244.4L130.2 240.7L125.0 232.4L111.8 233.5L108.5 238.7L110.9 249.4L102.3 251.4Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M113.5 300.2L112.8 270.8L106.8 270.7L110.1 260.7L102.1 258.8L102.9 249.8L111.6 247.5L110.6 235.3L94.2 246.6L73.6 244.8L59.8 252.4L71.1 284.2L61.9 290.3L63.4 317.1L101.7 311.2L113.5 300.2Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M58.1 249.0L30.0 252.7L31.6 275.8L26.7 282.5L27.3 291.4L32.6 293.0L48.0 322.6L57.1 321.7L63.4 317.1L61.9 290.3L69.8 288.0L70.5 279.9L58.1 249.0Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M130.2 220.2L60.4 205.4L28.7 216.1L28.0 250.3L94.2 246.6L104.3 236.1L123.6 233.7L130.2 220.2Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M63.4 209.8L108.7 212.2L119.3 220.4L128.4 216.3L105.5 198.9L110.1 192.8L108.6 179.3L90.8 163.6L93.6 145.9L84.3 137.9L66.1 143.5L62.1 168.2L56.3 176.2L63.4 209.8Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M104.1 140.3L93.6 145.9L90.8 163.6L108.6 179.3L107.6 202.1L126.7 211.1L130.2 220.2L145.6 211.9L147.6 201.9L161.2 198.5L160.8 191.5L153.8 186.7L171.7 161.0L155.3 141.8L161.9 117.4L141.5 103.3L113.7 97.2L97.2 81.5L82.3 98.9L104.1 140.3Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M137.3 251.1L202.9 198.7L206.2 191.3L203.7 182.6L182.5 162.1L171.7 161.0L153.8 186.7L160.8 191.5L161.2 198.5L147.6 201.9L145.6 211.9L125.8 223.0L123.8 228.7L130.2 240.7L125.2 246.1L127.6 252.0L137.3 251.1Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M165.3 291.0L191.0 304.9L199.9 297.7L227.9 241.3L230.7 216.3L201.8 198.7L158.2 226.7L137.3 251.1L128.2 252.0L135.8 296.0L165.3 291.0Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M-32.4 217.4L-47.2 227.0L-50.4 236.5L-38.4 238.7L-34.5 244.6L-36.4 253.6L-11.0 271.6L31.6 275.8L29.1 264.9L32.2 257.0L26.4 237.0L28.7 216.1L-3.6 200.6L-24.2 201.0L-33.4 207.1L-32.4 217.4Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M162.4 119.2L155.3 141.8L164.3 154.7L186.7 165.1L203.7 182.6L204.7 201.1L230.7 216.3L241.5 217.6L272.6 193.4L295.0 192.4L315.7 172.3L335.5 190.4L354.7 184.7L363.6 157.1L362.7 146.0L383.3 135.3L397.0 175.4L414.6 179.9L429.7 205.0L446.9 203.7L480.7 161.8L381.7 13.3L323.0 31.4L321.6 12.4L295.5 -14.3L294.0 -25.9L279.8 -34.8L272.1 -25.4L263.4 -31.3L255.2 -52.9L271.5 -86.0L258.8 -97.7L241.1 -75.7L198.8 -76.9L188.1 -51.4L193.6 -35.3L179.3 -25.2L196.7 -11.7L213.6 13.1L192.9 21.8L161.9 2.0L129.1 8.3L133.9 21.0L129.1 30.7L130.5 57.7L143.9 62.8L146.6 79.8L141.5 103.3L162.4 119.2Z" fill="#f0efec" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M479.9 505.5L521.0 519.5L526.1 530.3L559.7 546.5L574.2 563.2L572.9 582.0L577.7 594.4L592.2 608.1L607.4 612.0L630.8 604.0L664.3 566.1L679.6 541.7L684.6 517.7L664.8 429.7L632.0 370.5L594.5 409.1L584.1 409.0L557.0 393.8L537.8 359.2L491.6 357.4L486.7 351.3L499.6 331.9L499.9 310.0L485.8 301.4L480.2 286.6L454.5 264.6L460.1 237.0L490.6 238.9L521.6 217.2L480.7 161.8L446.9 203.7L429.7 205.0L414.6 179.9L397.0 175.4L383.3 135.3L371.2 138.6L362.7 146.0L363.6 157.1L354.7 184.7L335.5 190.4L315.7 172.3L295.0 192.4L272.6 193.4L241.5 217.6L230.7 216.3L227.9 241.3L199.9 297.7L191.0 304.9L216.0 356.3L247.3 368.8L347.9 475.3L389.8 502.9L479.9 505.5Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M48.0 322.6L32.6 293.0L27.5 292.1L29.1 280.1L24.3 273.4L2.1 275.3L-17.0 267.5L-25.4 281.9L-20.9 303.2L-25.5 328.0L-11.1 332.4L48.0 322.6Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M-3.6 200.6L28.7 216.1L60.4 205.4L56.3 176.2L62.1 168.2L66.1 143.5L51.2 131.6L36.3 137.0L18.6 125.9L-12.8 153.3L-42.8 158.1L-36.1 180.4L-55.3 200.4L-87.3 206.7L-92.6 214.3L-90.4 225.2L-77.7 232.6L-50.4 236.5L-47.2 227.0L-32.4 217.4L-33.4 207.1L-24.2 201.0L-3.6 200.6Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M20.3 125.5L36.3 137.0L51.2 131.6L66.1 143.5L84.3 137.9L99.3 143.8L104.1 140.3L82.3 98.9L97.2 81.5L113.7 97.2L141.5 103.3L146.6 79.8L143.9 62.8L130.5 57.7L129.1 30.7L133.9 21.0L129.1 8.3L161.9 2.0L192.9 21.8L213.6 13.1L196.7 -11.7L179.3 -25.2L164.9 -30.4L145.7 -24.8L117.8 -40.0L105.8 -32.4L80.6 -44.8L64.9 -29.1L64.9 -7.6L54.6 -1.7L29.4 -18.1L-8.1 -6.5L-20.9 -8.9L-31.3 -21.7L-71.5 -19.3L-75.8 -31.8L-65.4 -54.4L-90.3 -49.6L-126.3 -58.5L-138.6 -40.5L-163.6 -23.1L-134.9 -2.6L-130.1 28.3L-139.3 43.8L-141.1 57.5L-120.1 72.6L-118.0 85.6L-103.6 94.5L-117.6 114.6L-113.0 136.4L-90.4 149.2L-62.9 147.5L-42.8 158.1L-12.8 153.3L20.3 125.5Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M329.5 -108.7L271.5 -86.0L258.3 -65.5L255.2 -52.9L263.4 -31.3L272.1 -25.4L279.8 -34.8L294.0 -25.9L295.5 -14.3L321.6 12.4L323.0 31.4L381.7 13.3L351.3 -46.4L329.5 -108.7Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M137.3 251.1L202.9 198.7L206.2 191.3L203.7 182.6L182.5 162.1L171.7 161.0L153.8 186.7L160.8 191.5L161.2 198.5L147.6 201.9L145.6 211.9L125.8 223.0L123.8 228.7L130.2 240.7L125.2 246.1L127.6 252.0L137.3 251.1Z" fill="none" stroke="var(--ink-1)" stroke-width="1.6"/></g>
+      <text class="focus-label" x="165" y="207" text-anchor="middle"
+            paint-order="stroke" stroke="var(--surface-1)" stroke-width="3.5"
+            stroke-linejoin="round">HU8</text>
+      <clipPath id="frameclip"><rect x="0" y="24" width="330" height="365"/></clipPath>
+    </svg><svg viewBox="0 0 330 389" role="img" aria-label="Sectors">
+      <text class="panel-title" x="0" y="14">Sectors</text>
+      <g clip-path="url(#frameclip)"><path d="M4.3 399.3L-17.6 405.6L-44.9 392.5L-43.4 385.7L-58.7 348.1L-38.3 329.5L37.4 327.6L35.2 352.8L38.6 357.0L28.2 375.5L12.8 371.8L8.7 377.7L11.4 391.2L4.3 399.3Z M22.7 363.8L22.0 360.5L21.8 360.5L22.7 363.8Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M-43.4 385.7L-44.9 392.5L-17.6 405.6L4.3 399.3L11.4 391.2L8.7 377.7L11.7 372.9L28.2 375.5L38.6 357.0L55.8 376.0L40.5 409.9L50.2 418.6L47.7 432.1L77.0 436.7L82.7 452.8L75.0 463.9L38.5 463.1L25.4 480.0L14.4 470.9L-9.3 466.8L-10.8 444.6L-15.6 438.2L-36.4 459.6L-46.4 454.3L-52.3 440.8L-91.7 447.2L-98.2 412.5L-103.9 407.9L-95.1 352.4L-58.7 348.1L-43.4 385.7Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M22.7 363.8L23.9 362.7L23.8 363.8L22.7 363.8Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M54.6 373.5L35.2 352.8L37.4 327.6L154.3 291.6L191.0 304.9L216.0 356.3L174.2 379.9L164.4 398.1L146.4 414.0L128.3 408.2L114.0 423.8L89.4 413.6L77.0 436.7L47.7 432.1L50.2 418.6L40.5 409.9L52.3 390.8L54.6 373.5Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M278.8 398.8L253.8 448.0L263.3 456.5L263.4 466.5L250.5 467.6L247.6 478.5L231.6 479.6L223.4 489.4L233.7 512.5L228.5 538.6L209.1 541.3L188.9 524.5L177.0 524.2L171.2 509.9L182.5 493.3L172.9 474.2L139.5 448.5L163.0 430.4L150.3 411.5L174.2 379.9L216.0 356.3L247.3 368.8L278.8 398.8Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M120.4 269.5L123.3 258.1L127.0 259.7L123.1 257.5L131.2 257.3L126.3 270.3L133.6 296.0L120.4 269.5Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M110.7 259.9L116.3 263.3L122.9 257.5L127.1 258.8L119.7 266.2L131.2 296.0L115.3 299.3L110.5 279.0L112.8 270.8L106.8 270.7L110.7 259.9Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M116.3 263.3L108.2 259.2L129.1 253.5L116.3 263.3Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M135.8 296.0L126.3 270.1L126.8 268.1L128.2 266.0L128.7 265.9L135.8 296.0Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M18.2 254.8L-9.1 225.0L-27.5 220.4L-32.5 206.3L-3.6 200.4L28.7 216.1L26.4 237.0L32.2 257.0L29.1 264.9L31.4 276.4L22.2 273.2L26.8 268.8L23.3 262.5L16.6 261.8L18.2 254.8Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M-32.0 207.1L-27.5 220.4L1.9 234.4L18.2 254.8L16.6 261.8L26.8 268.8L2.1 275.3L-36.4 253.6L-34.5 244.6L-38.4 238.7L-50.4 236.5L-47.2 226.8L-32.4 217.4L-32.0 207.1Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M162.4 119.2L187.5 129.8L208.4 127.2L214.4 137.2L232.5 138.6L255.9 134.6L262.9 120.3L263.3 107.2L283.6 98.9L313.1 104.6L316.2 95.9L309.4 77.6L282.0 86.5L265.9 71.2L255.1 76.3L247.6 72.1L246.1 41.2L227.0 12.0L244.4 -1.9L252.8 -1.0L261.7 13.7L283.3 14.9L294.0 27.7L308.3 2.2L321.6 12.4L323.0 31.2L381.7 13.1L480.7 161.8L446.9 203.7L429.7 205.0L414.6 179.9L397.0 175.4L383.3 135.3L362.7 146.0L363.6 157.1L354.7 184.7L335.5 190.4L315.7 172.3L295.0 192.3L272.6 193.4L241.5 217.4L230.7 216.1L204.6 201.1L203.7 182.5L182.5 162.1L170.3 159.9L155.3 141.6L162.4 119.2Z" fill="#f0efec" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M308.0 2.4L294.0 27.7L283.3 14.9L261.7 13.7L252.8 -1.0L244.4 -1.9L227.0 12.0L246.1 41.2L247.6 72.1L255.1 76.3L265.9 71.2L282.0 86.5L309.4 77.6L316.2 95.9L313.1 104.6L283.6 98.9L263.3 107.2L262.9 120.3L255.9 134.6L214.4 137.2L208.4 127.2L187.5 129.8L162.4 119.2L141.5 103.3L146.6 79.8L143.9 62.7L130.5 57.7L129.1 30.7L133.9 21.0L130.1 7.4L161.9 2.0L192.9 21.8L213.5 12.9L196.7 -11.7L179.3 -25.2L193.6 -35.5L188.1 -51.6L198.8 -76.9L241.1 -75.7L258.8 -97.7L271.5 -86.0L255.2 -53.1L263.4 -31.5L272.1 -25.4L279.8 -34.8L292.7 -27.0L295.5 -14.3L305.9 -8.5L308.0 2.4Z" fill="#f0efec" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M364.8 412.3L351.1 394.5L373.5 363.1L372.0 355.0L386.3 340.5L391.1 326.3L391.5 306.5L376.6 289.3L386.8 262.0L408.5 252.4L393.7 227.0L390.8 209.3L405.2 178.0L414.6 179.9L429.7 205.0L446.9 203.7L480.7 161.8L521.6 217.2L490.6 238.9L460.1 237.0L454.5 264.4L480.2 286.4L485.8 301.4L499.9 310.0L499.6 331.9L486.7 351.3L491.6 357.4L537.8 359.0L557.0 393.6L584.1 409.0L594.5 409.1L632.0 370.5L664.8 429.7L682.5 495.9L684.2 524.5L666.9 562.6L634.7 600.5L618.1 610.7L598.1 610.5L575.5 590.5L574.2 563.2L559.7 546.3L526.1 530.1L521.0 519.5L479.9 505.5L389.7 502.9L347.9 475.3L327.7 450.9L364.8 412.3Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M297.4 339.8L266.6 387.9L247.3 368.8L216.0 356.3L191.0 304.9L199.9 297.5L227.9 241.3L230.7 216.1L241.5 217.4L272.6 193.4L295.0 192.3L311.2 173.8L326.8 178.0L335.5 190.4L319.3 200.8L317.6 209.5L336.0 214.1L336.1 227.8L309.5 238.3L295.5 255.7L307.3 282.5L288.5 290.6L284.4 307.1L294.1 313.0L296.2 323.4L290.5 329.1L297.4 339.8Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M294.1 324.8L292.1 308.6L284.4 307.1L288.5 290.6L307.3 282.5L295.5 255.7L309.5 238.3L336.1 227.8L338.2 216.7L317.6 209.5L319.3 200.8L356.7 183.4L362.7 146.0L383.3 135.3L397.0 175.4L405.2 178.0L390.8 209.3L393.7 227.0L408.5 252.4L386.8 262.0L376.6 289.3L391.5 306.5L391.1 326.3L386.3 340.5L372.0 355.0L373.5 363.1L351.1 394.5L364.8 412.3L327.7 450.9L267.2 388.8L297.4 339.8L290.5 329.1L294.1 324.8Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M4.1 278.2L12.3 296.5L19.5 299.1L17.5 304.9L36.3 305.8L48.0 322.6L-11.1 332.2L-25.5 328.0L-20.9 303.2L-25.4 281.9L-17.0 267.5L4.1 278.2Z M17.3 273.1L14.6 280.3L14.2 273.6L17.3 273.1Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M18.5 301.9L21.4 302.5L21.4 304.9L18.5 301.9Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M12.7 296.5L3.3 274.7L14.2 273.6L14.6 280.3L17.3 273.1L24.3 273.2L29.1 280.1L27.5 292.1L32.6 293.0L36.3 305.8L22.9 305.6L12.7 296.5Z M17.5 304.9L18.5 301.9L21.4 304.9L17.5 304.9Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M28.6 193.7L28.6 188.0L37.9 191.5L33.1 181.7L36.1 174.5L30.1 166.2L42.2 152.0L41.6 137.0L51.2 131.6L66.1 143.5L62.1 168.0L56.3 176.2L60.4 205.4L37.2 212.8L40.4 198.9L28.6 193.7Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M42.0 139.8L42.2 152.0L30.1 166.2L36.1 174.5L33.1 181.7L37.9 191.5L27.8 190.2L40.8 200.2L37.1 213.0L28.7 216.1L-3.6 200.4L-24.2 200.8L-33.5 207.1L-32.4 217.4L-47.2 226.8L-50.4 236.5L-90.4 225.2L-92.6 214.3L-87.3 206.7L-55.8 200.6L-36.1 180.4L-42.8 158.1L-12.8 153.3L20.3 125.3L42.0 139.8Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M18.5 98.2L25.4 90.6L21.3 87.2L24.8 83.5L21.7 76.1L32.6 70.0L32.3 64.7L35.9 66.5L33.2 70.0L34.4 72.3L39.7 70.4L38.1 52.9L54.9 60.1L49.1 69.5L52.2 72.3L72.2 62.1L97.7 64.9L97.2 81.5L82.3 98.9L104.1 140.3L93.6 145.9L84.3 137.9L66.1 143.5L51.2 131.6L36.3 137.0L21.4 126.1L29.4 112.2L18.5 98.2Z M52.0 79.1L47.4 79.3L54.3 79.7L52.0 79.1Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M20.8 79.8L18.7 80.8L18.6 80.8L20.8 79.8Z M54.3 79.8L47.4 79.3L54.3 79.7L54.3 79.8Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M-77.7 50.3L-94.1 81.9L-141.1 57.5L-139.3 43.8L-130.2 28.3L-134.9 -2.8L-163.6 -23.1L-138.6 -40.7L-126.3 -58.5L-90.3 -49.6L-65.4 -54.4L-75.8 -32.0L-71.5 -19.3L-31.3 -21.7L-20.9 -8.9L-8.1 -6.5L29.4 -18.1L55.2 -2.1L40.0 21.6L37.3 34.5L24.5 44.3L8.6 34.2L10.8 48.0L7.4 51.7L24.3 56.9L17.1 73.0L-1.7 76.9L-26.2 57.3L-39.7 63.4L-50.4 52.7L-77.7 50.3Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M-94.1 81.9L-77.7 50.3L-50.4 52.7L-39.7 63.4L-26.2 57.3L-1.7 76.9L17.1 73.0L25.4 89.8L18.6 96.7L19.2 103.7L29.4 112.2L23.8 125.1L9.9 130.1L8.2 139.4L-12.8 153.3L-42.8 158.1L-62.9 147.5L-90.4 149.2L-113.0 136.4L-117.6 114.6L-103.6 94.5L-118.0 85.6L-120.0 73.2L-94.1 81.9Z M49.1 70.2L54.9 60.1L65.9 63.8L52.2 72.3L49.1 70.2Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M17.4 78.7L19.2 61.7L24.3 56.9L7.4 51.7L10.8 48.0L8.6 34.2L24.5 44.3L37.3 34.5L40.0 21.6L55.2 -2.1L84.1 -5.4L94.4 12.2L129.1 8.3L133.9 21.0L129.1 30.7L130.5 57.7L143.9 62.7L146.6 79.8L141.5 103.3L113.7 97.2L97.2 81.5L97.7 64.9L66.2 63.8L38.1 52.9L39.7 70.4L34.4 72.3L35.9 66.5L32.3 64.7L22.2 81.9L17.4 78.7Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M329.5 -108.7L271.5 -86.0L258.3 -65.7L255.2 -53.1L263.4 -31.5L272.1 -25.4L279.8 -34.8L294.0 -25.9L295.5 -14.3L321.6 12.4L323.0 31.2L381.7 13.1L351.3 -46.4L329.5 -108.7Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M113.9 244.2L118.1 238.3L111.2 238.1L111.8 233.5L125.0 232.4L130.2 240.7L123.3 247.4L113.9 244.2Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M102.9 249.6L125.5 246.8L128.6 252.7L102.1 258.8L102.9 249.6Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M110.1 251.1L108.5 238.7L117.2 236.5L113.9 243.5L116.9 248.5L110.1 251.1Z" fill="#f0efec" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M102.1 258.8L79.3 246.1L94.2 246.6L111.0 236.3L111.6 247.5L102.9 249.6L102.1 258.8Z M105.4 258.3L105.2 258.3L105.9 258.1L105.4 258.3Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M88.5 268.1L86.4 260.3L91.0 255.1L109.7 260.1L106.8 270.7L112.8 270.8L110.5 279.0L115.3 299.3L111.6 301.9L98.8 284.3L99.7 276.2L93.8 267.0L88.5 268.1Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M80.3 280.6L81.9 283.2L80.2 281.4L80.3 280.6Z M81.1 277.1L77.7 268.8L86.4 260.3L88.5 268.1L98.3 272.3L81.1 277.1Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M73.7 279.9L97.4 273.6L98.8 284.3L111.6 301.9L101.7 311.2L63.4 317.1L61.9 290.3L73.7 279.9Z M81.9 283.2L80.3 280.6L80.2 281.4L81.9 283.2Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M65.3 264.2L69.7 260.7L82.3 276.6L70.8 281.9L65.3 264.2Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M79.2 247.7L91.0 255.1L76.9 268.6L69.7 260.7L63.4 264.9L59.8 252.2L79.2 247.7Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M34.9 293.8L52.4 280.6L52.9 273.6L38.2 272.9L41.6 268.3L38.0 264.4L57.4 248.7L71.1 284.2L61.9 290.3L61.0 298.8L51.3 290.8L34.9 293.8Z M47.0 260.1L46.7 258.1L45.5 259.2L47.0 260.1Z" fill="#f0efec" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M46.6 254.8L38.0 264.4L41.6 268.3L38.2 272.9L51.8 271.8L52.6 280.3L34.9 293.8L51.3 290.8L61.0 298.8L63.4 317.1L57.1 321.7L48.0 322.6L32.6 293.0L27.3 291.4L26.7 282.5L31.6 275.8L30.0 252.5L46.6 254.8Z M45.5 259.6L46.7 258.1L47.9 259.6L45.5 259.6Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M107.1 235.9L99.3 216.7L108.7 212.2L130.2 220.2L121.0 234.8L107.1 235.9Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M87.1 220.9L80.7 218.0L82.6 210.2L99.5 213.9L107.8 234.6L97.2 239.2L100.8 232.6L97.3 224.6L82.0 226.5L87.1 220.9Z M97.4 223.0L97.3 224.6L98.3 223.5L97.4 223.0Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M94.2 246.6L68.9 240.7L82.8 235.3L82.8 227.8L97.3 224.6L100.8 232.6L94.2 246.6Z M97.4 223.0L97.3 224.6L96.5 224.1L97.4 223.0Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M63.1 237.9L49.6 210.4L60.4 205.4L81.8 210.0L80.7 218.0L87.1 220.9L81.1 229.2L82.8 235.3L68.9 240.7L63.1 237.9Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M49.7 210.6L63.1 237.9L73.6 244.8L54.9 252.9L28.2 251.2L28.7 216.1L49.7 210.6Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M90.8 163.4L63.2 154.7L68.2 141.4L84.3 137.9L93.6 145.9L90.8 163.4Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M79.3 209.3L90.4 192.3L97.2 192.4L81.4 166.2L90.8 163.4L108.6 179.3L107.6 202.1L128.4 216.3L119.3 220.4L108.7 212.2L79.3 209.3Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M61.2 185.1L87.3 189.3L89.7 196.7L78.7 208.2L79.9 213.2L65.3 210.6L60.4 205.4L61.2 185.1Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M87.3 189.3L56.1 181.9L63.9 158.8L81.4 166.2L97.5 190.0L89.4 196.0L87.3 189.3Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M112.2 193.9L127.1 193.7L147.1 202.6L145.6 211.9L130.2 220.2L126.7 211.1L105.4 198.9L112.2 193.9Z M114.1 202.1L113.6 196.0L112.8 197.1L114.1 202.1Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M101.8 133.5L121.8 137.9L128.2 158.1L118.3 161.9L113.7 172.8L107.5 181.4L90.8 163.4L93.6 145.9L104.1 140.3L101.8 133.5Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M112.8 185.8L122.8 177.8L112.3 170.1L118.3 161.9L142.7 153.3L153.3 142.0L171.7 161.0L153.8 186.5L161.2 196.3L154.5 203.0L143.7 199.7L148.4 195.4L144.2 187.6L114.0 192.1L112.8 185.8Z M123.6 180.2L126.3 178.4L123.1 178.4L123.6 180.2Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M122.8 141.4L94.9 127.7L82.3 98.9L97.2 81.5L113.7 97.2L141.5 103.3L162.4 119.2L155.4 141.2L139.8 154.9L128.2 158.1L122.8 141.4Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M115.7 192.1L144.2 187.6L148.4 195.4L143.2 199.8L115.7 192.1Z M110.0 193.0L107.1 181.9L113.7 172.8L122.5 177.3L113.3 181.9L114.0 192.1L110.0 193.0Z M126.3 178.4L123.6 180.2L123.1 178.4L126.3 178.4Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M114.1 202.1L116.1 197.6L116.4 199.8L114.1 202.1Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M173.0 217.8L142.3 214.3L145.4 205.0L159.6 199.8L160.5 193.7L184.5 200.6L170.8 212.2L173.0 217.8Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M125.4 244.4L134.6 241.8L134.5 231.1L141.1 226.3L137.6 233.7L147.0 239.6L137.3 250.9L127.6 251.8L125.4 244.4Z M142.4 223.0L142.9 226.1L140.6 225.0L142.4 223.0Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M136.2 239.2L123.8 228.7L137.2 214.1L163.1 223.5L147.4 240.5L137.6 233.7L141.1 226.3L136.5 228.5L136.2 239.2Z M142.4 223.0L142.9 226.1L143.7 223.5L142.4 223.0Z M143.3 244.8L142.2 240.5L146.7 240.5L143.3 244.8Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M157.4 221.7L173.0 217.8L170.8 212.2L175.2 206.7L184.0 205.0L153.7 187.3L171.7 161.0L186.7 165.1L206.2 191.3L187.2 211.9L163.6 225.2L157.4 221.7Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M144.4 245.9L148.3 252.9L162.8 245.1L167.0 248.1L163.6 256.8L175.2 258.3L172.3 294.3L135.8 296.0L128.4 266.0L133.5 258.6L128.2 252.0L144.4 245.9Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M145.4 250.3L143.7 244.4L152.2 234.8L165.7 238.5L161.8 240.7L163.9 245.7L145.4 250.3Z" fill="#f2b8b7" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M152.2 238.9L150.4 238.1L150.0 237.7L152.2 235.0L152.2 238.9Z M178.2 218.3L190.6 223.9L183.1 223.1L179.0 245.0L167.0 248.1L161.8 240.7L165.7 238.5L163.4 235.3L151.7 234.0L178.2 218.3Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M191.4 231.5L189.8 222.2L177.7 216.9L201.8 198.7L230.7 216.1L226.2 235.0L214.8 235.7L207.9 226.8L191.4 231.5Z M212.2 237.9L210.1 235.7L213.2 235.5L212.2 237.9Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M164.2 256.2L164.2 250.0L179.0 245.0L183.1 223.1L190.5 225.9L191.7 234.0L207.9 226.8L214.8 235.7L226.2 235.0L227.9 241.3L199.9 297.5L191.0 304.9L172.3 294.3L176.2 262.0L171.2 254.2L164.2 256.2Z M209.2 237.6L212.2 237.9L213.2 235.5L212.4 234.0L209.2 237.6Z" fill="#e34948" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M130.7 257.7L133.6 260.7L129.7 259.4L130.7 257.7Z" fill="#9c2b2a" stroke="#ffffff" stroke-width="0.4" stroke-opacity="0.6"/><path d="M173.0 217.8L142.3 214.3L145.4 205.0L159.6 199.8L160.5 193.7L184.5 200.6L170.8 212.2L173.0 217.8Z" fill="none" stroke="var(--ink-1)" stroke-width="1.6"/><path d="M125.4 244.4L134.6 241.8L134.5 231.1L141.1 226.3L137.6 233.7L147.0 239.6L137.3 250.9L127.6 251.8L125.4 244.4Z M142.4 223.0L142.9 226.1L140.6 225.0L142.4 223.0Z" fill="none" stroke="var(--ink-1)" stroke-width="1.6"/><path d="M136.2 239.2L123.8 228.7L137.2 214.1L163.1 223.5L147.4 240.5L137.6 233.7L141.1 226.3L136.5 228.5L136.2 239.2Z M142.4 223.0L142.9 226.1L143.7 223.5L142.4 223.0Z M143.3 244.8L142.2 240.5L146.7 240.5L143.3 244.8Z" fill="none" stroke="var(--ink-1)" stroke-width="1.6"/><path d="M157.4 221.7L173.0 217.8L170.8 212.2L175.2 206.7L184.0 205.0L153.7 187.3L171.7 161.0L186.7 165.1L206.2 191.3L187.2 211.9L163.6 225.2L157.4 221.7Z" fill="none" stroke="var(--ink-1)" stroke-width="1.6"/></g>
+      <text class="focus-label" x="156" y="216" text-anchor="middle"
+            paint-order="stroke" stroke="var(--surface-1)" stroke-width="3.5"
+            stroke-linejoin="round">HU8</text>
+      <clipPath id="frameclip"><rect x="0" y="24" width="330" height="365"/></clipPath>
+    </svg></div>
+      <p class="note" style="margin-top:12px">The same ground under the same
+      scenario, on the climate layer: <b>HU8</b> outlined in both. Blue is a
+      premium that <i>falls</i> under the EA's future flood extents, red one that
+      rises; the ramp and its breaks are the map's own. HU8 is the single
+      district in Great Britain whose premium falls (<b>+16%</b>) — and
+      it is made of 4 sectors running from <b>HU8 7 at
+      +10%</b> to <b>HU8 0 at +25%</b>. Both
+      statements are true; only one of them is useful to somebody choosing where
+      to live.</p>
+    </div>
+
+    <h3>What the sector map does not do</h3>
+    <ul>
+      <li><b>Rating groups are deciles of each map's own units</b>, so a group 7 sector
+      and a group 7 district describe different populations. Compare premiums, not
+      group numbers.</li>
+      <li><b>Exposure now matches the district model to 0.06%.</b> It was 2.7% short
+      until this map found the reason: ONSPD retains terminated postcodes — a third of
+      its rows — and household counts were being apportioned across them, so roughly
+      730,000 homes sat on addresses that no longer exist. Those phantom homes were in
+      the district model too; sectors are simply where they became visible, because a
+      dead postcode has no Code-Point centroid and so no polygon to land in. Both
+      models were rebuilt without them on 2026-08-12.</li>
+    </ul>
+    <p><a href="sectors.html">Open the sector map →</a> &middot;
+    <a href="assets/uk_sector_risk.csv">download every sector as CSV</a></p>
+  </section>
+
+  <section class="doc" id="data">
+    <h2>Data sources</h2>
+    <p>All Open Government Licence v3 except ERA5 (CC-BY 4.0). Every endpoint, licence and
+    access quirk is documented in <code>DATA_SOURCES.md</code> in the repository — including a
+    "dead ends" section listing the endpoints that no longer work, so nobody repeats the
+    search.</p>
+    <div class="tablewrap" style="margin:16px 0">
+      <table class="data">
+        <tr><th>Publisher</th><th>Dataset</th><th>Used for</th></tr>
+        <tr><td><strong>British Geological Survey</strong></td><td>Geology 625k bedrock (11,244 formations)</td><td>Subsidence</td></tr>
+        <tr><td><strong>Met Office</strong></td><td>Winter wind speed 5 km; wind-driven rain index 5 km (UKCP18 baseline)</td><td>Weather</td></tr>
+        <tr><td><strong>Met Office</strong></td><td>HadUK-Grid 1991–2020: ≥10 mm rain days, annual precipitation</td><td>Weather</td></tr>
+        <tr><td><strong>Met Office</strong></td><td>HadUK-Grid 1991–2020: annual air-frost days</td><td>Escape of water (freeze exposure)</td></tr>
+        <tr><td><strong>Met Office MIDAS Open</strong> (via CEDA)</td><td>Station gust observations 1970–2025 → Gumbel-fitted 1-in-50 gust at 191 stations ≤300 m</td><td>Weather extremes</td></tr>
+        <tr><td><strong>Environment Agency</strong></td><td>NaFRA2 Risk of Flooding from Rivers and Sea, present day and climate change (England)</td><td>Flood</td></tr>
+        <tr><td><strong>Natural Resources Wales</strong></td><td>FRAW rivers, sea and surface water (Wales)</td><td>Flood</td></tr>
+        <tr><td><strong>SEPA</strong></td><td>River, coastal and surface-water flood maps (Scotland)</td><td>Flood</td></tr>
+        <tr><td><strong>Environment Agency</strong></td><td>NaFRA2 Risk of Flooding from Surface Water (England)</td><td>Flood</td></tr>
+        <tr><td><strong>Environment Agency</strong></td><td>NaFRA2 surface-water <strong>depth</strong> bands &gt;0.2/0.3/0.6/0.9/1.2 m (England)</td><td>Flood severity</td></tr>
+        <tr><td><strong>Environment Agency</strong></td><td>NaFRA2 rivers and sea <strong>depth</strong> bands &gt;0.2/0.3/0.6/0.9/1.2 m (England)</td><td>Flood severity</td></tr>
+        <tr><td><strong>Environment Agency</strong></td><td>Flood-risk postcode data — groundwater alert-area flags</td><td>Groundwater</td></tr>
+        <tr><td><strong>Environment Agency</strong></td><td>NCERM National 2024 coastal erosion frontages (England)</td><td>Erosion (not priced)</td></tr>
+        <tr><td><strong>NatureScot</strong></td><td><a href="https://www.dynamiccoast.com/">Dynamic Coast</a> phase 2 FutureCoast erosion areas, RCP8.5-95th and RCP2.6, 2050 and 2100 (Scotland)</td><td>Erosion (not priced)</td></tr>
+        <tr><td><strong>OS / Wikipedia derived</strong></td><td>UK postcode district polygons (2,736 districts)</td><td>Geography</td></tr>
+        <tr><td><strong>ONS</strong></td><td>Postcode → OA/LSOA best-fit lookup (2.7m rows; the 33% that are terminated postcodes excluded)</td><td rowspan="3">Exposure weighting — 27.3m households</td></tr>
+        <tr><td><strong>ONS</strong> (via NOMIS)</td><td>Census 2021 TS041 households by LSOA (England &amp; Wales)</td></tr>
+        <tr><td><strong>National Records of Scotland</strong></td><td>Scotland's Census 2022 household total</td></tr>
+        <tr><td><strong>police.uk</strong></td><td>Street-level crime archive, latest 36 months — burglary points (England, Wales, BTP)</td><td>Theft</td></tr>
+        <tr><td><strong>VOA</strong></td><td>Non-domestic rating: stock of properties 2025 — premises counts by LSOA (England &amp; Wales)</td><td>Theft residential share</td></tr>
+        <tr><td><strong>statistics.gov.scot</strong></td><td><a href="https://statistics.gov.scot/data/recorded-crime">Recorded Crime in Scotland</a> — Group 3 housebreaking by council area, 2023–24 to 2025–26</td><td>Theft (Scotland override)</td></tr>
+        <tr><td><strong>ABI</strong></td><td>Domestic claims paid by peril, 2025 (theft: 2018, the last published; escape of water: the "£1.8m a day" figure; fire: average-payout quote only)</td><td>Loss calibration</td></tr>
+        <tr><td><strong>Home Office / MHCLG</strong></td><td>Fire statistics: incident-level low-level-geography dataset (LSOA), FIRE0201 national series to 1981/82</td><td>Fire frequency, geography and loading</td></tr>
+        <tr><td><strong>SFRS / statistics.gov.scot</strong></td><td>Dwelling fires by council area</td><td>Fire geography (Scotland)</td></tr>
+        <tr><td><strong>Welsh Government / stats.gov.wales</strong></td><td>Primary dwelling fires by fire and rescue authority</td><td>Fire geography (Wales)</td></tr>
+        <tr><td><strong>ONS</strong> (via NOMIS)</td><td>Census 2021 TS003: households with dependent children by LSOA (England &amp; Wales)</td><td>Accidental damage geography</td></tr>
+        <tr><td><strong>National Records of Scotland</strong></td><td>Scotland's Census 2022 UV113 by output area + the postcode→OA index with household weights</td><td>Accidental damage geography (Scotland)</td></tr>
+        <tr><td><strong>Aviva / GoCompare</strong> <small>(published figures, not open data)</small></td><td>Average AD payout by year; claims-mix shares; children's share of AD claims</td><td>Accidental damage calibration and driver</td></tr>
+      </table>
+    </div>
+    <p class="note">A note on honesty in sourcing: HadUK-Grid's NetCDF files on CEDA require a
+    login, so the same HadUK-derived climatologies are taken from the Met Office's anonymous
+    Climate Data Portal instead. The gust extremes DO come from behind that login — MIDAS
+    Open needs a (free) CEDA account to download; without one, the repo's ERA5 fallback
+    (<code>fetch_gusts.py</code>) reproduces the pre-2026-08-10 gust surface instead.</p>
+  </section>
+
+  <section class="doc" id="repro">
+    <h2>Reproduce it</h2>
+    <p>Python 3.13. Every stage is deterministic — the simulation is seeded, so the same
+    inputs reproduce the published figures exactly.</p>
+    <pre><code>py -3.13 -m venv .venv
+.venv/Scripts/python -m pip install -r requirements.txt
+git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data/uk-postcode-polygons
+
+.venv/Scripts/python scripts/fetch_bgs.py            # BGS bedrock geology  (~32 MB)
+.venv/Scripts/python scripts/fetch_metoffice.py      # 5 climate grids (incl. air-frost days)
+.venv/Scripts/python scripts/fetch_flood_postcodes.py  # river/sea risk bands at every postcode
+.venv/Scripts/python scripts/fetch_sw_postcodes.py     # surface water at every postcode
+.venv/Scripts/python scripts/fetch_groundwater.py    # groundwater alert flags
+.venv/Scripts/python scripts/fetch_midas.py          # MIDAS station gusts (CEDA token; ERA5 fetch_gusts.py = fallback)
+.venv/Scripts/python scripts/fetch_history.py        # 35yr ERA5 drivers, for the backtest
+.venv/Scripts/python scripts/fetch_households.py     # census households -> exposure weights
+.venv/Scripts/python scripts/fetch_burglary.py       # police.uk burglary points (1.7 GB archive, resumable)
+.venv/Scripts/python scripts/fetch_premises.py       # VOA non-domestic premises -> theft's residential share
+.venv/Scripts/python scripts/fetch_fires.py          # dwelling fires: England LSOA + Scotland + Wales
+.venv/Scripts/python scripts/fetch_children.py       # census dependent-children shares -> AD driver
+
+.venv/Scripts/python scripts/build_model.py          # scores + vine simulation  (~15 min)
+.venv/Scripts/python scripts/sensitivity.py          # perturbed re-runs         (~60 min)
+.venv/Scripts/python scripts/build_map.py
+.venv/Scripts/python scripts/build_analysis.py
+.venv/Scripts/python scripts/build_site.py           # assembles this website</code></pre>
+    <p class="note">One manual step: the EA flood-risk postcode CSV must be downloaded by
+    hand (its URL is in <code>DATA_SOURCES.md</code>) because it is served from a file-download
+    endpoint rather than an API.</p>
+  </section>
+
+  <section class="doc" id="caveats">
+    <h2>Caveats</h2>
+    <p>The hazard inputs are real and current. The loss model is not calibrated. Specifically:</p>
+    <ul style="color:var(--ink-2); font-size:14px; line-height:1.7">
+      <li><b>The calibration is to market-wide aggregates, not to a claims triangle.</b>
+      One national frequency multiplier and the published average severities are all that
+      anchor the loss level (see <a href="#calibration">calibration</a>). The <i>shape</i>
+      of the frequency and severity curves across districts, and the copula parameters,
+      remain assumptions — fitting those needs real claims, after which the pair-copulas
+      could be estimated directly (e.g. with <code>pyvinecopulib</code>) rather than taking
+      the assumed θ(s) forms.</li>
+      <li><b>Every policy is treated as one average home.</b> There is no sum insured, no
+      construction type and no excess. Districts <i>are</i> weighted by census household
+      counts, so the portfolio reflects where people actually live, but every household
+      inside a district is identical — a Victorian terrace and a new-build carry the same
+      risk here.</li>
+      <li><b>The subsidence classification approximates BGS GeoSure</b> from the open 625k
+      mapping. The licensed product adds superficial deposits, tree cover and drought
+      interaction. At 625k scale, superficial clays such as till over chalk are invisible.</li>
+      <li><b>Flood exposure is area-based</b>, not property-based: it measures the share of a
+      district inside a zone, not how many homes sit there. Defence-failure scenarios are
+      not modelled, and the Welsh surface-water product is materially more conservative than
+      the English one.</li>
+      <li><b>Groundwater uses alert-area coverage</b>, not modelled emergence probability, and
+      exists only for England.</li>
+      <li><b>Flood depth exists only for England</b>, for surface water and for rivers and
+      sea. Neither NRW nor SEPA publishes an equivalent product, so Welsh and Scottish
+      districts keep a flat severity. Each multiplier is renormalised to a mean of 1.0 per
+      claim, so this is an asymmetry in how
+      finely severity is differentiated, not in its overall level — but English districts
+      are separated on depth and the rest are not.</li>
+      <li><b>Coastal erosion covers England and Scotland on two different bases, and the
+      Welsh coast not at all.</b> England is NCERM's SMP case at 2105; Scotland is Dynamic
+      Coast's single "do nothing, defences standing" case at 2100, so there is no Scottish
+      unmanaged scenario to compare against and no Welsh source — only three border
+      districts English estuary frontages cross into. It rests on two
+      further stated assumptions: households are taken as spread evenly across a district
+      when coastal populations cluster towards the shore, and an 80-year projection is
+      annualised into a flat yearly hazard. It is reported separately from the premium
+      throughout — see <a href="#erosion">coastal erosion</a>.</li>
+      <li><b>The 1-in-50 gust is fitted at 191 MIDAS stations</b> (≥20 years' coverage,
+      stations above 300&nbsp;m excluded — a summit anemometer measures a climate nobody
+      lives in) and interpolated between them, median 15&nbsp;km to the nearest station —
+      so station siting still leaves local noise a licensed storm event set would not.
+      Until 2026-08-10 this component was ERA5 reanalysis, which smooths coastal gust
+      peaks; the swap moved coastal districts up and sheltered valleys down at an
+      unchanged national level.</li>
+      <li><b>Northern Ireland is out of scope</b> — the boundary set is GB-only and NI has no
+      anonymous flood service.</li>
+    </ul>
+    <div class="callout" style="margin-top:16px">The <a href="years.html#sens-section">sensitivity
+    analysis</a> quantifies which of these assumptions actually move the answer: each one is
+    perturbed in turn and the effect on premiums, tail losses and rating-group churn is
+    measured.</div>
+  </section>
+
+</div>
+
+<footer class="site-footer">
+  <div class="wrap narrow">
+    <div class="row">
+      <div>
+        <b style="color:var(--ink-2)">UK Home Insurance Risk Map</b><br>
+        Code MIT-licensed · hazard data © their publishers under the
+        <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3</a>
+      </div>
+      <div>
+        <a href="https://github.com/SMcode-source/uk-home-insurance-risk-map">Source on GitHub</a> ·
+        <a href="index.html">Home</a> ·
+        <a href="map.html">Map</a> ·
+        <a href="years.html">Year analysis</a>
+      </div>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

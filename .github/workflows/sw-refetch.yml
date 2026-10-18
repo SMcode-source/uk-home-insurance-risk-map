@@ -1,0 +1,215 @@
+name: surface water refetch
+
+# Refetches the EA surface-water FREQUENCY fractions and the DEPTH bands
+# conditioned on them, for whichever grain the dispatched ref builds:
+# districts on main, postcode sectors on sector-model. Both come from the
+# same sampling of the same unit-postcode centroids, so they have to be
+# refetched together or the pair stops meaning anything - which is exactly
+# the question that sent a whole session sideways on 2026-09-12.
+#
+# Until 2026-09-20 this workflow refetched the AREA-share products
+# (fetch_sw_depth.py + fetch_surface_water.py --out sw_fractions_area).
+# Both are superseded: the frequency moved to postcode share on
+# 2026-09-06 and the depth conditional followed on 2026-09-20, so
+# sw_fractions_area[_cc].csv are no longer read by scores_real at all
+# and a depth table written by fetch_sw_depth.py would silently put the
+# model back on the area basis. The mask scripts are kept (the depth
+# layers still come from the same WMS); this workflow no longer calls
+# them. To refetch an area table for the record, run them from a laptop.
+#
+# The two stages are one job each, in order, and must stay that way: the
+# depth aggregation reads data/sw_flags_england[_cc].csv - the
+# per-postcode envelope the frequency stage fetches, gitignored and
+# never an artifact - and the sw_fractions[_cc].csv it writes. Split
+# across parallel jobs it would find neither and fall back to the
+# committed tables, conditioning new depth on an old envelope.
+#
+# Roughly 45 minutes for the three frequency regions and about an hour
+# for the five depth layers over England; the present-day and climate
+# jobs run in parallel, so the wall clock is one of them.
+#
+# UNTESTED on a runner as written: the steps mirror sector-model.yml's
+# surface-water jobs, which have run, but this file's own path has not.
+
+on:
+  workflow_dispatch:
+    inputs:
+      climate:
+        description: "Also refetch the climate-change edition (sw_fractions_cc, sw_depth_cc)"
+        type: boolean
+        default: true
+      commit:
+        description: "Commit the refreshed tables back to this branch"
+        type: boolean
+        default: false
+      accept_large:
+        description: "Commit even if a table moved more than a refetch of an unchanged product can explain (look at the numbers FIRST)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: sw-refetch-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  present:
+    name: fractions and depth
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Boundaries for whichever grain this ref builds
+        run: |
+          if [ -f data/sectors_gb.gpkg ]; then
+            echo "sector grain: the geometry is committed on this branch"
+          else
+            git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data/uk-postcode-polygons
+          fi
+      # fetch_onspd.py reprojects ONSPD lat/long to British National Grid
+      # and refuses to run without the grid rather than let pyproj fall
+      # back to a Helmert shift ~1.75 m from the model's own transform.
+      - name: Install the OSTN15 datum grid
+        run: |
+          dir=$(python -c "from pyproj import datadir; print(datadir.get_user_data_dir())")
+          mkdir -p "$dir"
+          curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
+          echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" | sha256sum -c
+          python -c "from pyproj.transformer import TransformerGroup as G; print('proj pipeline', G(4326, 27700, always_xy=True).transformers[0].description)"
+      - run: python -u scripts/fetch_onspd.py
+      # ALL THREE regions. The envelope a postcode lands in is whichever
+      # service paints it, and the three overlap at the border: TD12
+      # straddles the Tweed, SY10 carries an EA contribution although
+      # data/country.csv calls it Wales. A single-region refetch cannot
+      # repair such a unit - measured both ways on 2026-09-12, see
+      # fetch_surface_water._refuse_partial_merge, which is why the
+      # aggregation below requires every region's flags to be present.
+      - run: python -u scripts/fetch_sw_postcodes.py --flags england
+      - run: python -u scripts/fetch_sw_postcodes.py --flags wales
+      - run: python -u scripts/fetch_sw_postcodes.py --flags scotland
+      - run: python -u scripts/fetch_sw_postcodes.py
+      # England only, as everything about depth is; the rest is
+      # zero-filled. Reads the england flags and sw_fractions.csv above.
+      - run: python -u scripts/fetch_sw_depth_postcodes.py --flags
+      - run: python -u scripts/fetch_sw_depth_postcodes.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sw-present
+          path: |
+            data/sw_fractions.csv*
+            data/sw_depth.csv*
+          retention-days: 14
+
+  climate:
+    name: fractions and depth (climate)
+    if: ${{ inputs.climate }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Boundaries for whichever grain this ref builds
+        run: |
+          if [ -f data/sectors_gb.gpkg ]; then
+            echo "sector grain: the geometry is committed on this branch"
+          else
+            git clone --depth 1 https://github.com/missinglink/uk-postcode-polygons.git data/uk-postcode-polygons
+          fi
+      - name: Install the OSTN15 datum grid
+        run: |
+          dir=$(python -c "from pyproj import datadir; print(datadir.get_user_data_dir())")
+          mkdir -p "$dir"
+          curl -fsSL -o "$dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" https://cdn.proj.org/uk_os_OSTN15_NTv2_OSGBtoETRS.tif
+          echo "5d6ed64d2119952c4c559fa1fccbc594b6520fc3ec3ef2fc10be13202c4384fa  $dir/uk_os_OSTN15_NTv2_OSGBtoETRS.tif" | sha256sum -c
+      - run: python -u scripts/fetch_onspd.py
+      # The EA rofsw_cc01 edition is England only, both products.
+      - run: python -u scripts/fetch_sw_postcodes.py --flags england --climate
+      - run: python -u scripts/fetch_sw_postcodes.py --climate
+      - run: python -u scripts/fetch_sw_depth_postcodes.py --flags --climate
+      - run: python -u scripts/fetch_sw_depth_postcodes.py --climate
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sw-climate
+          path: |
+            data/sw_fractions_cc.csv*
+            data/sw_depth_cc.csv*
+          retention-days: 14
+
+  collect:
+    name: check and commit
+    needs: [present, climate]
+    if: ${{ always() && !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13", cache: pip }
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+      - uses: actions/download-artifact@v4
+        with:
+          path: data
+          merge-multiple: true
+
+      # fetch_sw_postcodes.py writes a .partial rather than the real
+      # filename when a tile could not be fetched, because a dropped tile
+      # reads downstream as "no water here" and nothing can tell the
+      # difference. Refuse the run rather than commit a table that is
+      # quietly missing a county.
+      - name: Reject an incomplete fetch
+        run: |
+          if ls data/*.partial 2>/dev/null; then
+            echo "::error::a surface-water fetch fell short (.partial) - refusing to commit"
+            exit 1
+          fi
+
+      - name: Show what moved
+        run: |
+          git --no-pager diff --stat -- data/sw_fractions.csv data/sw_fractions_cc.csv data/sw_depth.csv data/sw_depth_cc.csv
+
+      - name: Guard the refreshed tables
+        run: python -m pytest tests/test_inputs.py -q
+
+      # The identities above are a CEILING and a shape; they do not know
+      # how big a refetch should be. The merge bug of 2026-09-12 produced
+      # a file that passed every one of them and was twice the truth.
+      # This compares each table against the one it replaces and stops
+      # the run if it moved more than a resample can explain.
+      - name: Refuse a refetch that moved too much
+        run: |
+          python -u scripts/check_refetch_delta.py data/sw_fractions.csv data/sw_fractions_cc.csv data/sw_depth.csv data/sw_depth_cc.csv ${{ inputs.accept_large && '--accept-large' || '' }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sw-refetch-tables
+          path: |
+            data/sw_fractions.csv
+            data/sw_fractions_cc.csv
+            data/sw_depth.csv
+            data/sw_depth_cc.csv
+          retention-days: 14
+
+      - name: Commit the refreshed tables to this branch
+        if: ${{ inputs.commit }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/sw_fractions.csv data/sw_fractions_cc.csv \
+                  data/sw_depth.csv data/sw_depth_cc.csv
+          if git diff --cached --quiet; then
+            echo "nothing new to commit - the refetch reproduced the committed tables"
+          else
+            git commit -m "Surface water: fractions and depth bands refetched by postcode share (run ${{ github.run_number }})"
+            git push origin HEAD
+          fi

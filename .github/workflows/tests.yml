@@ -1,0 +1,142 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  copula-properties:
+    name: copula property tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Run property tests
+        # Verifies the maths the model rests on: uniform margins, Gumbel
+        # h-function inversion, recovered Kendall's tau, upper-tail
+        # dependence, and that severities match the published ABI means.
+        run: python -m pytest tests -q
+
+      - name: Check the Markdown's "current" figures match the model
+        # LIMITATIONS §3 and HANDOFF's current-premium line are typed by
+        # hand and both went a full publish stale unnoticed. Main only:
+        # exp/ branches carry a different model by design, which is why
+        # this is a step here and not a test under tests/ (rebuild.yml
+        # runs tests/ as its pre-flight on every branch).
+        if: github.ref == 'refs/heads/main'
+        run: python scripts/doc_figures.py --check
+
+      - name: Check the published site rebuilds from committed data
+        # The model outputs (districts_risk.geojson, year_analysis.json) are
+        # committed, so the whole publish chain must run without refetching
+        # any hazard data.
+        #
+        # Mid-transition escape hatch: when a new peril's copy pass makes the
+        # map template read columns the committed geojson does not carry yet,
+        # build_map hard-fails BY DESIGN - and on the merge push that is the
+        # transition window (the publish rebuild's bot commit reconciles it),
+        # not drift. Skip cleanly in exactly that window, mirroring the two
+        # pytest guards; the moment the bot commit lands this re-arms.
+        run: |
+          python - <<'EOF'
+          import json, sys
+          sys.path.insert(0, "scripts")
+          from build_map import columns_read_by_template
+          need = columns_read_by_template()
+          have = set(json.load(open("data/districts_risk.geojson",
+                                    encoding="utf-8"))
+                     ["features"][0]["properties"])
+          ahead = sorted(need - have)
+          if ahead:
+              print(f"template is ahead of committed model output by {ahead}"
+                    " - mid-peril-transition, the publish rebuild's bot"
+                    " commit reconciles this; skipping the site rebuild"
+                    " check")
+              open("skip_site_rebuild", "w").close()
+          EOF
+          if [ -f skip_site_rebuild ]; then exit 0; fi
+          python scripts/build_map.py
+          python scripts/build_tiles.py
+          python scripts/build_analysis.py
+          python scripts/build_site.py
+          for f in docs/index.html docs/map.html docs/relative.html \
+                   docs/years.html \
+                   docs/methodology.html docs/assets/districts.json \
+                   docs/assets/tiles/districts.pmtiles \
+                   docs/assets/districts_index.json \
+                   docs/assets/uk_district_risk.csv; do
+            test -s "$f" || { echo "missing or empty: $f"; exit 1; }
+          done
+          if grep -REl "__[A-Z][A-Z_]*__" docs/*.html; then
+            echo "unfilled template placeholder above"; exit 1
+          fi
+
+      - name: Check the BUILT site references only files that exist
+        # The two asset tests skip on an unbuilt checkout, so the pytest
+        # run above cannot see a broken tile reference. This is where
+        # they are really checked - on every push, not just a publish.
+        run: |
+          if [ -f skip_site_rebuild ]; then exit 0; fi
+          python -m pytest tests -q -k "published_site or map_asset"
+
+      - name: Check the published site is up to date with committed data
+        # A drifted docs/ means someone edited a template without rebuilding.
+        run: |
+          if ! git diff --quiet -- docs/; then
+            echo "docs/ is stale - run scripts/build_site.py and commit:"
+            git diff --stat -- docs/
+            exit 1
+          fi
+
+  layout:
+    # The published pages in a real browser. Exists because one mobile
+    # audit found three user-facing defects (3.6px chart labels, zoom
+    # buttons buried under a panel, a popup clipped off screen) that all
+    # 38 data-side tests were structurally blind to.
+    #
+    # It used to run against the COMMITTED docs/. It cannot any more:
+    # the maps read vector tiles, which are built here rather than
+    # committed (PMTiles do not delta-compress, so committing both
+    # grains would put ~33 MB into the packfile per publish). So this
+    # job builds the site itself. The job above still proves the
+    # committed HTML is not stale.
+    name: layout regression (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install Playwright
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest playwright
+          python -m playwright install --with-deps chromium
+
+      # The tiles are the map. Without this the pages load, find no
+      # geometry, and every map assertion fails for a reason that has
+      # nothing to do with layout.
+      - name: Build the site, including its tiles
+        run: |
+          python scripts/build_map.py
+          python scripts/build_tiles.py
+          python scripts/build_analysis.py
+          python scripts/build_site.py
+
+      - name: Run layout tests
+        run: python -m pytest tests/test_layout.py -q

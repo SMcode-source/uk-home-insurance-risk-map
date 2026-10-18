@@ -1,0 +1,6615 @@
+# Handoff — UK Home Insurance Risk Map
+
+**Written:** 2026-08-12, audited and refreshed 2026-08-16 · lives in the
+repo (supersedes the old `%TEMP%\uk-risk-map-handoff.md`, which is now
+just a pointer here)
+**Repo:** https://github.com/SMcode-source/uk-home-insurance-risk-map ·
+**Live:** https://smcode-source.github.io/uk-home-insurance-risk-map/
+
+## Status: complete, deployed, EIGHT insured perils at TWO resolutions
+
+**A new workstream opened 2026-08-27: temperature-driven subsidence and
+freeze.** Five gates, agreed with the user after a full stress-test of
+the plan: **(0)** acquire the ABI quarterly subsidence series and the
+CEDA HadUK-Grid daily record, and measure what `theta_ws` costs, with
+no model change; **(1)** the subsidence level alone, so the premium
+move has exactly one cause; **(2)** geography — an SMD curve for
+subsidence and a cold-spell/thaw index replacing air-frost days;
+**(3)** structure — burst-pipe breakout, three non-water freeze
+variants priced side by side, snowmelt; **(4)** a year-view conditional
+claim count and value. The dependence re-specification is deliberately
+its own later phase. **Every gate has now reported.** Gate 0 closed
+(ABI series in, `theta_ws` costs GBP0.65, HadUK on disk). Gate 1
+published 2026-08-28 (severity fix taken, level held at GBP307m, 0.6
+pence). **Gate 2 measured 2026-08-30 — the freeze half closes as a
+no-reorder, the SMD half is a real different map; section below.**
+Gate 3 closed as a no-ship (no anchor, and sigma provably moves
+nothing). Gate 4 measured (a bad year is dearer claims, not more
+claims).
+
+**All three decisions the workstream left to the user are now closed,
+2026-08-31.** The SMD curve is PUBLISHED at both grains (`cwd_yr` at
+`SUB_DROUGHT_SHARE = 0.565`, premium GBP169.6477). The freeze re-aim is
+ANSWERED NO — measured, then priced anyway, and `EOW_FREEZE_SHARE`
+stays 0.31 because the model is structurally blind to the frost level
+and the map sits inside its own noise floor. Tab 4 SHIPPED as
+`/temperature.html`. So the premium moved 0.8 pence across the whole
+workstream, which is the honest headline: five gates of temperature
+work found one real map (subsidence geography) and no level.
+
+**The current premium is £169.7288 — £169.73 at 2dp, districts;
+£169.7286 at sector grain; loss cost £164.21.** `scripts/doc_figures.py
+--check` holds this line and LIMITATIONS §3 to the committed output
+(its own step in `tests.yml`, on main); after a publish, run it with
+`--fix` and commit. Stated here because everything below this
+line is a dated entry quoting whatever was live at the time, and
+£169.66 appears in many of them correctly as history. That ambiguity
+already cost something real: the temperature tab shipped with £169.66
+typed into it and quoted a penny the model no longer charges. **Never
+type this figure into a page** — `__PREM_MEAN__` injects it,
+household-weighted, and the placeholder cannot go stale.
+
+**What the workstream leaves open**, in its own sections below: the
+frost SHARE is distributional and unanchored (0.17 pence across a 2x
+range, but 353 districts re-rate — there is no UK per-era attribution
+to settle it); the PET bias is level-not-map at both resolutions; and
+the published climate scenario is flood-only, so it cannot show
+subsidence worsening or escape of water easing. The dependence
+re-specification was always a later phase and has not started.
+
+**The HadUK archive state, 2026-08-30:** 12 km AND 5 km daily
+tasmin/tasmax/rainfall 1960-2025 are complete on this laptop under
+`data/haduk/` (gitignored); the 1 km set was streamed on CI and reduced
+to `data/haduk_district_annual_1km.csv` without ever fitting anywhere
+(174 GB, run 33319459184). Both per-district year tables — 5 km local,
+1 km from CI — are complete, schema-identical and gitignored; the
+scripts regenerate them. The CEDA token (secret `CEDA_TOKEN`, also
+`~/.ceda_token`) **expires 2026-09-01 16:27 UTC and is being allowed to
+lapse** — nothing planned needs it, and the four HadUK workflows say so
+in their own headers. **This is an expiry, not a budget decision**: CEDA
+is free and a renewal is one registration away, exactly like MIDAS Open
+was, so if a future question needs the daily grids the answer is "get a
+new token", not "we cannot afford it". The dead secret is harmless where
+it is; delete it only if you want the settings page tidy. Daily data
+ends **2025-12**, so the ABI's 2026 quarters
+have no matching weather year. `snowLying` exists at 12 km and was Gate
+3's snow driver before Gate 3 closed.
+
+**The whole roadmap is now published, at both grains.** Phase 1
+(attritional perils: theft → escape of water → fire → accidental
+damage) completed 2026-08-17. Phase 2 is EPC/VOA exposure realism —
+**2a (theft's residential denominator) live 2026-08-18**, **2c
+(council-tax band severity relativities) live 2026-08-27**. **Phase 3
+(the buildings/contents cover split) went live the same day.** Two
+anchor corrections went live 2026-08-25: theft's paid total and the
+escape-of-water freeze share. **Scottish theft geography went live
+2026-09-01** — 442 districts and 1,077 sectors came off one flat rate
+onto 32 councils' housebreaking, at zero cost to the headline and
++GBP0.46 on the mean Scottish premium (section at the top of this
+file).
+
+**The budget is zero, decided 2026-08-31, and it is a standing rule
+rather than a mood.** Nothing licensed, nothing paid-tier, nothing
+needing a commercial agreement. DATA_SOURCES opens its blocked-data
+section with what this closes permanently — PAF/AddressBase, BGS
+superficial thickness — and, more usefully, what it does NOT close:
+free-but-gated sources are still fair game, which is how MIDAS Open
+went from "blocked" to carrying the gust component. Test any future
+source on "does it cost money", never on "is it inconvenient". The
+consequence for the model is that the assumed θ(s) copula forms, the
+compound Bernoulli×LogNormal, `SUP_WEIGHT`'s 0.5 prior and
+census-households exposure are permanent limits, not a backlog.
+
+**The published site had five dead citation links, 2026-08-31.** Found
+by checking the live deployment rather than the build - CI verifies
+local assets offline and never touches an external URL, correctly, so
+nothing was going to catch this. The years page renders `ABI.sources`
+as clickable links, and five of its fourteen 404'd after ABI's
+media-hub migration. Three are live again under renamed slugs and were
+remapped after reading each article and matching the figures this repo
+quotes from it; two are withdrawn from abi.org.uk entirely and stay
+archive-only, including the 2025-08 release behind `sev_subsidence =
+GBP17,264`, which is Gate 1's live severity anchor. DATA_SOURCES #33
+carries the mapping table and the verification method.
+
+**The trap in that job is worth knowing before anyone repeats it.** ABI
+now runs a single-page app that returns **HTTP 200 for any slug** under
+`/media-hub/news-post/`, nonsense included, and echoes the slug into
+the HTML - so a status check says "fixed" and a keyword grep says "the
+article mentions subsidence" when the page is empty. I nearly recorded
+five successful remappings on exactly that evidence. What actually
+distinguishes them is ABI's `sitemap.xml` and rendering the page in a
+real browser, where a missing article says "No news articles found."
+Both were run against a deliberately bogus slug as a control first.
+`web.archive.org` is unreachable from this sandbox by every client
+tried, so the two archive-only citations could not be re-verified here
+and were left exactly as they are rather than replaced with links
+nobody has opened.
+
+**Branches, trimmed 2026-08-31.** Only `main` and `sector-model` exist
+now. The six merged experiment branches were deleted after checking
+that nothing unique lived on them (what looked unique was pre-vector
+-tiles leftovers — Leaflet assets and the GeoJSON that PMTiles
+replaced — deliberately gone from main), and after lifting
+`year_claim_view.py` and `price_eow_sigma.py` onto main, which were the
+only real content stranded. `sector-model` is synced to main and stays;
+it is never merged INTO main.
+
+**Shipping is not the same as settling.** Two objections were stated,
+overruled by the user, and remain open: council tax tracks MARKET value
+while insurance pays REINSTATEMENT (Phase 2c), and three perils worth
+42.5% of claim cost carry an unanchored split guess (Phase 3). Neither
+is a defect to fix quietly — both are recorded decisions, in their own
+sections below. Anyone revisiting the model should start there.
+
+The site publishes the model at **two grains side by side**:
+`/map.html` over 2,736 postcode districts and `/sectors.html` over
+10,398 derived postcode sectors. One template builds both pages, so
+they cannot drift; the layout suite runs every map invariant against
+both. **86 tests** (two of which skip only while a publish is
+mid-transition — see the theft section), CI green, Pages live. The
+methodology page draws the Hull comparison as an inline SVG generated
+from the published GeoJSON at build time — a screenshot would go stale
+at the next rebuild; this cannot.
+
+~~**Two defects are open and UNFIXED**~~ — **both were FIXED and
+published 2026-08-19**, along with three more found while fixing them;
+see "Built AND PUBLISHED 2026-08-19: five defects fixed" below. The
+four vine perils now take their EL analytically and flood severity is
+no longer blended in log space. Re-measure any marginal change with
+`.venv/Scripts/python.exe scripts/analytic_el_check.py`.
+
+Current headline figures: see **"The current premium"** near the top
+of this file, the one figure here that is checked (loss cost ≈ 75% of
+the £219 all-home-claims cost). As of the **2026-08-28 publish** (CI
+33138216612 + 33138240678): £169.66 (169.6558) over 27.26m
+households, loss cost £164.12. That move was Gate 1's subsidence severity
+fix, worth **−0.6 pence** and entirely capital — `el_total` is
+bit-identical across it. Before that, the fall from £176.66 was theft's
+level correction (−3.96%); the EoW freeze share moved geography only
+and cost the level nothing. Climate
+uplift is diluted a fourth time by AD's flat ~£14.65 (each attritional
+peril dilutes these — same £ of repricing on a bigger base; the site
+injects them, only this file and README carry them by hand).
+
+## PUBLISHED 2026-10-06: RS_FREQ_LOW anchored on the same recorded floods, both grains
+
+The user asked to anchor Medium:Low next and said publish on the
+measured result. `RS_FREQ_LOW` goes 0.3% -> 0.78%: Medium priced at
+1.92x Low (it was 5:1, the ratio surface water still uses).
+
+**The evidence** (`validate_flood_history.py`, which now reports
+Medium:Low intervals too; the High:Medium ones reproduce exactly):
+
+| window | Medium:Low | 90% (events) | 90% (districts) |
+|---|---|---|---|
+| 1990-2025 | **1.92** | 1.47-2.47 | 1.39-2.69 |
+| 2000-2025 | 1.95 | 1.46-2.61 | 1.40-2.80 |
+| 2007-2025 | 2.00 | 1.41-2.88 | 1.37-2.95 |
+
+5:1 is outside every interval, and the ratio is steadier across windows
+than High:Medium. Outline edges are not driving it (1.91-1.94 counting
+postcodes 10-25 m inside an outline). 0.78% sits inside Low's own
+0.1-1% definition.
+
+**Priced** (exp/rs-low-anchor, rebuild run 101; exp/rs-low-anchor-sector,
+sector-model run 52):
+
+| against live | districts | sectors |
+|---|---|---|
+| headline | 169.7611 -> 169.7288 | 169.7617 -> 169.7286 |
+| rating groups changed | 325 of 2,736 (12.3% of households) | 1,179 of 10,398 (11.4%) |
+| England / Wales / Scotland | -0.16 / +3.86 / -0.91 | -0.16 / +3.83 / -0.88 |
+| premium_cc / premium | +3.87% -> +3.58% | +3.88% -> +3.59% |
+
+- Places behind defences rise: PE21 Boston +59, CF11 Cardiff +51, LN12
+  +51, PE25 +46, E6 +40, TA8 +36; sectors M7 1 +88, E6 6 +82. High-
+  heavy zones fall as the level re-pins: DN7 -43, DN14 -31, DN14 6 -73.
+- **Wales +3.9** because 8.1% of Welsh homes are Low-only (England
+  2.6%, Scotland 1.8%). The Welsh ordering against NRW improved on every
+  measure: people at risk (>= 1%) +0.687 -> +0.715, river +0.528 ->
+  +0.558, sea +0.145 -> +0.214; Scotland against SEPA flat (+0.285).
+- Caveats: big floods (the ones reaching Low) are likelier recorded,
+  and a Low area defended after it last flooded counts its old floods;
+  both pull the ratio toward 1. The ratio is English, applied GB-wide.
+- Measured, not acted on: Low against no zone is ~50x in the records,
+  16x in the model (`RS_FREQ_BACKGROUND`); surface water's 5:1 is
+  unanchored, and the same outlines hold ~2,500 surface-water records.
+- `sensitivity.py`: `flood_band_ratio_2_5/10` (both legs) split into
+  `sw_band_ratio_2_5/10` and `rs_low_ratio_147/247`. Re-run the same
+  day: Medium:Low at 1.47 / 2.47 moves 5.3% of rating groups either
+  way, surface water's 2.5:1 / 10:1 3.9% / 2.9%; flood frequency x1.5
+  (23.7%) and river/sea against surface water (15.5% / 13.6%) remain
+  the biggest levers.
+  `test_copula` pins Medium:Low inside 1.47-2.47.
+
+## PUBLISHED 2026-09-29: RS_FREQ_TOP anchored on the EA's recorded floods, both grains
+
+The user asked to anchor the biggest unanchored lever, and said publish
+on the measured result. `RS_FREQ_TOP` goes 3.3% -> 2.5%: High priced
+at 1.67x Medium (1.5%, unchanged), not 2.2x.
+
+**The evidence** (`scripts/validate_flood_history.py`, DATA_SOURCES
+#46). The EA's Recorded Flood Outlines (OGL, 84 MB GeoPackage, 31,744
+event outlines since 1946) overlaid on the English postcode centroids
+the RoFRS bands are read at. River and sea only; distinct start dates
+per postcode, since one flood is many outlines; household-weighted.
+
+| window | High/yr | Medium/yr | Low/yr | H/M | 90% (events) | 90% (districts) |
+|---|---|---|---|---|---|---|
+| 1990-2025 | 0.452% | 0.271% | 0.141% | **1.67** | 1.30-2.18 | 1.31-2.17 |
+| 2000-2025 | 0.547% | 0.328% | 0.168% | 1.66 | 1.25-2.36 | 1.29-2.14 |
+| 2007-2025 | 0.458% | 0.349% | 0.174% | 1.31 | 1.05-1.77 | 1.06-1.71 |
+
+- **Outline edges are not the cause.** Postcodes 10-50 m inside an
+  outline give 1.44-1.60, lower not higher; median inset is 21-28 m in
+  every band.
+- **Not dominated by one flood.** Without the three biggest dates
+  (2015-12-25, 2002-12-23, 2013-12-23) 1990-2025 gives 1.73.
+- **Regionally noisy**: north / middle / south thirds of England by
+  northing 1.00 / 3.64 / 1.96.
+- **Only the ratio is used.** Recorded rates are about a sixth of the
+  band definitions, so the ratio assumes recording is equally complete
+  in each band. A flood is not a claim.
+- **Measured, not acted on:** the records put Medium at ~2x Low; the
+  model uses 5x.
+
+**Priced** (exp/rs-top-anchor, rebuild run 98; exp/rs-top-anchor-sector,
+sector-model run 51):
+
+| against live | districts | sectors |
+|---|---|---|
+| headline | 169.7425 -> 169.7611 | 169.7423 -> 169.7617 |
+| rating groups changed | 190 of 2,736 (6.4% of households) | 564 of 10,398 (5.5%) |
+| England / Wales / Scotland | +0.04 / -0.01 / -0.13 | +0.04 / -0.01 / -0.14 |
+| climate uplift | +4.89% -> +4.47% | +4.91% -> +4.49% |
+
+- High-heavy zones fall: DN7 -69.9, DN14 -41.3, OX1 -19.2, LL42 -18.2;
+  sectors DN7 4 -136, M3 1 -77, BD1 9 -71. About two thirds of DN7's
+  +109 from the 2026-09-27 split comes back.
+- Medium-heavy zones rise a little as the national flood level is
+  re-pinned: PE11 +6.3, PE13 +4.0.
+- Scotland falls because its zone homes carry England's High share.
+- Validations re-run: Wales el_fl against NRW people at risk (>= 1%)
+  +0.657 -> +0.687, rivers +0.514 -> +0.528; Scotland against SEPA AAD
+  high +0.284 -> +0.285. England's KSI check reads the fractions, which
+  did not move.
+- `sensitivity.py`'s `rs_top_050/100` become `rs_top_ratio_130/218`,
+  the records' 90% range. Re-run the same night: they move 5.3% / 6.4%
+  of rating groups (5% / 10% had moved 10.7% / 30.7%), so High is no
+  longer the biggest lever; flood frequency x1.5 (24.0%) and river/sea
+  against surface water (13.2% / 14.9%) now are.
+- `test_copula` now pins High:Medium inside 1.30-2.18 rather than High
+  at or above the EA floor: a flood chance bounds a claim rate, it
+  does not set one.
+- Download lesson: a `curl -r 0-0` size probe streamed the whole 84 MB
+  file because the server ignores ranges on 200. Probe with the
+  dataset page, not the file.
+
+## PUBLISHED 2026-09-28 (third): surface water by homes too, both grains
+
+The last flood share still counting postcodes, on the user's yes.
+`fetch_sw_postcodes.py` and `fetch_sw_depth_postcodes.py` aggregate with
+`weighted_counts` under the same switch as river/sea, so every flood
+share and both depth tables are of homes; `sw_depth.csv`'s basis is
+`households`. Refetched by `sw-refetch.yml` at both grains (runs
+36458431569 / 36458442857); the per-postcode flag counts equal the
+published 2026-09-25 fetch in every band to three decimals, so the
+table moves are the weighting and nothing upstream.
+
+| against live | districts (rebuild run 95) | sectors (sector-model run 50) |
+|---|---|---|
+| headline | 169.7506 -> 169.7425 | 169.7513 -> 169.7423 |
+| rating groups changed | 182 of 2,736 (6.2% of households) | 794 of 10,398 (7.2%) |
+| England / Wales / Scotland | -0.00 / -0.05 / -0.02 | -0.00 / -0.03 / -0.04 |
+
+- **Movers are city centres**, where postcodes are offices with few
+  homes: EC4V +46, W1B +16, WC2A -24, EC4A -18; sectors CV1 1 +51,
+  EC4A 4 -63. The 2026-09-07 LSOA-split weighting found the same places.
+- **Checks, mixed and small.** England (KSI, carried by households):
+  High +0.944 -> +0.938, level 1.195x -> 1.154x; envelope +0.959 ->
+  +0.956, 1.007x -> 0.989x. Wales sw_high vs NRW +0.721 -> +0.730;
+  Scotland vs SEPA AAD +0.10 -> +0.15. Two grains agree (sector roll-up
+  vs districts Spearman 0.994, means within 0.4%).
+- **Threshold kept at 25%.** The level moved 4%, small next to the step
+  between candidate thresholds; not refitted, on the user's choice.
+- **Three traps closed on the way.** (1) NRS 403s Python's default
+  User-Agent from a runner: the first refetch died after 45 minutes of
+  tiles, and the published river/sea fetchers carried the same latent
+  bug (only ever run with the tables cached). `household_tables()` now
+  sends a User-Agent, writes through `.part`, and runs before the first
+  tile. (2) A `households` depth basis would have fallen into
+  `scores_real`'s AREA branch and divided by `sw_fractions_area.csv`.
+  (3) `test_inputs`' England-only depth check would have skipped it.
+  Tests pin (2) and (3); (2) fails on the old code.
+- `validate_flood_england.py` carries districts to constituencies by
+  households, matching fractions that are shares of homes.
+- Sensitivity re-run after the publish on the final inputs (all three
+  weighting changes): `RS_FREQ_TOP` at 5% / 10% moves 10.7% / 30.7% of
+  groups, flood x1.5 25.2%, depth ignored 13.2%, JRC curve 8.6%, the
+  10:1 band ratio 6.4% (was 4.8%); the copula still <= 0.7%.
+
+## PUBLISHED 2026-09-28 (second): Scotland carries England's High share of zone homes, both grains
+
+The first open item of the entry below, closed the same day on the
+user's yes. `top_with_scotland` takes the household weights, so each
+Scottish zone postcode carries England's High share of zone HOMES
+(0.4815) instead of zone postcodes (0.527); it now runs once for the
+fetch and `--flags-from` alike, so a flags file cannot carry an older
+share (test in `tests/test_household_weights.py`). Only `f_top` moves:
+x0.915 in 444 Scottish districts and 1,071 sectors; the climate file is
+England-only and unchanged.
+
+| against live | districts (rebuild run 93) | sectors (sector-model run 49) |
+|---|---|---|
+| headline | 169.7516 -> 169.7506 | 169.7502 -> 169.7513 |
+| rating groups changed | 18 of 2,736 (0.4% of households) | 30 of 10,398 (0.3%) |
+| England / Wales / Scotland | +0.02 / +0.02 / -0.23 | +0.02 / +0.02 / -0.23 |
+
+Largest moves PH6 -3.5, EH44 -2.9 (districts); G82 1 -6.6, DD1 3 -5.0
+(sectors). The sensitivity table was not re-run for a move this size
+confined to one country's High share. Surface water by homes (open
+item 2 below) remains, and needs a CI refetch plus a decision on
+refitting the 25% coverage threshold.
+
+## PUBLISHED 2026-09-28: river/sea flood shares of homes, not postcodes, both grains
+
+The follow-up the correction below named, chosen by the user and
+published on their yes (asked twice: once on the priced deltas, once
+more when the re-run validations showed Wales mixed). Every river/sea
+flood share - `f_high`, `f_low`, `f_top` and the depth distribution -
+now weighs each unit postcode by its Census households
+(`WEIGHT_BY_HOUSEHOLDS`, `postcode_households`, `weighted_counts` in
+`fetch_flood_postcodes.py`; DATA_SOURCES #45). England and Wales from
+Census 2021 P002, Scotland from the NRS Census 2022 index. A unit's
+count becomes n times its household-weighted share, so the shrinkage
+is unchanged and `K_PRIOR` stays in postcodes. With the switch off the
+code reproduces all eight published tables (four per grain)
+byte-for-byte; `tests/test_household_weights.py` pins the arithmetic.
+
+| vs EA residential (KSI, 534 constituencies, district fractions) | postcode share | households |
+|---|---|---|
+| High | 1.202x (Spearman +0.888) | 0.946x (+0.909) |
+| Medium | 0.981x (+0.888) | 0.894x (+0.905) |
+| Zone | 1.085x (+0.916) | 0.918x (+0.937) |
+| High share of zone | 0.518 | 0.481 (EA 0.468) |
+
+| priced, against live | districts (rebuild run 90) | sectors (sector-model run 48) |
+|---|---|---|
+| headline | 169.7308 -> 169.7516 | 169.7346 -> 169.7502 |
+| rating groups changed | 508 of 2,736 (16.8% of households) | 1,771 of 10,398 (16.9%) |
+| England / Wales / Scotland | +0.04 / -0.82 / +0.34 | +0.04 / -0.77 / +0.21 |
+| climate uplift | +4.94% -> +4.86% | +4.90% -> +4.87% |
+
+- **Movers are where postcodes and homes part company.** Down: B5
+  -71 (Digbeth; 20 zone postcodes in B5 5 hold 4 households), BD1,
+  PO3, BN9. Up: DN7 +99, DN14 +77, YO1 +61, TS2, L3. At sectors M3 1
+  +314 (7 riverside zone postcodes hold 218 of its 514 households) and
+  B5 5 -217.
+- **Flats.** The weight counts every flat in a flooded block and the
+  model has no floor level, so city-centre riverside blocks now price
+  as if every flat were at ground level. The EA's counts include flats
+  too, so KSI cannot see it. LIMITATIONS §7 states it.
+- **Validations re-run** (`flood_validation_england.csv`,
+  `flood_validation.csv`; the second had not been re-run since the
+  Wales-vector build). England rivers/sea High +0.913 -> +0.937, level
+  1.08x -> 0.93x; surface water unchanged, as it should be. Wales
+  against NRW people at risk is mixed: `f_high` +0.32 -> +0.35 and
+  river-only +0.35 -> +0.40, but `el_fl` +0.687 -> +0.655 and sea
+  +0.21 -> +0.13. Scotland's SEPA AAD moves by noise.
+- **Left open.** (1) CLOSED the same day, entry above: Scotland's carried High share (0.527) was still
+  England's share of zone *postcodes*; of homes it is about 0.48, so
+  Scottish zone homes price ~3-4% above England's mix - a small,
+  known follow-up (`top_with_scotland` would take the household weights).
+  (2) Surface water is still postcode share; its 25% coverage
+  threshold was fitted on postcode shares, so weighting it means
+  refitting. (3) `RS_FREQ_TOP` is still the biggest unanchored lever:
+  the sensitivity table re-run on the weighted shares (committed after
+  the publish) has High at 5% / 10% moving 11.6% / 31.5% of groups
+  (11.2% / 32.1% before). The river/sea vs surface-water balance
+  flipped sides - x2/3 12.5% (was 14.6%), x1.5 14.7% (was 12.3%) - and
+  depth ignored altogether is 13.4% (12.6%). No other row moved more
+  than a point.
+
+## CORRECTED 2026-09-27: the High "overcount" is postcodes, not the decoder
+
+The publish below said the decoded High was too large (1.22x the EA's
+count of homes in High) and named the decoder's High/Medium boundary as
+the next candidate. Chasing it the same evening measured something
+else. Nothing is priced; docs only.
+
+| vs EA residential (KSI, 534 constituencies) | postcode share | Census households per postcode |
+|---|---|---|
+| High | 1.225x | 0.948x (Spearman +0.933 -> +0.954) |
+| Medium | 1.000x | 0.896x (+0.938 -> +0.953) |
+| Low | 0.979x | 0.900x (+0.955 -> +0.974) |
+| High share of the zone | 0.523 | 0.486 (EA 0.472) |
+
+- **The decoder reads the map correctly.** At postcode level, with no
+  district smear, the ratios are the same as through the district
+  fractions, and the excess is diffuse (the top 10 constituencies hold
+  14% of it). Resolution is flat from 2 to 6.5 m. Postcodes read off an
+  outline are more often High (0.587 of the zone, against 0.506 read
+  by colour), but they are where polygons are small, and 2 m, where
+  outlines barely matter, agrees.
+- **The shares count postcodes, not homes.** A High postcode holds
+  11.8 households (Census 2021, Nomis table P002, 15 MB, downloaded
+  to `data/cache/pcd_p002.csv`), Medium 14.1, Low 15.1, unflooded
+  16.5. So every flood share over-weights sparse flood postcodes, High
+  most of all. The 2026-09-07 household weighting was parked as too
+  small, but it split each LSOA's households equally across its
+  postcodes and so could not see this: that weight gets High only to
+  1.153x.
+- The uniform 0.90-0.95x left over is plausibly households against
+  the EA's residential properties, which include empty and second
+  homes.
+- **Next, chosen by the user:** river/sea flood shares weighted by
+  households (P002 for England and Wales; Scotland from its 2022
+  postcode-to-output-area lookup, `nrs_census_2022_index.zip`),
+  measured at both grains. Surface water stays on postcode share for
+  now. Its 25% coverage threshold was fitted to the EA's counts on
+  postcode shares, so weighting it means refitting.
+
+## PUBLISHED 2026-09-27: RoFRS High priced apart from Medium, and England read on three shifted grids, both grains
+
+Two changes to river/sea flood, measured and published together
+(exp/rofrs-split, rebuild run 88; exp/rofrs-split-sector, sector-model
+run 47).
+
+**The split.** Until now `f_high` (High + Medium, >= 1% a year) was one
+band priced at `RS_FREQ_HIGH` 1.5%. The EA defines High as >= 3.3%, so
+every High home was priced at less than half its band's floor. Now
+`f_top` (High alone) is priced at `RS_FREQ_TOP` 3.3% and the rest of the
+zone stays at 1.5% (`scores_real.rs_zone_freq`). calibrate_frequency
+re-pins flood's national level, so the change redistributes within
+flood rather than adding to it:
+- England reads `f_top` from `rofrs_4band` code 4.
+- Wales reads FRAW's own High (>= 1 in 30), 0.556 of its zone.
+- Scotland cannot supply the band: SEPA's High is 1 in 10. Each
+  Scottish zone postcode carries England's High share, 0.527
+  (`top_with_scotland`).
+
+**The read.** England is now decoded at 6.5 m, not 13 m (at 13 m the High
+polygons come out fat: 0.613 of the zone against 0.571-0.574 at 2, 4
+and 6.5 m). It is read on three tile grids a third of a tile apart
+(`RS_PASSES`), because the WMS leaves a whole polygon out of a render
+depending on where the tile's west edge falls. TN23 9 is 35 postcodes
+in one High polygon: 13 m kept it by luck of the grid, the first 6.5 m
+read lost it, and it drew at some of 15 edge positions tried.
+
+How the passes combine is the finding:
+- **Most disagreement between grids is not a dropout.** Of the 5,504
+  postcodes some passes banded and others did not, 81% were read off
+  a polygon outline, and only 452 had a same-pattern neighbour within
+  150 m. That is edge noise from the grid's sub-pixel phase.
+- **Taking any pass's band would have been a union**, buffering every
+  polygon as the Welsh 100 m masks did: +956 postcodes in the zone.
+- **So `combine_passes` takes the majority (+79)**, and
+  `dropout_clusters` keeps a minority band only when at least 5
+  postcodes with the same presence pattern chain within 150 m of each
+  other. Present day that is exactly TN23 9's 34, at 100-150 m and any
+  cluster size from 5 to 17. In the climate edition, which drew
+  TN23 9 in every pass, it keeps TR21 0 and E14 9 (5 each).
+- **The painting pass's `direct` flag cannot tell the two apart**:
+  TN23 9's recovery was read directly at 1 of 35 postcodes.
+- **Dropouts are rare**: one cluster that only one pass drew and one
+  (SW11 7, 6 postcodes) that two drew. Chao's estimate puts clusters
+  missed by all three passes at 0.5, so a fourth pass buys nothing.
+
+**Against the EA's own counts** (KSI packs, `validate_flood_england.py`
+basis, per constituency):
+
+| | model / EA |
+|---|---|
+| High | 1.222x |
+| Medium | 0.987x |
+| Zone | 1.098x |
+
+Zone rank is Spearman +0.915. The three passes moved High from 1.214x.
+The model's High share of the zone is 0.526 against the EA's 0.473.
+~~The decoded High is too big~~ - **corrected the same evening**: it
+is not the decoder but the denominator. See the entry above.
+
+**`RS_FREQ_TOP` is now the model's biggest unanchored lever.** The
+sensitivity table was re-run on this branch. High priced at 5% instead
+of its 3.3% floor moves 11.2% of rating groups; at 10%, 32.1%. That is
+more than flood frequency x1.5 (24.5%). The floor is the defensible
+end, because a flood chance bounds a claim rate from above, but it is
+a choice.
+
+### As published
+
+| | districts | sectors |
+|---|---|---|
+| premium | 169.7796 -> 169.7308 | 169.7843 -> 169.7346 |
+| rating groups changed | 528 of 2,736 (18.3% of households) | 1,749 of 10,398 (17.1%) |
+| England | -0.09 | -0.09 |
+| Wales | +0.12 | +0.10 |
+| Scotland | +0.20 | +0.28 (the national pin) |
+| climate uplift | +3.96% -> +4.94% | +3.92% -> +4.90% |
+
+- **Districts:** DN7 +109.1 (Hatfield/Thorne, High-heavy), DN14 +73.5,
+  BD1 +35.8. The fens fall where the zone is nearly all Medium: PE11
+  -18.7, PE14 -12.6, PE13 -11.8.
+- **Sectors:** DN7 4 +291, DN14 6 +204, and TN23 9 128.5 -> 282.5 now
+  its polygon is back.
+
+**Decomposition.** The read without the split is worth almost nothing:
+a local district build at live pricing (RS_FREQ_TOP = RS_FREQ_HIGH)
+gives 169.7792 (-0.0004), 92 groups, max 8.9. Against the single-pass
+split build the three passes move +0.0004 / +0.0005. So nearly all of
+the -0.049 is the split.
+
+The depth fetch (`fetch_rs_depth_postcodes.py`) still reads one 13 m
+grid. The surface-water and depth layers were probed for the same
+dropout at 3 places x 5 offsets and showed nothing large. That is
+checked-small, not proven-absent.
+
+## PUBLISHED 2026-09-27: Wales's rivers/sea read from FRAW's own polygons, both grains
+
+Branches `exp/wales-vector` (districts, rebuild run 83) and
+`exp/wales-vector-sector` (sectors, sector-model run 45). Found during
+`exp/rofrs-split`: the Welsh High share of the >= 1% zone read 0.757 off
+the 100 m masks, and the masks turned out to be the problem, not the
+share.
+
+**What changed.** `fetch_flood_postcodes.vector_wales` replaces
+`raster_region("wales", ...)`: NRW FRAW rivers and sea polygons over WFS
+(`inspire-nrw:NRW_FLOOD_RISK_FROM_RIVERS`, 105,679 features;
+`..._FROM_SEA`, 29,328 inside the Wales box), point-in-polygon at the
+unit postcodes like `vector_scotland`. f_high = High + Medium, f_low =
+any band, the higher of rivers and sea. The masks counted a pixel
+flooded at alpha > 16 while NRW draws at 40% opacity, so every polygon
+was buffered, and FRAW's High and Medium are thin slivers: in a 4 km box
+round Grangetown the masks put 46 postcodes in the zone and the polygons
+hold 3 (the whole envelope was nearly right, 812 vs 759). England and
+Scotland rows are the published flags untouched. Aggregating the
+published flags reproduces the live `flood_fractions.csv` byte-for-byte
+at both grains, and the rebuild of the unchanged inputs (run 81, see
+below) reproduces the live `districts_risk.geojson`, so every delta
+here is the Welsh read.
+
+**(1) Level, against NRW's own counts - and why they cannot settle it.**
+Welsh postcodes in the zone 5,139 -> **2,044** (0.40x), in the envelope
+12,611 -> 8,835 (0.70x). As homes: f_high 5.20% -> **2.08%** of Welsh
+homes, f_low 14.27% -> 10.32%. NRW NFRA people at risk (/ 2.31 per
+household) puts 7.45-8.89% of Welsh homes at >= 1% (the range is
+max(river, sea) .. river + sea), so the live read was 0.58-0.70x NFRA
+and the vector read is **0.23-0.28x**; the envelope goes 1.02-1.26x ->
+0.74-0.91x. On level alone NFRA prefers the old read. But NFRA is not
+on FRAW's basis: **Grangetown has 7,606 people at high river risk and
+7,519 at high sea risk** in NFRA, most of the community, behind the
+Grangetown flood scheme, where FRAW's own polygons hold 3 zone
+postcodes. NFRA reads as undefended hazard. Nothing else NRW publishes
+counts homes on the map's basis, so **Wales's level has no external
+anchor** (LIMITATIONS §6). What supports the polygons is structure:
+they need no decoding; the WMS re-read at 10 m and 5 m in six boxes fell
+toward them (0.37x and 0.29x of the 100 m zone) without converging; the
+Welsh share of postcodes in the zone (2.29%) now sits by England's
+(2.04% at 6.5 m, which the EA's KSI puts at 1.10x its own property
+counts); and FRAW's High share of the zone (0.556) sits by England's
+(0.524), where the masks said 0.757.
+
+**Rank against NFRA** (`validate_flood_ordering.py`, 195 Welsh
+districts): el_fl vs people at M+H **+0.598 -> +0.687**, at High +0.573
+-> +0.652, rivers +0.480 -> +0.487, sea +0.190 -> +0.210. f_high alone
+dips, +0.356 -> +0.322. England's constituency check moves on 15 border
+rows (rivers/sea High +0.9132 -> +0.9129).
+
+**(3) Priced.**
+
+| | districts (run 83 vs live) | sectors (run 45 vs live) |
+|---|---|---|
+| headline | 169.7722 -> **169.7796** | 169.7777 -> **169.7843** |
+| Wales mean | 168.86 -> 161.42 (**-7.43**) | 169.20 -> 161.82 (**-7.38**) |
+| England mean | +0.39 | +0.39 |
+| Scotland mean | +0.43 | +0.43 |
+| rating groups moved | 296 of 2,736 (9.2% of households) | 680 of 10,398 (6.2%) |
+| largest move | LL35 -38.10 | SA1 1 -48.7 |
+| climate uplift (England) | +3.90% -> +3.96% | +3.86% -> +3.92% |
+
+All 195 Welsh districts fall (median -8.10, p10 -20.88, p90 -3.10).
+Welsh flood EL goes 26.42 -> **19.29** against England's 19.61 -> 19.97:
+Wales had been priced 35% above England for flood and is now level
+with it. Examples (f_high): LL35 Aberdyfi 0.174 -> 0.013, CF11
+Grangetown 0.056 -> 0.006, LL18 Rhyl 0.043 -> 0.005, SY23 Aberystwyth
+0.076 -> 0.026. England and Scotland rise through the one national ABI
+pin, which is the mechanism, not a hazard change. English districts
+move on their own only where a postcode area crosses the border (the
+shrinkage prior of CH, HR, SY, LD includes Welsh postcodes): the
+largest is HR3 at -0.016 of f_high.
+
+**Paging, and a guard that earned its place.** GeoServer pages only
+when sorted, and the one sort key both layers carry, `mm_id`, is not
+unique: paging on it read **105,431 distinct river features of
+105,679**. The id-count guard refused to write, as designed; 248
+polygons would otherwise have been written as dry land. The read is
+now by 20 km box, each fetched whole (a box at the 5,000 cap, or a 5xx,
+splits in four), and distinct feature ids must equal `resultType=hits`
+for the whole box. `tests/test_fraw_vector.py` pins the split on cap,
+the split on error, a polygon across a box edge counted once, the
+higher band winning, and a silent omission refusing.
+
+**Two process findings.**
+- **8bdb410's message claims the Welsh fractions and the commit does
+  not contain them.** A local build chain (build, swap in the published
+  table, build a baseline) had the published table in the working copy
+  at the moment of `git add`, which then added nothing. Its rebuild
+  (run 81) rebuilt unchanged inputs and reproduced the live
+  districts_risk.geojson and year_analysis.json byte-for-byte - a free
+  baseline, and the confirmation that this build path is exact. The
+  data went in at 7b5bd26. **Never commit from a worktree a background
+  job is rewriting, and read `git show --stat` before dispatching.**
+- **`rebuild.yml` on a sector branch fails** in make_images.py on the
+  13 empty-geometry sectors (`getY called on empty Point`, run
+  36323914987). Sector builds go through `sector-model.yml` with
+  `skip_fetch=true`, as they always have.
+
+**Published on the user's yes, 2026-09-27:** `exp/wales-vector` to
+main with sector run 45's build as `data/sectors_risk.geojson` and
+`doc_figures.py --fix`, then `exp/wales-vector-sector` and main into
+sector-model. **Interplay with
+`exp/rofrs-split`:** that branch makes Wales carry England's High share
+(0.5244) because the masks were untrustworthy; on the vector read FRAW
+High (>= 1 in 30, the EA's own threshold) can supply Wales's f_top
+directly, at a share (0.556) close enough that the choice is small.
+Whichever lands second is rebuilt on top of the first.
+
+## MEASURED 2026-09-27: the rest of the unanchored constants - river/sea vs surface water leads
+
+Branch `exp/sensitivity-constants`. No model output changes (the
+refactor below is checked byte-for-byte by `rebuild.yml verify`). It
+adds nine rows to `data/sensitivity.json`, run beside a baseline that is
+dict-identical to the published one and merged in (21 rows now).
+
+**Refactor first.** The flood band frequencies were literals in
+`marginal_params` (0.015/0.003/0.010/0.002/0.0005) and named constants
+in `scores_real` (`RS_FREQ_*`/`SW_FREQ_*`, which the depth multipliers
+weight their bands by). Two copies of one number, the drift trap from the
+day before, and it made them impossible to perturb. `scores_real` now
+holds the only definition (plus `RS_FREQ_BACKGROUND`), read at call time.
+`test_flood_band_frequencies_have_one_definition` moves each one and
+requires p_fl to move by exactly its own term.
+
+| scenario | E[loss] | premium | churn |
+|---|---|---|---|
+| flood high:envelope ratio 2.5:1 / 10:1 (5:1) | 166.6 / 166.9 | 172.4 / 172.8 | 7.8% / 5.7% |
+| river/sea vs surface water ×2/3 / ×1.5 | 166.7 / 166.9 | 172.5 / 172.8 | **12.3% / 16.1%** |
+| `GW_SHARE_OF_FLOOD` 0.05 / 0.20 (0.10) | 166.0 / 168.3 | 171.8 / 174.2 | 2.0% / 4.2% |
+| `GW_BACKGROUND` 0.01 / 0.04 (0.02) | 166.8 / 166.8 | 172.6 / 172.7 | 0.9% / 1.5% |
+| `SPATIAL_BASE` all equal | 166.8 | 172.7 | 0.9% |
+
+Readings:
+- **River/sea against surface water is the most consequential
+  unanchored constant** measured: more than ignoring depth (11.2%), and
+  second only to flood frequency ×1.5 (24.9%). A partial anchor exists:
+  the EA's RoFRS band definitions (High >3.3%, Medium 1–3.3%). The
+  model's high band is codes 3+4 together at 1.5%, so High homes are
+  priced below their band's floor. That is a flood chance, not a claim
+  rate, so it bounds rather than fixes. **The next candidate model
+  change: split High from Medium** (exp, both grains, the user decides).
+- `GW_SHARE_OF_FLOOD` is the only level mover, because groundwater has no
+  anchor of its own.
+- Loadings and background barely move anything.
+
+Also on 2026-09-27: the seed sweep. `seed-sweep.yml` failed its
+site-check step after a clean six-seed sweep (run 36277622557) because
+it never gained `build_tiles.py`; fixed on `exp/seed-sweep` with
+`test_every_site_build_makes_the_tiles_first` over every workflow, and
+re-dispatched at the published 30 seeds (42–71): run 36280689584,
+committed as 1aefd3b. `data/seed_sensitivity.json` had measured the
+2026-08-22 model (E[loss] 171.1); on today's (164.2) almost nothing
+moved. The standalone TVaR99 range is 10,153–17,686 (published rounding
+10,200–17,700, was 10,200–17,600) with a 57% spread (was 56%). Portfolio
+TVaR99 spread 2.18% and premium 0.20% are unchanged to the second decimal,
+and diversification is still 97.4–98.5%. The measurement held; only its
+basis was stale.
+
+## MEASURED 2026-09-26: the sensitivity table was seven weeks stale, and the depth curve moves the ranking
+
+Branch `exp/sensitivity-refresh`. No model change: `el_total`, the premium
+and every rating group are untouched. It changes `data/sensitivity.json`,
+the table on the year analysis page, and the landing-page finding built
+from it.
+
+**Why it was stale.** `data/sensitivity.json` and `data/dependence.json`
+were last written 2026-08-03 (mean premium 77.8 on the sample, against
+172.6 now). `sensitivity.py`, `seed_sweep.py` and `dependence_check.py`
+each carried a hand-copied version of `build_model.main()`'s scoring
+block. None ever gained the `ct_*` columns, so all three KeyErrored in
+`_fields()` before simulating, and all three still set erosion from
+`er_smp105` instead of `er_head`. The same rot as `analytic_el_check.py`
+on 2026-08-31, three more times. Fixed structurally:
+`build_model.score_districts(gdf)` now holds the block, `main()` calls
+it, and so do all three scripts.
+`test_analysis_scripts_score_through_build_model_not_a_copy` fails if a
+script calls a scoring reader itself. `analytic_el_check.py` keeps its
+own copy on purpose: it is the independent audit, and
+`test_analytic_el_check_builds_every_column_the_model_scores` guards it.
+
+**New scenarios.** `depth_flat/half/steep` (`DEPTH_DAMAGE**p`, p = 0 /
+0.5 / 1.5) and `depth_jrc_eu` (JRC Europe residential, Huizinga, de
+Moel & Szewczyk 2017, read at band midpoints). Each redoes the per-claim
+normalisation and the flood pin on the FULL frame, as `main()` does, then
+replaces the sample's columns. `reset()` restores `DEPTH_DAMAGE`, the
+columns, `FLOOD_SEV_BLEND` and `ABI_TARGET_FREQ`. A smoke run with a
+second baseline after the depth scenarios reproduced the first exactly.
+
+**Fixed scenario.** `sev_sigma_up` scaled σ after μ had been set from
+the mean, so every mean severity rose by e^{0.105σ²} — unevenly, more
+for the wider perils. The old 6.6% (August) / 10.5% (now) churn was that
+level shift. It now holds each mean. Rerun alone beside the baseline
+(the baseline was dict-identical to the full run's) and merged: 0.0%
+churn, premium unchanged, which is Gate 3 confirmed end to end. The
+catastrophic-year cost does rise +12.5% (425.9 → 479.0): the year view
+draws realised claim sizes, so σ reaches the tail diagnostic but never
+the price.
+
+### As measured (1-in-3 sample, 912 districts, N_SIM 8,000, ~35 min)
+
+| scenario | E[loss] | premium | cat year | churn |
+|---|---|---|---|---|
+| baseline | 166.8 | 172.6 | 425.9 | — |
+| θ−1 ×0.75 / ×1.25 | 166.8 / 166.8 | 172.5 / 172.7 | 425.7 / 426.2 | 0.0% / 0.4% |
+| tree-2 ρ zero / doubled | 166.8 / 166.8 | 172.6 / 172.6 | 425.7 / 426.6 | 0.0% / 0.4% |
+| σ ×1.1, mean held | 166.8 | 172.6 | 479.0 | 0.0% |
+| flood frequency ×1.5 | 177.0 | 183.3 | 476.6 | 24.9% |
+| erosion NFI | 166.8 | 172.6 | 425.9 | 0.0% (erosion 4.5 → 10.5) |
+| depth flat / ×0.5 / ×1.5 | 166.9 / 166.8 / 166.8 | 172.8 / 172.7 / 172.6 | 426.5 / 425.7 / 427.4 | 11.2% / 5.5% / 6.1% |
+| depth JRC Europe | 166.7 | 172.6 | 427.7 | 6.8% |
+
+Readings:
+- **The copula no longer moves the ranking** (≤0.4%, down from 7–26%
+  in August). Theft, EoW, fire and AD are independent legs by
+  construction and now carry most of the loss, so capital is a smaller
+  share and dependence reshuffles almost nothing. The landing-page
+  headline ("dependence sets the tail; the marginals set the ranking")
+  is MORE true than when it was written; its uplift-range clause is
+  gone, because the per-policy uplift is noise and the range had
+  collapsed to "11–11%".
+- **`DEPTH_DAMAGE` is the most consequential unanchored constant with
+  a scenario:** 11.2% of groups if depth is ignored. The JRC curve is on
+  a different basis (unconditional damage fraction, 0 at 0 m, so its
+  shallow end folds in no-claim, which this model prices in frequency)
+  and is a bracket, not an anchor. LIMITATIONS §6 now names it.
+- **`dependence_check.py` re-run the same day** (`data/dependence.json`
+  was also 2026-08-03 and feeds the methodology page's multi-peril
+  figures): multi-peril ratio ×94 → ×99 (vine 0.122% vs 0.00123%), TVaR
+  uplift +2.8% → +3.1% (CI −7.6% to +14.6%, still straddling zero).
+  README's hand copy updated; the site injects the rest.
+- **Not re-run:** `seed_sweep.py` (`seed-sweep.yml` on CI, an hour;
+  `data/seed_sensitivity.json` from 2026-08-22). It now runs through
+  `score_districts` but has not been run since the change.
+
+## PUBLISHED 2026-09-26: river/sea depth, and both depth multipliers normalised per claim, both grains
+
+Published on the user's explicit choice (asked after "go ahead and do
+what is best", which I did not take as a yes on its own), both grains in
+one push: district run 76, sector run 44 (`data/sectors_risk.geojson`
+blob-identical to it). Two changes, built together:
+
+1. **River/sea depth** (measured below, unchanged).
+2. **Surface water's depth multiplier normalised per claim**, the flaw
+   the river/sea work found. The normalisation now lives in the shared
+   core (`scores_real._depth_multiplier`, households x band frequency),
+   so neither peril can drift back. River/sea is byte-identical;
+   surface water is rescaled by 1/1.022 everywhere.
+
+| | districts | sectors |
+|---|---|---|
+| headline | 169.7653 -> 169.7722 | 169.7658 -> 169.7777 |
+| England / Scotland / Wales | -0.019 / +0.156 / +0.180 | -0.025 / +0.219 / +0.265 |
+| of which the surface-water fix | -0.016 / +0.149 / +0.173 | -0.023 / +0.214 / +0.257 |
+| groundwater (national) | £1.49 -> £1.50 | £1.49 -> £1.50 |
+| rating groups | 237 of 2,736 (9.7% of hh) | 889 of 10,398 (8.8%) |
+
+The surface-water fix does what it should and only that: the 2.2% that
+England's surface-water claims were overpaying came out of the national
+flood frequency, so undoing it returns flood to Wales and Scotland and
+lifts groundwater through its frequency peg (the whole headline rise).
+It is larger at sector grain, where the per-household/per-claim gap is
+wider. National flood stays at its £20.13 anchor. Validation: England's
+KSI table is unchanged (frequency did not move); Wales `el_fl` vs NRW
++0.598, as before.
+
+Also in this push: `sector-model.yml` has river/sea depth jobs (present,
+climate) and its commit step now lists every climate table it
+regenerates - it never listed surface water's either, so a climate pass
+built from inputs it did not commit. `rs-depth.yml` is dispatch-only
+and can refetch either grain.
+
+### As measured 2026-09-26 (river/sea depth alone)
+
+`exp/rs-depth` (district run 75, c110ee7) and `exp/rs-depth-sector`
+(sector run 43, 9146746). The river/sea leg has been priced at one flat
+ABI claim size everywhere; surface water has carried a depth multiplier
+since 2026-08. The EA publishes five RoFRS depth layers next to
+`rofrs_4band` (`rofrs_4band_{0_2,0_3,0_6,0_9,1_2}m_depth`, climate
+`rofrs_cc01_4band_*`), same legend, nested. This reads them at unit
+postcodes and gives river/sea the same depth-damage core as surface
+water, on the ZONE frequency only (the 0.05% background has no depth).
+
+**The fetch** (`scripts/fetch_rs_depth_postcodes.py`,
+`.github/workflows/rs-depth.yml`, run 36205880535, 4 parts x 2 editions,
+~25 min): the band itself is read in the same pass (`b00`), so the band
+files are the whole input and aggregate at either grain. `b00` equals
+the published fetch's `rofrs_bands` at **100.000% of 1,428,927 postcodes
+in both editions**. The runner's district aggregation and a laptop one
+of the same files are identical; the sector branch's own push ran an
+independent second fetch (36207569273) and its sector tables are
+identical to the committed ones. Sector rolled up to districts: national
+bands within 0.5%, per-district correlation 0.999.
+
+**Depth is not published everywhere the band is.** "Unavailable" at 1.9%
+of English postcodes but **16.7% of the >=1% band** (climate 10.3%), in
+all five layers alike; 60% of those are in PE, and PE11/PE13/PE14 (the
+Fens) have none of their own. Those postcodes are left out of envelope
+and depth alike (the conditional uses the file's own `e_high`/`e_low`);
+a unit with none takes its parent's distribution through the shrinkage
+prior - the three Fens districts get the PE area's (0.945, 0.39 m), not
+flat. That is the gap to state: the most exposed river/sea districts in
+England are priced on their neighbours' depth.
+
+**Normalisation is over claims, not households.** The first version
+reused surface water's household-weighted mean of 1; its mean per claim
+(households x zone frequency) was **1.059**, because deep water sits
+where the claims are. The flood total is pinned nationally, so that
+would have lowered flood frequency everywhere to pay for it - Wales,
+Scotland and groundwater moving with no hazard change there. Computed,
+not built. Weighting by claims makes the change a redistribution inside
+England. **Published surface water has the same property at 1.022 per
+claim**; unchanged in this measurement, fixed in the publish above.
+
+| | districts | sectors |
+|---|---|---|
+| headline | 169.7653 -> 169.7635 (-0.0017) | 169.7658 -> 169.7650 (-0.0007) |
+| England / Scotland / Wales | -0.003 / +0.007 / +0.008 | -0.002 / +0.006 / +0.007 |
+| flood, groundwater (national) | £20.13, £1.49 unchanged | £20.13, £1.49 unchanged |
+| premium_cc (national) | 175.17 -> 175.51 | 175.15 -> 175.45 |
+| rating groups | 235 of 2,736 (9.6% of hh) | 846 of 10,398 (8.3%) |
+| rs_sev min / p5 / p50 / p95 / max | 0.50 / 0.55 / 0.91 / 1.46 / 2.14 | 0.50 / 0.52 / 0.90 / 1.56 / 2.15 |
+
+Movers: up DN7 +102 (Thorne/Fishlake, 1.31 m), DN14 +76 (Goole),
+LN12 +42, YO8/YO1 +28, M7 +21 (Lower Broughton); sectors DN14 6 +216,
+DN7 4 +164. Down DN32 -21 / DN35 -19 (Grimsby, Cleethorpes: wide shallow
+tidal plains, 0.2 m), BS23 -21 (Weston), HU9 -14; sectors CA28 0 -77,
+TN23 9 -73. Newham (E6, E12) comes out among the deepest (1.3 m) with no
+>=1% band at all: the whole signal is the defended Thames fringe, i.e.
+the depth if defences fail. The climate edition is deeper, so the
+climate premium rises (+0.34 districts) while the present-day one is
+flat.
+
+**Not validated.** No external source gives river/sea depth at homes
+anywhere; the EA KSI counts are frequency and do not move. `DEPTH_DAMAGE`
+is the same unanchored curve surface water uses.
+
+Tests: `tests.yml` dispatched on `exp/rs-depth` green (36236131727). On
+the sector branch the property tests pass (141) and the site-build step
+fails with `StopIteration` on the district FOCUS - identically on
+`sector-model` itself (36236307419), which `tests.yml` had never been run
+on. Not this change.
+
+(Two to-dos written here at measurement time - make `rs-depth.yml`
+dispatch-only, give sector-model.yml a river/sea depth step - were done
+in the publish above.)
+
+## PUBLISHED 2026-09-26: surface water at 25% pixel coverage in England, both grains
+
+Published on the user's decision, both grains in one push (main
+da59625 plus this entry; district runs 73/74, sector run 42). What was
+measured is below, unchanged, except for one fix found while preparing
+the publish: the model now writes `el_*` at 2 dp. At 1 dp, groundwater's
+household mean read out of the file was £1.46 against the build's own
+unrounded £1.49 (its rounding errors share a sign, because the column
+barely varies). `doc_figures.py`'s el_total identity caught it before it
+reached LIMITATIONS. No price moved: the premiums are identical to the
+1-dp build. National flood stays at its £20.13 anchor; groundwater
+£1.57 → £1.49 through the frequency peg is the whole headline move.
+
+### As measured 2026-09-25
+
+`exp/sw-coverage` (district run 72) and `exp/sw-coverage-sector` (sector
+run 41): EA surface-water pixels count when at least 25% covered (alpha
+>= 64, `MIN_ALPHA` in `fetch_surface_water.py`, depth masks too). This
+is the last decoder constant from the review below that was still live.
+
+| surface water vs each agency's own count | live | exp |
+|---|---|---|
+| England vs EA KSI, >=1% / any band (543 constituencies) | 1.60x / 1.53x | 1.18x / 1.00x |
+| England Spearman, >=1% / any band | +0.932 / +0.949 | +0.939 / +0.958 |
+| Wales sw_high vs NRW SW people at risk, Spearman | +0.720 | +0.721 |
+| Scotland vs NFRA 2025 national count, both bands | 0.82-0.94x | unchanged |
+
+The 25% was chosen on half the tiles and held out on the other half
+(1.17x / 1.02x). It is the EA's alone. Applied to NRW by analogy (alpha
+>= 25 of 102), it was built and measured, and it made Wales worse against
+NRW's own counts: Spearman +0.72 -> +0.69, level ~0.56x -> ~0.43x
+(people / 2.2 per household). FRAW is the more conservative product, so
+NRW keeps alpha > 16. SEPA's export is binary.
+
+Scotland's anchor is new: NFRA 2025 (SEPA; Table 4, on the same "Surface
+Water and Small Watercourses" maps the model reads) counts 268,000 homes
+at medium risk and 439,000 at low. The range is the denominator: 2.51m
+model households, or the ~2.88m implied by "1 in 9 homes". Only national
+totals exist so far; the supporting data is still "to be published".
+
+| | districts | sectors |
+|---|---|---|
+| headline | 169.8428 -> 169.7653 | 169.8449 -> 169.7658 |
+| England | -0.48 | -0.48 |
+| Scotland | +2.19 | +2.20 |
+| Wales | +2.69 | +2.67 |
+| rating groups | 308 of 2,736 (10.8% of hh) | 1,032 of 10,398 (9.8%) |
+
+The Scottish and Welsh rises are the national ABI flood pin, not hazard:
+neither country's inputs moved. England was 1.5-1.6x its agency's count
+and carried too much of the fixed national flood total; Scotland sat at
+~0.9x and Wales below NRW. So the shift goes TOWARD consistency. Biggest
+movers: PE11 +14.8, DN14 +11.2 (river-heavy districts rise with the pin),
+and sectors PE29 9 -54.8, OL13 3 -50.6 (surface-water-heavy ones fall).
+The grains agree: sector sw_high rolled up by country matches districts
+to 0.0001.
+
+Two process notes. The refetch guard's "exactly 2x / 0.5x" merge flag
+fires on a real threshold change. The ratios were a smooth spread with no
+spike at 0.5, and nothing rose, which a stricter mask requires. And
+`validate_flood_england.py` reads the BUILT `districts_risk.geojson`, not
+the input tables, so it moves only after a rebuild.
+
+## PUBLISHED 2026-09-25: RoFRS risk bands for England and SEPA at 5 m for Scotland, built together, both grains
+
+The user's decision, on the two measurements below (both 2026-09-22 /
+2026-09-25, NOT published sections). Built TOGETHER, not stacked: each
+change reprices the other two countries through the national ABI flood
+pin, so two measured deltas would not add.
+
+**How the inputs were combined.** One per-postcode flags file:
+England's `in_high`/`in_low` from the rofrs experiment's band cache
+(`rofrs_bands.csv`: High+Medium, and +Low), Wales and Scotland from
+the SEPA 5 m fetch. Both grains' `flood_fractions.csv` aggregate that
+one file with `--flags-from`. NOT spliced by row: a district shrinks
+toward its postcode AREA and a sector toward its district, and TD, CH,
+SY, LL, NP and LD cross a border, so one country's flags move the
+other's border units. Against the experiments' own tables: 29 Scottish
+districts / 42 sectors differ from SEPA's and 1 English district / 2
+sectors from rofrs's, all by construction. `flood_fractions_cc.csv` is
+rofrs's (England only, England-only priors; SEPA cannot touch it).
+The fetcher merges both branches: `rofrs_england` + SEPA paging and
+tolerance + the flags cache.
+
+| | districts (2,736) | sectors (10,398) |
+|---|---|---|
+| headline | 169.7457 -> **169.8428** (+0.0971) | 169.7488 -> **169.8449** (+0.0960) |
+| England | 170.25 -> 169.69 (-0.57) | 170.16 -> 169.60 (-0.56) |
+| Wales | 160.17 -> 165.97 (+5.80) | 160.55 -> 166.29 (+5.74) |
+| Scotland | 170.11 -> 173.35 (+3.24) | 170.85 -> 174.05 (+3.20) |
+| rating groups changed | 905 (29.6% of hh) | 3,361 (31.7%) |
+| largest | HU3 -149, HU5 -145, PE11 +127 | PE11 1 +185, DN14 6 +181, HU5 3 -159 |
+| climate repricing (England) | +6.5% -> **+3.6%** (range 0% to +61%) | |
+
+Sum of the two separate measurements vs built together (districts):
+headline +0.0969 vs +0.0971; Scotland +3.62 vs +3.24. Scotland is where
+stacking would have been wrong: under rofrs's pin a unit of flood
+hazard is worth more, so SEPA's cut to Scottish hazard takes more off.
+
+**Correction to the rofrs section below:** it says the pin reprices
+Wales "with no hazard change". 108 Welsh districts do change hazard
+(max 0.014 in f_high), through postcode areas shared with England.
+Small, but not zero.
+
+**Validation after the build.** Wales el_fl vs NRW people at risk
++0.596; Scotland el_fl vs SEPA AAD high share +0.245. England's
+rivers/sea check against the EA's KSI is now circular (the model reads
+the product the counts come from); +0.832 was the last independent
+figure. National el_fl stays £20.13 (the pin); groundwater £1.46 ->
+£1.57.
+
+**Climate pair.** On RoFRS, 77 of 2,087 covered districts see f_high
+fall under climate change, worst SS1 -0.5pp; on the extent pair 9 fell
+by more than 1pp, worst HU12 -25.5pp. Growth in the high band +60.4%
+(was +87.7%). README, the methodology template and the
+`flood_future` comment are rewritten to match.
+
+**Docs updated in the same push:** README flood + climate sections,
+DATA_SOURCES #7 (superseded) and #44 (in use), LIMITATIONS §2, §3,
+§6 and §8, `map/template.html` (methodology text; the popup rows said
+"1in100/200 ... % of area", wrong since 2026-09-06 on the share and now on
+the band), the methodology template (flood section, EA source row,
+run list still naming `fetch_flood.py`/`fetch_surface_water.py`),
+`fetch_flood.py`'s docstring.
+
+**Two stale "current" figures, fixed the same day, and now checked.**
+LIMITATIONS §3's per-peril table (groundwater still £1.34, two publishes
+out of date; "£164.09 priced") and this file's current-premium line
+(£169.6477, four publishes out of date). `scripts/doc_figures.py`
+computes both from the committed output; `--check` is a main-only step
+in `tests.yml` (not under tests/, because rebuild.yml runs tests/ as the
+pre-flight on exp branches, whose output differs from main's by design),
+and `--fix` rewrites them. **After every publish: run `--fix` and commit
+it in the publish push.** Groundwater's move is itself a finding:
+`GW_SHARE_OF_FLOOD` pegs it to flood's claim FREQUENCY, which is flood's
+fixed paid total over a blended claim size. RoFRS moved the blend
+£27,363 -> £25,670, so groundwater rose £1.46 -> £1.57 with no
+groundwater input touched. LIMITATIONS §2 now says so.
+
+## MEASURED 2026-09-25: Scotland's flood polygons read at 5 m, not 100 m - both grains, NOT published
+
+Branches `exp/sepa-tolerance` (district) and `exp/sepa-tolerance-sector`.
+One fetch; its per-postcode flags (`data/cache/flood_postcode_flags.csv`)
+built both tables via `--flags-from`, so the grains read identical flags.
+
+| | district | sector |
+|---|---|---|
+| headline | 169.7457 → 169.7489 | 169.7488 → 169.7508 |
+| Scotland (household mean) | −1.45 | −1.47 |
+| England / Wales (pin only) | +0.15 / +0.13 | +0.15 / +0.13 |
+| rating groups changed | 196 (4.7% of homes) | 360 (2.9%) |
+| biggest movers | IV40 −15.7, PH17 −15.6 | G13 4 −30.8, PH37 4 −25.4 |
+
+- **Only Scotland's inputs move.** Every English and Welsh row of the new
+  table is identical to the published one, so the published build is a
+  clean baseline, with no service drift mixed in. England and Wales
+  reprice through the national ABI pin alone (143 English sectors change
+  group with no hazard change): the same cross-country effect as the
+  `rofrs_4band` experiment, in the other direction.
+- **Converged.** 5 m vs 1 m: coastal 859 vs 863 postcodes, rivers
+  identical. 100 m vs 5 m was 1,136 vs 859. All four layers returned the
+  server's full count (47,093 / 16 / 44,671 / 16).
+- **Only partial validation available.** SEPA's Flood Risk Grid (residential AAD,
+  a different product from the extents): `el_fl` vs area in AAD band ≥ 5
+  +0.17 → +0.25; `f_high` vs the area-weighted AAD index −0.43 → −0.35,
+  still negative. That index is surface-water-dominated and area-based
+  (see the 2026-09-05 entry), so it is weak evidence either way.
+- **The grains agree better.** Mean |sector roll-up − district| over
+  Scottish districts: f_high 0.0051 → 0.0034, f_low 0.0068 → 0.0052. The
+  big movers are thin units (PH17: 13 postcodes) where 100 m polygons had
+  inflated both grains unevenly (0.156 vs 0.216 → 0.055 vs 0.063).
+- **Every number above is a CI build** (district: `rebuild.yml commit=true`,
+  run 36078524656, `40ee70b`; sector: bot run 38, `42d20c5`). A laptop
+  district build first failed `verify=true` (run 36077933168): launched
+  from PowerShell, whose virtualised AppData hides the OSTN15 grid, it had
+  built on the Helmert fallback. The priced delta was nearly the same
+  (+0.0031 vs +0.0032, the same 196 groups), but the output was not.
+  main `8c5cc3d` now refuses to build without the grid.
+
+To publish (the user's decision): merge both branches' data in one push;
+DATA_SOURCES #9 is already updated on the branch. It composes with
+`rofrs_4band` (both move the pin); if both are published, build them
+together rather than stacking two measured deltas.
+
+## REVIEWED 2026-09-25: three flood decoders have unanchored constants, and two are on the live map
+
+A code review for suppressed errors and fixed values. The clean parts are
+short: every broad `except` retries then raises or is advisory; every
+workflow pipe ends in its checker; 151 tests pass. Cleanup landed in
+`53bdcf7`: `anchor_budget.py` read `obs` before it existed, so it printed a
+typed table and a stale sentence ("about half" of 0.31); the superseded
+`fetch_flood.py` truncated Scotland silently on a failed SEPA page.
+
+The findings are in how tiles and polygons become flags, measured against
+the EA's own residential counts (the KSI packs), level not rank:
+
+| decoder | constant | model ÷ EA, ≥1% band | model ÷ EA, envelope |
+|---|---|---|---|
+| surface water, England (LIVE) | alpha > 16 | 1.45× | 1.43× |
+| same tiles, alpha ≥ 64 | – | 1.09× | 0.98× |
+| rivers/sea extents, England (LIVE) | alpha > 16 | 2.82× | 1.95× |
+| `rofrs_4band` classifier (exp) | exact + majority | 1.08× | 0.97× |
+
+Surface water: 94 urban constituencies wholly inside ten 26 km tiles
+(fens and Cumbria held none). `rofsw` alpha is PIXEL COVERAGE: thin 2 m
+flow paths averaged into 13 m pixels. So alpha > 16 reads "6% of this pixel
+is wet" as at-risk. alpha ≥ 64 (25% coverage) matches the EA level and
+ranks slightly better (ρ +0.934 → +0.944). The depth masks use the same
+rule. NRW draws at 40% opacity (full cover = alpha 102), so the same
+constant means 16% coverage in Wales; the fix is a coverage threshold per
+source, not one alpha. The RoFRS classifier is NOT the fix for surface
+water: on the same tiles it reads 0.28×, because it treats faint pixels as
+none. Tuning the threshold to the EA level uses the validation set as the
+fit, so an exp would need a held-out half.
+
+Scotland: `fetch_flood_postcodes.py` fetches SEPA polygons with
+`maxAllowableOffset=100` (100 m simplification) before point-in-polygon.
+Against a 5 m reference: coastal medium 1,136 vs 859 postcodes in (+32%),
+85% of the true set misplaced; river samples (first 6,000 of ~47,000
+features) point the same way. Unsimplified coastal polygons 500 the
+server, so the fix is a small tolerance at one feature per page.
+
+Unanchored constants with no sensitivity scenario: the
+`LEX_SUSCEP`/`RCS_SUSCEP` table, `OLD_AGE_FACTOR`, `DEFAULT_SUSCEP` (they
+reach the model through `subsidence_postcodes.csv`, so each variant needs
+`score_subsidence_postcodes.py` re-run). None is wrong on evidence.
+`DEPTH_DAMAGE` got scenarios 2026-09-26; `SPATIAL_BASE`, the flood band
+frequencies, `GW_SHARE_OF_FLOOD` and `GW_BACKGROUND` on 2026-09-27 - see
+"MEASURED 2026-09-27: the rest of the unanchored constants".
+
+All three flood findings are model changes: exp branches, both grains,
+the user decides. The two measurement scripts were scratch and are not
+committed; an exp should rebuild them as `scripts/` with fixed tile lists.
+## MEASURED 2026-09-22: England's rivers/sea on the EA's RISK bands, both grains - NOT published
+
+Branches `exp/rofrs-4band` (district, laptop build `5a71ba6`) and
+`exp/rofrs-4band-sector` (sector, runner build run 37, `a0300da`). The
+user asked for the experiment; **publishing is theirs to decide.**
+
+**What changed.** England's `f_high`/`f_low` came from the defended
+EXTENTS (`Rivers_1in100_Sea_1in200_defended_extents`, and the 1-in-1000
+pair) - land an event covers, and not even one return period. They now
+come from `rofrs_4band` (DATA_SOURCES #44): the EA's chance-at-the-
+property banding, defence-aware, decoded at 13 m and sampled at every
+unit postcode. `f_high` = High + Medium (>= 1%/yr), `f_low` adds Low
+(>= 0.1%), Very Low is neither. Climate reads `rofrs_cc01_4band`.
+Wales, Scotland, the postcode sampling and the shrinkage are untouched.
+
+**The decoding is the only new machinery, and it is tested.** The style
+strokes every polygon in grey; a third of painted pixels in a built-up
+tile are not a legend colour, and nearest-colour on a dark stroke says
+High - so `f_high` would have been inflated exactly where the houses
+are. Opaque exact pixels are read by colour; the rest take the majority
+of readable pixels round them (transparent ones voting "none"),
+widening 5 -> 11 -> 21 px, failing loudly if none. 96.4% of English
+postcodes are read directly. The test: decoded postcode bands
+aggregated straight to constituencies against the EA's own residential
+shares from the same raster - Pearson **0.974 / 0.988 / 0.993** (H+M,
++Low, any), level **1.94% vs 2.0%**. The decoder reproduces the EA.
+
+**Two traps found on the way.**
+- The climate edition is **"Unavailable" over the fens**: 1.9% of
+  English postcodes, 100% of PE11-PE25 and CB6, the Somerset Levels, the
+  Lincolnshire coast. Read as "none", PE11's f_high would go 0.65 -> 0
+  under climate change. Those postcodes now carry their present-day
+  band, fetched by the climate run itself. English districts whose
+  f_high FALLS under climate change: **28 on main (worst HU12, -0.25) ->
+  1 here** (TD12, -0.008, a border artefact already on main).
+- **The national pin moves Wales and Scotland.** Flood is calibrated to
+  one ABI total; England's raw frequency falls (mean f_high 0.055 ->
+  0.020), the scaling rises, and unchanged Welsh and Scottish hazard is
+  worth more. Wales reads NRW FRAW, banded High/Medium/Low like RoFRS
+  (its defence treatment is NOT confirmed from metadata - the WMS
+  abstracts are one line), so its +GBP5.5 looks like a correction: it was
+  being pinned against inflated English extents. Scotland reads SEPA,
+  which describes its layers as return-period HAZARD extents, so its
+  +GBP5.1 is a **new relative bias** - before, England and Scotland were
+  on the same (extent) basis; now Scotland is the odd one out. No
+  per-country ABI anchor exists to correct it. By exposure the new
+  state is more consistent (~92% risk basis vs ~5% before), but it is
+  not free.
+
+**The deltas.**
+
+| | district | sector |
+|---|---|---|
+| headline | 169.7457 -> **169.8392** | 169.7488 -> **169.8419** |
+| England | 170.25 -> 169.50 | 170.16 -> 169.41 |
+| Wales | 160.23 -> 165.77 | 160.55 -> 166.05 |
+| Scotland | 170.15 -> 175.23 | 170.86 -> 175.90 |
+| rating groups moved | 980 / 2,736 (31.8% of hh), 118 by >= 2 | 3,430 / 10,398 (32.2% of hh), 412 by >= 2 |
+| fl_score vs live | r 0.832 | r 0.858 |
+| climate repricing | +6.5% (-17% to +86%) -> +3.6% (0% to +61%) | - |
+
+The district column is a laptop build, re-run on CI on 2026-09-25 (rebuild.yml
+commit=true, run 36079691257, `4fc6eba`) in case the laptop had built on Helmert:
+169.8392 -> 169.8393, 2 of 2,736 groups flip. The numbers stand, and the committed
+output is now CI's.
+
+Up: the fens and the Humberhead levels (PE11 175 -> 300, DN7 147 -> 234;
+sectors PE11 9 140 -> 310, DN14 6 152 -> 331). Down: Hull (HU5 293 ->
+148, HU3 329 -> 179; sectors HU5 4 279 -> 120) and defended tidal London
+(SE16 f_high 0.10 -> 0.004). By area: PE +12.9%, DN +8.9%, HU -31.3%,
+the south-west peninsula -4% to -6%. 54% of UK households move by 2% or
+less. Sectors rolled up to districts reproduce the district fractions at
+Pearson 0.9948.
+
+**Validation - read this before quoting it.** England rivers/sea f_high
+vs the EA's properties at risk: 0.832 -> **0.913**. That rise is
+EXPECTED BY CONSTRUCTION: the EA counts are computed from the raster the
+model now samples (DATA_SOURCES #43, corrected on this branch - it used
+to imply the rivers/sea check was already circular, which it was not,
+and that is why +0.832 was the informative number). The independent
+checks barely move, as they should, since the change only reaches them
+through border districts: Wales el_fl vs NRW people at risk 0.590 ->
+0.597, Scotland AAD 0.173 -> 0.174. **There is no independent evidence
+for England either way; none exists outside the EA's own product.** The
+case for publishing is the basis (chance at a property is what a
+frequency model prices; an extent is not), consistency with surface
+water and with Wales, the decoder's fidelity, and a climate file with
+one fall instead of 28. The case against is Scotland, and the size of
+the move - a third of households change rating group on a basis change
+nothing external can adjudicate.
+
+**If published:** both grains in one push as always; `sector-model.yml`'s
+flood job fetches present-day only and the climate file is laptop-
+fetched, which still holds; README / DATA_SOURCES #7 / LIMITATIONS §3
+and §6 / the map's methodology text all name the extents and must be
+updated; `fetch_flood.py` becomes the superseded area/extent path for
+England.
+
+## VERIFIED 2026-09-21: the rewritten `sw-refetch.yml` runs, and reproduces all four tables
+
+`sw-refetch.yml` was rewritten on 2026-09-20 to fetch the postcode-basis
+pair instead of the superseded area-basis one, and shipped **untested on a
+runner**. Run 35578081011 (`climate=true commit=false`, 1h31m) settles it.
+
+**Both fetch jobs succeeded.** The folded design held: the present-day job
+did all three regions of `fetch_sw_postcodes.py --flags`, its aggregation,
+then `fetch_sw_depth_postcodes.py --flags` and its aggregation, in one job,
+reading the gitignored `sw_flags_england.csv` its own earlier step wrote.
+The climate job did the England pair the same way.
+
+**All four tables came back identical to the published ones** - 2,737 /
+2,737 / 2,237 / 2,737 lines, zero differing, character for character
+against `git show HEAD:`. (A naive `cmp` says all four differ: the working
+copy is CRLF and the artifacts are LF. That is the checkout, not the data.)
+
+**The one failure was the guard, and it failed in the worst available
+way.** `check_refetch_delta.py` printed `ok` for the two frequency tables
+and then died:
+
+    ValueError: could not convert string to float: 'postcode'
+
+`sw_depth.csv` gained a `basis` column at the 2026-09-20 publish and the
+guard assumed every non-key column was a number. So the two tables the
+guard is *for* - the depth pair, whose basis is the thing that can
+silently revert - were never compared, behind a log that showed two ticks.
+A control that skips what it cannot parse is not a control.
+
+Fixed: numeric columns are now found from the data, and a **text column is
+compared for equality**, so a `postcode` -> `area` flip fails the run
+outright even though every number stays a plausible share. That is exactly
+the reversion the 2026-09-20 publish spent its day closing off at three
+other sites; this was the fourth and nobody had looked at it.
+`tests/test_refetch_delta.py` covers the crash, the basis flip, that the
+numeric gates still bite alongside a text column, and that `check()`
+returns rather than raises on each of the four real tables.
+
+**The lesson is not about CSV parsing.** The guard had been *added* on
+2026-09-13 because a shape guard cannot catch a size error. It then went
+eight days unable to read half its arguments, and would have gone longer,
+because nothing runs it except a full refetch - the rarest job in the
+repo. A guard whose only exercise is the event it guards against is
+untested by construction. Hence the end-to-end case in the new test file,
+which runs on every push.
+
+## MEASURED 2026-09-21: England's flood ordering, validated at last - and it found something
+
+The open question from 2026-09-05 ("whether the EA publishes
+properties-at-risk per community for England is the next availability
+question") is answered: **yes**. DATA_SOURCES #43. England is 85% of
+the exposure and had never been checked against anything the model did
+not itself read.
+
+`scripts/validate_flood_england.py` reads the EA's *Key Summary
+Information* packs - residential properties inside each risk band, per
+**MP constituency**, counted from the National Receptor Dataset 2023 -
+and rank-correlates them against the model, joined through ONSPD's
+`pcon24cd`. Writes `data/flood_validation_england.csv`. Nothing the
+model reads changes.
+
+| product | EA residential band | model | Spearman | n |
+|---|---|---|---|---|
+| surface water | High+Medium (>=1% AEP) | `sw_high` | **+0.932** | 543 |
+| surface water | all bands | `sw_low` | **+0.949** | 543 |
+| rivers and sea | High+Medium | `f_high` | **+0.832** | 534 |
+| rivers and sea | all bands | `f_low` | +0.754 | 534 |
+
+For scale, the 2026-09-05 Welsh check ran sea +0.70, surface water
++0.57, river -0.13.
+
+**The negative control matters as much as the number.** A postcode
+district is not nested inside a constituency and the two cross-cut
+everywhere - the median constituency takes only 34% of its postcodes
+from its largest district - so a natural objection is that the
+disagreement is the join's resolution rather than the model's error.
+Measured, in quartiles of that concentration: rivers/sea 0.840 / 0.863
+/ 0.832 / **0.786** and surface water 0.929 / 0.934 / 0.917 / 0.939.
+The tightest quartile is no better than the loosest. Resolution is not
+the story, so the gap is real.
+
+**What is the story: the two flood perils are built on different KINDS
+of EA product, and the one that matches the EA validates better.**
+Surface water samples `rofsw`, the EA's own risk banding, and scores
++0.932. Rivers and sea samples *extents* -
+`Rivers_1in100_Sea_1in200_defended_extents` - and scores +0.832. The
+largest disagreements say exactly this, and they are not scattered:
+
+    Bermondsey and Old Southwark   EA 0.00% high, 77.93% all bands
+                                   model 6.22% high, 6.44% all
+    Poplar and Limehouse           EA 0.36% / 40.99%
+                                   model 8.56% / 10.85%
+    Doncaster East & Isle of Axholme  EA 13.29% high, model 3.45%
+    South West Norfolk             EA  7.81% high, model 2.69%
+
+Defended tidal London: the EA puts four-fifths of those homes in its
+**Very Low** band because the defence works, and the model has them
+inside the 1-in-200 sea extent and calls it high. Drained fen and
+washland behind embankments: the reverse - the EA's residual risk is
+high, the model's extent is small. An *extent* is the land an event
+covers; RoFRS is the *chance at the property*, probabilistic over
+defence condition and overtopping. Different bases. And the layer name
+alone shows `f_high` is not one return period: it unions rivers at 1
+in 100 (1%/yr) with sea at 1 in 200 (**0.5%/yr**).
+
+**The fix is published, free, and unclaimed** (DATA_SOURCES #44):
+`nafra2-risk-of-flooding-from-rivers-and-sea/wms` serves `rofrs_4band`
+at the same 13 m/px cap as every other layer we rasterise, and
+alongside it `rofrs_4band_0_2m_depth ... _1_2m_depth` - **river/sea
+depth bands**, the analogue of #20 for the larger half of flood, which
+the model does not have at all. Neither string appears anywhere in
+this repo. Both are `exp/` candidates; neither is done here, and
+neither has been priced.
+
+## PUBLISHED 2026-09-20: surface-water DEPTH by postcode share, both grains
+
+The user's decision, on the measurement of 2026-09-07 re-baselined onto
+the OSTN15 publish (section below, numbers reproduced almost exactly).
+Main fast-forwarded to `exp/publish-depth-postcode` in one push
+(`dade8dd`; district output = bot run 66, sector output = sector-model
+run 36 `17f87d3` crossed as `data/sectors_risk.geojson`). `sector-model`
+re-synced afterwards (`a6f70b6`, sector build and sector-grain depth
+tables kept OURS). **Live verified** with the cache bypassed after
+`pages` run 35538855901: `uk_district_risk.csv` and
+`uk_sector_risk.csv` are byte-identical to the committed assets,
+2,736 rows at 169.7457 and 10,398 at 169.7488, IP33 152.5 at 0.25 m
+(0.63 m by area), BD1 9 330.7 at 0.55 m.
+
+The CI rebuild reproduced the laptop's measured district build with
+**zero** districts differing on premium - the OSTN15 adoption of
+2026-09-05 continues to hold local == CI.
+The peril now has ONE denominator: `fetch_sw_depth_postcodes.py` samples
+the five EA depth layers at the same unit-postcode centroids the
+frequency uses, and `sw_depth_severity` conditions on the same
+postcode-share `sw_high`/`sw_low`. `sw_fractions_area[_cc].csv` stop
+being model input; `sw_depth_area[_cc].csv` keep the last area tables.
+
+Priced, both grains, against the published model:
+
+| | districts (2,736) | sectors (10,398) |
+|---|---|---|
+| hh-weighted premium | 169.7480 -> 169.7457 (-0.0024) | 169.7525 -> 169.7488 (-0.0037) |
+| rating group changed | 98 (4.0% of households) | 468 (3.8%) |
+| moved >= 2 groups | 0 | 2 |
+| largest falls | IP33 -10.4, RM18 -9.3, RM9 -5.3 | RM20 2 -14.5, IP33 2 -14.2, RM18 7 -14.0 |
+| largest rises | M90 +6.1, N8 +6.1, SW1P +5.6 | BB2 9 +25.7, BD1 9 +20.4, LE16 0 +19.6 |
+
+**What else went in with it, and why it is not optional.** Three files
+would otherwise have quietly put the model back on the area basis:
+
+1. `sector-model.yml`'s `depth` and `depth-climate` jobs are GONE, and
+   the two depth stages now run inside `surface-water` and
+   `surface-water-climate`. Not tidiness: the depth aggregation reads
+   `data/sw_flags_england[_cc].csv`, which the frequency stage writes,
+   which is gitignored (~20 MB) and is never uploaded as an artifact.
+   A parallel job finds it absent on a fresh runner and falls back to
+   the committed envelope - new depth conditioned on an old denominator,
+   with every shape guard passing.
+   `tests/test_workflows.py::test_depth_is_sampled_in_the_job_that_fetched_its_envelope`
+   now asserts the ordering for both workflows.
+2. `sw-refetch.yml` refetched exactly the two products this change
+   supersedes. Dispatched as it stood, it would have overwritten a
+   postcode-basis `sw_depth.csv` with an area-basis one. It is
+   repointed at `fetch_sw_postcodes.py` + `fetch_sw_depth_postcodes.py`
+   and is now the grain-agnostic refresher for all four live tables;
+   the test refuses `fetch_sw_depth.py` and `sw_fractions_area`
+   appearing in it again. **Its own path is untested on a runner** -
+   the steps mirror sector-model.yml's, which have run.
+3. `fetch_sw_depth.py`'s docstring says it is superseded and what
+   running it would do.
+
+Also: README's quick-start was still telling a reader to run
+`fetch_flood.py` and `fetch_surface_water.py` for the fraction tables,
+which have been superseded since 2026-09-06 - fixed in the same pass.
+
+**No external validation of depth-at-homes exists** (NRW/SEPA publish no
+depth product at all, DATA_SOURCES #38a). The evidence is the shared
+denominator, the nesting, and the direction: homes sit on the higher
+ground of a floodplain, so Bury St Edmunds and the Thames-estuary towns
+fall and inner London and the Pennine mill towns rise. That is an
+argument, not a measurement, and it is the weakest link in this change.
+
+## PUBLISHED 2026-09-13: surface water refetched on OSTN15 at both grains - correct, and worth nothing
+
+The refetch of the previous section landed. Main `d82360f`, sector-model
+`0e0ff3f` (sector run 35 = `67c7015`), one push, both grains, live
+verified byte-for-byte against the committed assets.
+
+**The priced answer is nothing.**
+
+| | live | rebuilt | move |
+|---|---|---|---|
+| districts | 169.7478 | 169.7480 | +0.0002 |
+| sectors   | 169.7525 | 169.7525 | 0.0000 |
+
+Rating-group churn: 2 of 2,736 districts, 0 of 10,398 sectors, none by
+two groups. Both district flips are a decile-boundary tie - KA2 4->5 and
+RG5 5->4, both GBP158.40 before and after. Two units sitting exactly on
+the cut, jittered across it by a sub-pixel input change.
+
+So this workstream bought correctness, not price. Worth saying plainly
+because the *inputs* moved a great deal more than the output did:
+
+- **District depth bands** were rasterised against polygons 2-7 m from
+  the model's own (up to 0.54 of a 13 m pixel) for six weeks. Fixed;
+  max move 0.0046 share, tens of pixels in the City, 49% of values
+  touched. Prices to nothing because depth-band severity is a small
+  term.
+- **The Welsh area envelope was 8.8% too high** and had been for as long
+  as it has existed. Fixed; prices to GBP0.00, because that envelope
+  only CONDITIONS the depth bands and surface-water-depth-by-postcode
+  was never a priced frequency. It was wrong; it was not wrong anywhere
+  that reaches a premium.
+
+**How the Welsh error was caught, because the method is the reusable
+part.** The size guard refused the run - 2.32% of values moved past
+0.01, level -0.80%. Looking at why, split by country, showed England
+(max 0.0051) and Scotland (max 0.0009) reproducing and Wales alone
+moving. Two things then settled it without a single new fetch:
+
+1. The sector run hit NRW **at the same moment with the same code** and
+   reproduced its committed Welsh values exactly (0.5% of values, max
+   0.0011). So NRW had not revised anything, and the district file was
+   the odd one out rather than the service.
+2. Rolling that sector measurement up to district level - area-weighted,
+   and **independent of the district polygons** - landed on the
+   REFETCHED district values, not the committed ones. Mean
+   |district - sectors| 0.00658 -> 0.00002, median ratio 1.088 -> 1.000.
+   LL25 0.20971 -> 0.16980 against a roll-up of 0.16978; CF41 0.14167 ->
+   0.10899 against 0.10899.
+
+The two grains disagreed on Wales before this and agree after it. **When
+two grains measure the same thing from different geometry, one can audit
+the other for free** - no new fetch, no external dataset. That is the
+cheapest validation this project has found, and it should be reached for
+before anything more elaborate.
+
+**A guard that fires is not a guard that failed.** The refusal cost a
+75-minute fetch to act on, so `sw-refetch.yml` gained an `accept_large`
+input: a move a human has looked at and justified can now be committed
+by re-running `collect` alone. `check_refetch_delta.py` also prints the
+level shift SIGNED - it reported a fall as `(+0.80%)`, which is how a
+reader ends up arguing with the arrow instead of the number.
+
+## 2026-09-12: the depth tables were rasterised on the wrong transform - refetching all four
+
+Chasing the retraction above to the bottom turned up a real defect, one
+grain deeper than the one I invented.
+
+**The EA product has not changed.** Run 34056312941 refetched the sector
+depth bands on 2026-09-06 in 75 minutes and its artifact is byte-for-byte
+the committed 2026-08-17 table. Downloaded and diffed, not inferred.
+
+**But the fetch jobs never had the OSTN15 grid.** `fetch_sw_depth.py`
+calls `load_districts().to_crs(27700)`. On `sector-model` that is a round
+trip - the source file is already 27700, so the transform cancels
+(measured: 4e-9 relative area, 0.000000 m corner shift). **On main it is
+one-way**: the district polygons are 4326 GeoJSON, nothing cancels, and
+without the grid PROJ falls back to the Helmert approximation. Measured
+across eight British points that is **2.0 to 7.1 m, up to 0.54 of a 13 m
+pixel**. The model build has used OSTN15 since 2026-09-05. So the district
+depth bands have been counted against polygons the model does not use.
+
+**Size of it.** Refetching on this laptop (which has the grid) against the
+committed tables: tens of pixels per district - OX9 d03_low by 13.4 px out
+of 411,598, about 1e-5 of the fraction. Invisible at district grain. At
+sector grain the same absolute shift is a whole pixel in the slivers, and
+a pixel is 4.5% of TW8 1 (22 pixels in total). Every large sector delta
+I checked was exactly one pixel.
+
+**What changed.** `sw-refetch.yml` refetches the depth bands AND the
+area-share envelope they are conditioned on - the two are rasterisations
+of the same tile grid and are meaningless apart - for whichever grain the
+dispatched ref builds, with the grid installed. `fetch_surface_water.py
+--out` leaves the postcode-share frequency file untouched. Four jobs in
+parallel, so one depth job of wall clock. The same step was added to
+sector-model.yml's `erosion`, `depth` and `depth-climate` jobs.
+
+**And the guard no longer relies on anyone remembering.**
+`tests/test_workflows.py` now DERIVES the list of transforming scripts by
+grepping `scripts/` for `to_crs(27700)`, instead of the hand-written list
+that had missed `fetch_sw_depth.py` since it was written. Adding a script
+that transforms, without the grid step, is now a red `tests.yml`.
+
+**The first attempt at that refetch produced a table twice the truth.**
+`fetch_surface_water.py`'s merge seeded every unit from the existing CSV
+and then added the freshly fetched value on top, so re-running `england`
+against a file that already held England double-counted it. It had never
+been wrong before because it had only ever run on a file whose selected
+rows were still zero. The output looks exactly like a fraction table -
+right row count, every value in [0, 1], `sw_high` still inside `sw_low` -
+and **every guard in `tests/test_inputs.py` passes on it**, including the
+new shares check; the depth-envelope guard is a CEILING, so an oversized
+envelope makes it pass *more* easily. Measured on the artifacts of runs
+34713778297 and 34713779880: 77.4% of district and 82.7% of sector values
+moved, all upward, median +0.076 / +0.094, mean `sw_low` 0.15557 ->
+0.28464, nineteen units pinned at 1.0. Both runs were cancelled at 48
+minutes, before `collect`; `origin/main` stayed at `b11ca78` and
+`origin/sector-model` at `cf34168`.
+
+It was caught because the user had asked to see the deltas before the
+push. That is not a control, so `eccd532` added one: the merge now keys
+on `data/country.csv` rather than on which rows happen to be nonzero,
+and `scripts/check_refetch_delta.py` compares each refetched table
+against the version it replaces and fails the run if more than 1% of
+values moved past 0.01 or any column's mean level moved 2%. The expected
+move is the datum shift, ~1e-5 of a fraction, so those thresholds are
+generous by three orders of magnitude and still catch a doubling (76.33%
+moved, level +82.96%, exit 1). `sw-refetch.yml` runs it in `collect`
+before the commit step; `tests/test_workflows.py` asserts that ordering
+and that every table the workflow fetches is one it size-checks.
+
+**The lesson worth keeping:** a shape guard cannot catch a size error.
+Every identity in `test_inputs.py` is a statement about one file on its
+own, and a doubled file satisfies all of them. Refetching an unchanged
+product is the one situation where you know what the answer should be -
+the old one - so compare against it.
+
+## RETRACTED 2026-09-12: "stale sector depth table" - it was not stale, and I did not check before writing it
+
+Earlier the same day I recorded that `tests/test_inputs.py`, arriving on
+`sector-model` for the first time, had caught a stale depth table:
+`sw_depth.csv` from 2026-08-17 against an envelope "rebuilt 2026-09-06 on
+the current geometry". The user asked for the fix and a republish. **The
+finding was wrong and no republish is warranted.** Every claim in it is
+answered below by something I could have run before writing it.
+
+**The two tables come from the same fetch.** `sw_fractions_area.csv` is
+not a rebuild at all - `fetch_sw_postcodes.py` *copies* the pre-existing
+area-share file aside before overwriting it, so its 2026-09-06 date is
+the copy, not a measurement. Its bytes are identical to
+`sw_fractions.csv` as committed in `453cef2`, "Sector model: cloud fetch
++ build (run 8)" - the same run that wrote `sw_depth.csv`. I compared
+mtimes and stopped.
+
+**The geometry never moved either.** `data/sectors_gb.gpkg` is committed
+on this branch and has been written exactly once, in `d5dc7f2`. OSTN15
+changed postcode centroids, not the sector polygons, so the depth
+rasterisation, its envelope and the live build all use one geography.
+
+**What the overshoot actually is:** the same two-rasterisation artefact
+already documented for districts. The five depth layers and the extent
+layer are separate 13 m/px renderings, and the same absolute edge error
+is a bigger share of a smaller polygon. Districts: 0 rows past half a
+point out of 5,472, largest 0.29 pp. Sectors: 38 out of 20,796, largest
+14.7 pp. Rare at both grains, which is the signature of rounding rather
+than of a mismatched pair.
+
+**And the consequence was overstated in the wrong direction.** I wrote
+that the affected sectors are "individually overstated". Re-running
+`sw_depth_severity` against a variant that caps each depth fraction at
+its envelope moves the exposure-weighted mean multiplier by nothing
+(1.000000 either way, it is renormalised) and moves individual sectors
+**both ways**: BR8 9 1.493 -> 1.000, but SE3 3 2.044 -> 2.215. The
+largest move is 0.49 on a 160-household sector; the next five are 0.23
+or less, on 75-250 households. Capping is not obviously more correct
+than what the model does - raising the envelope to the band is the
+*gentler* of the two, since capping shifts relatively more weight into
+the deep bands.
+
+**Also checked, also a non-issue:** the `depth`, `depth-climate` and
+`erosion` jobs of `sector-model.yml` run scripts that call `.to_crs(27700)`
+with no OSTN15 step, which `tests/test_workflows.py` does not catch
+because its list of transforming scripts is hand-written. It is harmless
+here: `load_districts()` reads a 27700 file and returns 4326, so
+`fetch_sw_depth.py` round-trips back to the source CRS with one pipeline
+and the grid cancels - measured at 4e-9 relative area and a 0.000000 m
+corner shift. Worth knowing before someone "fixes" it; worth fixing only
+if one of those scripts ever stops round-tripping.
+
+**What changed as a result.** `tests/test_inputs.py` now guards the
+overshoot RATE (under 1% of rows) with a ceiling on any single row,
+instead of one absolute tolerance that could only ever be right at one
+grain. Nothing was rebuilt and nothing was republished.
+
+**The lesson, which is the only reason this entry is long.** Two file
+mtimes are not provenance. `git log` on both files would have taken
+fifteen seconds and would have stopped the claim being written, the
+commit being pushed, and the user being asked to authorise five hours of
+CI to fix a table that was already correct. This is the eighth entry in
+the list of claims of mine that measurement later contradicted.
+
+## MEASURED 2026-09-12: how far ahead is the weather forecastable? Three ways, same answer
+
+The question was whether the model could be fed a one-year weather
+forecast instead of a climatology. It cannot. Three independent
+measurements, none of them an appeal to authority.
+
+**1. No free source forecasts a year.** The longest is Open-Meteo's
+seasonal (NOAA CFSv2, 50 members): **hard cap 217 days**. Its own
+ensemble spread reaches the 1991-2020 climatological spread by about
+**two to four weeks** (spread ratio 0.19 on day 0, ~1.0 from day 15-30
+on), averaged over London/Manchester/Edinburgh/Cardiff, for both
+temperature and rainfall. Past that lead it is climatology wearing a
+timestamp. Endpoint-by-endpoint sweep in DATA_SOURCES #42.
+
+**2. The two indices the model actually consumes have no year-to-year
+memory.** Detrended lag-1 autocorrelation over 66 years: `cwd_yr_mm`
+**+0.103** (p=0.41), `frost_days` **+0.027** (p=0.83). A 36-year
+walk-forward agrees: persistence is **31% and 24% WORSE** than
+climatology; only the trend helps, and only on frost (**+14.7%**).
+So the best available one-year forecast of the model's own inputs is
+climatology plus a trend - which is what it already uses.
+
+**3. The equations themselves, integrated here.** `scripts/nwp/` is a
+real shallow-water model on the rotating sphere (the Navier-Stokes
+equations after hydrostatic balance and one constant-density layer),
+spectral, vorticity-divergence form, initialised from NCEP reanalysis.
+Twin runs from starting states that differ by less than the wind is
+observable measure the error doubling time: **5.6 d at T42, 4.2 d at
+T63** - *faster* with resolution, the classic result. Saturation (two
+unrelated January days) is **17.6 m/s**.
+
+**The doubling time is not one number, and the conclusion does not need
+it to be.** A 20-day sweep over four starting amplitudes gives 6.6 d
+(0.001 m/s), 6.8 d (0.01), 9.1 d (0.1) and 15.6 d (1.0): growth slows
+as the error grows, which is Lorenz's own result and the reason a
+single figure is always window-dependent. Take the *slowest* measured
+growth, 15.6 d, and a year is still 23 doublings - the initial wind
+would have to be known to **8e-7 m/s**, against the ~1 m/s it is
+actually observed to. At the fastest, 4.7 d, the requirement is 5e-23.
+The whole measured range rules a year out by six to twenty-three orders
+of magnitude, so it is not a data problem and no sharpening of the
+number changes the answer.
+
+**It is physics, not the integrator.** Halving the timestep (600 s ->
+300 s, T42, 12 days) moves the mean doubling time from 5.5754 d to
+5.5750 d and the final error by 0.04%. Mass is conserved to 2e-16,
+energy to 4e-4, and enstrophy falls 6% into the filter as it must.
+
+**What this settles.** The 20,000-year copula simulation is not a
+second-best substitute for a forecast; at a one-year lead it is the
+*only* correct product. A deterministic year-ahead weather input would
+be a false precision, and the model does not have one.
+
+**The solver is guarded, not trusted.** `tests/test_spectral.py` (12
+tests, ~20 s) asserts identities, not pictures: basis orthonormality
+under the Gauss quadrature actually used, exact round-trips, the
+analytic vorticity of solid-body rotation, Williamson case 2 holding
+steady, and case 6 conserving mass/energy while enstrophy *falls* into
+the filter. Independent check: a height field built from observed
+winds alone via the linear balance equation correlates **0.9983** with
+the separately observed 500 hPa height.
+
+**Not in the pipeline.** Nothing here feeds the published model. It is
+evidence for a decision, kept because the decision will be asked again.
+
+## MEASURED 2026-09-10: the DROUGHT re-aim question, closed - do not re-aim
+
+An asymmetry nobody had noticed. On 2026-08-31 `measure_frost_era.py`
+asked whether the freeze leg's 1991-2020 climatology should be aimed at
+a more recent window, and answered no on a careful standard: the level
+cancels exactly (`eow_rate` divides frost by its own exposure-weighted
+mean) and every candidate window moved the SHAPE of the map by less than
+a same-climate control does. **The identical question was never put to
+the other temperature-driven leg**, even though subsidence is priced
+through the same construction
+
+    sub_rel = (1 - SUB_DROUGHT_SHARE) + SUB_DROUGHT_SHARE * cwd_yr / wmean(cwd_yr)
+
+on a climatology built from the same window, and even though the drought
+integral trends UPWARD - the direction that raises the peril, not the one
+that lowers it. `scripts/measure_smd_era.py` puts the question, reusing
+the frost script's controls verbatim so the two legs are judged by one
+standard.
+
+**The level has moved, and more than frost's did.** National
+household-weighted `cwd_yr`, 1960-2025: **+0.93 mm/yr, p = 0.036**,
++3.6% of the mean per decade. Against the published 1991-2020 mean of
+260.2 mm: 1961-1990 is -5.2%, 1996-2025 +2.2%, 2006-2025 +3.9%, and
+**2016-2025 is +14.0%**. A fourteen percent shift in a driver of a
+peril is the kind of number that looks like it must matter.
+
+**It cannot matter, and the shape has not moved.** The division by the
+exposure-weighted mean removes the level exactly, so only the map can
+price - and the map is inside its own noise floor at every candidate:
+
+| window vs 1991-2020 | Spearman | \|d rel\| p95 | control at that sample | verdict |
+|---|---|---|---|---|
+| 1961-1990 (n=30) | +0.9929 | 0.231 | 0.244 (n=15) | inside |
+| 1996-2025 (n=30) | +0.9994 | 0.043 | 0.244 (n=15) | inside |
+| 2006-2025 (n=20) | +0.9981 | 0.068 | 0.244 (n=15) | inside |
+| 2016-2025 (n=10) | +0.9947 | 0.105 | 0.211 (n=10) | inside |
+
+The controls - odd vs even years of 1991-2020, the two 15-year halves,
+two disjoint 10-year windows - hold the climate fixed and vary only the
+sample, and they move the relativity map by 0.185 to 0.244 at the 95th
+percentile. Every re-aimed window moves it less than that. The largest
+effect any candidate has on the multiplier the model actually uses is
+`|d sub_rel| max 0.055` for the recent-20-year window, against 0.145 to
+0.189 for the controls.
+
+**Verdict: do not re-aim, on the same standard the freeze leg was held
+to.** The drought leg's window is now a checked decision rather than an
+inherited default, and the asymmetry between the two temperature legs is
+closed. The script is a measurement tool; it is not a model input and
+changes nothing that builds.
+
+This came out of the weather-forecasting question below: asking what
+could be known about next year's weather led to asking whether the model
+is even aimed at the right past.
+
+## MEASURED 2026-09-07: household-weighting the unit postcodes - parked, too small
+
+The postcode-share denominators count every live unit postcode once.
+The obvious refinement is to weight each by the households behind it,
+and the project already has such a weight: `fetch_households.py`
+shares each LSOA's Census 2021 households equally among the LSOA's
+live postcodes (Scotland has no data-zone join and is equal per
+postcode already). ONSPD carries `lsoa21cd`, so no new fetch. Measured
+on the laptop's England flag files (scratchpad `weigh_postcodes.py`,
+E&W, 1,518,234 postcodes, mean 16.3 households per postcode, p10 8 /
+p90 25) before writing any pipeline code:
+
+| raw share, unweighted -> weighted | district (2,099 E&W) | sector (7,775) |
+|---|---|---|
+| sw_high: Spearman; hh-weighted mean \|d\|; relative \|d\| p50 / p90 | 0.989; 0.4 pp; 4% / 11% | 0.992; 0.5 pp; 4% / 15% |
+| sw_low | 0.992; 0.7 pp; 3% / 9% | 0.993; 0.8 pp; 3% / 10% |
+| depth >0.3 m (high) | 0.985; 0.14 pp; 7% / 20% | 0.991; 0.17 pp; 8% / 24% |
+
+The within-unit spread of the weight is small (coefficient of
+variation 0.28 by district, 0.23 by sector) because LSOAs are built to
+similar sizes, so the weighting only bites where an LSOA mixes offices
+with homes: the movers are W1B, EC2M, EC4V, M2, L1, TW6 (Heathrow),
+BS1 5, LS2 8 - city centres, where the equal-split-within-LSOA
+assumption is itself weakest. An order of magnitude below the
+area-to-postcode changes (Spearman 0.45-0.7 against 0.99 here), and
+it would refine the proxy exactly where the proxy is least reliable.
+Parked; LIMITATIONS §7.6 carries the bound. Coastal erosion is the
+one input still on an area basis and stays there on purpose: NCERM's
+recession strips are metres to tens of metres wide, far below the
+spacing of unit-postcode centroids, and the line is unpriced.
+
+## MEASURED 2026-09-07: SURFACE-WATER DEPTH by postcode share, both grains - not published
+
+"Keep going" after the second publish. The last area-share input in
+the surface-water peril: the depth bands (`sw_depth[_cc].csv`) were
+still the share of AREA deeper than 0.2/0.3/0.6/0.9/1.2 m, and the
+severity conditioned them on the area-share envelope kept as
+`sw_fractions_area[_cc].csv` - consistent, but two denominators for one
+peril. Branches `exp/sw-depth-households` (district: d02ce8b script +
+severity hook, dba6508 / e7faf1b aggregation fixes, dcf7e8e tables;
+laptop build in `.worktrees/hygiene`, not committed) and
+`exp/sw-depth-households-sector` (sector: 8cd44c4 tables + bot run 34
+`e335416`). Baselines are the second publish (district `068149d9`,
+sector run 30). Publishing is the user's decision.
+
+**Method.** `scripts/fetch_sw_depth_postcodes.py` samples the five EA
+`rofsw_<d>_depth` layers `fetch_sw_depth.py` rasterises (13 m/px,
+category colours) at every live English unit postcode, two stages as
+the other postcode scripts (`--flags [--climate]`, then aggregate;
+239 tiles x 5 layers, ~50 minutes per edition on the laptop with the
+CI fetch competing), and writes `sw_depth[_cc].csv` in the old layout
+plus `basis = postcode`. `sw_depth_severity` reads the basis and, for a
+postcode table, conditions on the caller's postcode-share `sw_high` /
+`sw_low` instead of the area file. Three things the aggregation has to
+enforce that the pixel decode does not: (1) nesting per postcode (2-4%
+of flagged postcodes were "deeper than 0.6 m but not 0.3 m" at
+antialiased edges: a deeper flag now implies the shallower ones);
+(2) containment in the envelope from the SAME sampling
+(`sw_flags_england[_cc].csv`, now required); (3) coverage by
+`data/country.csv`, not by postcode area - DG16 Gretna's five English
+postcodes had given the whole DG area an England-only prior and every
+Dumfries district a 0.2 depth band, and on the sector checkout the
+district-keyed lookup zero-filled all 10,398 sectors (sector run 33
+was cancelled on that; run 34 is the real one). Result: 0 nesting
+violations, 0 above the envelope, 637 districts / 1,652 sectors
+outside England zero-filled, 0 clipped.
+
+**The finding, before any model run: where the homes are, the water is
+shallower.** Share of the >=1% band deeper than each threshold,
+hh-weighted over English districts, area -> postcode: 0.2 m 0.391 ->
+0.386; 0.3 m 0.222 -> 0.176; 0.6 m 0.067 -> 0.032; 0.9 m 0.028 ->
+0.012; 1.2 m 0.014 -> 0.006. The deep water in a district's
+surface-water envelope is disproportionately where nobody lives
+(hollows, car parks, fields). The conditional ORDERING correlates only
+0.48 / 0.43 / 0.36 (Spearman, 0.2 / 0.3 / 0.6 m) with the area version,
+so the severity multiplier re-shapes a great deal even though it is
+renormalised to a mean of 1.0 (range 0.74..2.28, mean depth
+0.11..0.95 m).
+
+**Deltas, both grains, against the second publish.**
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.7478 -> 169.7457 (-0.002) | 169.7525 -> 169.7488 (-0.004) |
+| rating group changed | 98 (49 up, 49 down) | 468 (233 up, 235 down) |
+| `premium` moved | 2,139 (1,915 English; 224 elsewhere via the calibration) | 8,939 |
+| hh-weighted \|d premium\| p50 / p90 / p99 | 0.2 / 1.0 / 2.6 | 0.3 / 1.2 / 3.3 |
+| \|d premium\| > 5 / > 10 | 8 / 1 (0.2% of households over 5) | 93 / 19 (0.4%) |
+| largest rise | M90 +6.1, N8 (Hornsey) +6.1, SW1P +5.6 (depth at the homes 0.49 -> 0.67 m) | BB2 9 +26, BD1 9 +20, LE16 0 +20 |
+| largest fall | IP33 (Bury St Edmunds) -10.4 (0.63 -> 0.25 m), RM18 -9.3 (0.26 -> 0.13), RM9 -5.3 | RM20 2 -15, IP33 2 -14, RM18 7 -14 |
+| climate `premium_cc` (exposure-weighted) | 179.137 -> 179.166 | |
+| grain nesting, new pair (median) | 0.74% | |
+
+Smallest of the four denominator changes, as expected: severity is
+renormalised, England only, and surface water is a fifth of flood
+cost. The movers read right: Bury St Edmunds and the Thames-estuary
+towns (Tilbury, Dagenham, Stanford-le-Hope) carried deep area water on
+low ground the homes are not on; inner London and the Pennine towns
+(Blackburn BB2 9, Bradford BD1 9) have their homes in the deeper part
+of the mapped water. No external validation exists for depth-at-homes;
+the evidence is the direction (homes on the higher ground of the
+floodplain is the expected sign), the nesting, and consistency of
+denominator.
+
+**What publishing would need.** `sector-model.yml`'s depth job:
+`fetch_onspd.py` + OSTN15 + `fetch_sw_postcodes.py --flags england` (the
+envelope) + `fetch_sw_depth_postcodes.py --flags` + aggregate, and the
+same for the climate job; the interim-pair step (468 sector groups
+move); README §3 depth bullet, DATA_SOURCES #7/#41, the
+`fetch_sw_depth.py` docstring marked superseded, `sw_depth_area[_cc].csv`
+committed as the kept area tables; and `sw_fractions_area[_cc].csv`
+become redundant to the model (kept for the record or dropped). NOT
+done here. `tests/test_inputs.py` (main and both exp branches) guards
+the nesting, the envelope and the coverage of the depth tables at
+whichever grain the checkout carries. Writing it found that the
+PUBLISHED area tables overshoot their own envelope in three City
+districts (EC4M by 0.29 pp, EC4N, EC3V) - two rasterisations of the
+same water - which `_band_shares` already absorbs by raising the
+envelope to the band; the guard tolerates 0.5 pp on an area basis and
+nothing on a postcode basis, which is sampled once.
+
+## VERIFIED 2026-09-07: a full runner fetch reproduces the published sector build exactly
+
+The caveat from the second publish ("the rewritten surface-water job
+and the subsidence step are untested on a runner") is closed.
+`sector-model.yml` was dispatched with `skip_fetch=false` on a
+throwaway branch (`exp/sector-fetch-test`, from `sector-model` 69716eb)
+so a bot commit could change nothing published. The first attempt
+(run 34056186038) failed in the flood AND surface-water jobs within
+five seconds: `fetch_onspd.py` refuses to run without the OSTN15 grid
+and only the model job installed it - so this morning's flood job had
+never worked on a runner either. Fixed on main (`764d5e6`: the grid
+step in every job that runs `fetch_onspd.py`, and the model job's
+subsidence step moved after its own grid install because
+`score_subsidence_postcodes.py` transforms the BGS layers too) and
+guarded by `tests/test_workflows.py` (`7387417`: every job that runs
+fetch_onspd / score_subsidence_postcodes / build_model has the grid
+step before it; the commit list is complete; no literal `\n`).
+
+Run 34056312941 then succeeded end to end: erosion 14 min, flood 14
+min (ONSPD fetched from a runner for the first time, 85 MB),
+surface-water 40 min (England 8.948% in the >=1% band, Wales 2.859%,
+Scotland 8.780% - the laptop's numbers), depth 75 min, model with the
+subsidence step and the commit-back (`7687a8e`, run 32). Against the
+laptop-fetched inputs on `sector-model`: `flood_fractions.csv`,
+`sw_fractions.csv`, `subsidence_postcodes.csv`, `erosion.csv` and
+`sw_depth.csv` differ in NO value (line endings only), and the sector
+output differs in no column and no geometry from run 30; the
+exposure-weighted premium is 169.7525 in both and 0 rating groups move.
+The first time a grain has been reproduced from nothing but the
+workflow. The throwaway branch stays on origin as the record of run 32.
+
+## PUBLISHED 2026-09-06 (second publish): SURFACE WATER and SUBSIDENCE by postcode share, both grains, one push
+
+The user's decision ("keep going publish outstanding") on the two
+MEASURED records below, taken together. Main fast-forwarded to
+`exp/households` in one push (`d959e39` = rebuild run 63 on the exp
+branch; district output blob `068149d9`, byte-identical to the laptop
+interim build; sector output = sector-model run 30 `1840c8b` on
+`exp/households-sector`, crossed as `data/sectors_risk.geojson`, blob
+`d37fbc37`). `sector-model` fast-forwarded to the sector exp branch and
+re-synced with main afterwards (`69716eb`, sector build kept OURS).
+Baselines are this morning's river/sea publish (district `08a13bc5`,
+sector run 26).
+
+**Live verification:** `docs/assets/uk_district_risk.csv` 2,736 rows,
+exposure-weighted premium 169.7478 (PO7 201.3 with `sub_score` 0.881,
+SS3 170.4 / 0.557 and `sup_frac` 0.971, SS17 219.0 with `sw_high`
+0.501, FK12 216.6 / 0.505, HU1 336.5); `uk_sector_risk.csv` 10,398
+rows, 169.7525 (BL8 9 122.3 with `sw_high` 0.059, SN10 4 185.1 /
+`sub_score` 0.814, RG6 9 160.9, L37 2 186.6 / `sw_high` 0.708, HU1 4
+265.3). Fetched with cache bypassed after `publish site` run
+34055857396 and `tests` run 34055857395 both succeeded.
+
+**What went live, against this morning's publish.**
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.7313 -> **169.7478** (+0.016) | 169.7505 -> **169.7525** (+0.002) |
+| exposure-weighted `el_total` | 164.2052 -> 164.2222 | 164.2202 -> 164.2224 |
+| rating group changed | 658 (330 up, 328 down) | 2,440 (1,285 up, 1,155 down) |
+| `premium` moved | 2,710 | 10,230 |
+| hh-weighted \|d premium\| p50 / p90 / p99 | 1.8 / 5.7 / 15.5 | 1.8 / 6.1 / 16.6 |
+| \|d premium\| > 10 / > 20 | 87 / 8 (3.2% / 0.3% of households) | 693 / 187 (3.7% / 0.6%) |
+| largest rises | PO7 +31, SS17 +26, SN10 +26, OX11 +25, BA13 +23, FK12 +23 | SN10 4 +39, RG6 9 +36, BA13 3 +36, BB2 9 +35, W3 3 +34 |
+| largest falls | SS3 -27, SN26 -24, N1C -18, BH6 -17, HP17 -17, CB7 -16 | BL8 9 -119, RH14 4 -91, ME1 9 -85, IP17 9 -73, TQ6 6 -68 |
+| by country, hh-weighted mean d | England +0.06, Wales -0.35, Scotland -0.15 | England +0.01, Wales +0.41, Scotland -0.30 |
+| climate repricing over 2,087 covered districts | +6.2% -> **+6.5%** | |
+| grain nesting, new pair (median) | 0.75% | |
+| Wales `sw_high` vs NRW surface-water people at risk | +0.57 -> **+0.72** (re-run, `flood_validation.csv` unchanged from the sw build) | |
+
+The two changes add almost linearly (658 groups against 402 + 473 with
+overlap; 2,440 against 1,346 + 1,840). The movers are the union of the
+two MEASURED records: the clay towns under chalk downs (PO7, SN10,
+BA13, OX11) and the Thames-estuary surface-water districts (SS17, RM18)
+up; the drift-covered estuary towns (SS3, BH6) and the "9"-suffix
+sectors that carried `sw_high` or `sub_score` at the ceiling by area
+(BL8 9, ME1 9, RH14 4, BR8 9) down. Hull HU1 rises a further +10.6 to
+336.5 because a quarter of its postcodes are in the surface-water
+>=1% band against a tenth of its area.
+
+**What changed in the repo.** `scripts/fetch_sw_postcodes.py` and
+`scripts/score_subsidence_postcodes.py` (new); `scores_real`
+`subsidence_score` reads `data/subsidence_postcodes.csv` and
+`sw_depth_severity` takes its envelope from `sw_fractions_area[_cc].csv`;
+`sector-model.yml`'s surface-water job is `fetch_onspd.py` + `--flags`
+per region + the aggregation (120-minute budget, was 300), the climate
+job likewise with `--climate`, and the model job regenerates the
+subsidence table on a full fetch and commits it; `rebuild.yml` records
+the table as a committed derived CSV. README §1/§3 and the climate
+paragraph (surface-water zone share +35.4% by postcode, was +28.8% by
+area, recomputed by `build_site.climate_band_stats`; the example
+districts re-read), LIMITATIONS §2 and §7.6/7.7, DATA_SOURCES #41
+extended to both, the methodology table and prose, the map popup
+methodology, and the docstrings of `subsidence_from_bgs`,
+`superficial_from_bgs`, `sw_depth_severity` and `fetch_surface_water.py`
+(superseded for the fractions, kept as the mask source and the
+area-share measurement the depth conditional needs). Data at both
+grains: `sw_fractions[_cc].csv` (postcode share),
+`sw_fractions_area[_cc].csv` (area, for depth),
+`subsidence_postcodes.csv`, `flood_validation.csv`; `sw_flags_*.csv`
+gitignored. Tests: 73 passed, 1 skipped locally without the browser
+suite; the full suite passed in `rebuild.yml` pre-flight and in
+`tests` on main.
+
+**Four things the publish found.**
+
+1. **Push everything, then dispatch.** The first sector run (29) was
+   dispatched, and three more commits were pushed to the branch while
+   it ran; its bot commit would have been based on the old tip and its
+   push refused as non-fast-forward. Cancelled and re-dispatched from
+   the new tip (run 30). The rule: a `sector-model.yml` or
+   `rebuild.yml` dispatch is the LAST thing that touches its branch
+   until the bot has pushed.
+2. **The `sector-model` branch carries its own `sector-model.yml`**
+   (the ct-bands note and `data/ct_bands.csv` in the commit list), so
+   every workflow edit merged into it conflicts on that file. Expect
+   it; resolve by keeping both lists.
+3. **Exact-text edits through shell quoting ate a backslash twice.**
+   The resolution of that conflict was written through a bash heredoc
+   into python and lost the line continuation (the two `git add` lines
+   ran together, still valid shell); the fix through `python -c` in
+   double quotes wrote a literal `\n` (NOT valid: `git add ... n`),
+   and was committed and pushed before it was read back (`5feb62d`).
+   The Edit tool got it right. Files that carry backslashes or quotes
+   get edited with a tool that takes the text verbatim, and a
+   workflow edit gets `cat -A` before it is pushed.
+4. **`merge | tail` let a failed merge fall through to the push and the
+   dispatch** - the pipe's exit code is `tail`'s. Same rule as pytest:
+   never let a pipe stand in for the exit code of the thing that
+   matters.
+
+**Not tested on a runner:** the rewritten surface-water job and the
+subsidence step of `sector-model.yml` ran under `skip_fetch=true` on
+the committed sector-grain tables, as the flood job did this morning.
+The commands are the ones the laptop ran; the YAML is not exercised
+until the next full sector fetch. The first full run will tell.
+
+**Worktrees done:** `.worktrees/hygiene` (`exp/households`),
+`.worktrees/flood-hh` (`exp/sw-households`, its uncommitted laptop
+build is superseded), `.worktrees/flood-hh-sector`
+(`exp/households-sector`). All merged; branches on origin.
+
+## MEASURED 2026-09-06 (third): SUBSIDENCE GEOLOGY at the unit postcodes, both grains - not published
+
+"Keep going, what is next" after the surface-water measurement. Same
+programme, third denominator: the subsidence score was still
+AREA-weighted over each unit's polygon (`subsidence_from_bgs`,
+`superficial_from_bgs`), so a district whose clay lies under fields and
+whose houses stand on gravel terraces read as clay. No fetch needed: the
+two BGS 625k GeoJSONs and the ONSPD centroids are already inputs.
+Branches `exp/sub-households` (district, bdd2407; laptop build output
+in `.worktrees/hygiene`, NOT committed) and `exp/sub-households-sector`
+(sector, 2e88abe + bot run 28 `6f772bf`). Baselines are the postcode-share
+publish (district 08a13bc5, sector run 26). Publishing is the user's
+decision.
+
+**Method.** `scripts/score_subsidence_postcodes.py` classifies the SAME
+layers with the SAME tables (`classify_susceptibility`, `SUP_SUSCEP`,
+`SUP_EXCLUDED`) at every live small-user unit postcode (STRtree
+point-in-polygon; 5,239 coastal postcodes outside every bedrock polygon
+take the nearest, `all_matches=False` because three of them tie), then
+aggregates bedrock susceptibility, superficial cover and superficial
+susceptibility to the checkout's grain with the hierarchical
+beta-binomial shrinkage of the flood scripts (K_PRIOR = 20). The popup
+formations become the bedrock under the most postcodes among clay
+formations and the drift under the most postcodes. Writes
+`data/subsidence_postcodes.csv`; `scores_real.subsidence_score` reads it
+when present and keeps the area-weighted reading for any unit it does
+not carry (NG90 1-7, the Boots non-geographic sectors, are the only
+ones). `combine_subsidence` and the ABI calibration are untouched:
+only which units carry the clay moves. ~3 minutes per grain.
+
+**What moved before any model run.** Superficial cover 50.1% -> 56.7%
+of households (homes cluster on drift: river terraces, alluvium,
+brickearth); the bedrock/superficial mix therefore shifts toward drift.
+District `sub_score` old vs new Spearman 0.948, |d| p50 0.021 / p99
+0.189; 159 popup formations change. Sector 0.957.
+
+**Deltas, both grains, against the publish of this morning.**
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.7313 -> 169.7313 (-0.0001) | 169.7505 -> 169.7503 (-0.0002) |
+| rating group changed | 402 (202 up, 200 down) | 1,346 (669 up, 677 down) |
+| `premium` moved | 2,622 | 9,850 |
+| hh-weighted \|d premium\| p50 / p90 / p99 | 0.8 / 4.2 / 13.8 | 0.6 / 4.0 / 13.4 |
+| \|d premium\| > 10 / > 20 | 61 / 5 (2.4% of households over 10) | 301 / 61 (0.3% of households over 20) |
+| largest rise | PO7 Waterlooville 170 -> 197, `sub_score` 0.54 -> 0.88 | RG6 9 125 -> 164 (249 hh) |
+| largest fall | SS3 Shoeburyness 198 -> 167, 0.91 -> 0.56, cover 0.27 -> 0.97 | BR8 9 167 -> 131 (160 hh) |
+| by country, hh-weighted mean d | England -0.08, Wales +0.32, Scotland +0.61 | - |
+| grain nesting, new pair (median) | 0.77% | |
+
+Movers read as the geology: Waterlooville (PO7), Devizes (SN10),
+Westbury (BA13), Didcot (OX11), Bishop's Waltham (SO32) and Wantage
+(OX12) rise 17-27 because the town sits on the London Clay or the Gault
+while the downs and the Plain that fill the polygon are chalk;
+Shoeburyness (SS3), Windsor (SL4), Burnham-on-Crouch (CM0), Southbourne
+(BH6), Southend (SS1) and Biggleswade (SG18) fall 15-30 because 70-98% of
+their homes are on mapped terrace, alluvium or brickearth, not on the
+clay the polygon is mostly made of. The clay belt as a whole is
+unchanged (England hh-weighted mean -0.08; the calibration re-pins the
+level; `el_sub` 19.807 -> 19.805 hh-weighted). At the sector grain the
+"9"-suffix pattern appears a third time: BR8 9, RM15 9, WD23 9, SW17 1,
+N14 9 carried `sub_score` 1.000 with cover 0.000 by area (a tiny polygon
+entirely on one clay outcrop) and now sit at 0.60-0.67 with the district
+prior and their real drift cover.
+
+**No external validation exists for this one.** The flood change had
+NRW's people-at-risk to test against; subsidence has the ABI level
+(which the calibration pins, so it cannot move) and no free
+claims-by-district series. The evidence is (a) the movers' geology is
+checkable against the BGS viewer town by town and reads right in every
+case looked at, (b) the level and the national ranking are stable
+(Spearman 0.95), and (c) the same denominator argument that validated
++0.17 -> +0.59 for river flooding. That is weaker than the flood case
+and the record should say so.
+
+**What publishing would need.** (1) `sector-model.yml` and
+`rebuild.yml`: run `fetch_onspd.py` (already in the sector flood job)
+and `score_subsidence_postcodes.py` after `fetch_bgs.py`, or commit the
+table as a model input at both grains (it is 2,736 / 10,392 rows; both
+exp branches already commit it). (2) The ordering rule with the
+interim-pair step (1,346 sector groups move; the guard will fire).
+(3) README §3, the methodology subsidence rows ("area-weighted" ->
+postcodes), LIMITATIONS §3 (the BGS 625k paragraph), DATA_SOURCES #41
+extended to subsidence, the docstrings of `subsidence_from_bgs` /
+`superficial_from_bgs` marked superseded-when-table-present. NOT done
+here: none of that.
+
+**Remaining area-share inputs after this one:** surface-water DEPTH
+(`sw_depth.csv`, by design for now) and coastal erosion frontage
+shares. Each is smaller than the three measured today.
+
+## MEASURED 2026-09-06 (second): SURFACE WATER by postcode share, both grains - not published
+
+The user asked for "the same for surface water" after the river/sea
+publish. Measured at both grains; publishing is the user's decision.
+Branches `exp/sw-households` (district: 2aeb429 script + fractions,
+101f6be validation) and `exp/sw-households-sector` (sector: bd4b97b +
+bot run 27 `70bee70`). Baselines are the builds published earlier
+today (district 08a13bc5, sector run 26).
+
+**Method.** `scripts/fetch_sw_postcodes.py` samples the SAME masks
+`fetch_surface_water.py` rasterises (EA rofsw category colours at
+13 m/px, NRW FRAW at 20 m, SEPA likelihood MapServers at 20 m) at
+every ONSPD unit-postcode centroid, in two stages: `--flags REGION`
+writes per-postcode flags (the slow part: 239 England tiles, 83 Wales,
+96 Scotland, ~10-15 minutes per region on this laptop because there
+is no pixel-to-polygon work), then the default run aggregates the
+flags to whichever grain the checkout loads, with the hierarchical
+shrinkage of the river/sea script. One sampling serves both grains.
+`--climate` does the EA `rofsw_cc01` edition so the future shares the
+denominator (the lesson of this morning). Shares of postcodes in the
+>=1% AEP band: England 8.9%, Wales 2.9%, Scotland 8.8% (SEPA's
+"medium" is 1-in-200).
+
+**The depth product stays on area, deliberately.** `sw_depth.csv` is
+the share of AREA exceeding 0.2/0.3/0.6/0.9/1.2 m, and
+`sw_depth_severity` turns it into a depth distribution CONDITIONAL on
+being inside the envelope by dividing against `sw_high`/`sw_low`.
+Dividing area-share depth by postcode-share envelope corrupts the
+conditional (`_band_shares` would clamp the shallow band to zero
+wherever postcode share < area depth share). So the previous files are
+kept as `sw_fractions_area[_cc].csv` and the severity reads its
+envelope from there; the postcode share is the frequency denominator
+only. Frequency from where the homes are; depth, given a home is in
+the water, from the water. Sampling the five depth layers at postcodes
+would be the consistent next step (five more requests per tile).
+
+**Evidence.** Fraction level, Wales, before any model run: `sw_high`
+vs NRW surface-water people at risk per household, area +0.573,
+postcode share **+0.720**; `sw_low` +0.468 -> +0.609. Model level on
+the new district build (validation re-run, committed): `sw_high` vs
+NRW surface-water people +0.57 -> **+0.72**; all-source people vs
+`el_fl` 0.59 -> 0.59 (surface water is ~a fifth of flood cost, the
+river/sea change dominates); Scotland SEPA AAD-high vs `el_fl` +0.22
+-> +0.17 (SEPA's index is all-source and area-based; inconclusive
+both times). Area vs postcode share agree at Spearman 0.68 (high) /
+0.72 (low) across the 2,736 districts - a smaller re-ordering than
+river/sea (which was the point: surface water was the healthier one).
+
+**Deltas, both grains, against this morning's publish.**
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.7313 -> 169.7479 (+0.017) | 169.7505 -> 169.7520 (+0.002) |
+| rating group changed | 473 (235 up, 238 down) | 1,840 (977 up, 863 down) |
+| `premium` moved | 2,656 | 10,184 |
+| hh-weighted \|d premium\| p50 / p90 / p99 | 1.1 / 3.5 / 7.8 | 1.3 / 4.1 / 10.4 |
+| \|d premium\| > 20 | 0 (17 over 10) | 98 sectors, 0.1% of households (360 over 10) |
+| largest rise | FK12 (Alva) 194 -> 214, `sw_high` 0.15 -> 0.51 | L37 2 (Formby) 160 -> 192, 0.11 -> 0.71 |
+| largest fall | HP19 (Aylesbury) 204 -> 187, 0.21 -> 0.05 | BL8 9 (Bury) 241 -> 126, 0.95 -> 0.06 |
+| by country, hh-weighted mean d | England +0.14, Wales -0.67, Scotland -0.76 | - |
+| climate repricing over covered units | +6.2% -> +6.4% | +6.2% -> +6.4% |
+
+Movers: Thames-estuary Tilbury/Stanford-le-Hope/Purfleet/Chadwell
+(RM18, SS17, RM19, RM16) rise 15-20 with half to two-thirds of their
+homes in the >=1% AEP zone against a quarter to a third of their area;
+Aylesbury, King's Cross (N1C), Fleet Street (EC4A), Aberfeldy (PH17)
+and Anglesey's LL66 fall 9-17 where the mapped water is on land with
+few homes. At the sector grain the same "9"-suffix pattern as river/sea
+appears: BL8 9, ME1 9, IP17 9, TQ6 6 and RH14 4 carried `sw_high`
+0.77-1.00 by area with under a tenth of their postcodes in the zone,
+and fall 65-115. The level does not move (calibration re-pins), the
+geography moves modestly, and the movers read as corrections.
+
+**What publishing would need.** (1) `sector-model.yml`'s surface-water
+job: `fetch_onspd.py`, then `fetch_sw_postcodes.py --flags` for the
+three regions, then the aggregation (one job, ~45 minutes; the old
+area fetch had a 300-minute budget); `rebuild.yml` needs nothing.
+(2) The ordering rule with the interim-pair step: this change moves
+1,840 sector groups, so the pre-flight nesting guard will see a mixed
+pair again. (3) README §3, the methodology table row ("share of
+district area inside surface-water zones" becomes postcodes),
+LIMITATIONS §2/§7 (the "still area share" sentences), DATA_SOURCES #41
+amended to cover surface water and the depth conditional, and the
+`fetch_surface_water.py` docstring marked superseded for the fractions
+and kept as the mask source. (4) `sw_fractions_area[_cc].csv` become
+committed model inputs at both grains, which they already are on the
+two exp branches. NOT done here: none of that.
+
+## PUBLISHED 2026-09-06: flood fractions by POSTCODE share, both grains, one push
+
+The user's decision ("adopt it - publish both grains"), on the MEASURED
+record below. Main fast-forwarded to `exp/flood-households` in one push
+(merge 8090949; district output = bot run 61 `29b9a83`; sector output =
+sector-model run 26 `da7f845`, crossed as `data/sectors_risk.geojson`,
+blob `13538faa`). `sector-model` re-synced with main afterwards
+(`48722d0`, sector build kept OURS).
+
+**Live verification:** `docs/assets/uk_district_risk.csv` 2,736 rows, exposure-weighted premium 169.7313 (HU1 325.9 with `f_high` 0.965, LA4 165.0 / 0.063, EC4V 252.7 / 0.086, TS7 175.4); `uk_sector_risk.csv` 10,398 rows, 169.7505 (HU1 4 246.7 / 0.967, RH8 8 164.6 / 0.041, PH44 4 175.2 / 0.146, ME12 9 188.7). Both fetched with cache bypassed after `publish site` run 34030200466 succeeded.
+
+**What went live, against the OSTN15 publish of 2026-09-05.**
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.6485 -> **169.7313** (+0.083) | 169.6636 -> **169.7505** (+0.087) |
+| exposure-weighted `el_total` | 164.1216 -> 164.2052 | 164.1354 -> 164.2202 |
+| exposure-weighted `capital` | 5.5270 -> 5.5268 | 5.5279 -> 5.5298 |
+| rating group changed | 1,271 | 4,574 |
+| `premium` moved | 2,721 | 10,342 |
+| hh-weighted \|d premium\| p50 / p90 / p99 | 4.2 / 15.0 / 41.3 (measured; final within 0.1) | 4.4 / 18.0 / 51.0 |
+| largest rise | HU1 217.7 -> 325.9 | HU1 4 105.7 -> 246.7 |
+| largest fall | LA4 -73.4 | RH8 8 275.6 -> 164.6 |
+| climate repricing over covered units | +3.7% -> **+6.2%** (2,087) | +4.0% -> **+6.2%** (8,730) |
+
+Against the MEASURED builds the final ones differ only where the two
+fixes below bite: district 8 rating groups and 542 premiums nudged
+(max W1J -7.5, the London districts leaving the median); sector 171
+with \|d\| > 1, max PH44 4 (312.5 in the measured run, 175.2 live,
+published 171.9: the hierarchical prior doing what it was added to do).
+
+**Three things the publish found that the measurement had not.**
+
+1. **The climate edition was still an area share, and the climate run
+   substitutes it for the present-day fraction.** `flood_future()` puts
+   `flood_fractions_cc.csv` in place of `f_high`/`f_low`; an area-share
+   future against a postcode-share present would have had 506 covered
+   districts with a LOWER future than present and reported Hull's flood
+   risk falling under climate change. `fetch_flood_postcodes.py
+   --climate` now samples the EA `_CCP1` layers at the same English
+   postcodes (England only, England-only priors). On the shared
+   denominator the share of homes in the 1-in-100/200 band grows +87.7%
+   over covered districts (was +37.7% by area: the future extent grows
+   into settled ground, not marsh), 9 districts (0.4%) shrink by more
+   than 1pp (was 52; worst HU12 -25.5pp, was -11.2pp), and the climate
+   repricing headline goes from +3.7% to +6.2% at the district grain
+   (LA4 Morecambe +8% -> +81%: 6% of its postcodes in the band today,
+   85% in the future extent). README and the methodology page
+   recomputed; the site's figures are injected, not typed.
+2. **59 central-London districts were at the national median in the
+   measured build.** The postcode AREA is the leading letters of the
+   outward code, and both the first cut of the script and
+   `fetch_onspd.py` took every letter, so EC1A, SW1A, W1B, WC1A, E1W
+   and N1C had "areas" of their own (ECA...) that never matched as a
+   parent. The fetch log said "59 left to the median fallback" and
+   nobody read it. Fixed in both scripts (`area_of`), local ONSPD file
+   patched, the 59 now carry real fractions (EC4V 0.086, E1W 1 sector
+   0.444 -> 0.111 by postcode share). The measured deltas shown before
+   the decision were wrong for those 59 by up to 7.5 on the premium.
+3. **The pre-flight mixed-pair guard fired, correctly.** `rebuild.yml`
+   runs the property tests BEFORE it rebuilds, so on the exp branch it
+   saw the new sector output against the published district output:
+   median disagreement 3.05% against the 3% bound, a mixed pair by
+   construction. The laptop's measured district build (CI-equivalent
+   since OSTN15) went in as an interim pair (`996b063`, exp branch only)
+   and the rebuild replaced it in the next commit. For any change that
+   moves the geography, the ordering rule now has a fourth step: commit
+   a consistent interim district output before dispatching the rebuild,
+   or the guard will refuse the build it exists to protect.
+
+**Also in this publish.** `sector-model.yml`'s flood job runs
+`fetch_onspd.py` then `fetch_flood_postcodes.py` (one ~6-minute pass;
+this run used `skip_fetch=true` on the committed files, so ONSPD has
+still never been fetched from a runner - the first live sector fetch
+will tell). LIMITATIONS §2/§7, DATA_SOURCES #41, README §2 and the
+methodology table say what the fraction now is; `fetch_flood.py` is
+marked superseded for river/sea and kept as the mask source. Surface
+water (`sw_fractions.csv`) is STILL an area share: the obvious next
+candidate, with the healthier validation (+0.57) and a 300-minute
+fetch that the postcode method would cut to minutes.
+
+**And one more, after the push.** The `tests` workflow failed once on
+main: its "published site is up to date" check found `docs/` stale,
+because the methodology-template wording fix (`2d687c4`) landed AFTER
+the CI rebuild that had built `docs/`. Running `build_site.py` on the
+laptop is NOT the fix - the map pages wrap generated files under
+`map/` that only a model build refreshes, so a laptop `docs/` regresses
+the map wording to whatever that machine last built. `rebuild.yml` on
+main (`commit=true`, bot run 62, `7ba5aa9`) reproduced the model
+exactly and committed the four changed lines of `docs/methodology.html`.
+Rule: a template edit after the rebuild needs another `rebuild.yml`, or
+goes in before it.
+
+**Lessons, for the running list.** (a) When a fetch prints a fallback
+count, read it: 59 was in the log before the measurement was shown.
+(b) A denominator change has to reach every file that shares the
+column - the climate edition was a second consumer of `f_high` and the
+measurement never looked at `premium_cc`. (c) The guards work: the
+nesting test refused a build with a mixed pair on disk, which is
+exactly the failure it was written for, at the cost of one extra
+commit. (d) ONSPD is not just a weight now, it is the denominator of
+the largest peril; DATA_SOURCES #41 is its record.
+
+## MEASURED 2026-09-06: flood fractions by POSTCODE share, not area share - the largest candidate since Gate 2
+
+Not published. The user's decision. Branches `exp/flood-households`
+(district: 5f4698a, script + fractions) and
+`exp/flood-households-sector` (sector: 489ef02 + bot runs 24/25 on CI).
+
+**Why.** The 2026-09-05 validation found the model's Welsh river
+ordering at Spearman -0.13 against NRW's people at risk per household
+because `f_high`/`f_low` are the share of a unit's AREA inside the
+extent, and valley towns keep their housing on a sliver of floodplain.
+`scripts/fetch_flood_postcodes.py` samples the SAME EA/NRW/SEPA extents
+(the WMS masks and SEPA vectors fetch_flood.py uses) at every live
+small-user unit-postcode centroid from ONSPD (1,675,166 in GB) and
+takes the share of a unit's postcodes inside. One six-minute pass
+serves both grains, because each postcode row carries its district and
+its sector - no five-hour sector fetch.
+
+**Fraction-level evidence, Wales, before any model run** (Spearman
+against NRW people at risk per household, 195 districts): area
+`f_high` vs rivers -0.13, postcode share +0.42; area `f_low` vs rivers
+-0.06, postcode +0.58; postcode `f_low` vs river+sea +0.75 (area
++0.38). CF42 (Treorchy) goes from the model's 7th-LOWEST by area to
+166th of 195 by postcode share; NRW has it 165th.
+
+**Model-level evidence, the validation re-run on the new district
+build** (`el_fl` against NRW): all sources +0.17 -> **+0.59**; rivers
+-0.07 -> **+0.53**; sea +0.69 -> +0.19 (largely ties: area gave every
+coastal district a little sea risk from its shoreline strip, which
+tracked NRW's coastal ordering; postcode share gives zero when no home
+is in the zone); Scotland, area in SEPA AAD band >= 5, +0.14 -> +0.22.
+
+**Thin units, and the one modelling choice.** A unit with two live
+postcodes can only be 0, 1/2 or 1. 76 districts and 412 sectors have
+fewer than 20 postcodes (0.04% and 0.27% of households); unshrunk, 359
+of those sectors landed on exactly 0 or 1 and PH44 (one postcode) went
++143 on its premium. So each unit's share is the beta-binomial
+posterior mean with its parent's share as the prior and a prior weight
+of `K_PRIOR = 20` postcodes (~300 addresses): sector -> district,
+district -> postcode area, and the district prior is itself shrunk
+toward the area so a sector in a one-postcode district does not
+inherit a one-postcode prior. With hundreds of postcodes the prior is
+a rounding error. The 816 sectors with no live postcode in this ONSPD
+vintage (0.46% of households) take their district's share. The
+hierarchical prior was added after the sector CI run: it changes 96
+sectors by more than 0.01 and 6 by more than 0.1, so the sector delta
+below is representative to that extent and a publish run would
+regenerate it exactly.
+
+**Deltas, both grains, against the published OSTN15 build** (district:
+laptop, grid-visible, now CI-equivalent; sector: CI run 25, bot on the
+exp sector branch).
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.6485 -> 169.7320 (+0.08) | 169.6636 -> 169.7501 (+0.09) |
+| exposure-weighted `el_total` | 164.1216 -> 164.2052 | 164.1354 -> 164.2199 |
+| exposure-weighted `capital` | 5.5270 -> 5.5268 | 5.5279 -> 5.5297 |
+| rating group changed | 1,275 (679 up, 596 down; 365 by >1 step) | 4,573 |
+| `premium` moved | 2,719 | 10,343 |
+| household-weighted \|d premium\| p50 / p90 / p99 | 4.2 / 15.0 / 41.3 | 4.4 / 18.0 / 51.0 |
+| \|d premium\| > 20 | 224 districts, 6.0% of households | 1,102 sectors, 8.3% |
+| largest rise | HU1 217.7 -> 325.8 (`f_high` 0.45 -> 0.97) | HU1 4 105.7 -> 252 |
+| largest fall | LA4 -73.4 (`f_high` 0.72 -> 0.06) | RH8 8 -111 (area 1.00 -> 0.04) |
+| by country, hh-weighted mean d premium | England +0.33, Wales +0.09, Scotland -2.22 | - |
+
+The level barely moves - `calibrate_frequency` re-pins flood to the
+ABI figure - and the geography moves a great deal, which is what a
+denominator change should do. The movers are the argument: Hull's
+HU1/HU3/HU4/HU13 rise 69-108 with nearly every home inside the defended
+1-in-100 zone; Morecambe (LA4), Sheerness (ME11), Dundee (DD1),
+Heswall (CH60) and Liverpool's Speke and Garston (L24, L19) fall 64-73
+with broad estuary, mudflat and dock extents that hold few homes. At
+the sector grain the published model was carrying `f_high = 1.0` for a
+number of "9"-suffix sectors (RH8 8, HD9 9, SA8 9, NP15 9: tiny
+polygons drawn wholly inside an extent) that have no live small-user
+postcode at all; they fall by ~105 to their district's share. Scotland
+falls on average because SEPA's likelihood polygons are broad over
+sparsely housed straths and the postcode share is lower than the area
+share almost everywhere there.
+
+**What would be needed to publish.** (1) `sector-model.yml`'s flood job
+and `rebuild.yml` run `fetch_onspd.py` then `fetch_flood_postcodes.py`
+instead of `fetch_flood.py` - ONSPD is a free ~250 MB download from the
+ONS geoportal that has never been fetched from a runner; (2) the
+ordering rule as usual; (3) LIMITATIONS §2/§3/§7 rewritten for the
+new denominator, DATA_SOURCES entry for ONSPD-as-weight; (4) surface
+water is STILL an area share (`sw_fractions.csv`, a separate 300-minute
+fetch) and would be the obvious follow-up, though its validation was
+the healthier one (+0.57). NOT done here: none of that.
+
+## PUBLISHED 2026-09-05 (third): OSTN15 at both grains, hygiene merged, one push
+
+The user's decision on the two items left open below: "merge the
+hygiene branch and adopt OSTN15 - publish both grains". Both grains
+now transform WGS84 to British National Grid with the Ordnance Survey
+OSTN15 grid instead of the Helmert approximation a bare runner falls
+back to. Main went from e92b04b to 2b7a073 in a single fast-forward
+push; the live site never carried a mixed pair.
+
+**Sequence, the same shape as the argpartition publish.** `exp/ostn15`
+from main, `exp/hygiene` merged in (88b3dcb), `rebuild.yml` defaulted
+`ostn15` on and `sector-model.yml` given the identical install step so
+the two grains cannot transform differently (e137a0c, with DATA_SOURCES
+#40 and LIMITATIONS §9). Per the ordering rule the sector run needs
+the merged code, so `exp/ostn15` went into `sector-model` first
+(9b4697e, no conflict on the sector build this time), `sector-model.yml`
+ran with `skip_fetch` (run 22, bot 3cb778f, pipeline "Inverse of OSGB36
+to WGS 84 (9)", grid sha256 OK), and its output crossed onto the EXP
+branch as `data/sectors_risk.geojson` (f31624b; blob-to-blob identical
+to the bot's, which matters because `git show` and a CRLF checkout
+disagree on the working-copy hash). Then `rebuild.yml` on `exp/ostn15`
+with `commit=true` (run 59, bot 2b7a073). Its district output is
+**byte-identical to this morning's measurement run** (cba4da38), so
+what was published is exactly what was measured. Fast-forward main,
+`publish site` 33969724715 and `tests` 33969724710 green, `sector-model`
+re-synced as 24d9a3c with OURS on the sector build.
+
+**Deltas, CI against CI.**
+
+| | district grain (2,736) | sector grain (10,398) |
+|---|---|---|
+| exposure-weighted premium | 169.6483 -> 169.6485 | 169.6638 -> 169.6636 |
+| exposure-weighted `el_total` | 164.1218 -> 164.1216 | 164.1354 -> 164.1354 |
+| exposure-weighted `capital` | 5.5270 (unchanged) | 5.5279 (unchanged) |
+| rating group changed | 0 | 6 |
+| `premium` (1 dp) moved | 19, max 0.8 (TS7 179.1 -> 178.3) | 484, max 0.9 (ME12 9 176.5 -> 177.4) |
+| `el_total` moved | 27, max 0.8 | 398, max 0.8 |
+| `wdr_idx` moved | 360, max 10.7 | - |
+
+The sector grain moves more than the district grain, as it should:
+a sector is small enough that a few metres reseats its nearest
+weather cell more often. Six sector rating groups is the whole of the
+visible change on the maps. `year_analysis.json` moved in 14 values
+at the district grain.
+
+**Live and verified** from the published CSVs after the deploy: 2,736
+districts and 10,398 sectors; live exposure-weighted premium 169.6485
+(districts) and 169.6636 (sectors); TS7 `premium` 178.3, `capital`
+5.9386, `tvar99_euler` 271.3; ME12 9 `premium` 177.4; CB11 `capital`
+5.2857 and YO51 `tvar99_euler` 257.6 unchanged from the argpartition
+publish, as the delta said they would be.
+
+**What this closes and what it does not.** Reproducibility is now
+whole: CI reproduces the laptop and the laptop reproduces CI, with the
+grid the shared fact. The `ostn15` input stays so the Helmert build
+can be made for comparison. NOT done: the fetched hazard tables were
+not refetched with the grid (DATA_SOURCES #40, scope paragraph) - a
+5-hour sector fetch for a change that would be metres on area
+fractions, and the tables' provenance is already "whichever grid the
+laptop had". The hygiene merge changed no byte of output, as measured.
+
+## 2026-09-05 (second): five things the determinism work made possible
+
+No model change, no publish. The user said "let's do all of these" to
+the list that fell out of the argpartition fix; this is what each one
+measured. Tooling landed on main (74c2066 and the commit carrying this
+section); the two candidate model changes are measured and left for
+the user.
+
+**1. The local-vs-CI gap is closed as a question.** It was the OSTN15
+datum grid on the laptop and nothing else - see the RESOLVED block
+under the erosion section for the proof and the recipe. The accurate
+transform is now buildable on CI (`rebuild.yml` input `ostn15`);
+adopting it is a model change - **adopted and PUBLISHED the same
+day, see the (third) section above.** OSTN15 delta, CI against CI:
+the run
+(33966869539, grid sha256 verified, pipeline "Inverse of OSGB36 to WGS
+84 (9)") produced **byte-for-byte the laptop's own grid-visible build**
+(cba4da38), which closes reproducibility in both directions. Against
+the published build: exposure-weighted premium 169.6483 -> 169.6485,
+`el_total` 164.1218 -> 164.1216, `capital` unchanged at 4 dp; rating
+group unchanged on all 2,736 districts. `premium` (1 dp) moves on 19
+districts, max 0.8 (TS7 179.1 -> 178.3); `el_total` on 27; the
+unrounded `premium_cc` on 2,600 districts by up to 0.79; `wdr_idx` on
+360 (max 10.7, L5 549.8 -> 539.1) and every tail statistic downstream
+of it; `year_analysis.json` moves in 14 values (buckets, exceedance).
+It is a model change of the smallest kind - a more accurate
+coordinate transform reseating the wind neighbours of a few hundred
+districts - and it is not published. To adopt it: default `ostn15` to
+true in `rebuild.yml`, add the same step to `sector-model.yml`, and
+publish both grains in one push under the ordering rule; to keep the
+Helmert build, say so in LIMITATIONS. The user's decision.
+
+**2. `rebuild.yml` has a `verify` input** that fails the run unless
+the rebuild reproduces the committed `data/districts_risk.geojson` and
+`data/year_analysis.json` byte-for-byte, and a `runner` input. The
+three nondeterminism findings in this file were all found by diffing by
+hand; this makes the next one a red light.
+
+**3. The model's first external validation: flood ORDERING in Wales
+and Scotland, against products the model never read.**
+`scripts/validate_flood_ordering.py` fetches SEPA's NFRA Flood Risk
+Grid (26,614 cells, residential AAD band 1..7) and NRW's National
+Flood Risk Assessment PEOPLE layers (2,207 communities each for river,
+sea and surface water, people at low/medium/high risk), allocates them
+onto districts by area share, and rank-correlates against the model
+(`data/flood_validation.csv`, 637 districts). Spearman, external
+measure vs the model's matching component:
+
+| country | external (per household) | vs | rho | n |
+|---|---|---|---|---|
+| Wales | people at risk, sea | `f_high` | **+0.70** | 195 |
+| Wales | people at risk, surface water | `sw_high` | **+0.57** | 195 |
+| Wales | people at risk, river | `f_high` | **-0.13** | 195 |
+| Wales | people at risk, all sources | `el_fl` | +0.17 | 195 |
+| Scotland | AAD band, area-weighted | `el_fl` | -0.08 | 442 |
+| Scotland | area in AAD band >= 5 | `el_fl` | +0.14 | 442 |
+
+**The Welsh result is the finding.** Where the hazard is coastal or
+pluvial the model's ordering and NRW's agree well. Where it is
+fluvial they do not, and the largest disagreements say why: CF42
+(Treorchy, Rhondda) is NRW's 7th-highest of 195 by people at risk per
+household and the model's 28th-LOWEST; SA72/SA73 (Pembroke) are the
+model's top-ten and NRW's bottom-ten. `f_high` is the **fraction of
+district AREA** inside the extent (fetch_flood.py, line 22). In valley
+geography the floodplain is a sliver of the district and carries most
+of the housing; on an estuary the extent is broad and largely empty.
+Area share is a proxy for household share, and for river flooding in
+Wales it is a poor one. This is now LIMITATIONS §2 and §7; the free
+route to a household-weighted fraction (NRW's own people-at-risk in
+Wales; whether the EA publishes properties-at-risk per community for
+England is the next availability question) is an `exp/` candidate, not
+something done here.
+
+**The Scottish result is inconclusive rather than bad.** SEPA's grid
+covers 7.1% of Scottish district area, its band is a residential AAD
+per cell, and both sides of the comparison there are area-based; the
+worst disagreements are city centres (EH8, AB16) that SEPA rates high -
+surface-water-dominated AAD in dense housing - and island districts
+(PA41, PA73, ZE3) the model rates high for the flat Scottish severity
+multiplier on a large extent share. It says the same thing as Wales
+less clearly, and it is the first number of any kind the model's
+Scottish flood ordering has been held against.
+
+**4. Cross-architecture determinism holds.** `rebuild.yml` with
+`runner=ubuntu-24.04-arm` and `verify=true` (33966216904): the ARM
+build reproduced the committed model output byte-for-byte. The
+determinism claim is now "x64 and ARM Linux runners, and a laptop with
+the PROJ user directory emptied", which is a real claim.
+
+**5. Hygiene measured, and it moves nothing.** `exp/hygiene` puts the
+same canonical ordering into `tvar()` (`np.sort` after `np.partition`)
+and float64 accumulators on `el_year` and `el_year_b`. Built on the
+laptop (grid-visible) and compared with the laptop's own fix build and
+with the CI `ostn15` build, which are the same bytes: **byte-identical
+to both** (cba4da38). Zero output effect; **merged into main with
+the OSTN15 publish** (third section above). For the record, my first
+measurement of this item read a leftover artifact from an earlier
+attempt while the real build was still running; the finished build
+was re-measured and this is that number.
+
+**Lessons this round added.** A validation with rho +0.70 on one
+source and -0.13 on another from the same publisher is worth more than
+one aggregate number: the split is where the model learns something.
+And an attribution written before the probe ran (the gitignored-inputs
+one) cost nothing but was wrong; the record now says so where it was
+wrong, not only where it is corrected.
+
+## PUBLISHED 2026-09-05: the argpartition fix, both grains in one push
+
+The cross-runner wobble is closed and published. Mechanism, proof and
+the two eliminated suspects are in "RESOLVED 2026-09-05" under the
+erosion section below; this is the publish record.
+
+**Sequence, and why it was this way round.** The sector run needs the
+fixed `build_model.py`, so per the publish-ordering rule the fix went
+into `sector-model` FIRST (252cf8d), `sector-model.yml` ran with
+`skip_fetch` (run 21, bot 1bcaf51), and its output was crossed onto the
+EXP branch, not main (7ca99dc). Then `rebuild.yml` was dispatched
+**on the exp branch** with `commit=true` (run 56, bot e492670) - it
+checks out whatever ref it is dispatched on and `git push`es back to
+it - so main received fix, test, both grains and regenerated docs as a
+single fast-forward push (main -> e492670). The live site never carried
+a mixed pair. `sector-model` re-synced as fb05de9 with the usual OURS
+resolution on `data/districts_risk.geojson`.
+
+**Lesson worth keeping: `rebuild.yml` runs on any ref.** That is what
+makes a one-push publish possible whenever a model change needs a
+district rebuild - build on the branch, cross the sector output there
+too, fast-forward main. Use it every time; the 2026-08-19 mixed-pair
+window and the 2026-09-03 deadlock were both the cost of rebuilding on
+main.
+
+**Deltas, CI against CI, so they are the published truth and not a
+local approximation.** Exposure-weighted premium, `el_total` and
+`capital` unchanged to 4 dp at both grains; rating group unchanged on
+all 2,736 districts and all 10,398 sectors; `premium` and every `el_*`
+untouched. The capital block moves by its 4 dp quantum on 45-87
+districts / 174-348 sectors. `tvar99_euler` steps genuinely on 3
+districts and 6 sectors; 1,591 districts and 5,995 sectors shed float32
+serialisation noise, and the count of values not exactly at 1 dp goes
+1,592 -> 0 and 5,997 -> 0. `data/year_analysis.json` did not change - it
+never consumed `bad`. The docs HTML did not change either: nothing the
+pages inject moved.
+
+**Live and verified** from the published CSVs after `publish site`
+(33964841059) and `tests` (33964840838) both went green: 2,736 districts
+and 10,398 sectors; CB11 `capital` 5.2857 and YO51 `tvar99_euler` 257.5
+match the committed blobs; live exposure-weighted premium 169.6483,
+unchanged; `tvar99_euler` values not exactly at 1 dp on the live site
+1,592 -> 0 (districts) and 5,997 -> 0 (sectors); AB10 1 premium 156.7.
+
+## PUBLISHED 2026-09-03: Scotland's coastal erosion, both grains in one push
+
+Closed the zero that LIMITATIONS §5 had been flagging for weeks. NCERM
+stops at the English border, so every Scottish district scored *exactly*
+zero for erosion and a reader could not tell that from a real zero.
+**NatureScot Dynamic Coast phase 2** now fills it: 179 of 442 Scottish
+districts, 235 of 1,077 sectors, 79.748 km² inside the 2100 erosion
+zone, worst AB23 at 1.891% of its area (3.954% for the worst sector —
+the same ground over a smaller denominator).
+
+Merged `01bed1f`, rebuilt and committed `86a6762`, live and verified.
+Fetcher `scripts/fetch_erosion_scotland.py`, source note DATA_SOURCES
+#39, four layers keyed in `data/erosion_scotland.csv`.
+
+**Erosion is unpriced, and the diff PROVED it rather than asserting
+it.** Across all 2,736 districts the maximum absolute change to
+`premium`, `el_total`, `capital`, `premium_buildings`,
+`premium_contents`, `premium_cc` and `tvar99_euler` was **exactly
+0.0**, and no district changed rating group. Every district that moved
+at all was Scottish: `er_score` and `theta_we` on 179, `el_er` on 174,
+`el_total5` on 175. The unpriced line went £2.85 → £3.09 per policy
+(£2.33 → £2.56 at sector grain).
+
+**England is untouched because the normaliser held, and that was
+checked.** `er_score` divides by the 99.5th percentile of `er_head`
+across ALL districts, so a large enough Scottish figure would rescale
+every English score. Scotland's largest, 1.891%, sits below England's
+fourteenth largest at 3.848%; p99.5 is unchanged at 0.037409 and
+English scores came back bit-identical.
+
+**Two sources, published side by side, never blended.** `er_head` is
+the column the model scores from; `er_basis` says per district which
+source produced it (352 ncerm / 179 dynamiccoast / 2,205 none). The
+three axes of difference are in the methodology, ranked. The management
+axis looked like the expensive one — England's SMP/NFI ratio of 0.377
+says defences remove nearly two thirds of projected loss — and
+measurement said otherwise: intersecting the RCP8.5-2100 eroded area
+with the published 25 m defence buffer puts **1.502 km² of 79.748 —
+1.88%** at a defended frontage. Scotland's eroding coast is essentially
+undefended where it erodes. **Measure it; do not reason from the
+English analogue.** What survives is the climate rung (RCP8.5-95th
+against England's 70th), disclosed rather than corrected.
+
+### Three things this publish cost, all of them worth writing down
+
+**1. Wales was never zero, and the LIVE map had been hiding it.**
+Writing the caption "Wales reads zero" sent me to check whether it
+does. It does not: NCERM's Severn and Dee frontages cross into **NP16
+(0.095% of area, £3.00 EL), CH5 (0.021%, £0.60) and NP25 (0.004%,
+£0.10)**. The erosion layer's not-mapped test was `country !=
+'England'`, so all three were painted grey and captioned "NCERM covers
+England only" while holding a real figure — wrong on the published map
+long before any Scottish work. The test is now on the DATA as well as
+the country. **A frontage does not respect a border, so a country
+column cannot decide what is mapped.**
+
+**2. The publish deadlock has a second door.**
+`test_every_published_map_asset_carries_the_columns_its_page_reads`
+already guarded the state where the template runs ahead of the
+committed model output. A publish merge creates the mirror state —
+model output CURRENT, `docs/` shards STALE — and it failed there, in
+`rebuild.yml`'s PRE-FLIGHT, the step gating the run that regenerates
+those shards. Fixed in `df2df20`: skip per grain for columns that
+grain's own committed output carries, and check sector shards against
+`sectors_risk.geojson` rather than borrowing the district column set.
+It re-arms in `pages.yml`, which runs the same test AFTER building and
+gates the deploy.
+
+**3. A bot push does not trigger workflows.** The `tests` run on the
+merge commit went red on its "docs/ is up to date" check — correct, and
+self-healing once the rebuild committed. But the rebuild's bot commit
+used `GITHUB_TOKEN`, so nothing re-ran on it and main sat with a red
+tick against a green tree. Dispatch `tests.yml` manually after a
+`commit=true` rebuild (run 33815942524 did, all green).
+
+### RESOLVED 2026-09-05: why the model did not reproduce across runners
+
+Not erosion, and found by diffing rather than by anything failing. The
+publish rebuild (33815457628) reproduced every `el_*` column exactly but
+differed from its parent in `tvar99_euler` on 2 districts by 0.1 and,
+through it, `capital`, `capital_cc`, `premium_cc`, `cc_uplift_pct` and
+the `premium_buildings`/`premium_contents` split on 42-76 districts, all
+by exactly +-0.0001. `premium` itself never moved. The same wobble
+appeared at sector grain and hit English and Welsh units, so Scottish
+erosion could not be the cause.
+
+**The mechanism.** `np.argpartition` dispatches to a SIMD-width-specific
+quickselect, and quickselect only promises that the k-th element lands
+in place - the arrangement either side is an artefact of the kernel.
+From BIT-IDENTICAL input the two vector widths available on this laptop
+return the same SET of worst-1% years (`7586a2d3` both) in a DIFFERENT
+ORDER (`a5384d88` vs `b38dd8da`), with 185 of the 200 positions moved.
+`np.argsort` on the same array is unaffected, because a full sort has a
+unique answer and a partition does not. `year_loss` is float32 - it has
+to be, at 219 MB per grain - so `year_loss[:, bad].mean(axis=1)` summed
+200 of its columns in that order with a float32 accumulator, and
+reordering moved the result by ~1 float32 ULP. `capital` is
+`0.06 * max(tvar99_euler - el_total, 0)` published at 4 dp, so ~2% of
+districts crossed a rounding boundary. Every `el_*` column is a float64
+mean over a fixed axis, which is exactly why all fourteen came back
+identical - and why the wobble read as a defect in the Euler allocation
+rather than in the sort feeding it.
+
+The arithmetic corroborates independently: the 53 `capital` crossings
+put the perturbation at 1.07 float32 ULP - one ULP - and carrying the
+two real `bad` orders end to end reproduces the fingerprint, down to
+`tvar99_euler` moving on exactly 2 districts.
+
+**Two suspects eliminated, both of them the obvious ones.** BLAS thread
+count does perturb `port = (expo @ year_loss) / expo_total`, but only at
+1.6e-15 relative, and over 60 trials of +-1 ULP on every element the
+bad-year set AND order were unchanged 60/60 - `port` cannot be the
+trigger. And `UKRISK_THREADS` is irrelevant: `BATCH = 80` is a constant,
+so the per-offset seeding guard already makes the executor immaterial,
+and the two local builds that diverged both ran `UKRISK_THREADS=6`.
+**Pinning `UKRISK_THREADS` would not have fixed this** - `sector-model.yml`
+already pins it to `"0"` and wobbled anyway.
+
+**Confirmed in situ.** Full district builds of identical committed
+inputs, differing only in `NPY_DISABLE_CPU_FEATURES`, reproduced the CI
+fingerprint: the same nine columns, nothing else, same maxima (0.0001 at
+4 dp, 0.10001 at 1 dp).
+
+**The fix**, in the Euler block of `scripts/build_model.py`:
+
+```python
+bad = np.sort(np.argpartition(port, -k)[-k:])
+res["tvar99_euler"] = year_loss[:, bad].mean(axis=1, dtype=np.float64)
+res["tvar99_euler_b"] = year_loss_b[:, bad].mean(axis=1, dtype=np.float64)
+```
+
+Sorting canonicalises the order for every consumer of `bad`; the float64
+accumulator makes the sum order-proof regardless. Either alone suffices,
+so the guard checks both -
+`test_the_capital_allocation_does_not_depend_on_a_partition_kernel` in
+`tests/test_copula.py`, verified to fail on the pre-fix source and to
+fail loudly if numpy ever makes the float32 path order-invariant.
+`year_loss` stays float32; only the accumulator changes.
+
+Two further full builds under the two SIMD settings came out
+**BYTE-IDENTICAL** (`cba4da38`) where the unfixed pair still differ.
+`data/year_analysis.json` was identical across all four throughout - it
+never consumed `bad`.
+
+**What it would move, if published** (same machine, same inputs, code
+the only variable): exposure-weighted `premium` unchanged to 6 dp;
+rating `group`, `premium` and every `el_*` unchanged on all 2,736
+districts. `capital` and its siblings move on 49-89 districts, each by
+exactly its 4 dp quantum. `tvar99_euler` reports 1,607 changes but only
+ONE is real (TR12 217.9 -> 218.0); the other 1,606 are float32
+serialisation noise being cleaned up, `387.79999` becoming `387.8`. The
+published file currently carries 1,607 of 2,736 `tvar99_euler` values
+that are not exactly 1 dp; the fixed build writes 0.
+
+**PUBLISHED the same day** - see "PUBLISHED 2026-09-05: the argpartition
+fix" above for the sequence and the CI-against-CI deltas.
+
+### RESOLVED 2026-09-05: a local build does not reproduce a CI build, and it is one file
+
+Found while measuring the above, and larger than the bug it turned up
+beside. Diffing a local build against main's committed blob shows
+`tvar99_vine` on 581 districts (max 18), `wdr_idx` on 360 (max 10.7),
+plus `precip_mm`, `wind_ms`, `gust_rp50` and `wx_score`.
+
+**My first attribution was wrong and stood in this file for a few
+hours: I wrote that the gitignored inputs (boundaries, HadUK, caches)
+were the cause.** They are not. `scripts/probe_platform.py` hashes every
+build-time input and intermediate on a runner and on the laptop, and
+the boundary clone (660f1d1), the BGS layers (sha match), Python
+(3.13.5) and every grid value are identical. What differs is
+**`targets` - the representative points of the districts in British
+National Grid - by metres.** The laptop's PROJ user directory
+(`C:\Users\sapta\AppData\Local\proj`) holds
+`uk_os_OSTN15_NTv2_OSGBtoETRS.tif`, the Ordnance Survey datum grid,
+downloaded on 2026-08-29 by some earlier PROJ networking. A runner has
+no grid, so PROJ takes WGS84 to EPSG:27700 with the Helmert
+approximation ("OSGB36 to WGS 84 (9)" on the laptop, the ballpark
+operation on CI). Metres are enough for `cKDTree(...).query(targets,
+k=4)` to pick different weather neighbours for wind, direction and gust
+on a few hundred districts, and `wdr_idx` carries that into the copula
+thetas and every tail statistic.
+
+Proof, not inference: with `PROJ_USER_WRITABLE_DIRECTORY=<empty dir>`
+the laptop reproduces the Windows runner's hashes exactly - `targets`
+e64b879125f9ebc8, `targets@1m` eb44bcf7fae83e4a, wind/wdr neighbour
+indices 46d466eb8d6eb13a, gust e33a861fd6bb44c0 - and, the other way round, the CI build
+WITH the grid (`ostn15` input, 33966869539) is byte-identical to the
+laptop's own build (cba4da38). The three runner types (x64, ARM, Windows) agree with each
+other to the metre and on every neighbour index without the grid.
+
+**Which meant the published model was built on the LESS accurate
+transform** (until the (third) 2026-09-05 publish, when the user
+adopted OSTN15 at both grains). That was a fact to disclose, not a bug
+to fix quietly:
+switching CI to OSTN15 moves the wind neighbours of ~360 districts and
+is a model change. `rebuild.yml` now has an `ostn15` input that installs
+the grid from cdn.proj.org (sha256-pinned, free) so the accurate
+transform can be built on CI and measured; the delta is recorded in the
+2026-09-05 (second) section and the decision is the user's. Until then
+the recipe for "I rebuilt it locally and got the same numbers" is:
+point `PROJ_USER_WRITABLE_DIRECTORY` at an empty directory, and say so.
+
+## 2026-09-03: availability sweep — which open limitations are actually closable
+
+No model change, no publish. With Scottish theft shipped, the question
+was what to do next, and the honest first step was to stop *assuming*
+which of the ranked limitations have free routes and go and ask the
+services. Four answers, all recorded in DATA_SOURCES #38 with the
+endpoints, and folded back into LIMITATIONS §5, §7 and §8.
+
+**The two top-ranked MATERIAL items are both blocked, for different
+reasons, and neither block is about money in the usual sense.**
+
+- **Surface-water depth outside England does not exist openly.** SEPA's
+  entire public REST catalogue is extent polygons at three likelihoods;
+  its `Secure` and `Utilities` folders return empty service arrays, so
+  there is no gated tier hiding a depth product either. NRW advertises
+  4,374 WMS layers and exactly one has "depth" in the name — peatland
+  peat depth. LIMITATIONS had been asserting this since it was written;
+  it is now checked. 651 districts stay on the flat severity multiplier,
+  which makes this simultaneously **the largest priced coverage gap and
+  the one with no free route**.
+- **EoW by dwelling age is anchor-blocked, not data-blocked.** EPC and
+  CTSOP4.1 give the age stock openly and always did. What does not exist
+  free is any published UK figure for EoW claim *frequency* by age: the
+  ABI's granular claims sit behind a subscription, and the English
+  Housing Survey's damp/leak-by-age tables are stock condition, not
+  claims. Building a relativity from stock condition is precisely the
+  invented correction factor `SPLIT_ANCHORED` exists to prevent. This is
+  the wall Gate 3 hit for burst pipes, hit again from the other side —
+  worth noticing that the same shape of failure has now appeared twice.
+
+**Two things that are open, and are worth more than they first look.**
+
+- **Dynamic Coast phase 2 makes Scotland's erosion zero closable.**
+  Eleven open NatureScot feature services under ArcGIS org
+  `LM9GyVFsughzHdbO`, plus `DC2_Main_results` (207,042 transects) and
+  `DC2_LES_results`. Erosion is **unpriced**, so closing Scotland changes
+  what the map knows, not what it charges — a low-risk piece of work.
+  **Wales has no equivalent**: SMP *policies* only, no projected shoreline
+  geometry, so the reachable end state is England + Scotland with Wales
+  captioned.
+
+  **Two things I had wrong within the hour, both fixed by reading layer
+  DESCRIPTIONS instead of layer names.** First I called
+  `Artificial_Coastal_Defences` "an analogue of NCERM's with/without
+  pair"; `ERODETYPE`'s distinct values turned out to be
+  `{ErodedArea, Influence, Vicinity}` — a hazard-zone tier (the second is
+  a 10 m landward buffer, the third a further 50 m), not a scenario pair.
+  Then I wrote that Scotland has only one scenario. It has two:
+  `DC2_LES_results` publishes the **RCP2.6 low-emissions** twin of the
+  RCP8.5 branch, at both horizons, openly. ErodedArea totals 79.7 / 32.5
+  km² at 2100 and 17.9 / 12.9 at 2050 — a 2.45× ladder against England's
+  2.18×, so `_hi` and `_lo` have Scottish counterparts and only the
+  *central* 70th-percentile case does not.
+
+  **What is genuinely missing is the MANAGEMENT axis, and the layer
+  description states it outright:** a "'do nothing' coastal management
+  approach" in which "up to 25 m of erosion is permitted at known
+  artificial coastal defences". So Dynamic Coast's single case is *no new
+  intervention with existing defences standing* — much nearer NCERM's SMP
+  than its NFI, but one point where England has two. That matters more
+  than the horizon does: in England `sum(er_smp105)/sum(er_nfi105)` is
+  **0.377** (defences remove nearly two thirds of projected loss) while
+  the 95th/70th climate allowance is only **1.162×**.
+
+  One more reversal worth carrying: **for Dynamic Coast the polygon is
+  the authoritative area, which is the opposite of NCERM.** NCERM's
+  frontage polygons are sometimes broad estuary zones, so DATA_SOURCES
+  #21 takes land lost from length × recession instead. Dynamic Coast's
+  polygons *are* the modelled outcome — between the 2020 and projected
+  MHWS lines, susceptibility- and defence-limited — while its transect
+  `Dist_*` values are the unconstrained projection. They disagree by
+  construction: the transect sums imply a 54 m mean spacing at 2100 and
+  20 m at 2050, and one coast cannot have two spacings.
+- **A first external validation of flood ordering is available.** NRW's
+  `NRW_NATIONAL_FLOOD_RISK_SURFACE_WATER_{ECON,PEOPLE,ENVIRO}` and SEPA's
+  `NFRA_Flood_Risk_Grid_Latest` (26,614 cells, `aad_score_res` banded)
+  are consequence / annual-average-damage products. They are **useless as
+  severity multipliers** — AAD already contains frequency, so folding one
+  into an ABI-calibrated frequency double-counts — but ranking districts
+  against them would test the flood *ordering* outside England, and
+  LIMITATIONS §2 records that the model's geography has never been
+  validated against anything. Unpriced, non-invasive, and it answers a
+  standing "never validated" note instead of adding another.
+
+**What this changes about the roadmap.** §8's row 1 and row 2 both moved
+from "candidate source, needs verification" to a verified answer, and two
+of those answers are no. The next piece of buildable work is Scottish
+coastal erosion; the next piece of *cheap* work is the flood-ordering
+validation. Both are the user's call, and neither has started.
+
+## PUBLISHED 2026-09-01: Scottish theft geography, both grains in one push
+
+**Scotland stopped being one flat theft rate.** The user shipped
+`geog_3yr_level` off the priced menu below: council housebreaking from
+the statistics.gov.scot cube, apportioned onto postcode geography by
+household share, on the three published years 2023-24 to 2025-26.
+`scores_real.theft_from_police` reads `data/housebreaking.csv`'s
+`hb_3yr`; `SCOTLAND_HOUSEBREAKING_2024_25` is gone.
+
+Published-to-published, exposure-weighted GBP/policy, districts:
+
+  el_th      22.038757 -> 22.037403  -0.0061%: the level is PINNED by
+                                     calibrate_frequency, so this is
+                                     the geojson's per-district
+                                     rounding under moved weights
+  el_total   164.121733 -> 164.121785  +0.00003%
+  capital    5.526963 -> 5.526963     unchanged to 6dp
+  premium    169.647739 -> 169.648338  +0.06 pence
+  Scotland   172.090689 -> 172.549941  +GBP0.4593
+  E&W        169.400582 -> 169.354778  -GBP0.0458
+  sectors    169.663762                cross-grain drift +0.0094%
+  nesting    median |sector-mean/district - 1| 1.3% (bound 3%), p95 6.9%
+  churn      179 of 2,736 districts change rating group, 126 of them
+             Scottish, 1 by two groups
+  movers     up EH10 +14.0 / EH2 +13.2 / EH9 +13.0 (Edinburgh), down
+             AB31 -7.9 / AB32 -7.7 / AB34 -7.3 (rural Aberdeenshire)
+
+The harness predicted all of this to the penny (Scotland +0.4613, E&W
+-0.0467, churn 179/126/1, the same six movers), which is the paired-run
+design working. **The headline stays GBP169.65 at 2dp.**
+
+What actually changed is the map: Scottish rates run 0.039% to 0.632%/yr
+at district grain and 0.039% to 0.635% at sector grain, a 16x spread
+where every Scottish unit previously carried an identical 0.2947%. It
+remains a 32-value step function - units inside one council still share
+a value - and that is the resolution of the source, not a defect of the
+join. LIMITATIONS section 7 now ranks surface-water depth as the largest
+priced coverage gap in its place.
+
+**The level moved with the WINDOW, not with the definition.** 7,381 ->
+7,794 is the three-year mean, within 1.5% of the 7,681 the police.uk
+archive overlap implies (the period correction recorded in the section
+below). The Total-vs-Domestic basis question stays answered and
+UNCHANGED: correcting it alone would move Scotland four to five times
+too far, because E&W carries a nearly equal and opposite error.
+
+**Two site dependencies did not survive Scotland ceasing to be uniform,
+and neither would have failed loudly.**
+
+- `build_site.py` recovered the override as the most frequent exact
+  rate - legitimate while hundreds of districts shared one value, and
+  silently meaningless afterwards. It now reads the `country` flag and
+  injects min / mean / max / spread as `__TH_SCOT_*__`.
+- `site/methodology.template.html` asserted a single national rate in
+  prose. Rewritten, with statistics.gov.scot linked and the step
+  function stated. Five more places said the same thing in passing
+  (`map/template.html`, README, `fetch_premises.py`'s docstring,
+  `peril_contributions.py`'s coverage column, the methodology page's
+  source table) and all five were swept.
+
+**The generalisable bit: a derived quantity recovered by inference from
+the output is a dependency, and nothing declares it.** The modal-rate
+trick had no import, no call site, no test - only a comment explaining
+why it worked. Grepping `__TH_` found it; grepping `scores_real` would
+not have.
+
+Guards, matching `burglary.csv` and `premises.csv`: the file is
+required (missing = SystemExit), and wrong-grain coverage fails rather
+than letting `.get(n, 0.0)` hand every Scottish unit a rate of zero -
+the void run that would read as cheap Scotland. Test
+`test_scotland_reads_council_housebreaking_and_a_missing_file_is_fatal`
+covers both plus the `hb_3yr`-not-`hb_1yr` choice.
+
+**The sector grain needed the file regenerated, which is the ct_bands
+lesson again**: a model change that adds a name-keyed data file is not
+priced at the other grain until the file exists there. The merge into
+`sector-model` brought a district-keyed `housebreaking.csv`; the two-line
+seam (`RISK` -> `sectors_risk.geojson`, `postcode_key` -> "OUTWARD D")
+plus a regeneration produced 1,077 Scottish sectors conserving 7,381 and
+7,794 exactly. Four sectors (DG3 9, EH52 1, ML7 9, TD8 9) hold only
+terminated postcodes and are in no council at all; they take their
+parent outcode's household rate and the total is renormalised, with the
+script refusing above 1% orphans.
+
+**Both harnesses that measured this now refuse to run.** They patch a
+module constant, `setattr` on a module always succeeds, and without the
+flat baseline they would price the published model against itself and
+print a table of zeros that reads like "no effect". Each raises with a
+pointer to where its answer is recorded instead.
+
+Assembly followed the one-push procedure: `exp/scotland-theft-geography`
+merged INTO `sector-model` plus the sector-keyed file, `sector-model.yml
+skip_fetch=true` built on CI (run 33459977526 -> bot commit 8bef162),
+the output crossed in as `data/sectors_risk.geojson`, and `rebuild.yml
+commit=false` re-rendered everything (run 33461086877) so docs carry
+both grains. Its diffstat and the local one matched at 11 files, which
+is the artifact applied cleanly.
+
+**A second rebuild ran (33461805640) and the output was NOT
+bit-identical** - Gate 2's publish got bit-identity from two rebuilds
+and I expected it here. What moved: `capital*`, `premium_buildings`,
+`premium_contents`, `premium_cc`, `cc_uplift_pct` on 42-76 districts by
+1e-4, and `tvar99_euler` on 2 by 1e-1. Every one is a single unit of
+that field's own written precision - a value on a rounding boundary
+falling the other way. No `el_*` field differs anywhere, `premium` is
+identical in all 2,736 districts, no district changes rating group, and
+exposure-weighted means agree to 6dp. **So the model is reproducible to
+published precision but not bit-for-bit across runners**, most likely
+reduction order under `UKRISK_THREADS=0`, which resolves to the
+runner's CPU count. Not chased - nothing published moves - but do not
+claim bit-identity in a future publish without checking it.
+
+The second rebuild existed only to re-render `__TH_SCOT_*__` at 3dp,
+and it revealed a floor worth knowing: **`districts_risk.geojson`
+writes `th_rate` at 4dp**, so 0.000394 is quantised to 0.0004 before
+`build_site` ever sees it and the Scottish low end cannot render finer
+than 0.04% whatever the format string. The page therefore reads
+"0.040%-0.630%/yr ... a 16x spread" (the spread comes off the same
+quantised column, 15.75 -> "16", so the page is self-consistent), while
+the unquantised model figures quoted above are 0.039%-0.632% and 16.1x.
+
+## MEASURED 2026-09-01: the Scottish theft basis is asymmetric, and it is worth half a percent
+
+Nothing published changed. `SCOTLAND_HOUSEBREAKING_2024_25` stays at
+**7,381**. Harness `scripts/price_scotland_theft.py`, CI run
+33449273312, artifact `data/scotland_theft_pricing.json`, record in
+LIMITATIONS §5 and DATA_SOURCES #36.
+
+**The defect, as it first looked.** Theft geography comes from police.uk,
+which has no Scottish forces, so all 442 Scottish districts are
+overridden with one national rate built on 7,381 — *Total* Housebreaking,
+all premises. Table A6 splits that into Dwelling 3,661, Non-dwelling
+1,531, Domestic 5,192, Other 2,189. Meanwhile Phase 2a (`eebb5c2`,
+2026-08-17) gave England and Wales a residential-share denominator
+(`annual / (hh + prem)`) and touched Scotland only to add the comment
+that VOA is E&W-only, "irrelevant under the override". The comparator was
+never revisited. Read that way, Scotland looks inflated by 7381/5192 =
+**1.42×**.
+
+**Why that reading is wrong, and this is the part worth carrying
+forward.** The comparison is not Scotland against truth. It is Scotland
+against *what the model's own E&W denominator leaves standing*. Two
+measurements:
+
+| | residential share of burglary | inflation carried |
+|---|---|---|
+| E&W as the model computes it | 91.2% retained by `hh/(hh+prem)` | — |
+| E&W, ONS Appendix Table A5a, Apr 2023–Mar 2026 | 68.5% | **1.33×** |
+| Scotland, Table A6, 2024-25 | 70.3% domestic | **1.42×** |
+
+The Phase 2a correction is a *geographic attribution*, not a category
+filter: it moves burglaries away from commercial cores but nationally
+keeps nine in ten of them. So both countries carry commercial burglary,
+in almost the same proportion, and the errors nearly cancel —
+like-for-like Scotland is over-stated by **1.07×**. The 91.2% figure is
+computed by the harness from `burglary.csv` and `premises.csv` and
+printed, never typed.
+
+The two taxonomies line up closely enough for the comparison to be fair:
+E&W residential 68.5% against Scottish domestic 70.3%, E&W home-only
+51.1% against Scottish dwelling 49.6%.
+
+**Priced.** Five variants off one scored frame; `el_th` comes back at
+22.038710 in all five (drift ≤ 2.2e-16) and the headline premium is
+169.6483 in all five to four decimals — the basis is a pure relativity
+and cannot touch the level. Mean Scottish premium is £172.09 published:
+
+| variant | Scotland | ratio | Scottish mean | movers | largest |
+|---|---|---|---|---|---|
+| baseline | 7,381 | 0.3593 | 172.09 | — | — |
+| **matched_domestic** | 5,192 + E&W ×0.7514 | 0.3363 | **171.56** | 48 | −0.90 |
+| **matched_dwelling** | 3,661 + E&W ×0.5610 | 0.3177 | **171.13** | 82 | −1.64 |
+| domestic *(one-sided)* | 5,192 | 0.2527 | 169.62 | 194 | −4.22 |
+| dwelling *(one-sided)* | 3,661 | 0.1782 | 167.86 | 312 | −7.23 |
+
+Nothing moves two rating groups in any variant. The naive one-sided fix
+is four to five times too large. The matched pair lands 0.43 apart — that
+gap is the measurement's own uncertainty, not a result. Largest movers
+are the same districts in all four: AB13, G61, G77, G63, EH10 down;
+W1C, WC2N, W1F, WC2E, EC3V up — wealthy Scottish suburbs against London
+commercial cores, exactly the two ends a Scotland-versus-E&W level change
+should move, and a sign nothing else leaked.
+
+**Period IS a confound — corrected 2026-09-01, hours after this section
+was written.** What stood here: Scottish housebreaking fell 18% between
+2023-24 and 2024-25, so a backward multi-year mean would sit well above
+7,381 — but the police.uk archive runs 2023-07 to 2026-06, centred on
+December 2024, and the 2024-25 constant straddles that centre; fifteen of
+its thirty-six months are later than the newest published Scottish year,
+so there is nothing to correct towards.
+
+The reasoning was fine. **The premise was wrong**, and the way it was
+wrong is worth keeping: I took "newest published Scottish year" from the
+publication the constant came from — the Recorded Crime in Scotland
+workbook — and never asked whether the same numbers were published
+somewhere fresher. They are. **statistics.gov.scot's `recorded-crime`
+cube carries 2025-26**: 6,968 housebreakings, a complete year (315,357
+All Crimes against 299,111 the year before). Thirty-three of the
+archive's thirty-six months are published, not twenty-one.
+
+| overlap with 2023-07…2026-06 | housebreaking |
+|---|---|
+| 2023-24, Jul–Mar (9 months) | 9,033 × 9/12 = 6,775 |
+| 2024-25 (12 months) | 7,381 |
+| 2025-26 (12 months) | 6,968 |
+| 2026-27, Apr–Jun (3 months) | not yet published |
+
+Month-weighted over the 33 published months: **7,681/yr, 4.1% above the
+constant in use**. Scotland is *under*-stated on period by roughly as
+much as the basis work found it *over*-stated on definition, in the
+opposite direction, so the netted like-for-like over-statement is nearer
+1.03× than 1.07×. It does not change the decision — 7,381 stays, and
+both corrections are inside the noise the matched pair already spans —
+but "there is nothing to correct towards" was a stronger claim than the
+evidence supported, and it was made because one source was treated as
+the source.
+
+The lesson generalises past this peril: **a statistical agency's flagship
+PDF/workbook and its open-data cube are not the same vintage.** Check the
+cube before concluding a series ends where the bulletin ends. Priced in
+`price_scotland_theft_geography.py` as the `level_3yr` variant, so the
+correction is measured rather than merely noted.
+
+**Three process notes.**
+
+1. **The first run was cancelled on purpose** (33448637463, five minutes
+   in). Its `matched` variant closed the E&W gap with an *assumption* —
+   that the two countries split burglary alike — when ONS publishes the
+   number for free. The assumption turned out to be nearly right and the
+   answer still changed, because the denominator, not the truth, is the
+   comparator. Cancel and re-measure; do not ship a guess next to five
+   measurements.
+2. **The `ct_*` claim-weight trap applies to `ct_th`** exactly as it does
+   to `ct_eow` (the trap that cost a freeze run). Overwrite `th_rate` on a
+   scored frame and the leftover severity multiplier belongs to the old
+   rate. The harness renormalises before calibrating, and a void-run guard
+   asserts the rebuilt baseline reproduces the frame's own `th_rate`
+   before any simulation runs.
+3. **"Scoring is the expensive half" is a SECTOR-grain fact.** At district
+   grain it took 0.2 min against 3.7 min per simulation. That line was
+   copied from `price_freeze_share.py`'s docstring into the new script and
+   is corrected there; the single scored frame buys determinism here, not
+   time.
+
+**What was still open when this was written — and is now CLOSED.** The
+theft *geography* gap (one flat rate across 442 districts) was the
+materially damaging half, with Recorded Crime in Scotland by local
+authority named here as the free route. That route was taken the same
+day: see the PUBLISHED section at the top of this file.
+
+## Gate 2 MEASURED 2026-08-30: freeze reorders nothing; the SMD curve is a real, different map
+
+Run `scripts/gate2_geography_shape.py` (against either resolution's
+table) and `scripts/compare_haduk_resolutions.py`. Data: the full 5 km
+extraction locally (`haduk_district_daily.py`, 84 min, 66 years x 2,736
+districts) and the full 1 km extraction on CI — four probe-sized slices
+streaming 174 GB none of which ever touched a disk whole
+(`.github/workflows/haduk-1km.yml`, run 33319459184, 4.5 h wall, every
+slice green first try). Everything below was computed at BOTH
+resolutions and agreed to the second decimal, which is the cleanest
+possible answer to "was 1 km worth it": **1 km confirms 5 km rather
+than changing it** — per-year cross-district rank agreement +0.97 to
++0.997 on every comparable column, and the districts 5 km genuinely
+cannot separate number **14** (7 groups, mostly co-cell small urban
+pairs), inside which 1 km spreads the drought indices by only 1-3%.
+The old "84% of households share a 12 km cell / 40% a 5 km cell"
+statistic measured CELL sharing, not value degeneracy — area-weighted
+overlap already separates nearly every district.
+
+**FREEZE HALF, CLOSED — a cold-spell/thaw index does not reorder the
+map.** At all 2,736 districts, like-for-like on the same instrument and
+window (5 km, 1991-2020): spells +0.993, days-in-spells +0.984,
+worst-spell severity +0.971 Spearman against plain air-frost days; the
+1 km table repeats them (+0.994/+0.985/+0.972). The ERA5 22-point
+provisional answer holds at full coverage, now INCLUDING the Scottish
+districts ERA5 could not see. A relativity that reorders nothing cannot
+move a premium, so the swap buys no geography and the physical argument
+(pipes burst on the thaw after a sustained freeze) is true but
+priced-in by rank. Instrument agreement corroborates: the 5 km
+1991-2020 frost climatology matches the model's 1 km HadUK layer at
++0.98, means 40.5 vs 40.0 days. What survives is the LEVEL question the
+provisional section already posed — frost days fell ~20% between eras
+while the map stayed +0.98 rank-stable — i.e. should `EOW_FREEZE_SHARE`
+be time-varying at all. That is a re-aim for the user, not a geography
+experiment.
+
+**SUB HALF — the drought climatology is genuinely different geography,
+unlike the freeze swap.** The model's subsidence surface is geology
+alone (`p_sub = 0.002 + 0.028*sub_score^1.5`); no weather enters it.
+Against that geology the drought climatologies correlate at rho ~ 0.69
+— clay country and dry country overlap (both are the southeast) but are
+far from one map. An `EOW_FREEZE_SHARE`-style blend
+`p_sub * (1-share + share*rel)` at share 0.31 keeps rank rho ~ 0.987
+yet moves **523** districts (JJA-mean SMD) to **1,284** (per-year peak
+deficit) by more than 10% in subsidence frequency. Extremes are
+physically right without being told: wettest-lowest all west Highlands
+(PH50, PH43/44/49, HS3/5, IV54), driest-highest Thames estuary and
+Bedfordshire/Cambridgeshire clay (DA8/9/17/18, RM17-20, SS0/4/8, MK42,
+SE28). Nationally, the household-weighted per-year deficit
+(`cwd_yr_max_mm`) recovers **5 of the 6 canonical subsidence years** in
+its top ten — 1976, 1995, 2003, 2018, 2022, missing only 2006 — and
+the JJA-mean SMD 4 of 6. The index family works.
+
+**Which index: `cwd_yr_max_mm`.** The capped bucket (`smd_max_mm`)
+saturates (94-96% of districts peg, spread 0.60-1.06); the uncapped
+RUN integral (`cwd_run_max_mm`) carries multi-year memory that turns
+its national top ten into 2016-2025 — a trend, not a year index (and
+across CI slice restarts it is not even comparable; the workflow
+header documents that). The per-year reset keeps the discrimination
+(relativity p5/p95 = 0.33/1.41) without the ratchet.
+
+**What blocked pricing — BOTH CLEARED BY MEASUREMENT 2026-08-31, see
+the next section:**
+
+- **The PET level is inflated ~a third** — Hargreaves-Samani gives UK
+  annual PET 668-697 mm against a true 450-550 (known weakness in humid
+  maritime climates, recorded at `haduk_district_daily.py`'s commit).
+  Rankings are sound; the LEVEL is not shippable without MORECS/MOSES
+  PET or a citable UK Hargreaves coefficient. A uniform bias does NOT
+  cancel out of a deficit, because the deficit subtracts rainfall.
+  *Cleared: measured to move the level only — the map survives.*
+- **The share has no published anchor.** `EOW_FREEZE_SHARE = 0.31`
+  cleared this hurdle with the ABI's own weather-attribution arithmetic
+  agreeing across two releases (0.311/0.307). The subsidence equivalent
+  — what fraction of subsidence frequency rides the drought curve
+  rather than the geology base — has no such number yet. BGS/ABI both
+  attribute the large majority of UK subsidence claims to clay
+  shrink-swell, but "large majority" is not a parameter. Candidate
+  routes: the ABI quarterly series' H2 concentration (78% of 2022
+  notified claims in H2 is itself an attribution measurement), or a
+  dose-response presentation like SUP_WEIGHT's.
+  *Cleared: the ABI's own arithmetic yields 0.565 by two agreeing
+  routes; priced at 0.40/0.565/0.70 so the table shows sensitivity.*
+
+## PUBLISHED 2026-08-31 (second): the temperature tab, and the freeze re-aim answered
+
+Two things the user asked for together ("do all of these"): the freeze
+LEVEL question Gate 2 left open, and what the fourth content tab
+publishes now that the workstream has reported.
+
+**The freeze re-aim: do not re-aim.** `measure_frost_era.py` on the
+66-year daily extraction. The decline is real and strongly significant
+- **-0.326 days/yr, p=0.0002, -7.5% of the mean per decade**, 49.0 days
+in 1961-1990 against 38.9 in 1991-2020 - and the model cannot feel any
+of it, because `eow_rate` divides frost by its own exposure-weighted
+mean and a proportional decline cancels exactly. So only the SHAPE and
+the SHARE can price.
+
+The shape was read against **within-era controls** - same climate,
+different sample - because a shorter recent window is a noisier
+estimate as well as a more current one, and without a control any
+re-aimed window shows movement that looks like signal:
+
+  candidate            |drel| p95     control (same n)
+  1996-2025 [n=30]        0.045       0.158  (two 15y halves)
+  2006-2025 [n=20]        0.091       0.158
+  2016-2025 [n=10]        0.187       0.178  (two disjoint decades)
+  1961-1990 [n=30]        0.185       0.158
+
+Both windows worth considering are far inside the noise; the recent
+decade only matches its own sample-size control; and the 1961-1990 map
+- a genuinely different climate 30 years back - differs from today's by
+no more than two arbitrary decades inside the published window differ
+from each other. 1 km and 5 km agree to the third decimal.
+
+**Then it was priced anyway, because a prediction is worth testing**
+(CI run 33431160741, six variants, 23 min):
+
+  variant           share   premium    d prem  capital   el_eow  churn
+  baseline          0.310  169.6483    +0.00p   5.5270  42.3871      0
+  share_200         0.200  169.6499    +0.16p   5.5285  42.3871    353
+  share_266         0.266  169.6490    +0.07p   5.5277  42.3871    158
+  share_400         0.400  169.6466    -0.17p   5.5253  42.3871    288
+  daily_1991_2020   0.310  169.6484    +0.01p   5.5271  42.3871    168
+  era_2006_2025     0.310  169.6482    -0.01p   5.5269  42.3871    220
+
+el_eow identical to ONE ULP everywhere - the construction proving
+itself. The era isolated against its own instrument control is **0.02
+pence**. Nearly doubling the share moves the premium 0.17 pence but
+moves 353 districts a rating group, +/-GBP15 at the extremes
+(Inverness-shire and the frostiest districts down as the dial drops,
+the Isles of Scilly up). **A distributional question wearing a pricing
+question's clothes**, with no UK per-era attribution to settle it.
+EOW_FREEZE_SHARE stays 0.31; LIMITATIONS section 4 records the gap.
+
+**The trap, and it cost a whole run.** The first attempt (33427929182)
+reported ~2 pence of movement and flagged el_eow drifting 5.4e-4. That
+was the harness, not the model: build_model normalises the four
+attritional council-tax severity multipliers with CLAIM weights
+(households x that peril's OWN rate), so `ct_eow` is a function of
+`eow_rate`. Overwrite eow_rate on an already-scored frame and the
+severity normalisation left behind belongs to the old rate - the level
+then drifts with the SHAPE of the relativity and reads exactly like a
+priced effect. main() is correct and always was (it computes ct_eow
+after eow_rate); only a harness can get this wrong. **Any future
+harness that overwrites a `*_rate` column must renormalise that peril's
+`ct_*` before calibrating.** The fix needs no fresh read of
+ct_bands.csv - renormalising the frame's own column on the new weights
+is exact, because the old constant cancels.
+
+**The temperature tab is live** at `/temperature.html`, fifth content
+tab, never titled "prediction" and saying so in its opening line. Two
+server-rendered charts (household-weighted national series, 1960-2025)
+from `data/temperature_series.json`. Drought +3.6%/decade (p=0.036)
+with 5 of 6 canonical surges in the index's own top ten; frost
+-7.5%/decade with the blindness explained rather than hidden; Gate 4's
+"a bad year is dearer claims, not more claims"; and a limits section
+saying the climate scenario is flood-only, so it cannot show subsidence
+worsening or escape of water easing.
+
+**"Every figure injected, none typed" is what this entry said, and it
+was false in the one section that most needed it.** The bad-year
+section carried TEN hand-typed numbers - 1.38x count, 2.63x value, the
+1.25x/2.11x shift-share, the storm and flood shares and their per-peril
+ratios - directly under a `temperature_bits()` docstring citing defect
+3 as the reason nothing is ever typed. They were measured before Gate 2
+and every one had drifted by publication: count 1.38 -> 1.36, value
+2.63 -> 2.67, mix 1.25 -> 1.24, within 2.11 -> 2.15, flood 2.18/2.83 ->
+2.13/2.88. The page was quoting a model that no longer existed, which
+is defect 3 exactly, on the page whose own comment warns about it.
+
+Fixed by injection, and without a simulation: the committed
+`data/year_analysis.json` buckets already carry UNROUNDED
+`claims_*_per_100k` and `cost_*_per_claim` - `year_claim_view.py` added
+those columns precisely because the rounded `inc_*_pct` ones cannot
+support the division - so `temperature_bits()` recomputes the whole
+decomposition from committed data at build time. The shift-share holds
+each peril's typical cost per claim fixed and moves only the mix; mix x
+within multiplies back to the total exactly (1.2435 x 2.1477 = 2.6707),
+which is what makes quoting both honest rather than one number twice.
+The prose survived the new figures unchanged in meaning - storm still
+nearly flat, flood still the engine.
+
+`year_claim_view.py` (Gate 4) and `price_eow_sigma.py` (Gate 3) were
+brought onto main in the same commit. Both lived ONLY on unmerged
+experiment branches far behind main, so a published claim and a
+recorded no-ship had their provenance sitting on branches a cleanup
+would have deleted.
+
+**Then the whole site was swept for the same defect, and the same page
+had three more.** A scan of every template for typed model outputs
+found `£169.66` written into the drought section - the PRE-Gate-2
+premium, when the published figure is 169.6477, so the page rounded to
+a penny the model no longer charges - plus `43.5%`/`56.5%` restating
+`SUB_DROUGHT_SHARE` and `31%` restating `EOW_FREEZE_SHARE`. All three
+now inject, the two shares straight from `build_model` by the local
+-import idiom the file already uses elsewhere. A new `__PREM_MEAN__`
+lives in `load_stats()` beside `__PREM_MIN__`/`__PREM_MAX__`,
+household-weighted to two decimals, because this project routinely
+reports sub-penny results and rounding to the pound would hide the
+differences the gates exist to measure.
+
+The sentence around it had to change too: it read "the headline premium
+stayed at GBP169.66", and Gate 2 moved it 0.8 pence. Injection alone
+would have produced "stayed at GBP169.65" - true numbers inside a false
+claim. It now reads "moved by less than a penny, to GBP169.65". **A
+placeholder does not make a sentence honest; the prose around it has to
+survive the substitution.**
+
+**"Everything else the scan flagged is a source constant" - wrong
+again, and caught by building the guard.** The methodology page typed
+`56.5%` for `SUB_DROUGHT_SHARE` too, one page over from the temperature
+tab that had just been fixed, and it was waved through as an ABI figure
+because the ABI attribution is where the 0.565 comes from. Provenance is
+not the test. The test is whether changing `build_model` changes the
+page: this one would not have. It is `__SUB_DROUGHT_PCT__` now, and the
+three share placeholders moved out of `temperature_bits()` into
+`load_stats()` so any page can state them. `docs/methodology.html` did
+not change by one byte, which is the point - the fix is invisible today
+and load-bearing the next time the share moves.
+
+The rest of what the scan flagged there really is source constants -
+ABI shares, VOA counts, published anchors - prose about the world rather
+than model output, correctly typed.
+
+**A guard now exists, because finding this by eye twice in one day is
+not a method.** `test_templates_do_not_retype_live_model_figures`
+formats what the model says NOW exactly as the placeholder does, and
+fails if that string appears literally in any template - verified by
+re-typing `169.65` into the temperature page, which fails with the file
+and line. It deliberately does NOT check `EOW_FREEZE_SHARE` as "31%":
+the methodology claims-mix table legitimately sums to 31%, so that
+string cannot tell the constant from an unrelated total, and a guard
+that cries wolf gets weakened. An honest gap beats a disabled test; the
+share is injected anyway.
+
+**The last asymmetry closed too, and closing it caught a fourteenth
+wrong number.** sub-level, eow-sigma and freeze-share had each
+committed a pricing JSON; the SMD curve had not, so its churn was
+quoted from run 33410640013 with no artifact behind it. That run's
+artifact had not expired, so it is now `data/smd_curve_pricing.json`
+and the churn injects. `build_site` looks the row up by the SHIPPED
+index and share - `cwd_yr` at `SUB_DROUGHT_SHARE` - not by variant key,
+and raises unless exactly one priced variant matches, so re-tuning the
+share cannot leave the page quietly describing a variant the model no
+longer runs.
+
+Wiring it exposed the error. The page read "455 districts moved one
+rating group, one moved two", and `price_smd_curve.py` defines
+`churn` as ANY group change and `churn2` as `|delta| >= 2` - a SUBSET,
+not a separate population. The old sentence implied 456 movers; the
+truth is 455, one of which moved two. It now reads "455 of 2,736
+districts changed rating group, 1 of them by two". HANDOFF's own Gate 2
+churn line said the same thing loosely and has been made explicit; the
+prose at "This is a pure geography change" was already correct.
+
+Two guards were widened rather than worked around.
+`test_site_placeholders_all_resolve` scanned a **hard-coded pair** of
+templates, so all 23 of the new page's placeholders read as "defined but
+unused" - the guard could not see the page it guards. It now enumerates
+`site/*.template.html` with a count assertion. `test_layout` gained the
+page in both its page list and its SVG readable-size list; that second
+one is what proves the wide/narrow chart swap actually defeats the
+3.4px bug. 42 layout tests green including phone viewports, 67 model
+tests green.
+
+**Then the publish push went red, and the stale-intermediate trap at
+"docs/ was stale and the local check said fresh" below had bitten a
+second time - worse than the first.** I ran `build_site.py` alone to
+add the nav link. It re-wrapped `analysis/uk_risk_year_analysis.html`
+and `map/*.html`, gitignored intermediates my checkout had left at
+their PRE-Gate-2 state, so commit 5b56296 silently REVERTED four
+committed pages - map, relative, sectors, years - to the subsidence
+numbers the SMD curve had just replaced (`claims_sub_per_100k` 72.6
+back to 72.83, and the exceedance curves with it). Re-wrapping a stale
+intermediate does not merely fail to update a page; **it overwrites a
+correct page with old output, and the diff it produces looks like an
+ordinary one-line nav change.** Nothing local objected: 67 tests and 42
+layout tests passed on the reverted docs, because no test compares
+docs/ against the committed data - only CI's freshness step does, and
+that is what caught it. Fixed by running the full chain and committing
+the result, which is reproducible across two passes; the four pages now
+differ from 6f323aa by exactly the one nav line they were supposed to.
+
+**The live site was never wrong, and it is worth being precise about
+why**, because the reason is also the reason nobody would have noticed.
+`pages.yml` deploys a build ARTIFACT it constructs from `data/` and
+`site/`; it never serves `docs/`. It also did not run on either push -
+its path filter covers data, templates and `scripts/build_*.py`, and a
+docs-only commit matches none of them. So the reverted numbers sat in
+the repository while `smcode-source.github.io` kept serving 72.6
+throughout (checked). `docs/` is the fallback the workflow header
+describes - what Pages serves if the repository's Pages source is ever
+set back to a branch - plus the reviewable record of what the site
+says. A stale one is a live-site regression armed but not fired.
+
+So the rule below is not a tidiness preference: **never commit docs/
+built by `build_site.py` alone. Run `build_map.py`, `build_tiles.py`,
+`build_analysis.py`, `build_site.py`, in that order, every time.** The
+intermediates are gitignored, so a fresh clone cannot reproduce this -
+only a long-lived checkout like this one can, which is exactly why it
+recurs here and not in CI.
+
+## PUBLISHED 2026-08-31: the Gate 2 SMD curve, both grains in one push
+
+The user chose option 1 of the priced menu: ship `cwd_yr` at
+`SUB_DROUGHT_SHARE = 0.565`. What went live, all numbers from rebuilds
+rather than the harness (its baseline level sits 7e-6 high; see the
+Gate 1 publish note):
+
+  el_sub     19.805475 -> 19.807342  +0.009%: calibrate_frequency
+             re-pins the level (harness drift <= 1 ULP); the residue
+             is the geojson's per-district rounding under reshuffled
+             weights
+  el_total   164.120266 -> 164.121733  +0.0009%
+  capital    5.533736 -> 5.526963   -0.122%
+  premium    169.655786 -> 169.647739  -0.8 pence (harness said
+             169.6483 - the gap is the geojson's 1dp premium write)
+  sectors    169.6636    cross-grain drift +0.0094% (bound 0.5%)
+  nesting    median |sector-mean/district - 1| 1.16% (bound 3%), p95 6.6%
+  sub_rel    wmean exactly 1.000000 both grains; district 0.538-1.310,
+             sector 0.537-1.307
+  churn      455 of 2,736 districts change rating group, 1 of them by
+             two (churn2 is a SUBSET of churn, not an addition to it)
+  movers     up DA15/DA6/SE23 (+GBP8-13), down CF61/CF62/LL44
+
+Wiring is the eow_rate pattern exactly: `drought_from_haduk` loads
+`data/smd_climatology.csv` with exact name coverage (wrong grain =
+SystemExit), `sub_rel` is normalised on the live frame in main() and is
+a REQUIRED `_fields` column — a frame without it fails loudly rather
+than silently pricing geology-only (commit 8a8727e; test
+`test_sub_frequency_carries_the_drought_relativity`).
+
+The sector grain surfaced one real defect: 13 sectors came back NaN —
+exactly the 13 empty-geometry polygons (no centroid -> NaN latitude ->
+NaN Hargreaves Ra -> NaN PET; their daily met had silently come from an
+arbitrary fallback cell, so the whole row was untrustworthy). Each now
+takes its parent district's climatology via
+`make_smd_climatology.py --fill-empty-from`, printed per sector
+(children.csv posture). Two more features LOOK empty in
+sectors_risk.geojson but are GeometryCollections (IV51 9, ZE2 9) and
+extracted fine. Coherence after the fill: Spearman +0.9964,
+median rel diff 0.000 (commit c0596e8, DATA_SOURCES #34).
+
+Assembly followed the one-push procedure: sector-model got exp/smd-curve
+merged IN plus the sector-keyed climatology, `sector-model.yml
+skip_fetch=true` built on CI (run 33422250428 -> commit c8fac97), the
+output was crossed in as data/sectors_risk.geojson (fd97f77), and
+rebuild.yml commit=false re-rendered EVERYTHING on CI (run 33424274229)
+so docs carry both grains — the district geojson came back bit-identical
+to the previous verified rebuild (33418764800), which is the determinism
+check working. One trap for next time: actions/upload-artifact@v4 drops
+hidden files by default, so the artifact's docs/ was missing .nojekyll —
+restore it before committing or Pages breaks.
+
+## Gate 2 PRICED 2026-08-31: the SMD curve costs the level nothing and re-rates modestly — the user shipped it (see PUBLISHED above)
+
+Branch `exp/smd-curve` (commit 9d0a917, CI run 33410640013; artifact
+`smd-curve-pricing`, JSON also at `data/smd_curve_pricing.json` in the
+run). Seven full 20,000-year simulations off one scored frame:
+baseline + {cwd_yr, smd_jja} x shares {0.40, 0.565, 0.70}, the Gate 1
+harness pattern. The lever is `sub_rel` — a per-district frequency
+relativity on `p_sub`, exposure-weighted mean 1, normalised on the
+live frame like `eow_rate`; the column is absent from the real
+pipeline and provably bit-neutral when missing; dependence still reads
+`sub_score`.
+
+**The two blockers were closed with numbers first:**
+
+- **PET (measured, both resolutions):** `check_pet_sensitivity.py`
+  re-ran the drought integrals at PET x 0.85 and x 0.70 — at 1 km on
+  CI (workflow `haduk-1km-pet.yml`, run 33404395072, re-extracting
+  only 1991-2020 = 81 GB in the four probe-calibrated slices, done
+  ~1 h; branch `exp/haduk-1km-pet`) and at 5 km locally
+  (`haduk_district_daily.py --pet-sensitivity`, 70 min). Verdict
+  identical at both: the bias moves the LEVEL (cwd_yr climatology
+  240 -> 121 mm at x 0.70) and NOT the MAP — Spearman vs k=1.00 at or
+  above +0.9983 (cwd_yr) and +0.9940 (smd_jja) everywhere. The level
+  is exactly what calibration re-pins, so the priced relativity
+  survives the PET formula. If a shipped leg ever needs the level's
+  physics, the citable fix is Hydro-PE (PM PET on this same HadUK-Grid
+  met, 1 km daily 1969-2021, CC-BY,
+  doi:10.5285/9275ab7e-6e93-42bc-8e72-59c98d409deb). Run before the
+  CEDA token expired 2026-09-01 16:27 UTC; nothing planned needs CEDA
+  now.
+- **Share (derived, not guessed): 0.565 from the ABI's own releases**
+  by two agreeing routes — the 2018-12 release's 2,500 claims/quarter
+  pre-surge baseline (=> 10,000/yr) against 2022's 23,000 total with
+  13,000 drought-attributed (=> 13/23 = 0.565), cross-consistent with
+  2022's own H1 of 5,000 = base/2. Zurich's attribution (60% of upheld
+  claims root-induced clay shrinkage in an average year, ~85% in a
+  surge year) brackets it. Same derivation style as
+  `EOW_FREEZE_SHARE`'s 0.311/0.307.
+
+**The table (exposure-weighted GBP/policy; churn = districts changing
+premium decile vs baseline; el_sub pinned at 19.8065 in every variant,
+drift at most one ULP):**
+
+| variant      | share | capital | premium  | vs base | churn | >=2 grp |
+|--------------|-------|---------|----------|---------|-------|---------|
+| baseline     | —     | 5.5337  | 169.6551 | —       | 0     | 0       |
+| cwd_yr 0.40  | 0.400 | 5.5290  | 169.6504 | -0.003% | 336   | 0       |
+| cwd_yr 0.565 | 0.565 | 5.5270  | 169.6483 | -0.004% | 455   | 1       |
+| cwd_yr 0.70  | 0.700 | 5.5252  | 169.6466 | -0.005% | 547   | 1       |
+| smd_jja 0.40 | 0.400 | 5.5310  | 169.6524 | -0.002% | 234   | 0       |
+| smd_jja 0.565| 0.565 | 5.5298  | 169.6512 | -0.002% | 330   | 0       |
+| smd_jja 0.70 | 0.700 | 5.5288  | 169.6502 | -0.003% | 386   | 0       |
+
+Top movers, every variant: UP the Thames-estuary/Essex clay (cwd_yr:
+DA15/DA6/SE23 +GBP8-13; smd_jja: SS12/SE23/SS13 +GBP4-6), DOWN wet
+western coasts (CF61/CF62/LL44 and LL43/IV48, -GBP4-10). The same
+districts Gate 2's shape measurement called out in advance.
+
+**Reading it honestly:** the level cannot move by construction and did
+not (drift <= 7.1e-15); the tiny premium dips are capital reallocating
+as frequency shifts toward districts whose tail contribution differs.
+This is a pure geography change: at the anchor share 0.565 with the
+better index (cwd_yr — 5/6 canonical years), 455 of 2,736 districts
+change decile, exactly ONE by two or more groups. Compare Phase 2c
+(70.5% churn, 974 districts >= 2 groups, held) and the MIDAS gust swap
+(28.8%, 20 districts >= 2, published): this sits far below both. The
+open decisions are the user's: ship cwd_yr at 0.565 (with the PET
+verdict and the share derivation as the published justification),
+present the dose-response, or record it as a priced refusal for
+Tab 4 — the harness, evidence and derivations are all on the branch
+either way.
+
+Two streamer defects fixed before the CI run (commit on
+`exp/haduk-1km-ci`): `append_csv` wrote every year's rows TWICE (came
+in with the memory-fix rewrite; the local 1960-62 CSV predates it and
+was checked clean), and the progress line called
+`shutil.disk_usage('C:/')`, which would have thrown FileNotFoundError
+on the first completed year of any Linux run.
+
+## Gate 0 CEDA strand CLOSED 2026-08-29: HadUK-Grid daily is on disk
+
+The token was regenerated by the account holder and the fetch ran clean:
+**2,376 files, 1,508 MB** under `data/haduk` (gitignored) - tasmin,
+tasmax and rainfall at 12 km, 792 files each, **66 complete years
+1960-2025, no gaps**, release v20260512 of v1.3.2.ceda. Verified by
+opening three files with xarray rather than trusting the fetcher's
+magic-byte check: 112x82 grid, correct units, physical ranges.
+
+That retires the last blocker on Gate 0 and gives Gate 2 the source ERA5
+could not provide - ERA5 was unusable for frost in Scotland, and the
+model's existing frost/rain layers are 1991-2020 CLIMATOLOGIES with no
+year-to-year variation at all.
+
+**The subsidence signal is present, and it discriminates.** UK-land-mean
+JJA rainfall, 1960-2025, median 245 mm (matches the published figure;
+driest 107 mm in 1995, wettest 380 mm in 2012):
+
+| driest JJA | mm | % of median | mean summer tasmax |
+|---|---|---|---|
+| 1995 | 107 | 43.6% | 20.7 C |
+| 1976 | 108 | 44.0% | 21.1 C |
+| 1983 | 128 | 52.3% | 20.1 C |
+| 1984 | 146 | 59.5% | 19.6 C |
+| 2022 | 164 | 66.8% | 20.5 C |
+| 2018 | 174 | 70.9% | 20.6 C |
+
+1976 and 1995 are the two driest summers AND the two warmest - the two
+canonical UK subsidence catastrophe years, recovered from the data
+without being told to look for them. 1975 also makes the driest ten,
+which is the consecutive-summer desiccation that made 1976 so severe.
+2018 and 2022, the modern surge years, are both there.
+
+**Two counter-cases matter more than the hits**, because they are why
+the leg must be built on PET/SMD and not a temperature index: **2023**
+is the 10th warmest summer at **118% of median rainfall** (warm and wet
+- should produce no subsidence), and **1981** is in the driest ten at
+the coolest tasmax of that group, 17.6 C. Neither variable alone
+separates a subsidence year from a non-subsidence one. That is the
+empirical case for Hargreaves-Samani PET off the daily tasmax-tasmin
+range, which is precisely what this download makes possible.
+
+METHOD NOTE, because I got it wrong once. The first pass computed
+`a.sum("time").mean()`, which turns the NaN sea mask into zeros and
+dilutes the spatial mean by ocean - it reported a median of 46 mm
+against a true 245 mm. Rankings and ratios were unaffected (the land
+mask is identical every year, so the dilution factor cancels) and came
+out bit-identical on the corrected run, but the LEVEL was wrong. Take
+the spatial mean first, then sum over time.
+
+Token expires 2026-09-01 16:27 UTC. The 5 km per-district relativity
+pass is ~14x the volume per file and was NOT taken - 12 km is what Gate
+2 needs, and 5 km should earn its place before a fresh token is spent
+on it.
+
+## Gate 4 MEASURED 2026-08-29: a bad year is dearer claims, not more claims
+
+`exp/year-claim-view`, CI run 33258862898, one 20,000-year simulation off
+one scored frame. `year_analysis` now emits `claims_<peril>_per_100k` and
+`cost_<peril>_per_claim` per bucket, from the UNROUNDED arrays, alongside
+the `mean_*`/`inc_*_pct` it already published. The four vine perils, as a
+multiple of the typical year:
+
+| bucket | claims/yr | count x | GBP/claim | value x | cost/policy |
+|---|---|---|---|---|---|
+| good | 102,636 | 0.70x | 4,235 | 0.58x | £28.00 |
+| typical | 147,112 | 1.00x | 7,357 | 1.00x | £69.80 |
+| bad | 186,856 | 1.27x | 11,399 | 1.55x | £137.40 |
+| catastrophic | 203,673 | 1.38x | 19,352 | 2.63x | £254.30 |
+
+**Value beats count roughly two to one.** A catastrophic year costs 3.64x
+a typical one, and 2.63 of that is the size of the average claim against
+1.38 from the number of them. Count also saturates — 1.27x to 1.38x from
+bad to catastrophic — while value keeps climbing, 1.55x to 2.63x. The
+identity holds: count x times value x reproduces the cost ratio to within
+0.12% in every bucket, which is the arithmetic check the harness prints.
+
+**The value effect is itself two effects, and the smaller one is mix.**
+Holding every peril at its typical-year cost per claim and moving only
+the claim MIX to each bucket's:
+
+| bucket | value x | of which mix | of which severity |
+|---|---|---|---|
+| good | 0.58x | 0.79x | 0.73x |
+| bad | 1.55x | 1.13x | 1.37x |
+| catastrophic | 2.63x | 1.25x | 2.11x |
+
+Storm falls from 74.7% of claims in a typical year to 66.2% in a
+catastrophic one while flood rises 9.2% -> 14.4% and subsidence
+15.3% -> 18.2%, so cheap claims give way to dear ones. That is worth
+1.25x. The remaining 2.11x is genuine severity inside the perils.
+
+**Storm is not what makes a bad year bad.** It is two thirds to four
+fifths of all claims and is nearly flat in both dimensions — 1.23x count
+and 1.06x value at catastrophic. Flood is the engine: 2.18x count AND
+2.83x value, compounding to 6.2x its typical cost per policy (£24.10 ->
+£148.70). Subsidence is second, 1.65x by 1.84x.
+
+Two caveats, both real:
+
+- **Groundwater's value multiplier is non-monotonic** — 1.34x at bad,
+  1.20x at catastrophic. It is the smallest leg by far (1.1% of claims,
+  ~2,300 a year) and so the noisiest; do not read a story into that
+  reversal without more simulated years. It is also exactly the leg the
+  rounding floor below made unreadable.
+- **This is the four vine perils only**, £56.90 of the £164.12 EL. The
+  four attritional legs (theft, EoW, fire, AD) are outside the year view
+  by design, disclosed and reasoned at `analysis/template.html:86`. So
+  this answers why a bad WEATHER-AND-GEOLOGY year is expensive, not why
+  a bad year for the book is. Sanity check against the ABI's 2025
+  actual — 560,000 home claims across all perils — holds: 147,112
+  typical and 203,673 catastrophic for a subset of perils both come in
+  under it.
+
+**Why the fields had to be added rather than derived.** `inc_<peril>_pct`
+publishes at 2 dp of a PERCENT, smallest step 0.01% — about 1,550 claims
+across a 15.5m book. Dividing `mean_*` by it to recover a cost per claim
+inherits 0.6–0.9% error on weather, 2.6–12.5% on flood, 2.1–7.1% on
+subsidence and **25–50% on groundwater**, whose incidence rounds to
+0.00/0.01/0.01/0.02 across the four buckets. That is a resolution floor,
+not sampling noise: more simulated years would not have moved it.
+
+`test_year_view_claim_count_and_value` guards the identity
+`mean_<peril> == claims_<peril>_per_100k / 1e5 * cost_<peril>_per_claim`
+and was checked to bite — it fails when the conditioning divide is
+removed. Counts are CLAIMS, not claimants: a policy claiming on two
+perils counts twice, which is the basis the ABI's own figure uses.
+
+Committed to main as 6a0db2a and **inert** — `build_model` is not in
+tests.yml's docs-freshness path (only build_map/build_analysis/build_site
+run there), so `data/` and `docs/` are untouched until someone rebuilds.
+Nothing here changes the premium. Publishing any of it is the user's
+call; the numbers above are quotable, the site does not yet show them.
+
+## Gate 3 PRICED 2026-08-28: the answer is exactly zero, and provably
+
+`exp/eow-sigma`, CI run 33217184873, four full 20,000-year simulations
+off one scored frame: `SEV_SIGMA["eow"]` at **0.96 / 1.00 / 1.20 /
+1.41**, spanning both ABI readings.
+
+| sigma | EL | tvar99_euler | capital | premium | churn |
+|---|---|---|---|---|---|
+| 1.00 | 164.121341 | 256.3502754466515 | 5.533736 | 169.655077 | — |
+| 0.96 | 164.121341 | **256.3502754466515** | 5.533736 | 169.655077 | 0 |
+| 1.20 | 164.121341 | **256.3502754466515** | 5.533736 | 169.655077 | 0 |
+| 1.41 | 164.121341 | **256.3502754466515** | 5.533736 | 169.655077 | 0 |
+
+`tvar99_euler` is identical **to the last bit** in all four. That is not
+a broken harness — sigma demonstrably reached the model, because
+`el_eow` wobbles by 2.8e-14, exactly the ULP signature of the
+`M / exp(s^2/2) * exp(s^2/2)` round trip. It is the right answer.
+
+**Why.** Both places the premium comes from take the severity's MEAN and
+nothing else:
+
+    simulate()        el_eow = p_eow * exp(mu + s^2/2)
+    cond_expected()   q * exp(mu + s^2/2)   -> year_loss -> tvar99_euler
+                                            -> capital -> premium
+
+and `mu = log(_median_for_mean(M, s)) = log(M) - s^2/2`, so
+`exp(mu + s^2/2) == M` and **sigma cancels in both**, exactly, per
+district. I had checked the first identity and assumed the second did
+not hold. It does.
+
+**This is deliberate and it is already on the published page** — the
+methodology's "Averaging expectations, not accidents" gives the formula
+as `Phi(...) x E[severity_i]`. Averaging REALISED losses over the worst
+200 of 20,000 years made the Euler allocation correlate **0.49** with
+itself across seeds; conditioning on the systemic draw took it to
+**0.9985**. The price of that fix, never stated until now, is that
+**capital responds to frequency CLUSTERING and never to severity
+DISPERSION**.
+
+**So the whole `SEV_SIGMA` table is invisible to the premium** — not
+just EoW's. It reaches only `tvar99_vine`, `tvar99_indep` and
+`var995_*`, which are diagnostics. That is now written at the
+definition site in `build_model.py` and guarded by
+`test_severity_sigma_cannot_move_capital`, so the next person does not
+spend a CI run rediscovering it.
+
+**What this does and does not settle.** Gate 3 is closed: neither the
+burst-pipe leg (no anchor, and no geography for one) nor the sigma
+variant (no effect, provably) can ship. It does NOT say severity
+dispersion is irrelevant to a home insurer — it says THIS model does not
+charge for it, by a choice made for seed stability. If that should
+change, the test named above is the one to change, and changing it means
+re-opening the 0.49-vs-0.9985 result.
+
+**Process note, since it cost a CI run.** The answer was derivable by
+reading `cond_expected` before launching anything. I verified the EL
+identity analytically and took the capital path on trust. The run was
+not wasted — it is the evidence behind the guard — but it should have
+been a confirmation, not a discovery.
+
+## Gate 3 prep 2026-08-28: the burst-pipe breakout has NO shippable anchor
+
+Gate 3 proposes splitting burst pipes out of the escape-of-water leg as
+its own peril. Desk research on the ABI's public releases, all figures
+now in `data/abi_annual.csv` with their bases kept apart. **Verdict: do
+not build the leg.** The reasons are worth keeping, because two of them
+are findings in their own right.
+
+**There are THREE ABI series here and they are not the same thing.**
+
+1. *The annual weather line* (the release the model's storm/flood/
+   subsidence anchors come from). Its home-weather total less storm less
+   flood gives **153 (2023), 174 (2024), 202 (2025)**. The residual
+   method is validated: for 2023 it reproduces the published GBP153m to
+   within 1 (573-133-286 = 154).
+2. *The winter-advice releases*, a **settled-claims** basis: 2023
+   **12,000 claims averaging over GBP17,000**; 2024 **~8,000 claims,
+   ~GBP33,000, GBP250m total**.
+3. The model's own EoW anchor, GBP657m from the ABI's "GBP1.8m a day".
+
+Series 1 and 2 do not reconcile: 12,000 x 17,000 = **GBP204m vs the
+weather line's GBP153m (+33%)**, and 8,000 x 33,000 = GBP264m (the ABI
+says GBP250m) **vs GBP174m (+44%)**. Same peril, same year, two ABI
+publications, a third apart. This is the paid-vs-notified problem Gate 1
+hit, in a new place.
+
+**Finding 1: the 2025 "burst pipes" figure is not burst pipes.** The
+2026-02 release's footnote says the weather figures "cover damage caused
+by burst or frozen pipes, **escape of water**, as well as damage as a
+result from storms and flooding". So the GBP202m residual is burst pipes
+*and* weather-attributed escape of water. The likeliest reading is that
+the **basis is the same in both years** and the 2023 release's "burst
+pipes" label for its own residual was simply loose — and the evidence
+for that is `EOW_FREEZE_SHARE`'s own derivation, which got **0.311 from
+2023 and 0.307 from 2025**. Two different bases would not agree to
+0.004. So this does not undermine `EOW_FREEZE_SHARE = 0.31`; if anything
+it explains why it held up.
+
+**Finding 2, and this is the useful one: the burst-pipe tail is already
+representable inside the existing EoW lognormal, and the model's sigma
+now has a published cross-check for the first time.** Split at the 2024
+figures, burst pipes would be **4.9% of EoW claims but 40% of EoW paid**
+— a 13x severity ratio. That sounds like it needs its own leg. It does
+not. Asking what lognormal sigma puts that much value in that few claims:
+
+| ABI reading | claims | avg | % of EoW count | % of EoW paid | implied sigma |
+|---|---|---|---|---|---|
+| 2023 (12k x >GBP17,000) | 12,000 | 17,000 | 7.3% | 31.1% | **0.96** |
+| 2024 (8k x ~GBP33,000) | 8,000 | 33,000 | 4.9% | 40.2% | **1.41** |
+| the model today | — | — | — | — | **1.00** |
+
+`SEV_SIGMA["eow"] = 1.00` was a judgement call and has never had an
+anchor. It now has one, and the anchor is a **lower bound**: the ABI
+says the 2023 average *exceeded* GBP17,000, so the sigma that reading
+implies is **at least 0.96**, not equal to it. The model's 1.00 is
+therefore consistent with 2023 rather than confirmed by it — but
+"consistent with a published figure" is strictly more than this
+parameter had yesterday, and the bound rules out the low end.
+
+**Why the leg still cannot ship.** Two observations, and they disagree by
+47% on sigma. The average claim nearly **doubled** (17,000 -> 33,000)
+while the count fell **a third** (12,000 -> 8,000) — the signature of a
+small catastrophe-driven book, not a severity anchor. And the 2024 pair
+could not be verified against the ABI primary: the cold-weather page
+404s on fetch and only secondary reports carry it. Under the house rule
+that a parameter without a published anchor does not ship, this is not
+close.
+
+**Sigma is not a clean substitute for the leg, and saying so needs a
+correction to the paragraph above.** In the model, frost enters escape
+of water through **frequency only** — `eow_rate` is the anchor level
+times the frost relativity — while EoW severity is
+`ABI["sev_eow"] * ct_eow`, a council-tax factor, with **one sigma
+everywhere**. So a cold district gets more EoW claims at the same
+average cost. Raising sigma would add cost concentration **uniformly**;
+a real burst-pipe leg would tie it to frost geography. Those are
+different models, and the ABI publishes **no geography at all** for
+burst pipes — so the leg is unanchored in a second, independent way, not
+just on severity. That strengthens the verdict rather than weakening it,
+but the sigma option is a different question, not a cheaper version of
+the same one.
+
+**And it is a pure capital question — WRONG, and the CI run says so.**
+I wrote here that sigma leaves EL unchanged and "only the tail, and
+hence capital, moves", bounded by the GBP5.53 capital charge. The bound
+is not a fraction of GBP5.53. **It is zero.** See the section below.
+
+**What would change the answer.** A third year on the winter-advice
+basis, which arrives each winter; or an ABI release that states burst
+pipes and escape of water separately on the same basis; or any public
+source for burst-pipe **geography**, which is the gap nothing here
+fills. Until then the honest Gate 3 experiment is **not** a new leg but
+the one-parameter question — is `SEV_SIGMA["eow"]` right at 1.00, given
+2023 implies at least 0.96 and 2024 implies 1.41 — and that is
+priceable today with the existing harness, on CI rather than this
+laptop.
+
+## Gate 2 shape check 2026-08-28 (PROVISIONAL, 22 of 57 points — superseded by "Gate 2 MEASURED 2026-08-30" above)
+
+Run `scripts/freeze_index_shape.py`. It works off whatever
+`fetch_era5_daily.py` has cached, which is what that fetcher's
+farthest-point traversal is for — every prefix is a national sample. At
+**22 points** it already answers two of Gate 2's three questions, and
+the answers point somewhere other than where the gate was aimed.
+
+**Q1: a cold-spell/thaw index does not reorder the map.** Spearman
+against the `frost_days` the model uses today:
+
+| index | rho vs frost_days |
+|---|---|
+| spells (>=3 consecutive frost days) | **+0.994** |
+| days inside those spells | **+0.992** |
+| freeze-degree-days inside them | **+0.990** |
+| thaw events | **+0.994** |
+| mean thaw jump (degC) | +0.772 |
+
+Foreseeable in hindsight — every one of these is a monotone function of
+"how cold is it here" — but it is now measured rather than assumed. The
+physical argument for the swap (pipes burst when a SUSTAINED freeze
+THAWS, not on days the air dipped below zero) is sound and still buys
+**no spatial differentiation**. A relativity that reorders nothing
+cannot move a premium. Only `thaw_jump` is a genuinely different
+ranking, and it is the weakest-motivated of the six.
+
+**Q2: the level is moving; the map is not.** 1960-1992 vs 1993-2025,
+frost days **36.3 -> 29.2 (-19.6%)** and sustained spells **4.06 -> 3.44
+(-15.2%)** — but rank correlation between the two eras is **+0.98**.
+Britain is getting uniformly less frosty, not differently frosty.
+
+**So Gate 2's freeze half looks like a LEVEL question, not a geography
+question** — whether `EOW_FREEZE_SHARE` (the freeze-sensitive slice of
+escape of water) should be time-varying at all, rather than which
+districts carry it. That is a different experiment from the one the gate
+describes, and it is the user's call whether to re-aim it.
+
+**Q3, and this one changes what the ERA5 fetch is worth. ERA5 is not a
+usable freeze instrument in Scotland.** Against the model's HadUK-Grid
+1 km layer, both restricted to 1991-2020:
+
+| | n | ERA5 | HadUK | bias | Pearson | mean abs diff |
+|---|---|---|---|---|---|---|
+| England & Wales | 8 | 25.7 | 33.1 | -22% | **+0.902** | 7.8 d |
+| Scotland | 14 | 30.8 | 53.5 | -42% | **+0.547** | **32.9 d** |
+
+The two largest errors have **opposite signs** — IV4 -68 days, PH33
+(Lochaber) **+68** — which is the signature of a ~31 km cell landing on
+the wrong terrain rather than a bias anything could correct. The
+islands and far-north coastal districts (KW1/KW14/KW17, ZE1/ZE3, PA42,
+IV51) are all strongly negative, as a cell that is mostly sea should be.
+
+Consequences:
+
+- **CEDA HadUK-Grid is not a nice-to-have for Gate 2, it is the only
+  viable source.** ERA5 cannot cross-check freeze where freeze exposure
+  is highest.
+- The ~35 remaining ERA5 points (about a week of grinding) buy a decent
+  cross-check for England & Wales and little for the Highlands and
+  islands. Worth finishing, not worth waiting on.
+- This is **not** evidence the model's frost layer is wrong. It is
+  evidence ERA5 point-sampling is the wrong instrument for it — which is
+  the reason `fetch_haduk.py` exists.
+
+**Read the sample honestly.** 14 of the 22 points are Scottish, because
+farthest-point traversal maximises geographic spread and the north is
+sparse. The all-points "-37%" therefore overstates the
+population-weighted error. Re-run at 57 before quoting any of this as
+settled; Q1's +0.99 is the one number unlikely to move.
+
+## PUBLISHED 2026-08-28: Gate 1's severity fix, both grains in one push
+
+**User decision: "take the severity fix and hold the level at 307."**
+`sev_subsidence` 17,820 -> **17,264**; `subsidence_paid` stays at the
+published FY2025 GBP307m. Districts from CI **33138216612**, sectors
+from **33138240678**, assembled and landed together.
+
+| | published before | now | change |
+| --- | --- | --- | --- |
+| `el_total` | 164.120266 | 164.120266 | **bit-identical** |
+| `capital` | 5.540486 | 5.533736 | -0.122% |
+| `premium` | 169.661936 | **169.655786** | **-0.6 pence** (-0.0036%) |
+| buildings / contents | — | 113.29 / 56.36 | — |
+| sector premium | — | 169.6704 | drift **0.0086%** vs districts |
+
+**2 districts of 2,736 change rating group; none moves two.** The
+headline stays **GBP169.66** at 2dp, which is the honest way to say
+that this correction removes a documented period mismatch without
+moving the price.
+
+**The full rebuild confirmed the identity that was argued from the
+algebra.** `el_total` came back **bit-identical district by district**
+to the file it replaced — a copula-free way of saying the same thing
+the Gate 1 derivation said: `sev` cancels out of
+`p_sub(i)*paid/(POLICIES*raw)`, so the whole 0.6 pence is capital.
+
+**One caveat on the pricing harness — DIAGNOSED 2026-08-28, it is
+output rounding, not an error.** `price_sub_level.py` predicted capital
+5.533736 and the real rebuild delivered **5.533736**, exact to six
+decimals; but its *baseline* `el_total` was 164.1213406 against the
+published 164.120266, **+0.0011**. Both calibration functions are
+idempotent and `el_total` is analytic, so neither was the suspect.
+
+The cause is `build_model.main()`'s write block: `el*` and `premium` are
+rounded to **1 dp** per district before the GeoJSON is written, while
+`capital` falls through to **4 dp**. The published means are therefore
+means of *rounded* columns — verified: the stored file has
+`max |x - round(x,1)| = 0` for `el_total` and `premium`, and
+`max |x - round(x,4)| = 0` for `capital`, and its exposure-weighted
+means are exactly the three figures quoted above.
+
+Quantised that way, 1-dp rounding puts **SD 0.00067** on the
+exposure-weighted mean of 2,736 districts, so the observed gap is
+**1.65 SD** — ordinary. 4-dp rounding puts SD 6.7e-7 on capital's mean,
+which is precisely why the harness matched capital to the digit and
+missed `el_total` by 1e-3. **The gap scales with each column's
+granularity, which is the signature of rounding and of nothing else.**
+
+Two consequences that outlive Gate 1:
+
+- The harness is not offset. It reports UNROUNDED means; the file
+  reports rounded ones. Paired differences were always trustworthy, and
+  now absolute levels are too — to **±0.0013** (95%) on `el_total` and
+  `premium`, and to ~1e-6 on `capital`.
+- **`el_total` and `premium` read out of `districts_risk.geojson` are
+  only good to about ±0.0013.** Quoting either to six decimals from that
+  file is spurious precision. The £169.66 headline is safe by a factor
+  of four; a future gate arguing over a tenth of a penny is not, and
+  should re-derive from an unrounded run.
+
+**Assembly followed the documented one-push procedure.** `rebuild.yml`
+ran with `commit=false` precisely so it could not land the district
+grain on its own; `sector-model.yml` ran on `sector-model` after main
+was merged INTO it, and committed its output there; the sector file was
+then crossed into main as `data/sectors_risk.geojson`. Locally only
+`build_map` / `build_analysis` / `build_site` were run — **never
+`make_images`**, whose PNG encoder differs from CI's and would fail the
+next run as "docs/ is stale". 93 tests green, including both cross-grain
+guards, and the level guard passed with 58x margin.
+
+**What this does NOT do.** The claim-count budget got worse, exactly as
+priced: subsidence 17,228 -> 17,783 implied claims, spare down from
+10,060 to **9,505** against a remainder that needs 36,176. That is a
+property of the ABI series rather than of this choice — every
+consistent severity pairing pushes the same way — and it is now
+recorded in `anchor_budget.py`, whose subsidence row also stopped
+claiming the two figures came from "one release" when they never did.
+
+## Fixed 2026-08-28: the published calibration figures had drifted twice
+
+Right after the Gate 1 publish I grepped the **live** page for
+GBP17,820 — a number that should no longer have existed anywhere — and
+found it. The eight-row ABI calibration table on the methodology page
+was hand-written, and it had drifted **twice**:
+
+- **subsidence**, that same day, by my own severity change; and
+- **theft**, stale since **2026-08-25**. It read GBP450m / ~118,000 /
+  0.76% when the model had been moved to GBP341.6m / 89,895 / 0.58%
+  three days earlier. Its footnote was worse than stale: it argued that
+  "the resulting frequency (0.76%) sits inside the envelope" when the
+  model had deliberately been put at the envelope's **floor**, so the
+  page was defending a choice the model no longer made.
+
+The landing page carried the same theft error in prose — "theft to the
+last published theft total (~GBP450m)".
+
+**Every numeric cell in both is now injected from `build_model.ABI`**
+(`build_site.py`, the `__CAL_*__` keys), so there is one place to change
+an anchor and it is the model. Three-significant-figure rounding is done
+with a negative `ndigits` — that is what turns 99,592 into ~99,600 — and
+the keys are spelled out as **literals**, because
+`test_site_placeholders_all_resolve` greps `build_site.py` for quoted
+tokens and an f-string-built key is invisible to it.
+
+README's copy of the table cannot be derived — markdown has no build
+step — so it is **pinned by a test** instead:
+`test_readme_calibration_table_matches_the_model` parses the rows and
+checks paid, average claim and implied count against `ABI`. Verified it
+bites, by reverting one cell and watching it fail by name.
+
+**A red commit, and why.** b5db786 went to main with
+`test_site_placeholders_all_resolve` failing. The cause was mine and
+worth naming: `pytest ... | tail -3 && git commit && git push` — `tail`
+exits 0, so the `&&` chain never saw pytest's failure. 50244f8 fixed the
+test; every push since reads pytest's own exit code. 94 green.
+
+## Gate 1 priced 2026-08-27: the subsidence level, four ways
+
+**CI run 33135605979**, 18.6 minutes, five full 20,000-year simulations
+off ONE scored frame (`scripts/price_sub_level.py`, workflow
+`.github/workflows/sub-level.yml`). Paired by construction: same
+geology, same rasters, same seed, so nothing between these rows is
+scoring noise. **Nothing is published — this is a table, and the
+decision is the user's.**
+
+| variant | paid GBPm | sev GBP | claims | EL | capital | premium | vs base | churn |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline (as shipped) | 307 | 17,820 | 17,228 | 164.1213 | 5.5405 | **169.6618** | — | — |
+| severity fix only | 307 | 17,264 | 17,783 | 164.1213 | 5.5337 | **169.6551** | -0.004% | 2 |
+| FY2024 derived | 280 | 17,264 | 16,219 | 162.3794 | 5.4473 | **167.8267** | -1.08% | 190 |
+| FY2024 from quarters | 237 | 17,264 | 13,747 | 159.6267 | 5.3151 | **164.9419** | -2.78% | 520 |
+| 2026 annualised | 288 | 17,264 | 16,682 | 162.8955 | 5.4727 | **168.3682** | -0.76% | 136 |
+
+**Zero districts move two rating groups or more, in any variant.**
+
+**The severity period mismatch costs 0.7 PENCE.** DATA_SOURCES #33
+records that `sev_subsidence` = GBP17,820 is a **Q1 2026** average
+paired with a **FY2025** paid total. Correcting it to the 2025 H1
+average (GBP17,264 — same year, same basis, and independently
+corroborated: H1's GBP153m over 9,000 supported households is
+GBP17,000, and paid is seasonally flat at 49.8/50.2) moves the premium
+by **-0.004%**, all of it capital (-0.12%), and shifts two districts a
+group. This was predicted before it was measured, and the algebra is
+the reason:
+
+    FREQ_SCALE["sub"] = (paid / sev / POLICIES) / raw
+    EL_sub(i)         = p_sub(i) * FREQ_SCALE["sub"] * E[sev]
+                      = p_sub(i) * paid / (POLICIES * raw)
+
+`sev` cancels, per district, exactly. What the severity actually
+controls is the FREQUENCY/SEVERITY SPLIT at a fixed expected loss —
+more, cheaper claims are thinner-tailed at the same mean, which is the
+whole of the -0.12% capital move.
+
+**The identity was verified across a 30% range of the level, not just
+asserted.** Every variant's EL lands on `baseline_EL - (delta paid) /
+POLICIES` to within **6e-14**. GBP307m -> GBP280m predicts -GBP1.742
+and delivered -GBP1.7419.
+
+**One correction to how that test was written.** The first run printed
+`WARNING: the severity-cancels derivation is WRONG`. It was not. The
+check used `np.array_equal`, and the difference was **2.8e-14 on
+164.12 — one unit in the last place of a float64**, because the code
+divides by `sev` and multiplies back by `exp(mu + sigma^2/2)` with
+`mu = log(sev / exp(sigma^2/2))`, which is not a bit-exact round trip.
+Demanding bit-equality of an algebraic identity computed in floating
+point is a test bug. The check now asserts the stronger and more useful
+form — EL == paid/POLICIES at EVERY level — and the script carries a
+comment telling the next person not to put the bit test back.
+
+**The level is the only real question, and its honest envelope is
+GBP164.94 to GBP169.66 — GBP4.72, or 2.78% of premium.** All four
+candidates are on the paid basis so they are comparable:
+
+- **307** FY2025, published (ABI 2026-02). What ships.
+- **280** FY2024, but DERIVED as 307-27 from a comparative line. Its
+  own three published quarters sum to 178, implying a Q4 of 102 —
+  **1.55x the largest quarter ever published**. Recorded unreconciled.
+- **237** the same FY2024 annualised from those three quarters instead.
+  The disagreement between 280 and 237 IS the size of that open gap.
+- **288** 2026 annualised from Q2. Legitimate only because paid has no
+  seasonality (2025: 49.8% H1 / 50.2% H2); the NOTIFIED series is 78%
+  H2 and must never be annualised this way.
+
+**Every candidate lands on buildings, which is the correctness check
+that matters.** Buildings premium 113.30 -> 108.56 across the range
+while contents holds at 56.37 -> 56.39. Subsidence is a 100% buildings
+peril (`build_model.py:554`), so anything else would have been a defect
+in the cover split.
+
+**Two things this does NOT settle, both recorded rather than resolved.**
+
+1. *The severity fix makes the claim-count budget worse.* Subsidence
+   goes 17,228 -> 17,783 claims, and `anchor_budget.py` has only 10,060
+   spare against a remainder needing 36,176. Every consistent severity
+   choice pushes the same way — see DATA_SOURCES #33. A lower LEVEL
+   pushes back (237 frees 3,481 claims), but picking a level to fix a
+   budget elsewhere would be reverse-engineering the evidence, and is
+   not a reason to prefer one.
+2. *Paid LAGS, so no single paid year is a steady-state year.* The 2022
+   surge (23,000 claims notified, GBP219m incurred) was settled across
+   2023-25, so FY2025 paid contains run-off from it. `anchor_budget.py`
+   already calls single-year anchoring a methodology defect; subsidence
+   is the most volatile peril in the book, which makes it the worst
+   place to have that defect. Fixing it properly needs the incurred
+   basis and a claims-inflation index, and this repo has neither.
+
+**A limitation of the table itself, stated rather than buried.** The
+corrected severity GBP17,264 is held fixed across all four levels
+because no 2024 or 2026 average on the paid basis has been published.
+Pairing a 2025 average with a 2024 total is the same class of mismatch
+this exercise is correcting. It is accepted here only because the
+algebra above proves the severity cannot move the level anyway — the
+mismatch costs capital at the third decimal place and nothing else.
+
+**The laptop could not run this and that is worth recording.** Two
+local attempts died with `_ArrayMemoryError` on **8.31 MiB** and then
+**1.53 MiB**: the machine sat at 66.9 GB of a 68.4 GB commit limit with
+`mc-fw-host` holding 25 GB on its own. BATCH and thread count were
+halved first and changed nothing — at 1.5 MB it is not a footprint
+problem. The workflow triggers on push to `exp/subsidence-series`
+rather than by dispatch, because `workflow_dispatch` only fires from
+the default branch and a measurement that may never ship does not
+belong on main.
+
+## Gate 0 measurement 2026-08-27: what `theta_ws` costs — GBP0.65
+
+**The answer: `theta_ws` is worth GBP0.65 per policy — 0.39% of the
+premium, but 11.8% of the entire capital charge.** Measured, not
+argued, on throwaway branch `exp/theta-ws-measure` (commit 1f0854e,
+CI run 33129830672). **DO NOT MERGE that branch** — it exists only to
+produce this number and is retired below.
+
+**What was changed.** One function. `theta_ws()` in `build_model.py`
+was replaced by `np.full(..., 1.0)`, i.e. the weather-subsidence
+pair-copula degenerates to independence (Gumbel at theta = 1 IS the
+independence copula, exactly, not approximately). Nothing else moved.
+
+**The intervention is clean and the measurement is well-identified.**
+
+| column | published | theta_ws = 1 | change |
+| --- | --- | --- | --- |
+| `el_total` | — | — | **bit-identical, district by district** |
+| `tail_dep_ws` | 0.4628 | 0.0000 | -100% |
+| `theta_ws` | 1.6221 | 1.0000 | -38.4% |
+| `tvar99_euler` | 256.46 | 245.56 | **-4.25%** |
+| `capital` | 5.5406 | 4.8863 | **-11.81%** |
+| `premium` | **169.66** | **169.01** | **-0.39%** |
+
+`el_total` being bit-identical everywhere is the proof that only
+dependence moved: a copula cannot touch marginals, and here it
+demonstrably did not. So the whole GBP0.65 is a tail-dependence price,
+with no expected-loss contamination.
+
+**Read `tvar99_euler`, ignore `tvar99_vine`.** The standalone vine
+columns move the *other* way (`tvar99_vine` +1.60%, `tvar99_vine5`
++1.54%, `var995_vine` +3.03%, `tvar99_gauss` +2.76%). That is NOT a
+diversification finding — it is noise. The seed sweep (section below,
+2026-08-22) put `tvar99_vine`'s relative SD across seeds at **12.4%**,
+so a 1.6% move is a fifth of one standard deviation. `tvar99_euler`'s
+relative SD is **0.33%**, so its -4.25% move is about 13 sigma. One of
+these two numbers can carry a 0.39% conclusion and the other cannot.
+
+**Where it lands.** 2,423 districts fall, **194 RISE**, 119 are flat.
+The risers are Euler reallocation, not a modelling error: removing a
+coupling shrinks the portfolio tail, and the Euler allocation then
+redistributes a smaller pot on different shares. Rating-group churn is
+90 of 2,736 (3.3%), **zero districts move two groups or more**. The
+biggest movers are all high-`sub` coastal Essex/Kent/Hampshire — ME11,
+CO14, ME12, CT5, CO12 at -1.2% — exactly the districts where a
+subsidence-weather coupling would bite hardest. The cover split feels
+it asymmetrically: buildings capital -13.9%, contents capital -4.9%,
+which is right, since subsidence is a buildings peril.
+
+**What this does NOT say.** The earlier claim in this session that
+`theta_ws` is "physically backwards" was WRONG and is withdrawn. The
+measurement contradicted it: the correlation between the subsidence
+and windstorm drivers is **r = -0.09**, indistinguishable from zero,
+and 2018 — the surge year — ranks **8th of 35** for storminess, not
+quiet. The real finding is subtler and still open:
+
+- the model **imposes** Kendall tau of 0.311-0.452 (mean **0.380**)
+  across published districts, where the data supports **approximately
+  zero**; and
+- there is a genuine **negative** dependence it cannot represent at
+  all — `jja_deficit` vs `rain5d`, **r = -0.604** — because a Gumbel
+  copula admits only theta >= 1, i.e. only positive dependence.
+
+That is a re-specification question, and by the user's own sequencing
+decision it belongs to its own later phase, not to Gates 1-4. GBP0.65
+is what it is worth fixing; the 194 risers are what makes it worth
+doing deliberately rather than in passing.
+
+**Branch retired 2026-08-27**, per the throwaway-measurement pattern:
+worktree `.worktrees/theta-measure` removed, `exp/theta-ws-measure`
+deleted locally and on origin. The number survives here; the code does
+not need to.
+
+## Published 2026-08-16: theft, the fifth insured peril (Phase 1)
+
+User decision: "publish theft with the p99.9 cap." Live at both
+resolutions since run 31974060403 (merge c8f315f, bot commit 04bed84).
+Premium £59.07 → **£88.11** (+£29.04: el_th £29.03 to the penny on the
+ABI calibration, capital +£0.01 — an independent stable peril earns
+nearly the full diversification credit). Every weather-peril output
+stayed bit-identical through the change (verified column by column,
+and the published rebuild matches the evidence artifact value-for-value
+across all columns). Churn was large and REAL: 77.9% of districts
+changed rating group, 1,281 by ≥2 — theft geography is nearly
+orthogonal to cat geography (corr 0.04), city cores went to group 10
+(B2 £25→£240).
+
+How it is built (all of it on main now):
+- `scripts/fetch_burglary.py` → `data/burglary.csv`: 668,609 burglaries
+  from the police.uk 36-month archive (2023-07..2026-06) spatially
+  joined to the model's own polygons — the SAME script emits
+  sector-keyed counts on the sector-model branch because it reads
+  `load_districts()`. Traps and anchors in DATA_SOURCES.md #25 (snap
+  points, commercial contamination, BTP's Scottish leak, the
+  2018-vintage ABI theft-paid figure and why propensity cancels).
+- Independent compound leg OUTSIDE the vine (burglary has no weather
+  root), its uniform drawn LAST in the seeded stream. Rates winsorised
+  at the household-weighted p99.9 (6.22% districts / 8.29% sectors —
+  the cap re-solves per resolution over its own exposure distribution;
+  office cores are burgled as shops, not homes); Scotland OVERRIDDEN
+  (not filled) with recorded housebreaking at COUNCIL resolution since
+  2026-09-01 — `data/housebreaking.csv`, `hb_3yr`, 32 councils
+  apportioned by household share, 0.039-0.632%/yr against the flat
+  0.29% it replaced.
+- Site copy (759c841): every theft number injected from committed data
+  (`__TH_*__` in build_site.load_stats — the cap recovered as the max
+  surviving rate; Scotland was recovered as the most frequent exact rate
+  until council geography ended that on 2026-09-01, and is now
+  summarised from the `country` flag as min/mean/max/spread); popup shows the measured burglary rate, not a fake 0–1 score;
+  theft bronze `--th` contrast-checked both themes; the years page
+  stays four-peril episodic on purpose and says so.
+
+**Two lessons from the evidence runs, for EoW/fire/AD (both now
+guarded by tests):**
+1. **A factor loading has enormous leverage at rare-event
+   thresholds.** W_THEFT=0.20 on "weakly systemic" intuition implied
+   worst years claiming 8–14× the mean — no burglary data shows that.
+   Derive it: CV(national claim count) ≈ sqrt(w)·φ(z_p)/p; targeting
+   the observed ±10-15% year-to-year variation gives W_THEFT=0.0013
+   (1-in-100 systemic year ≈ 1.3× claims).
+2. **A peril whose districts share ONE uniform stream must take its
+   EL analytically** (p·E[sev], the el_er cure): the ~150
+   threshold-clearing draws carry a COMMON error, so the whole map
+   came out +17% over the calibrated level at once. Draws still feed
+   the tail columns.
+
+**And one from the publish itself:** rebuild.yml's pre-flight runs the
+suite against COMMITTED state, so any change that adds a template-read
+column, or lands one resolution's output before the other, deadlocks
+the pre-flight against the very run that reconciles it (run
+31973685105 died there). The two output-contract guards now SKIP,
+self-re-armingly, while the committed state is visibly mid-transition
+(f491e66) — safe because build_map.web_asset hard-fails any build
+whose model output lacks a template-read column. Expect exactly those
+two skips during every future peril publish, and zero after.
+
+**Phase 1 since this section**: EoW and fire are both live (see their
+sections below); AD remains.
+The VOA non-domestic premises count is the proper fix for the
+commercial contamination (Phase 2), replacing the winsorisation cap
+with an actual commercial-exposure adjustment.
+
+## Published 2026-08-17: escape of water, the sixth insured peril (Phase 1)
+
+User decision: "publish escape of water." Live at both resolutions
+since run 31982713790 (merge d195d60, bot commit 224fb3f). Premium
+£88.11 → **£131.59** (+£42.39 EL — exactly £657m/15.5m policies —
++£1.10 capital). All five prior perils bit-identical through the
+change at both grains; the sector rebuild (run 8, bot 453cef2 on
+sector-model) reproduced the same £42.39 weighted mean, because the
+level is calibrated and resolution cannot move it.
+
+The design, in one line each:
+- **Level**: anchor triangle from three public routes — ABI "£1.8m/day"
+  ≈ £657m/yr; 29.3% of 2025's 560k home claims ≈ 164k → £4,005 avg,
+  1.06%/policy — self-consistent, that's the cross-check
+  (DATA_SOURCES.md #26).
+- **Geography**: flat base + 15% freeze-attributable slice on HadUK
+  air-frost days (the only open spatial predictor the peril supports;
+  EPC dwelling age is the Phase 2 upgrade). Spread ×1.66, INVERTED vs
+  cat geography (corr −0.32) — the Highlands are dear, the stormy
+  southwest cheap. 21.5% of districts changed rating decile, 564 of
+  589 by one.
+- **Capital**: W_EOW=0.026 derived from winter 2010 (103k claims/£680m
+  in six weeks ≈ 2× year → CV 0.43 at p=1.06%). Twenty times theft's
+  loading; EoW buys real capital (2.6% of its EL) where theft buys
+  none.
+- **EL analytic** (shared-stream, same as theft), draws feed the tails.
+
+**Two new lessons, both now guarded:**
+1. **Feed the marginal a RATE, not an O(1) relativity.** The 0.5
+   frequency clip in marginal_params saturates on a relativity ~1
+   during the calibration pass — the level solves 2× hot and the
+   geography flattens. `eow_rate` = anchor × relativity (normalised in
+   main(), where the exposure weights live; never per-chunk);
+   calibration re-pins the level and solves ×1.000. Caught before the
+   evidence run by reasoning, pinned by a test after.
+2. **Don't hard-code which peril is in flight in transition guards.**
+   The nesting guard keyed on `el_th` failed (not skipped) for the EoW
+   window; it now compares the full `el_*` sets (d195d60). Also:
+   tests.yml's site-rebuild check had NO transition guard, so the
+   merge push's tests run went red (31982708021) until the bot commit
+   reconciled it — that check now skips itself in exactly the
+   template-ahead-of-committed-output window, reusing
+   build_map.columns_read_by_template as the single source of truth.
+   Expect ZERO red runs on the fire/AD publishes.
+
+Also fixed in the copy pass: the landing page still claimed theft was
+among the perils "none of which this models" (a leftover the theft
+pass missed — it was live). The claims-cost share is now INJECTED
+(`__EL_CLAIMS_SHARE__`, ABI context imported from build_model), and
+"Five findings"/"a fifth peril" style counting prose was reworded to
+survive future additions.
+
+## Published 2026-08-17: fire, the seventh insured peril (Phase 1)
+
+User decision: "publish fire." Live at both resolutions since run
+32020681458 (merge 74ac2d8, bot commit 2ce5928). Premium £131.59 →
+**£159.60** (+£28.01: el_fire £28.00 to the penny, capital **+£0.00**
+— the purest diversifier in the book). All six prior perils
+bit-identical through the change at both grains (44 sector columns
+verified column-by-column against run 8).
+
+The design, in one line each:
+- **Level**: no public domestic fire total exists any more, so the
+  anchor is a documented triangle — 31,001 GB attended dwelling fires
+  2024/25 (Home Office FIRE0201: Eng 25,465 + Sco 4,104 + Wal 1,432)
+  → 0.20%/policy; ABI ~£10,200–£11,000 average payout (2019 vintage)
+  indexed ~+27% → £14,000 severity; ≈ £434m ≈ 12.8% of 2025's £3.4bn
+  → **£28.00/policy**. Severity is the documented weak leg
+  (DATA_SOURCES.md #27). Sigma 1.3, heaviest attritional tail (~2% of
+  claims >£100k), median £6,000.
+- **Geography**: LSOA-level incident counts (England low-level
+  geography ODS), FRA-level Wales (StatsWales cube), council-level
+  Scotland, all spread over the model's own postcode lookup;
+  hh-weighted p99.9 winsorisation (0.35% districts / 0.71% sectors —
+  the cap re-solves per resolution). Cheapest DN39, dearest FY1
+  (Blackpool's HMO belt). 1,685 districts (61.6%) changed rating
+  group, but the evidence decomposition attributed only ~21% to real
+  relativity movement — a flat +£28 requantiles the deciles.
+- **Capital**: W_FIRE=0.000039, derived the theft way — FIRE0201's
+  45-year series declines −2.5%/yr secularly; detrended YoY residual
+  CV ≈2% with no spike years. Fire buys NO capital; it exists in the
+  premium purely as expected loss.
+- **EL analytic** (shared-stream), U_fire drawn AFTER U_eow so every
+  prior peril simulates bit-identically — additive evidence diffs.
+
+**Three lessons, all now embodied in code or comments:**
+1. **The identity test is part of the wiring.** The first evidence run
+   died at minute 55 because el_total = Σ el_* didn't know about
+   el_fire (fixed 766603f). Then the SECTOR run died on the same test
+   a different way: the 0.30 tolerance was a six-leg rounding budget,
+   and one sector's seven 1dp legs stacked to exactly 0.30 + 1e-13.
+   The bound is now 0.40 and states its derivation (8 × 0.05), so the
+   eighth peril's author widens it in the same commit as the wiring
+   (caaa15c). The sector run's raw artifact — uploaded BEFORE the
+   gate, by design — was verified locally and committed by hand
+   (05c5447); no rebuild needed.
+2. **`table:number-rows-repeated` compresses sorted ODS rows.** The
+   first parse of the England incident file silently dropped 39% of
+   fires; the FIRE0201 reconciliation (exact to the incident) caught
+   it. Parse content.xml directly and honour the repeat attribute.
+3. **Check lookup keys against the existing map.** "ef" was already
+   flood; fire is "efi". A duplicate dict key would have silently
+   replaced flood in every district decomposition — Python keeps the
+   last writer and says nothing.
+
+**Next in Phase 1**: AD (accidental damage), the last attritional
+peril, then Phase 2 (EPC/VOA exposure realism). *(Done — see the next
+section.)*
+
+## Published 2026-08-17: accidental damage, the eighth insured peril — Phase 1 COMPLETE
+
+User decision: "publish AD." Live at both resolutions since run
+32029400331 (merge 5e07868, bot commit 08be7f1). Premium £159.60 →
+**£174.24** (+£14.64: el_ad £14.65 to the penny minus a rounding
+epsilon, capital **+£0.00** — ties fire as the purest diversifier).
+All seven prior perils bit-identical through the change at both
+grains (sector run 32026714678 verified column-by-column against run
+9; the gated and raw artifacts were byte-identical this time — the
+(N+1)×0.05 identity budget, widened to 0.45 for eight legs IN THE
+SAME COMMIT as the wiring, held with no manual override).
+
+The design, in one line each:
+- **Level**: no UK domestic AD total has EVER been published, so the
+  anchor is a third documented triangle — ABI 560k home claims (2025)
+  × 24.53% at-home AD share (GoCompare claims mix: 23.35% at-home AD
+  + 1.18% at-home accidental loss; the 6.46% away-from-home slice
+  EXCLUDED as personal-possessions cover) × Aviva £1,650 average
+  payout (interpolated 2025 from published £1,148/2022 and
+  £1,869/2026) ≈ **£227m** → el_ad £14.65, freq 0.8876%/policy.
+  Cross-check: Aviva says AD is 32% of its home claims, GoCompare's
+  table sums to 31%. Weak leg: the severity interpolation
+  (DATA_SOURCES.md #28).
+- **Geography**: the gentlest in the book, because the only published
+  demographic driver is Aviva's "children cause 8% of AD claims" — a
+  flat base + 8% slice scaled by census dependent-children share
+  (E&W TS003 via NOMIS at LSOA, Scotland UV113 at 2022 OA through
+  NRS's postcode index; 27,291,882 households conserved exactly at
+  BOTH grains). District EL spread only £13.6 (L2) – £15.7 (B8); an
+  8%-of-claims driver cannot honestly move more. NO winsorisation —
+  a census share is bounded by construction. Cat-EL correlation
+  −0.16.
+- **Capital**: W_AD=0.00012, derived from the cleanest natural
+  experiment available: lockdown 2020–21 — the hardest a behavioural
+  peril can be shocked — moved home AD declarations only ~6%
+  (GoCompare, 26 Oct 2021) → CV 3% → loading 0.012%. AD buys NO
+  capital. **Search trap on the record**: the "+39% AD after
+  lockdown" figure everyone quotes is Admiral MOTOR, not home.
+- **EL analytic** (shared-stream), U_ad drawn AFTER U_fire so every
+  prior peril simulates bit-identically — additive evidence diffs,
+  fourth application of rate-not-relativity (FREQ_SCALE solves
+  ×1.000), lookup key "ea" ("ee" was already escape of water — the
+  duplicate-key lesson holds).
+
+Churn at publish: 46 districts (1.7%) moved one rating group, none
+two; 202 sectors (1.9%), none two — AD is nearly flat, so unlike
+fire's +£28 requantiling, the deciles barely breathe. Zero red runs
+end-to-end: the fire lessons (identity budget scales with legs,
+tolerance widened with the wiring, raw artifact uploaded before the
+gate) all held without being needed.
+
+## Phase 3 REVISED (2026-08-18, later): 57% of the book CAN ship
+
+The "anchors don't exist" verdict below stands for the full per-peril
+split, and everything in it is still true. But it asked the wrong
+question. Having exhausted every free route (DATA_SOURCES #31 third
+pass, #32 the whole ABI web archive) and priced nothing, the user's
+call was: **use easily accessible data, or do a high-level breakdown by
+risk type.** Done — with no new data at all, and no invented parameter.
+
+The calibrated (analytic) EL per policy, split where a published anchor
+exists and left explicitly unsplit where none does. Flood and
+groundwater shown on the MCM convention, the middle of the three:
+
+| risk type | £/policy | % of cost | buildings | £ bldg | £ contents |
+|---|---|---|---|---|---|
+| escape of water | 42.39 | 25.8% | — | *unsplit* | *unsplit* |
+| fire | 28.00 | 17.1% | 78.0% | 21.84 | 6.16 |
+| theft | 22.04 | 13.4% | 24.2% | 5.33 | 16.70 |
+| flood | 20.13 | 12.3% | 48.0% | 9.66 | 10.47 |
+| subsidence | 19.81 | 12.1% | 100.0% | 19.81 | 0.00 |
+| weather | 15.74 | 9.6% | — | *unsplit* | *unsplit* |
+| accidental damage | 14.65 | 8.9% | — | *unsplit* | *unsplit* |
+| groundwater | 1.34 | 0.8% | 48.0% | 0.64 | 0.70 |
+| **anchored subtotal** | **91.31** | **55.6%** | **63%** | **57.28** | **34.03** |
+| **unsplit subtotal** | **72.81** | **44.4%** | | | |
+| **TOTAL** | **164.12** | **100.0%** | | | |
+
+**Recomputed 2026-08-25** against the published basis after theft's
+level correction and the EoW freeze share went live. Three things moved
+and all three point the same way. Theft fell from 17.1% of claim cost to
+**13.4%**, so an ANCHORED peril shrank and the anchored subtotal fell
+from 57.2% to **55.6%** — the split now covers less of the book, not
+more. Fire is the second-largest cause. And the buildings fractions
+themselves were corrected: `SPLIT_BUILDINGS` had carried the
+placeholders written with the mechanism (theft 0.20, fire 0.70, flood
+0.65, groundwater 0.80) rather than the anchors the later search
+established (0.242 / 0.78 / 0.48 / 0.48), so the previous table's
+"anchored" column was partly not.
+
+**The finding that matters, and it inverts the entry below.** This file
+spends a paragraph on flood's three contradictory conventions (66 / 48
+/ 25). Swinging flood across all three moves the portfolio buildings
+share by **4.9 percentage points**. The three unanchored perils move it
+by **44.4**. The flood argument is a rounding error on the real
+problem; it was agonised over because it was the tractable part, not
+the important one. **Escape of water alone is 25.8% of claim cost —
+more than five times the entire flood-convention uncertainty.** Any
+future effort should go at EoW and nothing else.
+
+The 2026-08-25 recompute sharpens this rather than softening it: the
+unanchored block grew from 42.8% to **44.4%** of claim cost, because the
+peril that shrank (theft) was one of the anchored ones. The gap between
+what can be split and what cannot is widening, not closing.
+
+**What this means for the portfolio number.** It is a bound, not an
+estimate: on the recomputed basis **31.9%–81.6% buildings** across both
+free choices together — the flood convention (EA 25/75 at one end,
+Flood Re 66/34 at the other) and where the unanchored 44.4% falls.
+Holding flood at the middle MCM convention narrows it only to
+34.9%–79.3%, which is still a 44-point band — and a 44-point band is not
+a headline figure and must never be published as one. What IS
+publishable is the table above — per-risk-type claim cost that sums to
+100%, a cover split on the 55.6% that has anchors, and the other 44.4%
+named and left blank. That is honest, needs nothing bought, and is strictly more than
+the site says today (which is nothing).
+
+### BUILT 2026-08-25: the disclosure ships, the mechanism does not
+
+The table above is now a section on the methodology page
+(`site/methodology.template.html` id="cover", rows injected by
+`build_site.cover_split`). **Not published — it lives on
+`exp/buildings-contents` and merging it is the user's call.**
+
+**The structural finding that made it shippable:** the table needs no
+model change at all. It is the per-peril ELs the model already publishes
+multiplied by five constants that have sources, so `build_site.py`
+computes it from the committed GeoJSON and never reads `el_buildings`,
+`capital_buildings` or anything else this branch adds. That cleanly
+separates the disclosure, which is defensible today, from the mechanism,
+which cannot ship while three of eight fractions do not exist. The
+mechanism stays here, exact and unpublished.
+
+`SPLIT_ANCHORED` and `PERIL_LABELS` were added to `build_model.py` so
+"which perils have an anchor" is data rather than a comment — that one
+line is what the whole phase turns on.
+
+**Three guards, one of which caught a real bug on the way in:**
+`test_every_split_peril_has_a_published_anchor` pins each anchored peril
+to its documented value so the placeholder-as-anchor mistake cannot
+recur; `test_the_published_cover_table_adds_up` reconciles the table to
+`el_total` (tolerance set by the published file's one-decimal rounding,
+still forty times tighter than the smallest peril); and the layout suite
+rejected the table for overflowing on phone until it used the existing
+`.tablewrap`/`.data` convention.
+
+**A second draw-mean defect was found and fixed while doing this.**
+`capital_buildings` was computed against `el_year_b`, a draw mean, while
+the `capital` it splits uses the analytic `el_total` — the same
+substitution the 2026-08-18 audit made for `capital`, with this sibling
+missed. In the all-buildings corner `capital_buildings` must equal
+`capital` and came back 0.30% and 0.23% low. **The additivity assertion
+sitting three lines below it could never have caught this**, because
+`capital_contents` is defined as the remainder and so adds up whatever
+basis the buildings leg used. The block is extracted to
+`apply_cover_split()` so the corners are testable at all, and the new
+test was checked against the old formula first: it fails there.
+
+**Still true, and still the reason not to go further:** a fixed
+per-peril fraction cannot vary by geography, so even a complete split
+would move no district's *ranking* — it would re-label the premium, not
+re-rate it. Publishing the table is a disclosure improvement, not a
+model change, and needs no evidence run. **Not built into the site;
+that is the user's call.**
+
+## Phase 3 verdict (2026-08-18): the mechanism WORKS, the anchors DON'T EXIST
+
+Phase 3 was to split each district's premium into buildings and contents
+cover. **The engineering succeeded and the evidence failed.** Read this
+before anyone tries it again.
+
+**What works, and is committed** (`exp/buildings-contents`, c4b12a8): a
+fixed per-peril buildings fraction `SPLIT_BUILDINGS` decomposes both EL
+and Euler capital *exactly*, because `tot_v` and `cond` are linear sums
+of the eight per-peril arrays. Both covers condition on the SAME `bad`
+years — that is the correct Euler basis, since an insurer holds capital
+against the whole portfolio, not against one section of it. Proven
+empirically: on a 60-district synthetic frame all 30 pre-existing
+`simulate()` columns are **bit-identical** to main, three new columns
+appear, and both covers' bad-year margins are strictly positive so the
+`max(...,0)` capital floor cannot break additivity. Two tests guard it
+(`test_cover_split_is_a_pure_reweighting_of_the_same_losses`,
+`test_cover_split_fractions_are_shares`). **Rejected on the way:**
+splitting capital pro-rata by EL — buildings losses are cat-driven and
+contents idiosyncratic, so they earn very different diversification
+credits, which is the entire reason this model uses Euler.
+
+**Why it cannot ship.** No published UK source gives a peril x cover-type
+matrix (DATA_SOURCES #31). Anchors exist for four perils — theft ~25%
+buildings (ONS CSEW nature-of-crime damage share 24.2%), fire ~78% (Home
+Office cost-of-fire), subsidence ~100%, flood 48–66% (three contradictory
+conventions). **Storm, groundwater, escape of water and accidental damage
+have no anchor at all, and they are 43.2% of this model's claim cost** —
+escape of water alone is 25.1%, the largest single peril in the book.
+
+Sensitivity, computed against the model's own exposure-weighted claim mix:
+
+| assumption on the unanchored four | portfolio | buildings | contents |
+|---|---|---|---|
+| all contents (floor) | 36.9% bldg | £64.27 | £109.97 |
+| central guess | 67.2% bldg | £117.11 | £57.13 |
+| all buildings (ceiling) | 80.1% bldg | £139.61 | £34.63 |
+
+On a £174.24 premium the buildings figure ranges **£64 to £140**. That is
+not a model output, it is an opinion with a currency symbol in front of
+it — and it fails the house rule that killed Phase 2b: *a parameter
+without a published anchor does not ship*.
+
+**The one genuinely robust finding**, worth keeping: the *geography* of
+the split survives the uncertainty even though the *level* does not.
+Across 16 corner cases of the four unanchored perils, district rank
+correlation against the central case stays **0.94–0.99**. Which districts
+are contents-weighted is driven by peril mix, which the model knows well:
+city cores (LS2, EC4M, B2, EC3V ~0.44) are contents-weighted, rural and
+subsidence-exposed districts (PE16, BH31, PE35 ~0.77) buildings-weighted.
+A *relative* cover-mix presentation is therefore defensible where an
+absolute pounds split is not. **Not built — that is a user decision.**
+
+Recommended if resumed: present as a dose-response/sensitivity layer (the
+SUP_WEIGHT precedent), not a single shipped split. Or unblock it properly
+with the IFoA's withdrawn GI papers (`webarchive@actuaries.org.uk`) or a
+claims triangle.
+
+## PUBLISHED 2026-08-18: Phase 2a, theft's residential denominator
+
+User decision: "2a only". LIVE at both resolutions (merge 6d24373,
+sector output crossed in 8204346 from sector-model run 11 bot 1a8f2d7,
+publish run 32085591133 bot commit ca83519). Theft's rate now divides by
+households PLUS VOA non-domestic premises, so each unit is charged only
+the residential share of its burglary points.
+
+Effect. Exposure-weighted premium is UNCHANGED at £174.24 districts /
+£174.02 sectors — the calibration re-pins the level, so only geography
+moves — and el_th stays £29.03 to the penny at both grains. The p99.9
+cap is demoted from doing the commercial correction's job to a genuine
+tiny-denominator backstop: 6.22% → 3.400% (15 districts on it) and
+8.29% → 4.230% (78 sectors). Every non-theft column is bit-identical at
+both grains (49 of 68 sector columns untouched; only the theft-derived
+chain moves). Churn 9.6% of sectors, 54 by two groups or more; every
+large fall is a City of London sector (EC2N 4 −£266, EC2M 7 −£265,
+EC4V 4/5 −£260) and the rises are the renormalisation landing elsewhere
+at +£6 to +£7.
+
+**Three defects found while publishing, all fixed — read these first:**
+
+1. **The premises join had no coverage guard.** `prem_table.get(n, 0.0)`
+   is the right fallback for a genuinely absent area (Scotland has no
+   VOA premises and is overridden anyway), but it is also how a
+   mis-keyed file vanishes without trace: every lookup misses, the
+   denominator silently reverts to households-only, the correction
+   un-applies, and the run reports success. That is the households.csv
+   void-run trap. Now raises below 95% E&W coverage (both grains score
+   100.0% / 99.9%), with two tests — one pinning what the correction
+   does, one pinning that a sector-keyed file on a district build raises
+   AND that an E&W-complete file with no Scottish row still passes, so
+   the guard cannot be "fixed" by counting Scotland.
+
+2. **`docs/` was stale on the branch and the local check said fresh.**
+   The copy pass edited templates without rebuilding. Worse, verifying
+   with `build_site.py` alone gives a FALSE PASS: build_site only
+   *wraps* `map/uk_home_insurance_risk_map.html`, a gitignored
+   intermediate produced by `build_map.py`. Re-wrapping a stale
+   intermediate reproduces the stale page and the diff comes back clean.
+   **To check docs/ freshness run the full chain CI runs: `build_map.py`,
+   then `build_analysis.py`, then `build_site.py`.** Less is not a check.
+
+3. **The peril table hand-wrote the theft cap** at 3.4% — the value 2a
+   was expected to produce — while the prose two sections down injects
+   `__TH_CAP_PCT__` from committed output. The page contradicted itself
+   (table 3.4%, prose 6.2%) for as long as the branch sat unpublished.
+   The cell now takes the same injection.
+
+**One process lesson that cost a red run.** Crossing the sector output
+in its own commit (8204346) left `docs/assets/sector_data.geojson` and
+`uk_sector_risk.csv` behind the data they are built from, so tests went
+red in the transition window (run 32085591045). The existing
+mid-transition skip only covers template-ahead-of-columns, NOT
+data-ahead-of-assets, so it did not catch this. The bot commit
+reconciled it and a dispatched tests run on ca83519 is fully green
+(both jobs). **Next time: rebuild docs/ in the same commit that crosses
+the sector output**, or teach the skip guard this second window.
+
+**A second ordering lesson, from the 2026-08-19 publish.** The four
+publishes before it crossed the sector output to main FIRST, then
+merged the model change. This one merged to main first, which put
+fixed district numbers and pre-fix sector numbers on the live site at
+the same time — the two grains disagreed by ~1.39% on premium for as
+long as the sector rebuild took. Nothing broke and no test can see it,
+because each grain is internally consistent; only the pair is wrong.
+**Rule: when a model change touches both grains, cross the sector
+output to main BEFORE merging the model change, so main never
+publishes a mixed pair.** If the sector run must come after (it needs
+the merged `build_model.py`, as it did here), merge into
+`sector-model` first, run it, and hold the main merge until its output
+is ready to cross in the same push.
+
+## Model audit 2026-08-18: reconciliation, and TWO UNFIXED defects
+
+> **Both defects below are now FIXED and PUBLISHED**, along with three
+> more found while fixing them — see "Built AND PUBLISHED 2026-08-19"
+> further down. The claim-count overshoot recorded here is
+> deliberately untouched and remains live.
+>
+> **The attribution below is WRONG and was corrected 2026-08-22.** This
+> section blames the accidental-damage anchor as "the one that can be
+> moved without contradicting a published total". That is true of AD's
+> *paid* total and false of the quantity actually in dispute, which is
+> its *count* — AD's count is 24.53% of 560,000 from the same verified
+> GoCompare table that pins escape of water's 29.38%, so it is one of
+> the legs that cannot be moved. See "Claim-count overshoot: attributed
+> 2026-08-22" below, and run `scripts/anchor_budget.py`.
+
+The user asked whether escape of water is being counted twice through
+some other factor, and for an overall check that everything adds up to
+100% of claims. Reproduce any of this with
+`scripts/build_model.py`'s own constants — no simulation is involved
+in the analytic column, which is the point.
+
+**No double-counting.** Each of the eight perils has its own disjoint
+ABI anchor and its own driver, and no driver feeds two perils. The one
+place water could have been double-charged is freeze: `EOW_FREEZE_SHARE
+= 0.15` puts a frost-day slice into EoW, and frost appears nowhere
+else — flood is river/sea/surface-water zone fractions, weather is
+gust/wind-driven-rain/precip, neither has a freeze term. Storm-driven
+water ingress sits in `wx` and burst-pipe water sits in `eow`, which is
+the ABI's own boundary.
+
+**The money reconciles. The CLAIM COUNT does not.**
+
+| | paid £m | avg £ | claims | %/policy |
+|---|---|---|---|---|
+| subsidence | 307 | 17,820 | 17,228 | 0.111% |
+| weather | 244 | 2,450 | 99,592 | 0.643% |
+| flood | 312 | 30,000 | 10,400 | 0.067% |
+| theft | 450 | 3,800 | 118,421 | 0.764% |
+| escape of water | 657 | 4,000 | 164,250 | 1.060% |
+| fire | 434 | 14,000 | 31,000 | 0.200% |
+| accidental damage | 227 | 1,650 | 137,576 | 0.888% |
+| **modelled** | **2,631** | **4,548** | **578,466** | **3.732%** |
+| ABI all-home | 3,400 | 6,071 | 560,000 | |
+
+77.4% of the money — as documented — but **103.3% of the count**. The
+unmodelled remainder (subsidence-adjacent, liability, legal expenses,
+personal possessions away from home, alternative accommodation as a
+standalone head) would have to be **−18,466 claims for £769m** to
+close. It cannot be negative, so at least one of the four
+frequency-implied anchors is too high, and the modelled mix average
+(£4,548) sitting well under ABI's own £6,071 says the same thing from
+the other side.
+
+**The AD anchor is where the exposure is.** Theft, EoW and fire each
+have a published *paid total* and a published *average*, so their
+counts are derived. AD's is built the other way round: 24.53% of
+560,000 × £1,650. It is the one leg constructed FROM the count, so it
+is the one that can be moved without contradicting a published total.
+At the bottom of theft's documented vintage envelope (0.58%/policy —
+the "if claims fell with recorded burglary" end of DATA_SOURCES #25)
+the count drops to 98.2% and the residual becomes a sane 10,055 claims
+at £87,262 — still high, which is what you would expect of a remainder
+containing total losses and long-tail liability.
+
+**EL is immune to all of this**, which is why it is not a publishing
+emergency: each peril's EL is paid ÷ policies by construction, so the
+premium is right even if the implied count is not. What the count
+mismatch threatens is any future work that *reasons from frequency* —
+the buildings/contents split (Phase 3) is exactly that, so read this
+before using a modelled claim count as evidence for anything.
+
+### Defect 1: four perils take their EL from the DRAWS, not analytically
+
+`th`, `eow`, `fire` and `ad` compute EL as p × E[sev]. `sub`, `wx`,
+`fl` and `gw` take `ls.mean(axis=1)` — the mean of the simulated
+losses. Analytic vs published, exposure-weighted over the 2,736
+districts:
+
+| peril | analytic | published | published vs analytic | analytic vs ABI |
+|---|---|---|---|---|
+| sub | 19.8065 | 22.2725 | **+12.45%** | −0.00% |
+| wx | 15.7419 | 15.5256 | −1.37% | +0.00% |
+| fl | 18.9125 | 16.4712 | **−12.91%** | −6.04% |
+| gw | 1.3419 | 0.4118 | **−69.32%** | (no anchor) |
+| th | 29.0323 | 29.0339 | +0.01% | +0.00% |
+| eow | 42.3871 | 42.3865 | −0.00% | −0.00% |
+| fire | 28.0000 | 28.0007 | +0.00% | +0.00% |
+| ad | 14.6452 | 14.6457 | +0.00% | −0.00% |
+| TOTAL | 169.8673 | 168.7480 | −0.66% | |
+
+The analytic column lands on each ABI anchor to two decimal places, so
+**the calibration is exact and the simulation is what wanders.** This
+is the identical bug already fixed twice in this repo — for `el_er`
+("20,000 years give under one event") and for theft ("a peril sharing
+one uniform stream must take its EL analytically"): the districts share
+a systemic draw, so their errors are COMMON and do not average out
+across the map. Three seeds at production N_SIM on 400 districts moved
+sub +11.7/+2.7/+68.2%, wx −0.6/−21.1/+29.5%, fl −15.1/+15.5/+70.2%,
+gw −70.4/+6.0/+70.1% — the published values are one draw from that.
+Groundwater is worst because it is the rarest leg. Note `el_year =
+year_loss.mean(axis=1)` is a draw mean too, so **capital is exposed
+by the same mechanism**; the tail columns should keep using draws,
+which is what they are for.
+
+### Defect 2: flood severity is blended in LOG space
+
+```python
+mu_fl = (p_rs * mu_rs + p_sw * mu_sw) / np.maximum(p_fl, 1e-12)
+```
+
+That is a weighted mean of logs — a GEOMETRIC mean of the two
+severities. The intended quantity, and the one the published £30,000
+average is held to, is the frequency-weighted ARITHMETIC mean of
+£35,000 fluvial and £18,000 surface water. `exp` is convex, so the
+modelled mean sits below target; the gap is **independent of sigma**
+(the σ²/2 terms cancel) and runs −4% to −5% across plausible mixes.
+Measured, it is the −6.04% in the table above: flood is the ONLY
+calibrated peril whose analytic EL misses its own anchor, because
+`ABI_TARGET_FREQ["fl"] = flood_paid / 30,000 / POLICIES` assumes a mean
+severity the marginal does not deliver. The fix is to blend the MEANS
+and then take the log.
+
+**NEITHER IS FIXED.** Both are model changes: they need an experiment
+branch, a priced evidence run at both grains, and the user's publish
+decision — the same bar every peril cleared. Defect 2 raises the flood
+level ~6% and is a straight correction; defect 1 mostly REDUCES
+subsidence and RAISES groundwater, and its real prize is that the map
+stops depending on the seed.
+
+## PUBLISHED 2026-08-27: Phase 3, the buildings/contents cover split
+
+Published on the user's explicit decision, with the objection stated
+and not resolved. **Three of the eight perils have no published split
+and are 42.5% of claim cost**; `SPLIT_BUILDINGS` gives them a central
+guess (wx 0.85, eow 0.75, ad 0.45) so the mechanism runs. The branch's
+own comment says the portfolio buildings share is a **31.8%-79.5%
+BOUND, not an estimate**, and must never be a headline. It is not one:
+the published figure is 66.5%, it appears only as columns in the data
+file, and the methodology table still renders those three perils as
+named-and-blank rather than filled in. That is the disclosure that
+ships; the guess ships underneath it.
+
+**Priced** (district run 33090028212): premium **£169.6619 -> £169.6619
+(+0.00%), zero districts changing rating group**. Correct and expected
+— the split is a pure reweighting of losses the model already had, so
+`el_total`, `capital` and `premium` are untouched and only columns are
+added. Reconciliation on the published file: `el_buildings +
+el_contents - el_total` max 0.1, `premium_buildings + premium_contents
+- premium` max 0.05, both 1-dp publishing rounding. Sector grain (run
+33090025105) £169.6772, **+0.0090%** apart.
+
+### Three things the merge surfaced, all of them the same shape
+
+**The published theft figure was inconsistent with itself.**
+`build_site.COVER_BLD` restated the split fractions as literals instead
+of deriving them, and the copies had drifted: theft **25** there
+against **0.242** in `SPLIT_BUILDINGS`, both citing the same ONS
+nature-of-crime table. Shipping the cover section would have put 25% in
+the peril table and 24% in the cover table, on the same page, from the
+same source. Now derived from `SPLIT_BUILDINGS`/`SPLIT_ANCHORED`,
+membership included, so a peril gaining or losing an anchor cannot
+leave the two tables disagreeing about what is splittable. **The
+published theft split moves 25% -> 24%.**
+
+**The cross-grain guard would have disarmed itself.** The peril-set
+skip treated every `el_`-prefixed column as a peril. Phase 3 adds
+`el_buildings`, `el_contents` and `el_year_b` to the district file, so
+a district-only Phase 3 publish would have looked like a peril
+transition and **silently skipped both the level and shape checks** —
+the precise failure that test exists to catch, defeated by the test's
+own escape hatch. Restricted to actual peril legs. That skip was
+written for a new peril reaching one grain first, and nothing else
+should be able to trigger it.
+
+**`_cover_split_frame` could no longer be built.** Phase 2c made
+`marginal_params` read `ct_th/ct_eow/ct_fire/ct_ad`, and the two cover
+tests' shared fixture predated it, so they died on a `KeyError` rather
+than a failed assertion. Neutral 1.0s, so those tests keep testing the
+cover split alone.
+
+All three are the pattern this week has kept producing: not a missing
+check, but a check that had quietly stopped being able to fail, or two
+statements of the same fact that had drifted apart.
+
+## PUBLISHED 2026-08-27: Phase 2c, council-tax band severity relativities
+
+The user approved this with the market-vs-reinstatement question still
+open and stated. It is recorded here as their decision, not as a
+resolved modelling argument: council tax tracks MARKET value, insurance
+pays REINSTATEMENT, and land is not insured. That objection is the
+reason the branch sat held, and publishing does not answer it.
+
+**What shipped.** The four attritional severities (theft, escape of
+water, fire, accidental damage) stop being flat national anchors and
+carry the district's council-tax band value relativity. Normalisation
+is per peril with CLAIM weights, so each ABI severity level is pinned
+by construction and only the geography of severity moves.
+
+**Priced** (district run 33023989958, `commit=false`):
+
+| | before | after |
+|---|---|---|
+| exposure-weighted premium | £169.6633 | £169.6619 (**-0.00%**) |
+| rating-group churn | — | 1,928 of 2,736 (70.5%), 968 moving >=2 groups |
+
+Level-neutral to four decimal places, exactly as the mechanism claims.
+The movers are the whole point: SW1X +70.4%, W1K +67.0%, W1J +64.7%,
+SW1Y +62.1%, SW7 +58.0% — Belgravia, Mayfair, St James's, South
+Kensington — and AB13 (Milltimber) +56.6%. Downward: the Rhondda and
+Ayrshire sectors at -18 to -20%. That is a property-value relativity
+doing what it says.
+
+**Sector grain** (run 33023951845, `skip_fetch=true`): £169.6772 over
+10,398 sectors, **+0.0090%** from the district grain, in line with the
+0.0085% the two have historically held.
+
+### The sector grain nearly blocked this, and should have been checked first
+
+`ct_bands.csv` is keyed on districts (`AB10`). Every sector row
+(`AB10 1`) would have missed, and `ct_value_from_bands` turns a >20%
+miss into a `SystemExit` — so the sector build would not have produced
+a wrong number, it would have refused to run. Good design, but it means
+Phase 2c was never crossable to both grains as it stood, and nothing in
+the branch's own evidence said so. **A model change that adds a
+name-keyed data file needs a sector-grain edition of that file before
+it is callable "priced".**
+
+Rebuilt at sector grain: 10,849 keys, 30,021,848 dwellings placed
+(100.0%), covering 10,375 of 10,398 published sectors; the 23 that miss
+(0.22%) take the neutral 1.0. Value geography sanity: dearest SW1X 8
+2.00, cheapest CF43 4 / NP23 7 / KA25 6 at 0.69.
+
+**The CI job for it lasted one run.** 33023456613 died on its first
+request with `RemoteDisconnected`, three seconds in, before any data
+moved; the identical fetch from a laptop placed 100%. The VOA host
+refuses runner IPs, same as BGS and the EA. So it follows the precedent
+already in `sector-model.yml` for the EA climate flood edition —
+fetched off-runner, committed, documented — rather than leaving a job
+that can only be red.
+
+### The publish order was right this time, and the guard was still not enough
+
+Both grains landed in ONE push. First time.
+
+But this publish exposed the limit of the guard tightened two days ago.
+**ct-severity is level-neutral, so a mixed pair across it sits 0.009%
+apart on level** — inside 0.5%, inside 5%, inside any level bound that
+would still permit an honest grain difference. The two files can agree
+perfectly on the national premium while disagreeing about 70% of the
+districts in the country. A single national number cannot see a
+re-rating; it was only ever going to catch a re-levelling.
+
+So the cross-grain test now also checks SHAPE: every district against
+the household-weighted mean of its own sectors. Calibrated on this
+publish, with both pairs on disk at the same time:
+
+| pair | median deviation | p95 | districts >10% |
+|---|---|---|---|
+| consistent | 1.09% | 6.43% | 47 |
+| mixed | 7.21% | 20.36% | 964 |
+
+Bound at a **3% median** — 2.7x above the honest grain difference, 2.4x
+under a stale pair, the same balance as the level bound. Median, not
+max: 47 districts exceed 10% even when the pair is correct, so a
+max-based bound would be noise. Verified as a LIVE negative control
+rather than a synthetic one — it failed on the real mixed pair sitting
+in the tree mid-assembly, and passed once the sector output crossed.
+
+### Assembling a one-push publish locally: do not run make_images
+
+Measured on unchanged data: `build_map`, `build_analysis` and
+`build_site` reproduce CI's `docs/` byte for byte from Windows.
+`make_images` does not — it rewrites four PNGs (`apple-touch-icon`,
+`favicon-32`, `social`, `social-github`) through a different PNG
+encoder. Committing those from here fails CI as "docs/ is stale", the
+same symptom as the set-iteration and `cos(lat)` bugs. So: take `docs/`
+from the CI rebuild artifact, run only the HTML chain locally, never
+run `make_images` on this machine. Safe because `make_images` reads
+only the district file, so the artifact's images survive the sector
+crossing untouched.
+
+## Cross-grain guard tightened 2026-08-25: 5% -> 0.5%
+
+The publish-ordering rule has been broken twice, and after the second
+time I wrote that nothing in CI compared the two grains and that the
+guard was "not built". Both claims were wrong, and wrong in a way worth
+recording, because the truth is less comfortable: the guard was there
+the whole time and was too loose to fire.
+
+`test_the_sector_model_nests_inside_the_district_model` reads both
+published files and compares their exposure-weighted premiums. Its
+bound was **5%**.
+
+| window | grain drift | inside the 5% bound? |
+|---|---|---|
+| 2026-08-19 | 1.39% | yes — passed silently |
+| 2026-08-25 | 4.1% | yes — passed silently |
+| normal operation | 0.0087% | yes |
+
+So the test watched both incidents go past and said nothing. A missing
+test is a gap; a test tuned wider than its own failure mode is worse,
+because it reads as coverage. This is the second time in two days that
+a real defect hid behind something that looked like it was checking —
+`sensitivity.py`'s comment claimed a basis it did not use, and this
+assert claimed a comparison it could not fail.
+
+**Now 0.5%**, which is ~57x the agreement the grains actually hold and
+~8x under the drift that got through. Not tighter than that on purpose:
+a genuine model change may widen the real geography gap, and the test
+must fail on mixed pairs rather than on honest resolution differences.
+
+**Verified by reconstructing the incident.** Scaling the sector file by
++4.1% and re-running produces `£169.66 vs £176.63` — against the
+`£169.66 / £176.67` the live site actually served that day. The guard
+fails on it; on the real pair it passes with 57x margin.
+
+**One consequence, accepted deliberately.** `rebuild.yml`'s pre-flight
+runs the full suite, so it now refuses to run while the two committed
+files disagree. That is intended, and it is NOT the deadlock the
+peril-set skip further up exists to avoid: recovery from a mixed pair is
+crossing the sector file, which is a plain commit, not a rebuild. Both
+sanctioned publish orders land the pair in one push, so a correct
+publish never trips it. On `sector-model` the test skips outright — that
+branch has no district build to compare against.
+
+### Was the loose bound systemic? Measured: no
+
+Having found one assert too wide to fail, the obvious worry is how many
+others are. So every numeric tolerance in the suite was measured against
+what it actually sees. The useful statistic is **margin** — bound divided
+by realised value. A bound a test clears by 2x is doing work; one it
+clears by 574x is decoration.
+
+| assert | realised | bound | margin |
+|---|---|---|---|
+| `premium = el_total + capital` | 0.0985 | 0.15 | 1.5x |
+| seed stability, median move | 6.4% | 12% | 1.9x |
+| `inv_mixed_cdf` mean level | 2.64% | 5% | 1.9x |
+| `inv_mixed_cdf` frequency | 0.00088 | 0.002 | 2.3x |
+| `el_total5 = el_total + el_er` | 0.1000 | 0.25 | 2.5x |
+| `premium_cc = el_total_cc + capital_cc` | 0.0500 | 0.15 | 3.0x |
+| exposure conserved across grains | 0.0585% | 0.5% | 8.6x |
+| **cross-grain premium level (before)** | **0.0087%** | **5%** | **574x** |
+
+Everything else is calibrated. The Monte Carlo bounds sit ~2x out, which
+is right for a seeded estimator; the reconciliation bounds are set by
+1-dp publishing and sit 1.5–3x out; the seed-stability bound at 12% was
+chosen to sit between the behaviour it rejects (20.6%, the pre-2026-08-19
+realised allocation) and the behaviour it accepts (6.4%, conditional) —
+that one is a good example of a bound picked from evidence.
+
+One test came back with no `assert` at all —
+`test_premises_join_failure_is_fatal_not_silent`. False alarm: it asserts
+through `pytest.raises` and then re-runs the legitimate case to prove it
+does *not* raise. It is one of the stronger tests in the file.
+
+So the 5% bound was an outlier, not a symptom. Worth knowing rather than
+assuming, in either direction.
+
+## Draw-mean sweep 2026-08-25: the question made permanent
+
+The user asked whether anything else compares against a draw mean. It
+was worth asking: by then the 2026-08-18 analytic/draw fix had produced
+**three** follow-on defects, each found by hand, one at a time, none by
+CI. This is the sweep run properly and then wired into the suite so it
+does not have to be run by hand a fourth time.
+
+**The pair.** `el_total` is the sum of the analytic legs (`p * E[sev]`).
+`el_year` is `year_loss.mean(axis=1)`, the mean of the simulated years.
+They estimate the same quantity. The analytic one is the right basis for
+capital because `calibrate_frequency` solves against the exposure-weighted
+mean of the analytic `p` — no draw enters that loop, so `p * E[sev]` *is*
+the calibration target. `el_year` only ever agrees with it up to Monte
+Carlo error, which is exactly what makes the bug survivable: it never
+looks wrong.
+
+**What was swept.** Every `.py` under `scripts/` on `main`,
+`exp/ct-severity`, `exp/buildings-contents` and `sector-model` — every
+`.mean(axis=1)`, every `el_year` reference, every capital formula.
+
+| site | verdict |
+|---|---|
+| `build_model.py` `tvar(...)` partition helper | correct — a tail mean over draws is *meant* to be a draw mean |
+| `build_model.py` `res["tvar99_euler"]` | correct — same |
+| `build_model.py` `capital` | correct — on `el_total` since 2026-08-18 |
+| `build_model.py` `capital_cc` (climate) | correct — subtracts `sim_cc["el_total"]` |
+| `seed_sweep.py` capital | correct — on `el_total` |
+| `seed_sweep.py` `COLS` listing `el_year` | correct — `el_year` is a diagnostic *being* seed-tested there, not a basis |
+| `backtest_coverage.py` `draws.mean(axis=1)` | correct — a 200k bootstrap of k-year windows, compared against an observed k-year window; draws are the point |
+| **`sensitivity.py` premium** | **DEFECT — subtracted `el_year`** |
+
+**The one defect.** `sensitivity.py` carried the pre-audit formula, under
+a comment that read "same basis as build_model" — which by then it was
+not. One file, but present identically on all four branches, because it
+predates the branching rather than being four separate mistakes.
+
+**Measured, not assumed.** A two-district synthetic frame made this look
+like a 4–6% error. On the real baseline (912 districts, 1-in-3 sample,
+the frame `sensitivity.py` actually builds) it is not:
+
+```
+                     stale (el_year)   fixed (el_total)    diff
+capital                       5.7734             5.7575   +0.28%
+premium                     169.5309           169.5150   +0.01%
+el_total 163.7575    el_year 163.4926  (-0.16%)
+rating-group churn between the two bases: 0 of 912
+```
+
+With 912 districts the draw mean is well estimated, and here it sits
+0.16% *below* `el_total` — the opposite sign to the tiny frame, so the
+stale basis ran capital slightly **high**, not low. No sensitivity
+conclusion this repo has published turned on it. It was fixed for basis
+consistency and because the comment asserted a basis it did not use, not
+because it changed an answer. Saying otherwise would overstate it.
+
+**The guard.**
+`test_no_capital_formula_is_taken_against_a_draw_mean` reads the source
+of every script, strips comments (prose may name `el_year`; executable
+code may not), finds each `np.maximum(` whose first argument mentions
+`tvar`, and fails if that argument names a draw mean. It scans source
+rather than numbers deliberately: the two bases agree to fractions of a
+percent, so **no value assertion would ever catch this**. Verified both
+ways — passes on the fixed tree, and reverting the one line makes it
+fail with `sensitivity.py:144` and nothing else.
+
+The argument is extracted with a paren counter, not a regex. A non-greedy
+`np\.maximum\(\s*(.*?),\s*0\.0\s*\)` looks right and is not: `marginal_params`
+has an `np.maximum(..., 0)` with no `.0`, so the match runs on past it and
+reports a defect hundreds of lines away. That was caught by the negative
+control, which is the reason to always run one.
+
+## Branch inventory, tidied 2026-08-27
+
+Every branch that exists, why it exists, and what would retire it. Two
+permanent branches remain, plus one live experiment. Both permanent
+branches are synced to current main and pass their own suites (main 93,
+`sector-model` 92 + 1 skip).
+
+**`sector-model`'s one skip is deliberate.**
+`test_the_sector_model_nests_inside_the_district_model` had been red on
+that branch since it was written, and not because of a defect: the
+branch's `build_model` writes the SECTOR grain to the generic output
+path, so its `data/districts_risk.geojson` holds 10,398 sector rows and
+there is no district build to nest against. It now detects that and
+skips. The skip was **not** ported to main, where sector grain in
+`districts_risk.geojson` would be the real thing — the 2026-08-25
+publish-ordering mistake — and must keep failing loudly.
+
+So the cross-grain test I said did not exist, when owning that
+publish-order mistake, **does** exist and runs on main. What it does
+not do is gate the *publish*: it checks two files already on disk, so
+it catches a mismatched pair after a build, not an out-of-order deploy.
+The gap I described is real; I described its location wrongly.
+
+| branch | state | why it is kept |
+|---|---|---|
+| `main` | published | the product |
+| `sector-model` | permanent, 33 ahead | the same model at postcode-SECTOR grain. **NEVER merges to main** — only `data/districts_risk.geojson` crosses, renamed `data/sectors_risk.geojson`. main merges INTO it, never the reverse. |
+| `exp/scotland-theft-geography` | MERGED 2026-09-01 (`59c4be8`), safe to delete | council housebreaking for Scotland, priced then published at both grains. Everything it carried is in main; kept only until someone tidies. |
+
+**Stale rows removed 2026-09-01:** the table still listed `exp/subsidence-series` (Gate 0 of the temperature workstream) long after it was deleted, and never gained a row for `exp/scotland-theft`, the basis measurement, which was deleted on merge. `git ls-remote --heads origin` is the authority; this table is a comment on it. As of this edit origin holds exactly three: `main`, `sector-model` and `exp/scotland-theft-geography`.
+
+**Deleted 2026-08-27 (second tidy):** `exp/theta-ws-measure`, a
+throwaway that existed to price one function and did so — GBP0.65, its
+own section above, commit 1f0854e, CI 33129830672. It was never
+mergeable by design: it set `theta_ws` to a constant to measure the
+difference, not to propose it. Deleted locally and on origin the moment
+the number was written down. If a measurement branch's output is a
+NUMBER, the number belongs in this file and the branch belongs in the
+bin — leaving it around invites someone to merge it.
+
+**Deleted 2026-08-27:** `exp/ct-severity` and `exp/buildings-contents`,
+both published that day and both sitting at exactly main's commit, so
+every commit is reachable from main. Same disposal as `exp/eow-freeze`
+and `exp/theft-level` after the 2026-08-25 publish.
+
+**The roadmap is now complete.** Phase 1 (eight attritional perils),
+Phase 2a (theft's residential denominator), Phase 2c (council-tax band
+severity relativities) and Phase 3 (the buildings/contents cover split)
+are all published at both grains. Two open questions ride along with
+that and are NOT closed by having shipped: council tax tracks market
+value while insurance pays reinstatement, and three perils worth 42.5%
+of claim cost carry an unanchored split. Both are the user's accepted
+decisions, recorded in their own sections above.
+
+**Deleted 2026-08-25:** `exp/eow-freeze` and `exp/theft-level`, both
+fully merged into main and published, commits reachable from main. Same
+disposal as `exp/el-and-flood-fixes` after the 2026-08-19 publish.
+
+**Keep experiment branches merged up to main.** `exp/buildings-contents`
+was allowed to drift 48 commits, and that drift silently broke the cover
+split: main's 2026-08-18 audit fix moved `el_total` onto analytic legs
+while `el_buildings` went on summing draw means, and the identity test
+only fired when the branch was finally merged. A branch that is behind
+is not dormant, it is quietly diverging.
+
+## exp/ct-severity (Phase 2c), re-priced 2026-08-25 — AWAITING THE USER'S DECISION
+
+> **Re-run against the published baseline, 2026-08-25 (CI
+> [32893304946](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32893304946)).**
+> The figures below are now measured against £169.66, not the superseded
+> £176.66. **The prediction made when this was flagged stale held
+> exactly**: still level-neutral (EL −0.00%, premium −0.00%, capital
+> −0.01%), and because theft is now a smaller share of the book the bite
+> is slightly SMALLER — p95 +22.78% → **+22.09%**, p5 −14.32% →
+> **−14.07%**. Everything else is unchanged in character: churn 1,928 of
+> 2,736 (**70.5%**), **968** districts moving ≥2 groups, Spearman
+> **0.8198**, dispersion 1.507 → **1.600**. Prime London still leads
+> (SW1X +70.4%, W1K +67.0%, W1J +64.7%, SW1Y +62.1%, SW7 +58.0%, AB13
+> +56.6%) and post-industrial cores still fall (L6 −20.9%, TS1 −20.8%,
+> S14 −20.4%, L7 −20.2%, CF43 −19.4%). The percentages in the sections
+> below are therefore still right to within a few tenths; the £ figures
+> they sit beside are on the old baseline. **The open question in "Two
+> checks run against it" is untouched** — it is about what council-tax
+> bands mean, not about the level, and no rerun can settle it.
+
+Branch `exp/ct-severity`, rebased onto published main (afcf0a5; the old
+185485c evidence was measured against the pre-2a baseline and is
+superseded). CI run
+[32788080788](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32788080788),
+`commit=false`. **Not merged. This is the user's call, and of the three
+open experiments it is by far the largest change to the map.**
+
+**What it does:** the four attritional severities (theft, EoW, fire, AD)
+are flat national ABI anchors with no geography at all. This scales each
+by the district's council-tax band mix — the only full-stock, small-area,
+OGL property-value proxy in Great Britain — using each nation's statutory
+charge ratios as band weights.
+
+**The national level does not move**, by construction: the multiplier is
+normalised to a CLAIM-weighted mean of exactly 1 per peril (households ×
+that peril's rate), so each peril lands back on its ABI level.
+
+| | published | branch | change |
+|---|---|---|---|
+| expected loss | 171.11 | 171.11 | **0.00%** |
+| premium | 176.66 | 176.66 | **−0.00%** |
+| capital | 5.54 | 5.54 | −0.01% |
+| tvar99_euler | 263.49 | 263.49 | −0.00% |
+
+**The mechanism was verified per district, not assumed.** On SW1X
+(relativity 1.940) the four scaled perils came back at 1.950 / 1.938 /
+1.979 / 1.944 and flood and subsidence at exactly 1.000; on CF43
+(relativity 0.691) at 0.697 / 0.691 / 0.702 / 0.692, flood and
+subsidence again 1.000. The small per-peril spread is the separate
+claim-weight normaliser each peril gets, which is the intended design.
+
+**But the map moves hard.** Churn **1,908 of 2,736 districts (69.7%)**,
+69.6% of households, and **974 move by ≥2 rating groups**. Premium
+Spearman **0.8219** — against 0.993 for both other open experiments.
+Dispersion widens 1.544 → **1.624**. Median +1.33%, p5 −14.3%, p95
++22.8%; 1,516 rise, 1,216 fall.
+
+**Risers** are prime London and one affluent Aberdeen suburb: SW1X
++72.4% (Belgravia), W1K +68.8% (Mayfair), W1J +66.1%, SW1Y +64.1%, SW7
++59.7% (South Kensington), AB13 +56.5% (Milltimber), W1C +55.5%, W1S
++55.3%, W8 +53.6% (Kensington), SW1E +52.3%.
+
+**Fallers** are post-industrial urban cores: TS1 −21.3% (Middlesbrough),
+L6 −21.3%, L7 −20.6%, L4 −19.8%, L5 −19.7% (Liverpool), S14 −20.8%, S5
+−20.3%, S2 −20.1%, S4 −20.0% (Sheffield), SR1 −19.7% (Sunderland).
+
+**This is the collision this file predicted:** 2a cut prime London on
+theft's commercial denominator, 2c raises it on value. They are not
+contradictory — one is claim frequency, the other claim size — but if
+both ship, W1J's net move is the thing to check, not either in isolation.
+
+### Two checks run against it, one of which it passed
+
+**PASSED — the cross-nation schedule artefact does not exist.** England's
+statutory ratios span 3.0× (6→18 over bands A→H) but Scotland's
+post-2017 ratios span 3.68× (240→882), so normalising within nation pins
+the level while potentially leaving Scottish districts a mechanically
+wider *spread* — an artefact of local-government finance, not of housing.
+Measured, it does not happen: relativity p95/p5 is **1.69 England, 1.65
+Scotland, 1.56 Wales**. The schedules differ; the resulting dispersion
+does not.
+
+**OPEN — council-tax band tracks MARKET value; insurance pays
+REINSTATEMENT.** Buildings cover excludes land, and land is most of what
+separates Belgravia from Bootle. The saving grace is that the statutory
+ratios compress enormously — band H is 2× band D in charge terms against
+perhaps 10× in market value — so the district relativity spans only
+1.68× p5–p95 (2.8× extremes) where raw market value across these
+districts spans 15–25×. The direction is not in doubt: dear areas do
+have dearer contents and costlier reinstatement. **What has no anchor is
+the assumption that a 1991-valuation local-government charge schedule is
+the correct compression for insurance severity.** Nothing published says
+it is. This matters most for fire, which Phase 3 puts at 78% buildings,
+and least for theft at 25%.
+
+That is the decision in one line: the direction is well founded and the
+mechanism is exact, but the *magnitude* rests on a schedule built for
+council tax, and it re-rates 70% of the map.
+
+## PUBLISHED 2026-08-25: two knobs at once, verified before it shipped
+
+User decision: **"yes go ahead and publish"** on the recommendation to
+take `exp/eow-freeze` and `exp/theft-level` and to HOLD
+`exp/ct-severity`. Merges 930b99b and 0fa5aa4; both parameter comments
+rewritten from experiment framing to shipped-model prose in 768a88f.
+
+**Verified as a pair before publishing, not after.** Each branch had
+only ever been priced against published main on its own, and rating
+groups are quantiles, so combined churn is not the sum of the two. CI
+[32789547647](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32789547647)
+ran the merged main with `commit=false` first.
+
+| | published | merged | change |
+|---|---|---|---|
+| expected loss | 171.11 | 164.12 | −4.09% |
+| premium | 176.66 | 169.66 | **−3.96%** |
+| capital | 5.54 | 5.54 | −0.03% |
+| tvar99_euler | 263.49 | 256.47 | −2.66% |
+
+**They compose with no interaction at all**, which is what the perils
+predicted: theft-level alone was −4.09% EL and −3.96% premium, and the
+pair returns exactly the same. National `el_th` moved −24.10%, which is
+341.6/450 to the second decimal, and national `el_eow` moved −0.00%.
+Both mechanisms are present and neither disturbed the other.
+
+**The two effects remain separable in the output.** PH10's EoW EL rose
+58.6 → 75.8 and TR22's fell 36.2 → 29.5 while the national EoW level did
+not move, so the freeze redistribution survived the merge intact;
+EC3V's theft EL fell 127.9 → 97.1 on the level cut.
+
+**Net map effect:** 2,462 districts fall, 265 rise, 9 flat. Median
+−3.32%, p5 −7.90%, p95 +1.22%. Spearman **0.9854** against published;
+dispersion tightens 1.544 → 1.507. Biggest fallers are commercial cores
+losing theft (EC3V −13.4%, EC4M −13.0%, WC2E −12.4%, W1C −12.3%, WC2H
+−12.3%, W1F −12.1%, LS2 −11.7%); the risers are the frost-exposed
+Highlands, where the EoW gain outweighs the theft cut.
+
+**Both grains are live and agree.** District publish is bot commit
+531da04 (rebuild run 40): premium **£169.6633**, EL £164.1213 over
+2,736 districts. Sector output from `sector-model` run 13 (bot 80d1063,
+`skip_fetch=true` — only two model parameters moved and no hazard input
+changed) crossed to `data/sectors_risk.geojson` in d4723ea: premium
+**£169.6780** over 10,398 sectors, **0.0087%** from the district grain
+and in line with the 0.0085% the two have historically agreed to. The
+sector-model branch is NOT merged and never is; only that one file
+crosses. docs/ was rebuilt in the same commit as the crossing.
+
+**Still held, deliberately:** `exp/ct-severity` (Phase 2c). Not a
+rejection — the open question is recorded in its own section above.
+
+### The publish order was wrong again, and the file already said so
+
+**I repeated the 2026-08-19 mistake.** The rule two sections down —
+written after that publish — says: when a model change touches both
+grains, cross the sector output to main BEFORE merging the model change,
+and if the sector run needs the merged `build_model.py`, merge into
+`sector-model` first, run it, and hold the main merge until its output
+crosses in the same push. I did neither. Districts were merged and
+published first (531da04), the sector rebuild started afterwards, and
+for the ~40 minutes in between the live site served **£169.66 at the
+district grain and £176.67 at the sector grain**.
+
+Nothing broke and no test can see it, exactly as predicted: each grain
+is internally consistent and only the pair is wrong. The site's own
+cross-grain check did notice — it published "exposure-weighted level
+within **4.1%**" for that window, against 0.0% now.
+
+**Why the rule is easy to break.** Both correct orderings require
+holding a finished, verified, user-approved change unpublished while a
+second ~40-minute job runs. The instinct after a green verification run
+is to ship it. The rule exists precisely because that instinct is wrong
+here.
+
+**What would actually prevent it,** rather than another note asking the
+next person to remember: nothing in CI compares the two grains. A test
+that reads both `data/districts_risk.geojson` and
+`data/sectors_risk.geojson` and fails when their exposure-weighted
+premiums differ by more than ~0.05% would have caught this the moment
+main was pushed, and would have caught the 2026-08-19 window too. The
+0.0085% the grains historically agree to gives a comfortable threshold.
+**Not built** — it is a real guard and worth having, but it would have
+failed CI on a state I had deliberately created, so it needs the
+publishing flow settled first.
+
+> **The paragraph above is WRONG, and was corrected 2026-08-25.** The
+> guard WAS built — `test_the_sector_model_nests_inside_the_district_model`
+> compares exactly those two files and runs on every push to main. It
+> said nothing because its threshold was **5%**, and the two windows it
+> was meant to catch measured 1.39% and 4.1%. Both fit inside it. The
+> problem was never a missing test; it was a test set 574x wider than the
+> thing it guarded. **Now tightened to 0.5%** — see "Cross-grain guard
+> tightened 2026-08-25" below. I wrote "nothing in CI compares the two
+> grains" without checking whether something did.
+
+### Two published headline figures were wrong, found while verifying
+
+Both fixed in the same session (commit "Two published headline figures
+were wrong, in two different ways").
+
+**1. The map pages quoted a hardcoded premium, two publishes stale.**
+`map/template.html` carried the literal text "~£170/policy/yr, around
+77%". Nothing regenerated it. `docs/map.html` and `docs/sectors.html`
+come out byte-identical on every rebuild, so they produce no diff, land
+in no publish commit, and no stale-check fires — the two most-visited
+pages on the site went on quoting a figure from before the 2026-08-19
+publish while the data underneath them was current. Both numbers are now
+injected by `build_map.py`, and `build_map`'s existing
+unsubstituted-placeholder guard means they cannot silently rot again.
+Each page reports **its own grain**, so a mixed district/sector pair is
+now visible on the site instead of hidden behind one shared constant.
+
+**2. `__MEAN_EL__` was an unweighted mean, next to a weighted one.**
+`build_site.py` computed the headline as `np.mean` over districts while
+the share beside it in the SAME SENTENCE (`__EL_CLAIMS_SHARE__`) was
+exposure-weighted. "Come to £163 per policy per year — 75% of what all
+home claims cost" mixed two bases: £163/£219 is 74%, and the 75% implies
+£164. An unweighted mean over 2,736 districts is not a per-policy figure
+at all — it over-weights small rural districts. Now weighted, which is
+what `build_site.py`'s own comment eight lines above already said
+"nationally" means everywhere in this model.
+
+Published headline is now **£164/policy/yr, 75%** at both grains.
+
+## PUBLISHED 2026-08-25: exp/eow-freeze, the EoW freeze share
+
+Branch `exp/eow-freeze`, CI run
+[32787462774](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32787462774),
+`commit=false`. **MERGED to main 930b99b on the user's decision
+("yes go ahead and publish", 2026-08-25) and published in the combined
+run below.**
+
+**One input changed:** `EOW_FREEZE_SHARE` 0.15 → **0.31** — the fraction
+of escape-of-water claim cost that is freeze-driven (burst pipes) rather
+than year-round plumbing failure. The shipped 0.15 had no published
+anchor; the replacement has two, and they agree.
+
+**The derivation** (committed to main separately, 45ba0b3, so the anchor
+exists whether or not this branch merges): ABI puts burst-pipe cost at
+**6.00% of total home paid in 2023 and 5.94% in 2025**. Escape of water
+is 19.3% of the book. On a consistent basis that is a freeze share of
+**0.311 and 0.307** — two independent release years landing within 0.004
+of each other, against a shipped value less than half either.
+
+**What CI actually produced**, against the published artifact:
+
+| | published | branch | change |
+|---|---|---|---|
+| expected loss | 171.11 | 171.11 | **0.00%** |
+| premium | 176.66 | 176.66 | **−0.00%** |
+| capital | 5.54 | 5.54 | −0.03% |
+| tvar99_euler | 263.49 | 263.47 | −0.01% |
+
+**The national level does not move at all, by construction.** The frost
+relativity is normalised to an exposure-weighted mean of exactly 1
+before it reaches `eow_rate`, and `calibrate_frequency` re-pins the level
+regardless, so this is a **pure redistribution**: it changes where EoW
+claims fall, never how many there are. That is the cleanest kind of
+model change — no re-levelling to defend, only geography.
+
+**Where it moves, and it is the right places.** Risers are the Scottish
+Highlands, the frostiest districts in the UK: PH10 +11.2% (group 4→7),
+AB36 +10.7%, IV4 +10.3%, PH18 +10.2%, PH20 +9.5%, PH26 +9.3%, IV13
++8.9%, PH22 +8.8%, AB35 +8.7%. Fallers are the mildest, near-frost-free
+coast: TR22 −5.5%, TR23 −5.2%, TR21 −5.0%, TR24 −4.9% (Isles of Scilly),
+TR5 −4.6%, PL29 −4.5%, TR25 −4.4%, PL28 −4.3%, TR19 −4.3%, TR26 −4.3%
+(west Cornwall). Raising the freeze-sensitive slice should shift burst
+pipes from Penzance to Aviemore, and that is precisely what it did — the
+sign test passes on both tails at once.
+
+**Distribution:** median +0.14%, p5 −2.27%, p95 +3.03%; 1,444 rise, 1,224
+fall, 68 flat. Rating-group churn 579 of 2,736 (21.2%), 17.1% of
+households, **16 move by ≥2 groups**. Premium Spearman **0.9933**;
+dispersion p90/p10 1.544 → 1.531, so the map barely widens or narrows.
+
+**The case for taking it:** it replaces an unanchored knob with a
+two-year-consistent published one, at zero cost to the national level,
+and moves the geography in the direction the physics demands. It is the
+least contentious of the three open experiments — nothing about the
+headline premium changes, so there is no re-levelling to justify.
+
+**The one caveat:** 0.31 is derived from burst-pipe cost as a share of
+*total home paid*, divided by EoW's *share of the book*. Both numerators
+come from ABI releases, but the 19.3% EoW share and the burst-pipe
+percentage are not stated in the same table, so the ratio is assembled
+rather than published. Two years agreeing to 0.004 is strong evidence
+the assembly is sound; it is not the same as ABI printing 0.31.
+
+## PUBLISHED 2026-08-25: exp/theft-level, theft's paid total
+
+Branch `exp/theft-level`, CI run
+[32607071195](https://github.com/SMcode-source/uk-home-insurance-risk-map/actions/runs/32607071195),
+`commit=false`. **MERGED to main 0fa5aa4 on the user's decision
+("yes go ahead and publish", 2026-08-25) and published in the combined
+run below.**
+
+**One input changed:** `theft_paid` 450e6 → **341.6e6**, severity held at
+the current published ABI average of £3,800. The direction is the
+defensible one — theft's *paid total* is the stale half (2018), its
+*average* is current (2025) — and 0.58%/policy × 15.5m × £3,800 = £341.6m
+is the bottom of the envelope DATA_SOURCES #25 already documents.
+
+**The dose-response across theft's own documented envelope** (analytic;
+EL is `paid ÷ policies` by construction, so this needs no simulation):
+
+| theft level | £m | claims | % of 560k | book EL | premium | vs published |
+|---|---|---|---|---|---|---|
+| 2018 paid at 2018 avg (envelope top) | 571 | 150,350 | 26.85% | 179.00 | 184.55 | +4.5% |
+| **as shipped** (2018 paid ÷ 2025 avg) | 450 | 118,421 | 21.15% | 171.11 | 176.66 | — |
+| **this branch** — floor, claims fell with burglary | 342 | 89,900 | 16.05% | 164.06 | 169.61 | −4.0% |
+| fits the count budget alone | 242 | 63,779 | 11.39% | 157.61 | 163.16 | −7.6% |
+
+**What CI actually produced**, against the published artifact:
+
+| | published | branch | change |
+|---|---|---|---|
+| expected loss | 171.11 | 164.12 | **−4.09%** |
+| premium | 176.66 | 169.66 | **−3.96%** |
+| capital | 5.54 | 5.54 | **−0.03%** |
+
+**Capital does not move at all**, which confirms the mechanism rather
+than assuming it: `W_THEFT = 0.0013` makes theft almost fully
+diversifying, so its contribution to the worst 1% of years is its mean,
+`tvar99_euler` falls exactly with EL, and the correction is a **pure
+level change with no tail effect**. The analytic prediction was −4.0% and
+CI returned −3.96%.
+
+**Distribution of the move:** median −3.2%, p10 −6.3%, p90 −1.4%, range
+−11.9% to +0.1%. 2,657 districts fall, 1 rises. Rating-group churn 731 of
+2,736 (26.7%), 27.2% of households, but **only 3 move by ≥2 groups**.
+Premium Spearman **0.993** — the ranking survives.
+
+**Who loses most:** EC3V −11.9%, B40 −11.4%, EC4M −11.4%, LS2 −11.2%,
+W1C −11.0%, WC2E −11.0%, WC2H −10.9%, LS1 −10.6%, SR1 −10.2%. Every one
+is a commercial-core or city-centre district — the high-burglary end,
+which is exactly where a theft level cut should land. All stay in
+group 10.
+
+**Dispersion barely changes:** EL p90/p10 1.549 → 1.524, premium 1.544 →
+1.517. The map compresses slightly and tells the same story.
+
+### Two things to weigh before deciding
+
+**1. Even the floor does not fully fit the count budget.** 89,895 claims
+clears the 99,955 the six pinned legs leave, with 10,060 spare — but
+away-from-home accidental damage alone needs 36,176 of those, before any
+liability or legal expenses. So this correction improves the book without
+closing it, and theft is probably not the last word.
+
+**2. The attribution rests on two shares that may not be the right
+population.** Two of the six "pinned" counts — EoW 29.38% and AD 24.53% —
+come from GoCompare's **quote-declared** claims table (40,962 claims
+declared at quote, typically a five-year lookback). The model applies
+those shares to the ABI's 560,000 *paid* claims in a single year. Those
+are different populations. DATA_SOURCES is internally inconsistent about
+it: #26 calls the EoW figure "GoCompare from ABI data" while #28 says it
+is the quote-declared table and that EoW's share comes from the same
+place. **If either share is overstated, theft's budget is larger and the
+case for this cut is weaker.** GoCompare bot-blocks fetches, so this
+could not be resolved here. It is the first thing to settle if the
+decision is close.
+
+## Coverage backtest 2026-08-23: the first test against real years
+
+Until now nothing in this repo had ever checked the model's distribution
+of years against a year that actually happened.
+`scripts/backtest_coverage.py` does, for the one part of the book where
+the ABI publishes an annual series. It compares the simulated national
+**storm + flood** distribution against the published per-year totals.
+Storm and flood are used because they map one-to-one onto `w_v` and `f_v`
+and are published separately per year; the ABI's headline weather line
+also contains burst pipes, which sits inside the EoW leg behind
+`EOW_FREEZE_SHARE` and cannot be split back out of the year view.
+
+```
+.venv/Scripts/python.exe scripts/backtest_coverage.py          # cached, instant
+.venv/Scripts/python.exe scripts/backtest_coverage.py --fresh  # re-simulates, ~40 min
+```
+
+The 20,000-year series is cached in `data/backtest_years.npz` (204 KB).
+**Re-run with `--fresh` after ANY change to `build_model.py`** — the
+cache has no way to know the model moved under it.
+
+**The simulated distribution, GBP m national:**
+
+| p1 | p5 | p25 | **p50** | p75 | p95 | p99 | mean | cv |
+|---|---|---|---|---|---|---|---|---|
+| 51 | 102 | 238 | **413** | 701 | 1,435 | 2,361 | 547 | 0.885 |
+
+| year | storm | flood | total | model percentile |
+|---|---|---|---|---|
+| 2023 | 133 | 286 | 419 | 50.7% |
+| 2024 | 185 | 226 | 411 | 49.7% |
+| 2025 | 244 | 312 | 556 | 64.8% |
+
+**On coverage the model passes.** 3 of 3 observed years land in its
+middle half. Read the MEDIAN (413), not the mean (547) — the distribution
+is strongly right-skewed, so most years sit well below the mean by
+construction, and comparing a handful of years against the mean and
+calling the gap bias is a mistake. That is the mistake I made earlier the
+same day; see the retraction in the section below.
+
+**The real test, a 200k bootstrap of 3-year windows:**
+
+| statistic | observed | model median | P(model ≤ observed) |
+|---|---|---|---|
+| mean of the window | 462 | 490 | **0.450** |
+| cv within the window | 0.176 | 0.608 | **0.048** |
+
+- **Level: not contradicted.** The observed 3-year mean sits at the 45th
+  percentile of what the model expects a 3-year window to average.
+  Completely unremarkable.
+- **Spread: the model's ordinary years are too volatile.** Only 4.8% of
+  simulated 3-year windows are as steady as the observed one.
+
+**Caveats on the spread result, which are serious.** n = 3, so the sample
+cv is heavily biased and noisy; p = 0.048 on three points is weak
+evidence. The window is 2022–2025 and contains **no catastrophic flood
+year** — 2007 (~£3bn insured) or 2015–16 Desmond/Eva would widen the
+observed spread a long way. Four quiet years cannot measure a tail. What
+they can say is that the model's *ordinary* years are too volatile, which
+is a narrower and more testable claim, and each new ABI year tests it.
+
+**And then the proportionality check, which cuts it down to size.** Read
+off the shipped artifact:
+
+| | |
+|---|---|
+| expected loss | £171.11 |
+| premium | £176.66 |
+| **capital — the tail's entire contribution** | **£5.54 = 3.1% of premium** |
+| capital as % of premium, across districts | 1.5% – 4.3% |
+| EL p90/p10 | 1.55 |
+| premium p90/p10 | 1.54 |
+
+**Deleting the capital charge entirely would move the premium by 3.1%.**
+A tail that is too wide by some fraction moves it by less. And the map's
+spatial pattern is not the tail's at all — EL and premium have the same
+dispersion, so what the map shows is expected loss, full stop.
+
+**So the spread finding is real, worth recording, and is not where the
+money is.** Expected loss is 97% of the premium and 100% of the map. The
+theft level — one leg carrying 17% of EL (£29 of £171) and over its
+claim-count budget on every reading — is worth roughly **2.5× the entire
+capital charge**. That is the priority, and this backtest is what
+established the ordering rather than guessing at it.
+
+## The ABI releases, read properly, 2026-08-23
+
+The user asked for annual ABI data, used granularly, at whatever grain we
+actually have it. The primary releases are now transcribed one figure at
+a time into **`data/abi_annual.csv`**, each row carrying its source URL, a
+`published`/`derived` flag and the release it came from. Use that file.
+Do not re-derive these numbers from a search summary — the summaries
+disagree with the releases and with each other, which is how the error
+below survived a day.
+
+**What the £758m weather line actually is — and the correction to my own
+flag of 2026-08-22.** The 2026-02 release's footnote 3 says the weather
+figures cover *"damage caused by burst or frozen pipes, escape of water,
+as well as damage as a result from storms and flooding"*. Read alone,
+that says the whole EoW book is inside £758m, which contradicts the £657m
+EoW anchor — and that is what I flagged. **It is not a contradiction.**
+The 2024-04 release itemises the same line for 2023:
+
+| 2023 weather line | £m |
+|---|---|
+| storm damage to homes | 133 |
+| flooding | 286 |
+| **burst pipes** | **153** |
+| total (published 573) | 572 |
+
+The water component is **burst pipes only**, a subset of the EoW book —
+so 2025's residual, £758m − £244m − £312m = **£202m, is burst pipes**, and
+the £657m anchor stands. The "£1,451m alternative headroom" in my
+2026-08-22 note does not exist. What does survive: DATA_SOURCES:472 and
+:518 still add the weather line and the EoW anchor as separate remainder
+items, double-counting the **£202m** they overlap in — an overstatement of
+£202m, not £657m.
+
+**Also settled: the storm, flood and subsidence anchors are genuinely
+2025.** All three are quoted directly in the 2026-02 release (£244m,
+£312m, £307m), as are the £2,450 and £30,000 averages. Source 16's "2025"
+label is correct and the per-peril weather totals were not withdrawn.
+Storm's 17.78% claim share is therefore the ABI's own implication, not a
+modelling artefact — which removes storm as the second suspect behind the
+claim-count overshoot and leaves theft carrying it alone.
+
+**Three new findings, none of them yet acted on.**
+
+**1. The level is fitted to one year — but the data does NOT show it is
+wrong.** I first wrote this section up as "a record year priced as the
+expectation". That overstated it, and both halves of the evidence
+dissolved on contact with the arithmetic. Recording the retraction
+because the raw table is seductive:
+
+| year | ABI storm | ABI flood | sum | model anchor | model as % |
+|---|---|---|---|---|---|
+| 2023 | 133 | 286 | 419 | 556 | 133% |
+| 2024 | 185 | 226 | 411 | 556 | 135% |
+| 2025 | 244 | 312 | 556 | 556 | 100% |
+| **mean** | | | **462** | **556** | **120%** |
+
+Storm and flood *are* anchored 20% above their own three-year average.
+That is **not** evidence the level is too high. The anchor **is** the
+model's mean by construction, and the simulated distribution is strongly
+right-skewed — cv ≈ 0.9, median ≈ 25% below the mean — so most years
+falling below the mean is what the distribution looks like, not a
+finding. `backtest_coverage.py` runs the real test, a bootstrap of
+three-year windows, and does not reject the level.
+
+The book-level version dissolved even more completely. The model's
+expected loss for seven perils (£2,631m) exceeds the ABI's actual
+all-home total for 2022 (£2,330m) and 2023 (£2,550m), which looks
+damning — until you notice those are 2022 and 2023 pounds against a
+2025-anchored model, and that the ABI's average home claim rose **15% in
+2025 alone**:
+
+| claims inflation assumed | 2022→2025 | 2023→2025 | model as % of each |
+|---|---|---|---|
+| 0%/yr | 2,330 | 2,550 | 113% / 103% |
+| 5%/yr | 2,697 | 2,811 | 98% / 94% |
+| 10%/yr | 3,101 | 3,086 | 85% / 85% |
+| 15%/yr | 3,544 | 3,372 | 74% / 78% |
+
+From about 8%/yr upward the model sits below every observed year, which
+is where a seven-peril subset of an eleven-category book belongs. **The
+apparent overshoot was mostly a price-basis artefact.**
+
+**What does stand, and needs no data to see:** `E[loss]` is fitted to a
+SINGLE year. One year is one draw. The systemic loadings `W_*` get
+multi-decade series while the level gets n=1 — which is backwards, since
+every year gives you a total, making the mean the better-evidenced of the
+two. That is a methodology defect whether or not the current value
+happens to land close.
+
+**And the blocker for fixing it: this repo has no claims-inflation index
+and no stated "as at" date for the premium.** Until it has both, no
+multi-year level can be built and the table above cannot be resolved.
+That is the real finding here.
+
+**2. `EOW_FREEZE_SHARE = 0.15` is below what the data implies.** Burst
+pipes were £153m of a £657m EoW book in 2023 (0.23) and £202m in 2025
+(0.31). Neither year supports 0.15. Raising it pushes EoW's geography
+harder onto frost days and changes its systemic loading, so it is a model
+change and needs an experiment branch.
+
+**3. `TAIL_FREQ_RATIO = 2.0` was an undocumented knob that sets the tail
+width of every published premium — now MEASURED and DOCUMENTED, value
+unchanged.** It appeared in `build_model.py` and **nowhere else in the
+repo**: no DATA_SOURCES entry, no README, no methodology page. Yet it is
+the sole target `calibrate_spatial` solves against, which fixes
+`SPATIAL_SCALE`, which drives the year view, `tvar99_euler`, capital and
+premium. The house rule is that a parameter without a published anchor
+does not ship; this one shipped.
+
+`data/history.csv` had been sitting in the repo with 35 years of per-year
+hazard drivers, used for nothing but a chart. `scripts/tail_ratio_from_history.py`
+now measures the target against it. The target is a ratio of claim
+*counts*, so the proxy has to drive how many homes claim, not how hard
+each is hit — `storm_days` (gust ≥ 70 km/h), not `max_gust`:
+
+| proxy | CV | obs max/mean | lognormal 1-in-100 | gamma |
+|---|---|---|---|---|
+| `storm_days` (primary) | 0.284 | 1.67 | **1.84** | 1.78 |
+| `storm_days^1.5` | 0.419 | 2.09 | 2.35 | 2.22 |
+| `rain5d` | 0.129 | 1.33 | 1.34 | 1.32 |
+| `max_gust` (wrong shape) | 0.077 | 1.17 | 1.19 | 1.19 |
+
+**2.0 sits inside the supported range of 1.78–2.35**, so the knob was
+undocumented rather than wrong. It keeps its value and gains a
+DATA_SOURCES entry under source 15. `storm_days` shows no significant
+trend (−0.039 days/yr, p = 0.77), so fitting its raw spread is legitimate.
+What this does *not* establish is that storm days convert to claim counts
+one-for-one — and note the proxy choice moves the answer far more than
+the fitted distribution does, since `max_gust` would have halved the
+tail. A claims triangle would settle it.
+
+**One thing to know before trusting any of this as a time series: the ABI
+restates it, and its releases contradict each other.** The 2024-04
+release puts 2023 at £573m and calls it the record. The 2025-02 release
+puts 2024 at £585m, calls it *"£127 million (28%) higher than … 2023"*
+(implying £458m) and names **2022** the previous record. Both cannot be
+right. Footnote 3 of the 2024-04 release gives the mechanism — *"This
+figure will include claims not yet fully settled"* — but not the
+direction. `abi_annual.csv` carries both the 573 and the 458 rows,
+flagged. **Pick one vintage of the series and stay inside it; never mix a
+figure as-published with a later release's comparative.**
+
+## Claim-count overshoot: attributed 2026-08-22
+
+Reproduce all of this in a second, with no simulation:
+
+```
+.venv/Scripts/python.exe scripts/anchor_budget.py
+```
+
+**The count overshoot and the money undershoot are one fault, not two.**
+103.3% of the ABI's claims on 77.4% of its money means only one thing:
+the modelled book's average claim is £4,548 against the ABI's £6,071, a
+quarter too cheap. And the sign is wrong. What the model leaves out —
+legal expenses, personal possessions, liability, alternative
+accommodation — is the *cheap* end of a home book, so stripping it out
+should push the modelled subset's average **above** £6,071, not a
+quarter below it. Whatever is wrong is a leg carrying too many claims
+that are too small, and it will show up in the count budget.
+
+**Six of the seven counts are pinned by something outside their own
+leg. One is not.**
+
+| leg | claims | % of 560k | by-product | what pins the count |
+|---|---|---|---|---|
+| storm | 99,592 | 17.78% | count | ABI 2025 paid AND ABI 2025 average, one release |
+| flood | 10,400 | 1.86% | count | ABI 2025 paid AND ABI 2025 average, one release |
+| subsidence | 17,228 | 3.08% | count | **WRONG as recorded — corrected 2026-08-27**: FY2025 paid, but a **Q1 2026** average, two releases apart (see DATA_SOURCES #33) |
+| escape of water | 164,250 | 29.33% | severity | GoCompare 29.38% — VERIFIED, and closes the triangle |
+| fire | 31,000 | 5.54% | paid | Home Office FIRE0201 attended dwelling fires 2024/25 |
+| accidental damage | 137,576 | 24.57% | paid | GoCompare 24.53% — VERIFIED (at home + outside) |
+| **theft** | **118,421** | **21.15%** | **count** | **nothing: 2018 paid ÷ 2025 average** |
+
+The six leave **99,955 claims (17.85%)** for theft and for everything
+unmodelled. Theft takes 118,421 — it **overruns the entire remaining
+budget by 18,466 claims on its own**, which is the whole overshoot,
+exactly.
+
+**And the remainder is not empty.** Away-from-home accidental damage is
+6.46% of the same GoCompare table; it is real, it is inside the ABI's
+560,000, and `build_model.py:296` deliberately excludes it from the
+model — so it is a charge against the remainder. That leaves **11.39%
+(63,779 claims)** for theft, before a single pound of liability or legal
+expenses. Theft does not fit on *any* reading of its own documented
+vintage envelope:
+
+| theft basis | %/policy | claims | % of 560k | fits? |
+|---|---|---|---|---|
+| as it ships (2018 paid ÷ 2025 average) | 0.76% | 118,421 | 21.15% | no |
+| 2018 paid at the 2018 average, as published | 0.97% | 150,350 | 26.85% | no |
+| floor: if claims fell with recorded burglary | 0.58% | 89,900 | 16.05% | no |
+
+**So theft is the largest single cause and is over on every reading —
+but it cannot be the only one.** Even the floor of its envelope is
+4.66pp (26,121 claims) over, with nothing left for liability. The two
+statements "theft ≤ 63,779" (from the budget) and "theft ≥ 89,900" (from
+its own documented floor) do not overlap, so one of the other six is
+also wrong.
+
+**The next suspect is storm, and there is provenance evidence against
+it.** Storm is the only other large count derived by dividing a paid
+total by an average: 17.78% of all UK home claims. Its £244m and
+flood's £312m are tabled in DATA_SOURCES as "UK domestic claims by
+peril, **2025**" (line 26) — but DATA_SOURCES:402 records that the ABI's
+2025 full-year release **stopped publishing per-peril weather totals**
+and reports one £758m "weather-related damage to homes" line instead.
+Both cannot be true of the same release. Source #16's narrative entry
+gives no vintage at all, so the storm and flood anchors need their
+release identified before storm's 17.78% can be defended or moved.
+
+**The same £758m line is separately self-contradictory on the money
+side.** DATA_SOURCES:402 says it covers storm, flood *and* escape of
+water. Beside the anchors that cannot hold: £758m − £556m of storm and
+flood leaves £202m for EoW, against an EoW anchor of £657m. Then
+DATA_SOURCES:472 and :518 size the fire and AD triangles against a
+remainder built by adding the £758m weather line and the £657m EoW
+anchor as *separate* items — which on line 402's own reading
+double-counts EoW. The headroom those two triangles were checked
+against is either £794m as documented, or £1,451m — a 1.8× difference.
+Settling it needs the ABI release itself.
+
+**None of this is a publishing emergency, for the reason already
+recorded:** each peril's EL is paid ÷ policies by construction, so the
+premium follows the *money* anchors and is untouched by the count
+budget. `el_total` is £171.11/policy and does not move. What a theft
+correction would move is the tail. Holding theft's £450m and raising
+its severity to fit the budget means fewer, larger claims: EL is
+unchanged by construction and the tail should fatten, so `tvar99_euler`,
+capital and premium should rise — *expected, not measured; that is what
+the experiment branch is for*. Holding the £3,800 average and cutting
+the count instead drops theft's paid to ~£242m, which takes 7.9% off EL
+— that one is arithmetic, not a simulation result. **The two corrections
+move the premium in opposite directions, which is exactly why this needs
+an experiment branch with priced evidence and a decision from the user,
+not a quiet edit to the `ABI` dict.**
+
+Read this before any Phase 3 work. The buildings/contents split reasons
+from frequency, and theft's frequency is the number this section says
+is wrong.
+
+## tvar99_vine seed sensitivity, measured 2026-08-22
+
+Six seeds (42-47) through `simulate()` on the real scored frame, both
+the published code and its pre-fix parent (1fdfbb5), same seeds, same
+spatial calibration. Reproduce with `scripts/seed_sweep.py` — but see
+the harness warning at the end, which cost a full wrong run.
+
+**The three questions, answered.**
+
+1. **Did the five fixes worsen it? No.** `tvar99_vine` relative SD
+   across six seeds: **12.25% before, 12.40% after**. The 0.15pp is
+   inside the noise of a six-seed estimate and is directionally what
+   the fatter moment-matched flood severity would do. This closes the
+   question the publish left open.
+
+2. **They removed a far bigger one.** Pre-fix, `el_total` itself was
+   seed-dependent — relative SD **7.31%**, range 166.52 to 199.80 —
+   because the four vine perils took their EL from draws. Premium
+   inherited it: **relative SD 6.69%, range 172.23 to 203.58, a 17.24%
+   spread**. Post-fix `el_total` is bit-identical across all six seeds
+   and premium spans **176.6576 to 176.7926, a 0.076% spread**. The
+   premium seed lottery shrank by a factor of ~227. Put plainly: the
+   premium published before 2026-08-19 was a draw from a ±17% seed
+   distribution, and 174.2409 happened to be near its low end.
+
+3. **The swing is 36%, not 14.7%, and the site does read it.** 14.7%
+   was just the 42->43 pair. Across six seeds `tvar99_vine` runs
+   **12,172 to 17,301** (household-weighted; thirty seeds later widened the
+   unweighted mean to 10,157-17,515). And `build_site.py` injects it into
+   `__MEAN_STANDALONE__` and `__DIVERSIFICATION__`, and ships it as a
+   CSV column — so "nothing reads it" was wrong about the site even
+   though it stays true of the premium path.
+
+**Why it will not settle down.** Two independent causes, and the
+second is the interesting one.
+
+*It is a thin-sample estimator.* `tvar()` averages the worst
+`k = N_SIM/100 = 200` of 20,000 years. With severity sigma up to 1.30
+(fire) that mean is carried by a handful of draws.
+
+*Nothing averages it away.* `base` is drawn ONCE in `simulate()` and
+broadcast to every district, so year j is the same state of the world
+everywhere and the per-district errors are near-perfectly correlated.
+Measured directly: national relative SD divided by median per-district
+relative SD is **0.964**. Independent errors across 2,736 districts
+(effective N 1,812 on household weights) would give **0.023**. A
+national portfolio buys essentially NO error reduction on this number.
+Getting to 1% would need ~154x the years — about 3.1M per district.
+
+**Why `tvar99_euler` is fine and premium is fine.** The year view mixes
+each district's systemic factor with idiosyncratic noise at the
+CALIBRATED spatial loadings, and those are tiny — `SPATIAL_SCALE`
+solves to 0.025, giving w/f/s/g of 0.013/0.010/0.015/0.018. Districts
+are therefore nearly independent in that view, the portfolio aggregate
+does average down, and `tvar99_euler` lands at relative SD **0.33%**
+(263.5 to 265.7). Capital and premium ride on that, not on the vine
+tail. The two numbers behave differently for a real structural reason,
+not by luck.
+
+**What this means for the published page.** The premium map is sound.
+The exposure is confined to two injected numbers:
+
+| published | value | thirty-seed range | verdict |
+| --- | --- | --- | --- |
+| `__MEAN_STANDALONE__` | GBP11,956 | 10,157 - 17,515 (56.1%) | not a reliable point estimate; seed 42 ranks 9th of 30, in the lower third. RETIRED — replaced by `__STANDALONE_LO__`/`__STANDALONE_HI__` |
+| `__DIVERSIFICATION__` | 98% | 97.42% - 98.48% | robust — the ratio is stable even though its numerator is not, and rounding to 0dp hides the rest |
+| `premium` | 176.6581 | 176.58 - 176.92 (0.192%) | sound |
+
+So the homepage tile survives on its merits; the methodology sentence
+"a single policy's standalone TVaR99 is about GBP11,956" did not — the
+same model at seed 44 says GBP17,118.
+
+**FIXED and published 2026-08-22.** The sentence now quotes
+GBP10,100-GBP17,600 across THIRTY seeds (42-71, run 2), with a footnote
+giving the mechanism (shared draws, so the error does not average down)
+and the contrast that keeps the rest of the page trustworthy: allocated
+share 2.2%, diversification credit 97.42-98.48%, premium 0.19%. Bounds
+round OUTWARDS to the nearest GBP100 so the quoted range never claims
+to be tighter than what was measured. Nine placeholders are injected
+from `data/seed_sensitivity.json`, written by `scripts/seed_sweep.py
+--write-json` and regenerated by the manual `seed-sweep.yml` workflow —
+NOT hand-written, because hand-written cells are exactly how defect 3
+happened.
+
+**Six seeds understated it, exactly as a min-max must.** The first
+published range was 11,900-17,200 from seeds 42-47. Thirty seeds widen
+it to 10,100-17,600 — the spread goes 36.8% -> 56.1% while the relative
+SD barely moves, 12.60% -> 12.87%. That is the expected signature: the
+SD is a property of the estimator and converges quickly, the min-max is
+a property of the SAMPLE SIZE and keeps growing. Anyone re-running with
+more seeds should expect the quoted range to widen again and should NOT
+read that as the model degrading. If a stable interval is ever wanted,
+quote a percentile band or mean +/- k*SD instead of min-max — the JSON
+carries `per_seed` for all thirty, so no re-run is needed to switch.
+
+The three options not taken, and why: drawing the standalone tail
+independently per district would let the national mean average down but
+would destroy the cross-district comparability shared draws buy;
+computing it semi-analytically is real work for a column nothing prices
+off; and more simulated years is the only route to a genuinely tight
+point estimate — 20,000 -> 1% needs about 154x more, which is not worth
+it for a diagnostic. Quoting the range costs nothing and is honest.
+
+The premium survives the wider sweep: 0.192% across thirty seeds, so
+the map is still sound and the standalone tail is still the only
+exposed number.
+
+**Harness warning, learned the hard way.** `main()` calls
+`calibrate_frequency(gdf)` AND `calibrate_spatial(gdf)`. Any script
+that drives `simulate()` directly must call BOTH. Omitting the second
+leaves `SPATIAL_SCALE` at its module default of 1.0 — a 40x overstated
+spatial loading — which silently inflates `tvar99_euler` by 9.7x while
+leaving `tvar99_vine` and `el_total` bit-identical to the published
+run. The pricing view does not use the loadings and the year view does,
+so a harness can look perfectly validated on the columns you happen to
+check and be wrong on the ones you care about. `analytic_el_check.py`
+omits `calibrate_spatial` legitimately — it only needs marginals.
+## Built AND PUBLISHED 2026-08-19: five defects fixed
+
+**Live since 17be4b4** (rebuild run 34, tests run 32202273388 green on
+both jobs, both grains verified on the live site). Built on branch
+`exp/el-and-flood-fixes` (e025e46, 704866b — branch deleted after merge, commits reachable from main), merged to main at 37f6885
+with a guard fix at 8ab6cbc, sector output crossed at 6805445.
+
+The two defects the 2026-08-18 audit left OPEN are fixed, plus three
+more found while fixing them. Every scope decision was taken by the
+user before any code moved (an eleven-question grilling).
+
+**What the live numbers moved to.** Exposure-weighted premium
+174.2409 -> 176.6581 (+1.39%), driven mostly by groundwater's EL going
+0.412 -> 1.3398 as it stopped being read off a starved draw. The
+sector grain landed at 176.6731, 0.0085% from the district grain.
+Analytic EL matches ABI to +0.00% for all seven anchored perils and
+the portfolio reconciles at +0.0188% excluding groundwater.
+
+**One caveat on the CI artifact.** CI's rebuild rewrote 276 of 2,736
+districts in `data/districts_risk.geojson` versus the laptop build,
+entirely in `capital`, `tvar99_euler`, `premium_cc`, `capital_cc` and
+`cc_uplift_pct` — max relative change 4.6e-04, last-digit float drift
+from a different BLAS in the TVaR Euler allocation. No `el_*` column
+and no `premium` value moved. The CI artifact is the published one.
+
+**Defect 1 — the four vine perils published draw-mean ELs.**
+`calibrate_frequency` solves `FREQ_SCALE[k] = ABI_TARGET_FREQ[k] /
+raw[k]` against the exposure-weighted mean of the ANALYTIC p; no draw
+enters that loop, and `_median_for_mean` pins `E[sev]`. So `p*E[sev]` IS
+the calibration target and the draw mean was only ever an estimate of
+it. The comment that stood at the `el_total` site claimed the ABI
+scaling had been "solved against" those draw means. It had not. That
+comment was wrong and is corrected in the code.
+
+Groundwater is the case that proves it, and it was hiding in plain
+sight: it published £0.412 against an analytic £1.342, a 3.3x gap. Its
+p is 6.7e-5 — between erosion's 1.5e-5 and the attritional legs — and
+its spatial loading is 0.70, the HIGHEST of the four, so districts claim
+together and the effective sample is ~20,000 correlated years, not
+2,736 x 20,000 district-years. That is precisely the trap this file
+already documents for erosion, at 4.5x erosion's frequency. The three
+commoner vine perils hid it because their noise looks like rounding.
+
+Capital follows: `el_year`, itself a draw mean and already +0.54%
+adrift, is replaced by `el_total` in `capital` and `capital_cc`.
+
+**Defect 2 — flood severity blended GEOMETRICALLY.** Probability-
+weighting `mu` makes `exp(w1*mu1 + w2*mu2)`, the weighted geometric mean
+of the medians, which sits strictly below the arithmetic mean the ABI
+anchor is stated on. Now moment-matched on mean AND variance, which
+makes sigma per-district; `inv_mixed_cdf` broadcasts sigma as it already
+broadcast mu. Closed the gap from -6.04% to -2.26%.
+
+**Defect 3 — the published "Median severity" column was stale.** Six of
+its nine cells were hand-written in the FIRST commit (28a0609), before
+eb288ee introduced the ABI calibration, and never revisited: weather
+read £3,500 against a true median of £1,338 (+162%), and groundwater and
+erosion showed MEANS under a median header. The four Phase 1 rows added
+later were correct, so the convention was right and only the old rows
+drifted. All nine are now injected from `ABI` and `SEV_SIGMA` and cannot
+go stale again. `SEV_SIGMA` is promoted to module level for that purpose
+only; no sigma value changes and every per-peril justification stays at
+its point of use.
+
+**Defect 4 — flood's target frequency came from a headline the model
+contradicts.** Found while measuring defect 2, which narrowed the gap
+but did not close it. Decomposed: the `sw_sev` normalisation basis is
+worth +0.16%, the fluvial/surface-water frequency mix -2.41%. The EA
+zone areas make 66.33% of flood claims fluvial; the £30,000 blended ABI
+headline implies 70.59%. `sev_flood` 30,000, `sev_flood_fluvial` 35,000
+and `sev_surface_water` 18,000 CANNOT all be consistent with the EA
+geography — any two determine the third.
+
+Flood is the only peril whose severity is BUILT from components rather
+than read from one ABI figure, so it is the only one where `E[sev]` can
+differ from the number used to turn paid into a frequency. For the other
+seven, `EL == paid / POLICIES` exactly. `calibrate_frequency` now
+derives flood's target from the £29,322 its legs actually blend to,
+restoring that invariant. The hard anchor is the published £312m paid;
+£30,000 was only ever an intermediate, and it is the one of the three
+figures the model does not otherwise use. Nothing is invented, no
+published component severity moves, and the +2.31% frequency rise is
+uniform so no district's ranking changes. Groundwater follows, pegged
+at 10% of flood.
+
+**Measured, analytic vs ABI:**
+
+| stage | flood gap |
+|---|---|
+| as published on main | -6.04% |
+| after defect 2 | -2.26% |
+| after defect 4 | **+0.00%** |
+
+sub, wx, th, eow, fire and ad are +0.00% at every stage.
+
+**Evidence run (district, seed 42, full chain build_model ->
+build_analysis -> build_site):**
+
+| column | published main | new | change |
+|---|---|---|---|
+| el_sub | 22.2725 | 19.8055 | -11.08% |
+| el_wx | 15.5256 | 15.7434 | +1.40% |
+| el_fl | 16.4712 | 20.1290 | +22.21% |
+| el_gw | 0.4118 | 1.3398 | +225.38% |
+| el_th, el_eow, el_fire, el_ad, el_er | — | — | **bit-identical** |
+| el_total | 168.7457 | 171.1136 | +1.40% |
+| capital | 5.4956 | 5.5427 | +0.86% |
+| premium | 174.2409 | 176.6581 | +1.39% |
+
+The four attritional legs are bit-identical across all 2,736 districts,
+max |delta| exactly 0.000e+00 — the U-draw order th->eow->fire->ad is
+preserved, as it must be.
+
+**The number that matters most.** Excluding groundwater, which has no
+published anchor, the model now reproduces `ABI_LOSS_PER_POLICY`:
+£169.7738 modelled against £169.7419 published, **+0.0188%**. Before
+these fixes that reconciliation was 77.4% of £3.4bn with a claim-count
+overshoot; the money side is now exact to two basis points.
+
+**Second-seed check (RNG_SEED 43), and it is stronger than the bar we
+set.** The bar asked that the four vine ELs "barely move" across seeds.
+They cannot move at all: now that every EL is analytic, all TEN el_*
+columns are bit-identical between seed 42 and seed 43, max |delta|
+exactly 0.000e+00 across all 2,736 districts. Seed dependence has been
+removed from the published expected-loss level entirely, which is the
+real content of defect 1. The simulated columns move as they should:
+`tvar99_euler` +0.431%, capital +1.228%, premium +0.039%.
+
+One honest caveat: `tvar99_vine` moves +14.7% between seeds (12,172 ->
+13,967). That is a per-district far tail out of 20,000 years and is
+inherently noisy; premium uses `tvar99_euler`, not this. I have NOT
+established whether these changes made it more seed-sensitive than it
+was on main, only that it is sensitive.
+
+> **Resolved 2026-08-22 — see "tvar99_vine seed sensitivity" below.**
+> The answer is no: 12.25% -> 12.40% relative SD, immaterial. The same
+> measurement found something much larger that these fixes REMOVED, and
+> corrected two claims in the paragraph above: the swing is 36% across
+> six seeds, not 14.7%, and the site does read this column.
+
+**Defect 5, found and NOT yet fixed — the reconciliation check that
+should have caught defect 4 cannot.** `build_model.py`'s own check
+prints `float(gdf["el_total"].mean())` — an UNWEIGHTED district mean —
+against `ABI_LOSS_PER_POLICY`, a national per-policy figure, formatted
+to ZERO decimal places, and `el_total` includes groundwater while
+`ABI_LOSS_PER_POLICY` does not. Three mismatches at once. It reported
+"-0%" while flood was 2.26% under its anchor. Its label also still says
+"these four perils"; there are eight. Diagnostic only — no published
+number reads it — but it is the guard that failed, so it should be
+exposure-weighted, gw-excluded and printed to 2dp.
+
+**Not done, deliberately.** The 103.3% claim-count overshoot is
+untouched and still documented above: bundling a judgement-driven anchor
+move with arithmetic fixes would make this run unattributable. Phase 2c
+stays parked for the same reason.
+
+**Also on this branch: the Phase 3 disclosure.** The same peril table
+gains % of claim cost, and buildings/contents on the 57% of cost that
+has a published anchor, with weather, escape of water and accidental
+damage shown "unsplit" rather than given an invented number. Flood uses
+the MCM convention (48/52), footnoted with Flood Re's 66/34 and the EA's
+25/75 and why MCM is preferred — it is the only one of the three that
+measures damage to the property. NO portfolio headline figure: the
+honest bound is 31.8%-79.5% buildings, and a 43-point band is not a
+headline.
+
+**Determinism confirmed, and it caught a provenance slip.** Re-running
+`build_model.py` after the defect-5 print change reproduced
+`data/districts_risk.geojson` BYTE-IDENTICALLY - the build is
+deterministic given RNG_SEED *on one machine*. Read no further than
+that: it was never a cross-machine claim, and it is not true across
+CPUs. See "RESOLVED 2026-09-05: why the model did not reproduce
+across runners" - `np.argpartition` returns the same worst-year set
+in a different ORDER at a different SIMD width, which moved `capital`
+at 4 dp until it was fixed. It also showed `data/year_analysis.json`
+changing, which was not nondeterminism but a mistake: the second-seed
+script restored the geojson from its saved seed-42 copy after the
+seed-43 run, and `build_model.py` writes year_analysis.json too, which
+was not restored. Commit 2bfb36e therefore carried a seed-43 year
+analysis beside seed-42 everything-else. Fixed in e5b623e;
+`docs/years.html` was unaffected, so nothing downstream had consumed it.
+**Lesson: build_model.py writes TWO artifacts. Any script that swaps
+seeds must restore both.**
+
+**Publishing is the user's call and has NOT been given.** Remaining, in
+order: fix defect 5, sector rebuild in the worktree, copy output across,
+merge to main, rebuild with commit=true, verify live.
+
+## Phase 2 status: 2a PUBLISHED 2026-08-18, 2c built and NOT published
+
+Both experiment branches were built, verified and priced. The user chose
+**"2a only"**: 2a is live (see the section above), 2c stays on its branch.
+
+- **2a - theft commercial denominator** - **PUBLISHED, now on main**
+  (`exp/theft-commercial`, eebb5c2+c22aa06 — branch deleted after merge; evidence run 32033558205): rate = burglaries /
+  (households + VOA premises), premises from NDR stock by LSOA
+  (fetch_premises.py, data/premises.csv, DATA_SOURCES.md #29 on that
+  branch). All non-theft columns bit-identical; el_th mean pinned
+  29.03; premium/capital unchanged to the penny. Churn 229 districts
+  (8.4%), 9 by >=2 groups - ALL commercial cores, all DOWN (EC3M
+  10->1, W1J 394->249). Cap re-solves 6.22%->3.40%, 15 at it.
+  Scottish el_th +9% via FREQ_SCALE renormalisation (flat override
+  absorbs more of the pinned level - mechanism, not bug).
+- **2c - CT band severity relativities** (`exp/ct-severity`, 185485c;
+  evidence run 32039330290): band mix (CTSOP1.1 E&W + NRS Scotland
+  2023-at-DZ2011) -> value relativity 0.69-1.94, statutory charge
+  ratios normalised WITHIN nation, scaling th/eow/fire/ad severities
+  with claim-weighted normalisation (fetch_ct_bands.py,
+  data/ct_bands.csv, DATA_SOURCES.md #30 on that branch). Weather
+  legs and every rate bit-identical; all four attritional EL means
+  pinned to the penny; premium 174.24 unchanged. Churn 69.1%, 929 by
+  >=2 groups: prime London up to +282 (W1J), low-band city cores
+  -78 (BD1/SR1). New test pins severity-not-frequency scaling.
+- **They COLLIDE in prime London** (2a cut W1J, 2c raises it). 2a went
+  first, so the churn numbers in the bullet above are measured against
+  the pre-2a baseline. ~~2c's evidence run is now stale.~~ **REDONE
+  2026-08-25:** `exp/ct-severity` rebased onto published main (afcf0a5)
+  and re-priced by CI 32788080788 - see "exp/ct-severity (Phase 2c),
+  re-priced 2026-08-25" above for the current numbers (churn 69.7%, 974
+  by >=2 groups, Spearman 0.822, premium level unchanged). Still to do
+  if it ships: the site copy pass for the severity prose, and the
+  OUTWARD D seam for ct_bands.csv on sector-model - premises.csv already
+  has it (fetch_premises.py, 9e777f8: 9,700 sectors, 100.0% placed).
+- ~~Known stale: dependence_check.py and sensitivity.py never gained
+  the attritional rate columns, so both fail at `_fields`.~~ **FIXED in
+  c7a26db** ("Analysis scripts learn the attritional rate columns").
+  Both now set th/eow/fire/ad rates plus er_frac and sw_sev. Re-checked
+  2026-08-22: this bullet had been stale for some time.
+
+## Phase 2 plan (2026-08-17): sources verified, design set, nothing built yet
+
+Every source below was probed this session — grain, licence, size and
+edition confirmed, not assumed. All are OGL v3, no registration:
+
+- **CTSOP 1.1 / 3.1 / 4.1** (VOA, England & Wales, snapshot 31 Mar
+  2025, published 2025-09-25; next edition summer 2026): dwelling
+  counts by **council tax band / property type / build period at LSOA
+  grain**, direct zips 0.7–7.5 MB from assets.publishing.service.gov.uk
+  (URLs in the fetcher when it lands). Counts rounded to 10, <5
+  suppressed as "–", <1% unknown type/age — handle both in the parser.
+- **Scotland dwellings by council tax band, detailed** (NRS via
+  statistics.gov.scot, 10.6 MB zip, updated 2025-08-13): band × **2011
+  data zone** to 2023; **the 2024 year switches to 2022 data zones**
+  mid-series — use 2023 at 2011 DZ (postcode joins exist) or acquire
+  the 2022-DZ postcode index first. "Dwellings by Type" is a sibling.
+- **NDR stock of properties by MSOA/LSOA** (VOA, 2025 edition,
+  `ndr_stock_oa_2025.zip`, 7.1 MB): **non-domestic property counts at
+  LSOA** — the licence-clean route to the theft commercial fix.
+  Scotland needs nothing: theft there is already the flat national
+  override, so the commercial correction does not apply.
+
+Examined and NOT chosen (record so nobody re-treads):
+- **EPC bulk** (epc.opendatacommunities.org): registration wall, mixed
+  licence (address fields are Royal Mail copyright — unusable in a
+  public OGL repo), multi-GB, and coverage is only certificate-holding
+  stock (sold/let/built since 2008 — biased newer/rented). CTSOP4.1
+  gives build period for the FULL stock at the same grain with none of
+  that. EPC's unique add is floor area; defer until something needs it.
+- **VOA rating-list bulk** (voaratinglists.blob.core.windows.net):
+  free but under restricted terms, not OGL — the statistical LSOA
+  release replaces it. The data.gov.uk "VOA non-domestic" entry is a
+  dead 2016 record with no links.
+
+The design, in publish order (one experiment branch + priced evidence
+each; the user decides each publication):
+- **2a — theft commercial-exposure correction** (smallest first, and
+  already named "the proper fix" in the theft section): police.uk
+  burglary points include commercial break-ins; weight each district's
+  points by its residential share hh/(hh + non-domestic premises) from
+  NDR-stock-by-LSOA before the rate is formed, keeping the p99.9 cap
+  as backstop. Expect the cap to stop binding where it was doing crude
+  duty (W1J prices at the cap today).
+- **2c — severity relativities from council-tax band mix**: bands are
+  a sum-insured proxy. CRITICAL TRAP: the three nations' bands are
+  incompatible regimes (England A–H on 1991 values, Wales A–I on 2003
+  values, Scotland A–H on 1991 with its own ratios) — normalise WITHIN
+  nation to mean 1.0, then renormalise the district multiplier
+  exposure-weighted to 1.0 nationally (the depth-multiplier pattern:
+  relativities only, ABI level pinned by construction).
+- **2b — EoW dwelling-age slice**: CTSOP4.1 pre-war share as a second
+  slice beside the 15% freeze slice — but ONLY if a published anchor
+  for the age→EoW-frequency relationship can be found; without one it
+  is an undocumented knob and stays out, per house rules.
+
+## Audited 2026-08-16: every published claim re-derived from the data
+
+A full don't-trust-the-docs pass. The code and data were CLEAN: the
+model source re-read line by line with no defects found, a full
+rebuild reproduced `docs/` byte-for-byte, and every headline figure
+(£59.07 / 27.26m, +10.5% / +11.2%, DN32 +200% / PO6 9 +308%, 184 vs 1
+improving, CB8 8.1x, HU8's four sectors, IoU 0.706/0.689, 191
+stations, 33% terminated rows) verified exactly against the committed
+outputs.
+
+What had drifted was hand-written prose — numbers measured once and
+never re-read after the extents were re-fetched or the exposure bug
+was fixed: rivers/sea shrinkers were quoted as 61 (2.9%, −11.3pp) but
+are 52 (2.5%, −11.2pp, worst HU8); surface-water decreases 10 → 5
+(worst W1F −1.2pp); band growth +37.4/+28.7 → +37.7/+28.8 (prose now
+names the statistic: mean district zone-fraction, not area); sector
+aggregation "0.964 / 0.6%" → 0.965 / 0.4% (pre-exposure-fix values);
+households.csv "2,995 districts" → 2,866; RM10 was 33→47, not 37→53;
+dependence CI −9.0% to +12.8%; "21 datasets" → 24; sensitivity churn
+now 6.6%–34.8% across scenarios; "71 tests" → 72.
+
+The structural fix: the methodology page's climate-delta, aggregation
+and household figures are now **computed in `build_site.py` and
+injected** (`climate_band_stats()`, `__AGG_CORR__`, `__HH_DISTRICTS__`
+etc.), like every other published claim. **Only README.md still
+carries hand-written copies** (markdown has no build step) — re-verify
+its climate/sensitivity/dependence numbers whenever the fraction CSVs,
+`sensitivity.json` or `dependence.json` are regenerated. Two docstring
+corrections in the same pass: `sensitivity.py` (stale churn spread)
+and `validate_sectors_scotland.py`, which claimed sector IoU "can
+never beat" district IoU — not a theorem, and its own output
+(0.706 > 0.689) refutes it.
+
+Why it was worth doing: aggregated back to districts the sector model
+reproduces the published one (0.965 correlation, level within 0.4%),
+but **19% of districts hide sectors that differ by more than 2x** in
+premium - worst CB8 at 8.1x (GBP 29 to GBP 237). A district price
+charges both halves of a district the average of a risk only one half
+has. The splits are physical: a river through half a district, a clay
+boundary under the other.
+
+That work also turned up a real bug in the exposure weights - homes
+apportioned to postcodes that no longer exist - now fixed in both
+models; see below. Nothing is half-finished and nothing is waiting on
+anyone. The list at the bottom is what is *blocked or optional*, not
+work in progress.
+
+## Previously (2026-08-10): the model's gust source changed
+
+**The gust component runs on Met Office MIDAS station
+observations**, not ERA5 reanalysis — the first
+model change since `a1cacd0`, user-approved on priced evidence
+(commit `de19471`, published by Actions run 15). Everything else from
+the 2026-08-08 pick-up list also landed: layout regression tests in CI,
+the popup redesign, the 5 MB map page cut to 209 KB, a full keyboard
+route through the map, and postcode-sector polygons derived for all of
+GB from open data.
+
+## What the model is now, in one paragraph
+
+Five perils per postcode district from open hazard data, joined by a
+5-dim C-vine (weather at the root). Four are insured — subsidence (BGS
+bedrock blended with 625k superficial at `SUP_WEIGHT` 0.5), weather
+(Met Office climatologies + a 1-in-50 gust Gumbel-fitted at **191 MIDAS
+stations**, ≥20 years' coverage, ≤300 m altitude), flood (severity
+conditioned on EA depth bands), groundwater — calibrated per peril to
+ABI 2025 payouts, exposure-weighted by census households apportioned
+across LIVE postcodes only, capital Euler-allocated from the portfolio,
+premiums on TVaR₉₉. Coastal erosion is in the vine but deliberately
+outside the premium. A climate scenario reprices on the EA's future
+flood extents: **+10.5%** exposure-weighted over the 2,087 English
+districts the EA models, worst DN32 (Grimsby) +200%. Exposure-weighted
+premium **£59.07** over 27.26m households. All figures re-verified from
+the committed output on 2026-08-12, after the gust swap and the
+exposure fix.
+
+## Added 2026-08-12: the climate layer at sector resolution
+
+Both maps now carry every layer. The EA's climate-change editions were
+re-rasterised over the 10,398 sectors - surface water and depth bands
+on runners (~66 min via the workflow's `climate=true` pass), rivers/sea
+from the laptop because the EA 403s runner IPs for that WMS - and both
+simulations rebuilt in the cloud. 8,730 of 10,398 sectors are covered.
+
+National agreement holds (**+11.2%** exposure-weighted over covered
+sectors vs **+10.5%** over covered districts) but the tails diverge:
+worst district **DN32 +200%**, worst sector **PO6 9 +308%**, and where
+the district model finds **one** district whose flood risk falls under
+the scenario, the sector model finds **184**. The EA's future run is a
+separate model, not a uniform uplift, so those improvements were always
+in the data - district-level averaging just cancelled them against
+worsening neighbours.
+
+**Two traps this pass cost:** a workflow run checks out the SHA it was
+DISPATCHED with, so a job cannot see a commit you push after
+dispatching (a model job was building a no-climate model for exactly
+this reason - cancel and take its artifacts instead). And
+`flood_future()` needs the flood AND surface-water climate editions
+together, returning no repricing view if either is missing, which is
+why a partial pass degrades safely instead of publishing half a
+scenario.
+
+## Fixed 2026-08-12: households were apportioned to DEAD postcodes
+
+ONSPD retains terminated postcodes - **897,835 of 2,694,205 rows, 33%**
+- and `fetch_households.py` spread LSOA household counts across all of
+them, crediting roughly 730,000 homes to addresses that no longer
+exist. Every exposure weight in the model was slightly wrong, and had
+been from the start.
+
+It surfaced only because of the sector build: a dead postcode has no
+Code-Point centroid, so wholly-dead sectors got no polygon and 2.7% of
+exposure had nowhere to land. That mismatch was the symptom; the
+phantom homes were the disease, and they were in the district model
+too.
+
+Fixed by filtering on `doterm`, priced first on `exp/live-postcodes`
+(now deleted) and then applied to both resolutions: premium level
+**-0.25%**, **40 districts (1.5%) change rating group**, none by more
+than one, movers concentrated in rural/remote districts with the most
+postcode churn per live address. National total unchanged - LSOA
+totals are fixed, only their apportionment moved. **The sector/district
+exposure gap closed from -2.75% to -0.06%**, and the nesting test's
+tolerance was tightened from 4% to 0.5% so phantom exposure cannot
+creep back.
+
+**Trap worth remembering:** `rebuild.yml` does NOT run
+`fetch_households.py` - it reads the committed CSV. The first attempt
+to price this patched only the fetcher, reproduced main byte-for-byte,
+and looked exactly like "no impact". Regenerate and commit the CSV,
+then dispatch.
+
+## The experiment-branch pattern (how model decisions get made here)
+
+Three times used, three times decisive — reuse it for any future model
+input change:
+
+1. branch `exp/<name>`, change ONE input, push;
+2. `gh workflow run rebuild.yml --ref exp/<name> -f commit=false`
+   (~8 min on a free runner);
+3. `gh run download <id> --name model-output`, then
+   `python scripts/compare_rebuild.py <artifact geojson>`;
+4. put the numbers in front of the user; **the swap is their call**;
+5. approved → apply on main, dispatch with `commit=true`, delete the
+   branch. The published output is content-identical to the evidence
+   artifact (byte-compare fails on CRLF checkout — known, not a drift).
+
+Decisions taken this way, so far:
+
+- **SUP_WEIGHT stays 0.5** (2026-08-08). Dose-response at 0.35/0.25 was
+  linear with no cliff — premium level moves <0.3%, central London
+  sub_score climbs back linearly. No empirical basis to move; the data
+  cannot distinguish weights because 625k publishes no thickness.
+- **ERA5 → MIDAS gusts, swapped** (2026-08-10). Premium level −0.36%,
+  wx_score correlation 0.974, 28.8% of districts change group but only
+  20 move ≥2; relativities shift toward measured coastal exposure
+  (Fraserburgh/Blyth/Whitby/Norfolk up; SY23/SY25 −18%, Brighton −16%).
+  Surface evidence: `scripts/compare_gust_surfaces.py`.
+- **Terminated postcodes excluded from exposure** (2026-08-12). −0.25%
+  premium, 40 districts (1.5%) change group, none by >1. Applied to
+  BOTH resolutions in one landing so the two maps never disagreed about
+  how many homes exist. Detail in the section above.
+
+## Corrections since the last handoff — do not reintroduce
+
+The full historical list lives in the previous handoff's sections and
+the auto-memory; these are the NEW ones:
+
+- **Stations above 300 m are excluded from the gust reduction.** The
+  first MIDAS run's top extreme was Cairngorm summit (1,237 m, fitted
+  rp50 283 km/h), IDW-smeared across valley districts. A summit
+  anemometer measures a climate nobody lives in. Gate + selftest in
+  `gusts_from_midas.py`.
+- **The map's fetch URL must stay a literal in the fetch() call** — the
+  asset test extracts quoted fetch arguments. And never put a quoted
+  example of a guard-matched pattern in a shipped comment: a `'...'`
+  placeholder in one was chased as a filename, "existed" on Windows
+  (trailing dots vanish in path lookups) and failed on Linux CI.
+- **The popupopen handler must be registered BEFORE the deep-link block**
+  — the deep link opens a popup synchronously, so a handler attached
+  after it never sees that popup. Deep-linked popups shipped un-dodged
+  for two commits because of this.
+- **Never measure Leaflet geometry mid-animation.** The keep-clear pass
+  once ran during the deep link's zoom animation, measured the popup at
+  x=−96, "fixed" it, and the final animation frame undid everything.
+  `keepClearWhenSettled()` defers on `_animatingZoom`/`_panAnim`.
+- **Esc restores focus in the keydown handler, not in popupclose** — the
+  popup's DOM teardown is not synchronous with `closePopup()`, and a
+  focus-fell-to-body check races it (and lost, in the tests).
+- **Plain arrows in the popup are reserved for scrolling** its focusable
+  content; district-walking is Ctrl/Alt+arrow. The search box acts on
+  'change', never 'input' — district names nest (YO2 prefixes YO25).
+- **flex-basis applies to HEIGHT once flex-direction flips to column** —
+  the vine diagram's row proportions collapsed every stacked panel to
+  zero height on phones until the media query reset them.
+- **Never iterate a SET when writing a build artifact.** Python
+  randomises string hashing per process, so the map assets' JSON keys
+  came out in a different order every run: my build and CI's disagreed
+  by construction and CI failed as "docs/ is stale" with an unreadable
+  diff. `build_map.web_asset` sorts its columns; verified by building
+  twice in separate processes and comparing md5.
+- **Quantise any transcendental that feeds a build artifact.** libm's
+  `cos` differs by one ULP between MSVC and glibc, so the Hull figure's
+  projection produced 2 different SVG path lines on Linux CI than here —
+  the same "docs/ is stale" failure as the set bug, from a different
+  root. Verified by perturbing `cos` one ULP (exactly those 2 lines
+  changed); fixed with `round(math.cos(...), 6)` in `_panel()`
+  (`3e59e7e`). Everything downstream is + − × ÷, which IEEE 754 pins.
+- **Hand-written numbers rot; injected ones cannot.** Every stale figure
+  the 2026-08-16 audit found was hand-written prose describing data that
+  had since been regenerated. When publishing a number, compute it in
+  `build_site.py` and inject it via a placeholder (the placeholder test
+  polices both directions); reserve prose numbers for genuinely
+  historical statements ("the first run kept Cairngorm summit").
+- **A layer with no data is OMITTED, not drawn blank.** The sector map
+  shipped without the climate layer until its EA extents were fetched
+  (they since have been, so `OMIT_METRICS` is empty again) - because
+  offering it would have painted the country grey under a legend
+  reading "not modelled — England only", a false statement about *why*
+  it was empty. Keep the mechanism: the next dataset to arrive late
+  will need it.
+- **The EA WMS throttles GitHub runners like BGS does.** Surface water,
+  depth and erosion all fetched fine from Actions over the 10,398
+  sectors, but rivers/sea served ~3.5 h and then 403'd every request at
+  any backoff. That one is a laptop job; the fetcher's refusal to write
+  an incomplete result is what stopped it shipping a hole.
+
+## Evidence tooling now in the repo
+
+- `scripts/seed_sweep.py` — seed sensitivity of every simulated column
+  and of the premium, with the national/per-district noise ratio that
+  shows whether an error averages down across districts. Established
+  that `tvar99_vine` does not (ratio 0.964) while premium does.
+  With `--write-json` it writes `data/seed_sensitivity.json`, which
+  build_site injects so the methodology page can quote the standalone
+  tail as a range. Run it via the `seed-sweep.yml` workflow, not on a
+  laptop: a seed is ~3 min in CI (30 seeds = 95 min) and a sleeping laptop kills a long sweep.
+  Calls BOTH calibrations — read its docstring before writing any other
+  harness that drives `simulate()` directly.
+- `scripts/anchor_budget.py` — do the seven per-peril level anchors fit
+  inside the ABI's own 560,000 claims? No simulation, runs in a second,
+  reads `build_model`'s own `ABI` dict so it cannot drift. Reports which
+  of {paid, count, severity} is a by-product for each leg, and therefore
+  which counts are pinned by an outside source and which are not. This
+  is what attributed the claim-count overshoot to theft — see
+  "Claim-count overshoot: attributed 2026-08-22".
+- `scripts/tail_ratio_from_history.py` — measures `TAIL_FREQ_RATIO`
+  against the 35-year ERA5 driver series instead of asserting it, under
+  several proxies and three fitted distributions. Established that the
+  shipped 2.0 is inside the supported range. Instant, no simulation.
+  Writes `data/tail_ratio.json`.
+- `scripts/backtest_coverage.py` — the first check that the model's
+  distribution of years contains years that actually happened. Compares
+  the simulated national storm+flood annual distribution against the
+  ABI's published per-year totals in `data/abi_annual.csv`. Needs one
+  full simulation (~40 min on the laptop). Writes
+  `data/backtest_coverage.json`.
+- `data/abi_annual.csv` — the ABI's annual releases transcribed one
+  figure at a time, each row carrying its source URL and a
+  published/derived flag. The releases restate and contradict each
+  other; read the HANDOFF note before treating it as a clean series.
+- `scripts/compare_rebuild.py` — experiment artifact vs published model
+  (premium level, churn, movers). Both model decisions above used it.
+- `scripts/compare_gust_surfaces.py` — two gust point sets IDW'd to
+  district level through the model's own code path.
+- `scripts/compare_sector_model.py` — sectors vs districts: aggregation
+  consistency, within-district spread, and the widest-range districts.
+  Defaults to the two published outputs; pass paths on the branch.
+- `scripts/validate_sectors_scotland.py` — derived sectors vs NRS's
+  official Scottish ones, reporting district-IoU beside sector-IoU so
+  boundary-set disagreement is separated from the method's own error.
+  Writes `data/sector_validation.json`, which the site injects.
+- `scripts/derive_sectors.py` + `fetch_codepoint.py` — the sector
+  geometry itself, from OS Code-Point Open.
+- `tests/test_layout.py` — the browser-level invariants (Playwright;
+  skips without it), run against BOTH map pages.
+  `tests/test_midas.py` — the BADC-CSV selftest.
+
+## Environment
+
+The durable machine notes live in the auto-memory
+(`uk-risk-map-environment`); headlines: this machine sleeps mid-run
+(checkpoint everything, judge progress by log lines not wall-clock);
+use the harness's own background runner, never `nohup`; `python -u`
+plus a log file; PowerShell-from-bash quoting is a minefield (write a
+script file); layout measurement needs Playwright or the live site,
+never `file://`; CRLF makes checked-out files hash differently from
+served ones; Windows silently strips trailing dots in path lookups, so
+a path-existence test can pass here and fail on Linux CI.
+
+**Where the two resolutions live (moved 2026-08-23).** Both are worktrees
+of this one repo, now under one roof:
+
+```
+C:/Users/sapta/Documents/Geospacial Map UK                          [main]
+C:/Users/sapta/Documents/Geospacial Map UK/.worktrees/sector-model  [sector-model]
+```
+
+It used to sit at `C:/Users/sapta/Documents/GeoUK-sector-model`; that path
+is gone. `.worktrees/` is gitignored — a worktree nested inside another
+worktree of the same repo otherwise appears as ~20 MB of untracked
+content and can reach main by accident. Verified after the move: main's
+`git status` is clean, no script globs recurse from the repo root, and
+all 86 tests pass. **The one-way rule is unchanged: merge main INTO
+`sector-model`, never `sector-model` into main** — only its output
+crosses, renamed `data/sectors_risk.geojson`.
+
+MIDAS specifics: the 8.4 GB mirror sits in gitignored `data/midas/`
+(refetch: `fetch_midas.py`, needs a fresh CEDA token in
+`~/.ceda_token` — tokens live ~72 h and are never committed or
+printed). `data/gusts_midas.csv` is committed; `fetch_gusts.py` (ERA5)
+remains the no-account fallback and regenerates the pre-swap surface.
+
+## What remains, honestly
+
+- **Sector geometry is derived, not official**, and always will be for
+  England & Wales. Measured cost: none beyond the district outlines it
+  inherits (NRS Scotland, sector IoU 0.706 vs district IoU 0.689) - but
+  those district outlines are themselves community approximations, and
+  0.689 is now the number to quote for them.
+- **A claims triangle** (data-sharing agreement with an insurer; not
+  purchasable) unblocks fitting the copulas and frequency/severity from
+  data — the single highest-value missing dataset.
+- **PAF/AddressBase** (licensed, ££) unblocks sub-district exposure,
+  sum insured and construction type.
+- **BGS superficial thickness** (licensed) would make `SUP_WEIGHT`
+  physical instead of a bounded prior.
+
+**One open model question, attributed but not decided.** The theft
+level anchor is over its share of the ABI's claim count on every
+reading of its own vintage envelope, and the storm and flood anchors
+need their ABI release identified before storm's 17.78% share can be
+defended — see "Claim-count overshoot: attributed 2026-08-22" and run
+`scripts/anchor_budget.py`. Both directions of a theft correction move
+the published premium, in opposite directions, so this needs an
+experiment branch with priced evidence and a decision from the user.
+The published EL and premium are not wrong today: they follow the money
+anchors, which the count budget does not touch.
+
+Everything else that was ever on a pick-up list is done and live.
+
+## No secrets in this repo
+
+`gh` uses a keyring token; the CEDA token lives only in `~/.ceda_token`
+(outside the repo, expired within days of use); nothing sensitive
+appears in the code, data, workflows or this file.

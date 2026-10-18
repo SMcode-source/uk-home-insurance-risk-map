@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<link rel="stylesheet" href="assets/site.css">
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+<meta name="description" content="What UK home insurance actually paid out, year by year, from ABI releases — including their own revisions — beside what the model says a good, bad or catastrophic year looks like.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="UK Home Insurance Risk Map">
+<meta property="og:title" content="What happened — UK Home Insurance Risk Map">
+<meta property="og:description" content="What UK home insurance actually paid out, year by year, from ABI releases — including their own revisions — beside what the model says a good, bad or catastrophic year looks like.">
+<meta property="og:url" content="https://smcode-source.github.io/uk-home-insurance-risk-map/years.html">
+<meta property="og:image" content="https://smcode-source.github.io/uk-home-insurance-risk-map/assets/social.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Choropleth of Great Britain shaded by home-insurance rating group, with the title UK Home Insurance Risk Map">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="What happened — UK Home Insurance Risk Map">
+<meta name="twitter:description" content="What UK home insurance actually paid out, year by year, from ABI releases — including their own revisions — beside what the model says a good, bad or catastrophic year looks like.">
+<meta name="twitter:image" content="https://smcode-source.github.io/uk-home-insurance-risk-map/assets/social.png">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UK Home Insurance — What Happened, Year by Year</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface-1: #fcfcfb;
+    /* --ink-muted darkened from #898781 (3.50:1) to meet WCAG AA on light */
+    --ink-1: #0b0b0b; --ink-2: #52514e; --ink-muted: #6f6d67;
+    --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+    --wx: #2a78d6; --sub: #eb6834; --fl: #1baf7a; --gw: #6f5cc4; --indep: #898781;
+    --eow: #5b7c99;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface-1: #1a1a19;
+      --ink-1: #ffffff; --ink-2: #c3c2b7; --ink-muted: #898781;
+      --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+      --wx: #3987e5; --sub: #d95926; --fl: #199e70; --gw: #9085e9;
+      --eow: #7fa3c0;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface-1: #1a1a19;
+    --ink-1: #ffffff; --ink-2: #c3c2b7; --ink-muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --wx: #3987e5; --sub: #d95926; --fl: #199e70; --gw: #9085e9;
+    --eow: #7fa3c0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink-1);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 28px 20px 60px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .sub { color: var(--ink-muted); font-size: 13.5px; margin-bottom: 24px; }
+  h2 { font-size: 17px; margin: 34px 0 4px; }
+  .desc { color: var(--ink-2); font-size: 13.5px; margin: 0 0 14px; max-width: 70ch; }
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px;
+  }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .tile .k { font-size: 12px; color: var(--ink-muted); }
+  .tile .v { font-size: 26px; font-weight: 650; margin: 2px 0; }
+  .tile .d { font-size: 12px; color: var(--ink-2); }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); margin: 8px 0 2px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .sw.line { width: 16px; height: 2px; border-radius: 1px; }
+  .sw.ghost { background: transparent; border: 2px solid var(--ink-muted); border-radius: 50%; width: 8px; height: 8px; }
+  svg { display: block; width: 100%; height: auto; }
+  /* Charts size their own canvas to the card (see geom() below), so they
+     fit without scrolling. overflow-x stays as a safety net only - if a
+     chart ever did exceed its card it should scroll inside itself rather
+     than push the page sideways. No min-width: that would force the
+     scrollbar back and defeat the responsive drawing. */
+  .chart { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  svg text { font-family: inherit; }
+  .axis-label { fill: var(--ink-muted); font-size: 11px; }
+  .tick-label { fill: var(--ink-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .direct-label { fill: var(--ink-2); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .tooltip {
+    position: fixed; pointer-events: none; z-index: 10; display: none;
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 10px; font-size: 12px; color: var(--ink-2);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15); font-variant-numeric: tabular-nums;
+  }
+  .tooltip b { color: var(--ink-1); }
+  table.buckets { border-collapse: collapse; width: 100%; font-size: 13px; }
+  table.buckets th, table.buckets td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  table.buckets th:first-child, table.buckets td:first-child { text-align: left; }
+  table.buckets th { color: var(--ink-muted); font-weight: 600; font-size: 12px; }
+  table.buckets td { color: var(--ink-2); }
+  table.buckets td.hl { color: var(--ink-1); font-weight: 600; }
+  .note { color: var(--ink-muted); font-size: 12px; max-width: 76ch; }
+</style>
+<style>
+.wrap { padding-top: 8px; }
+</style>
+</head>
+<body>
+<nav class="site-nav"><a class="brand" href="index.html"><span class="dots"><i style="background:var(--sub)"></i><i style="background:var(--wx)"></i><i style="background:var(--fl)"></i><i style="background:var(--gw)"></i></span><span class="txt">UK Home Insurance Risk Map</span></a><a class="navlink" href="index.html">Overview</a><a class="navlink" href="years.html" aria-current="page"><span class="nav-full">What happened</span><span class="nav-short">History</span></a><a class="navlink" href="map.html"><span class="nav-full">The model</span><span class="nav-short">Model</span></a><a class="navlink" href="relative.html"><span class="nav-full">Relative risk</span><span class="nav-short">Relative</span></a><a class="navlink" href="temperature.html"><span class="nav-full">Temperature</span><span class="nav-short">Temp</span></a><a class="navlink" href="methodology.html"><span class="nav-full">Methodology</span><span class="nav-short">Method</span></a><span class="spacer"></span><a class="ghlink" href="https://github.com/SMcode-source/uk-home-insurance-risk-map">GitHub ↗</a></nav>
+<div class="wrap">
+  <h1>What happened</h1>
+  <div class="sub">UK home insurance, year by year &mdash; first what was
+  <b>actually paid out</b>, from the ABI&rsquo;s own published figures with
+  their revisions shown, then what the model makes of good and bad years,
+  and whether the drivers it watches match the years Britain remembers.
+  No per-district claims data is published anywhere, by any insurer, at any
+  price &mdash; so the observed record here is national, and the maps on the
+  other tabs are model output calibrated to it.</div>
+
+  <h2>What the ABI actually paid</h2>
+  <p class="desc">Weather-related payouts to UK homes, as the Association of
+  British Insurers announced them &mdash; the observed numbers this model is
+  calibrated against. <b>Hollow markers are figures as first published where
+  the ABI later revised them</b>: claims keep settling after a year closes,
+  so the first announcement and the eventual cost differ &mdash; for 2023 by
+  a quarter.</p>
+  <div class="card">
+    <div class="legend">
+      <span><span class="sw" style="background:var(--wx)"></span>Weather claims paid to homes (&pound;m)</span>
+      <span><span class="sw" style="background:var(--indep)"></span>All home claims paid (&pound;m, context)</span>
+      <span><span class="sw ghost"></span>as first published, since revised</span>
+    </div>
+    <div id="abichart" class="chart"></div>
+  </div>
+
+  <h2>How many homes claimed</h2>
+  <p class="desc">Homes making claims per year by weather peril, where the
+  ABI has published a count. Burst pipes are the freeze component of escape
+  of water &mdash; announced in the winter releases rather than the annual
+  ones, which is why their years differ.</p>
+  <div class="card">
+    <div class="legend">
+      <span><span class="sw" style="background:var(--wx)"></span>Storm</span>
+      <span><span class="sw" style="background:var(--fl)"></span>Flood</span>
+      <span><span class="sw" style="background:var(--sub)"></span>Subsidence</span>
+      <span><span class="sw" style="background:var(--eow)"></span>Burst pipes</span>
+    </div>
+    <div id="abicount" class="chart"></div>
+  </div>
+
+  <h2>The subsidence record, quarter by quarter</h2>
+  <p class="desc">The ABI&rsquo;s subsidence announcements, assembled from
+  its press releases &mdash; one recovered from the Internet Archive after
+  the original page 404ed. Gaps are gaps in what the ABI chose to announce,
+  not quiet quarters. The 2018 surge &mdash; from 2,500 notified claims to
+  more than 10,000 in a single quarter &mdash; is the sharpest jump since
+  the series began, and 2022&rsquo;s record-heat summer is the modern
+  echo.</p>
+  <div class="card" style="overflow-x:auto">
+    <table class="buckets" id="abisub"></table>
+  </div>
+  <p class="note" id="abisources" style="margin-top:10px"></p>
+
+  <h2 style="margin-top:44px; font-size:19px">The model&rsquo;s view: good years vs bad years</h2>
+  <div class="sub">Everything below is <b>simulated</b> &mdash; the model&rsquo;s
+  answer to what separates a quiet year from an expensive one. UK home portfolio &middot; subsidence &times; weather &times; flood (incl. surface water) &times; groundwater &middot; C-vine copula &middot; <span id="nsim"></span> simulated years &middot; per-policy averages, <b>these four weather-driven perils only</b> &mdash; coastal erosion is in the model but not here, being chronic rather than episodic, so it has no good or bad years; theft, escape of water, fire and accidental damage are priced but sit outside the vine &mdash; theft's ~0.1% systemic loading means its bad years barely exist (a 1-in-100 theft year is ~1.3&times; average), fire's is smaller still (no systemic fire years in forty-five years of Home Office counts), accidental damage's is the smallest of all (the 2020&ndash;21 lockdowns, the biggest stay-at-home shock on record, moved AD claims by only ~6%), and while escape of water's freeze loading is real (winter 2010 doubled the year's burst-pipe bill), its bad years are cold snaps, not storm seasons, so all four would only blur the weather story told here</div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <h2>How much worse do bad years get?</h2>
+  <p class="desc">Average annual cost per policy by return period. The gap between the
+  two lines is the portfolio cost of tail dependence. It is much smaller than the same gap
+  for a single home (see the map popups): across 2,736 districts, diversification between
+  <i>places</i> largely washes out dependence between <i>perils</i>.
+  Hover for values.</p>
+  <div class="card">
+    <div class="legend">
+      <span><span class="sw line" style="background:var(--wx)"></span>C-vine (modelled dependence)</span>
+      <span><span class="sw line" style="background:var(--indep)"></span>Perils independent</span>
+    </div>
+    <div id="exceedance" class="chart"></div>
+  </div>
+
+  <h2>What drives the cost, year by year</h2>
+  <p class="desc">Years are ranked by portfolio cost and bucketed: <b>good</b> (best 50%),
+  <b>typical</b> (50–90th percentile), <b>bad</b> (90–99th), <b>catastrophic</b> (worst 1%).
+  Bars show the average per-policy cost split by peril.</p>
+  <div class="card">
+    <div class="legend">
+      <span><span class="sw" style="background:var(--wx)"></span>Weather</span>
+      <span><span class="sw" style="background:var(--sub)"></span>Subsidence</span>
+      <span><span class="sw" style="background:var(--fl)"></span>Flood</span>
+      <span><span class="sw" style="background:var(--gw)"></span>Groundwater</span>
+    </div>
+    <div id="stacked" class="chart"></div>
+  </div>
+
+  <h2>How widespread are claims in each kind of year?</h2>
+  <p class="desc">Share of districts with at least one claim per peril. The spread between
+  good and catastrophic years is deliberately modest: the spatial loading is calibrated so a
+  1-in-100 year runs at about twice the claim frequency of an average year, which is already
+  generous against the record. UK weather is strongly correlated across the country, but UK
+  <i>claims</i> are not — a storm crosses every county while only a small, weakly correlated
+  fraction of homes end up claiming.</p>
+  <div class="card">
+    <div class="legend">
+      <span><span class="sw" style="background:var(--wx)"></span>Weather</span>
+      <span><span class="sw" style="background:var(--sub)"></span>Subsidence</span>
+      <span><span class="sw" style="background:var(--fl)"></span>Flood</span>
+      <span><span class="sw" style="background:var(--gw)"></span>Groundwater</span>
+    </div>
+    <div id="incidence" class="chart"></div>
+  </div>
+
+  <h2>The numbers</h2>
+  <div class="card" style="overflow-x:auto">
+    <table class="buckets" id="btable"></table>
+  </div>
+  <p class="note" id="worstnote"></p>
+
+  <h2>How many claims, and how big?</h2>
+  <p class="desc">The same simulated buckets, split the other way: how many
+  claims each kind of year produces, and what each claim costs.
+  <span id="g4headline"></span> Counts are claims, not claimants &mdash; a
+  home claiming on two perils counts twice, which is the basis the
+  ABI&rsquo;s own published figure uses.</p>
+  <div class="card" style="overflow-x:auto">
+    <table class="buckets" id="g4counts"></table>
+  </div>
+  <div class="card" style="overflow-x:auto; margin-top:14px">
+    <table class="buckets" id="g4costs"></table>
+  </div>
+
+  <div id="backtest" style="display:none; scroll-margin-top:64px">
+    <h2>Does this match real UK years?</h2>
+    <p class="desc">The loss model can't be validated without claims data — but its
+    <b>hazard drivers</b> can. These are the real drivers, reconstructed from 35 years of
+    ERA5 reanalysis over twelve UK locations. If the model is watching the right things,
+    the years it would call bad should be the years Britain actually remembers.</p>
+    <div class="card">
+      <div class="legend">
+        <span><span class="sw" style="background:var(--wx)"></span>Storm days (gusts ≥ 70 km/h)</span>
+        <span><span class="sw" style="background:var(--sub)"></span>Summer rainfall deficit (subsidence driver)</span>
+      </div>
+      <div id="histchart" class="chart"></div>
+    </div>
+    <div class="card" style="margin-top:14px; overflow-x:auto">
+      <table class="buckets" id="histtable"></table>
+    </div>
+    <p class="note" style="margin-top:10px">Storm days and summer deficits are means across
+    the twelve points; the deficit is measured against each point's own 1991–2020 June–August
+    normal. Event names are the historical record, not model output — they are what these
+    years are known for.</p>
+  </div>
+
+  <div id="sens-section" style="display:none; scroll-margin-top:64px">
+    <h2>Which assumptions matter?</h2>
+    <p class="desc">Each row re-runs the simulation (1-in-3 district sample, 8,000
+    years) with one assumption perturbed. &ldquo;Group churn&rdquo; is the share of sampled
+    districts whose rating-group decile changes vs the sampled baseline.</p>
+    <div class="card" style="overflow-x:auto">
+      <table class="buckets" id="stable"></table>
+    </div>
+  </div>
+  <p class="note">Method: 20,000 simulated portfolio years; perils joined per district by a
+  C-vine copula (weather-root; Gumbel weather–flood, weather–groundwater and
+  weather–subsidence; Gaussian flood–groundwater and flood–subsidence given
+  weather). Each district's year combines the national systemic factor per peril —
+  which carries the vine dependence — with district-level noise (spatial loadings:
+  weather 50%, flood 40%, subsidence 60%, groundwater 70%; storm, drought and
+  aquifer-recharge years are large-scale in the UK, flood more localised), so good
+  years still see scattered claims while bad years cluster nationally. Hazard data:
+  BGS, Met Office, EA/NRW/SEPA (OGL) — see DATA_SOURCES.md. Loss
+  frequencies/severities are illustrative assumptions.</p>
+</div>
+<div class="tooltip" id="tip"></div>
+
+<script>
+const A = {"n_sim":20000,"n_districts":2736,"mean_total":56.9,"buckets":[{"label":"good","share_pct":50.0,"mean_total":28.2,"mean_sub":8.9,"mean_wx":12.0,"mean_fl":6.7,"mean_gw":0.7,"inc_sub_pct":0.07,"inc_wx_pct":0.55,"inc_fl_pct":0.04,"inc_gw_pct":0.0,"indep_mean_total":30.4,"claims_sub_per_100k":72.69,"cost_sub_per_claim":12189,"claims_wx_per_100k":547.17,"cost_wx_per_claim":2194,"claims_fl_per_100k":40.61,"cost_fl_per_claim":16507,"claims_gw_per_100k":4.52,"cost_gw_per_claim":14477,"claims_total_per_100k":664.98,"cost_total_per_claim":4244,"extra_vs_typical":-41.7},{"label":"typical","share_pct":40.0,"mean_total":69.9,"mean_sub":25.7,"mean_wx":18.2,"mean_fl":24.1,"mean_gw":1.9,"inc_sub_pct":0.15,"inc_wx_pct":0.71,"inc_fl_pct":0.09,"inc_gw_pct":0.01,"indep_mean_total":69.1,"claims_sub_per_100k":145.15,"cost_sub_per_claim":17729,"claims_wx_per_100k":709.6,"cost_wx_per_claim":2568,"claims_fl_per_100k":92.74,"cost_fl_per_claim":25940,"claims_gw_per_100k":9.13,"cost_gw_per_claim":20815,"claims_total_per_100k":956.62,"cost_total_per_claim":7308,"extra_vs_typical":0.0},{"label":"bad","share_pct":9.0,"mean_total":136.6,"mean_sub":51.9,"mean_wx":23.3,"mean_fl":57.7,"mean_gw":3.7,"inc_sub_pct":0.21,"inc_wx_pct":0.84,"inc_fl_pct":0.15,"inc_gw_pct":0.01,"indep_mean_total":129.4,"claims_sub_per_100k":212.15,"cost_sub_per_claim":24468,"claims_wx_per_100k":838.32,"cost_wx_per_claim":2781,"claims_fl_per_100k":145.05,"cost_fl_per_claim":39768,"claims_gw_per_100k":13.62,"cost_gw_per_claim":27019,"claims_total_per_100k":1209.14,"cost_total_per_claim":11296,"extra_vs_typical":66.7},{"label":"catastrophic","share_pct":1.0,"mean_total":254.5,"mean_sub":77.8,"mean_wx":24.4,"mean_fl":147.7,"mean_gw":4.5,"inc_sub_pct":0.24,"inc_wx_pct":0.89,"inc_fl_pct":0.2,"inc_gw_pct":0.02,"indep_mean_total":243.3,"claims_sub_per_100k":236.79,"cost_sub_per_claim":32848,"claims_wx_per_100k":891.18,"cost_wx_per_claim":2742,"claims_fl_per_100k":196.45,"cost_fl_per_claim":75195,"claims_gw_per_100k":16.59,"cost_gw_per_claim":27386,"claims_total_per_100k":1341.01,"cost_total_per_claim":18977,"extra_vs_typical":184.6}],"exceedance":{"vine":[[20000.0,666.5],[10000.0,489.2],[6666.67,435.5],[5000.0,431.8],[4000.0,429.8],[3333.33,423.2],[2857.14,408.0],[2500.0,406.7],[2222.22,401.1],[2000.0,398.5],[1818.18,393.5],[1666.67,384.3],[1538.46,378.9],[1428.57,374.9],[1333.33,357.2],[1250.0,353.2],[1176.47,341.0],[1111.11,334.6],[1000.0,326.6],[952.38,326.2],[869.57,318.2],[833.33,316.7],[769.23,315.0],[740.74,314.2],[689.66,309.2],[645.16,299.7],[588.24,297.9],[555.56,296.7],[526.32,293.7],[487.8,290.5],[454.55,282.8],[425.53,278.4],[400.0,275.5],[377.36,268.4],[350.88,263.7],[327.87,258.1],[307.69,256.5],[289.86,255.6],[270.27,248.2],[253.16,245.4],[235.29,242.1],[219.78,238.9],[206.19,233.8],[194.17,229.6],[181.82,227.4],[169.49,225.1],[158.73,221.6],[148.15,218.7],[138.89,216.8],[129.87,213.5],[121.95,208.8],[113.64,206.3],[106.38,203.5],[99.5,200.7],[93.46,196.8],[87.34,193.3],[81.63,190.9],[76.63,188.2],[71.68,184.9],[67.11,182.2],[62.7,178.7],[58.65,176.2],[54.95,174.4],[51.41,171.9],[48.08,169.4],[45.05,167.0],[42.11,164.5],[39.45,162.1],[36.9,159.0],[34.54,156.1],[32.31,153.1],[30.26,150.5],[28.33,148.2],[26.49,146.4],[24.81,143.3],[23.23,141.0],[21.72,138.0],[20.33,135.1],[19.03,132.5],[17.81,129.7],[16.67,127.6],[15.6,124.8],[14.6,121.9],[13.66,119.3],[12.79,116.5],[11.97,114.1],[11.2,111.8],[10.48,109.2],[9.81,106.8],[9.18,104.0],[8.59,101.6],[8.04,99.0],[7.53,96.7],[7.04,94.5],[6.59,92.1],[6.17,89.8],[5.77,87.3],[5.4,84.8],[5.06,82.3],[4.73,79.9],[4.43,77.4],[4.15,74.9],[3.88,72.6],[3.63,70.2],[3.4,67.6],[3.18,65.1],[2.98,62.5],[2.79,60.1],[2.61,57.6],[2.44,55.0],[2.28,52.6],[2.14,49.9],[2.0,47.2]],"indep":[[20000.0,568.2],[10000.0,521.2],[6666.67,500.9],[5000.0,439.7],[4000.0,424.7],[3333.33,390.4],[2857.14,377.8],[2500.0,361.9],[2222.22,360.6],[2000.0,356.1],[1818.18,345.5],[1666.67,344.8],[1538.46,340.1],[1428.57,338.4],[1333.33,335.4],[1250.0,333.3],[1176.47,333.0],[1111.11,330.1],[1000.0,321.9],[952.38,321.9],[869.57,313.5],[833.33,307.2],[769.23,297.9],[740.74,295.1],[689.66,294.1],[645.16,292.7],[588.24,287.1],[555.56,280.7],[526.32,280.5],[487.8,276.7],[454.55,273.5],[425.53,271.6],[400.0,262.7],[377.36,260.7],[350.88,256.4],[327.87,252.2],[307.69,248.4],[289.86,246.2],[270.27,241.4],[253.16,237.1],[235.29,232.1],[219.78,226.5],[206.19,223.8],[194.17,218.9],[181.82,216.7],[169.49,214.1],[158.73,210.2],[148.15,207.8],[138.89,204.0],[129.87,202.3],[121.95,199.8],[113.64,196.8],[106.38,193.8],[99.5,190.9],[93.46,188.2],[87.34,184.1],[81.63,181.3],[76.63,177.1],[71.68,174.1],[67.11,171.5],[62.7,169.6],[58.65,166.3],[54.95,163.3],[51.41,161.6],[48.08,159.0],[45.05,156.9],[42.11,154.7],[39.45,152.4],[36.9,149.8],[34.54,147.4],[32.31,144.8],[30.26,142.1],[28.33,138.8],[26.49,136.8],[24.81,134.1],[23.23,131.4],[21.72,129.6],[20.33,127.1],[19.03,125.0],[17.81,122.5],[16.67,120.6],[15.6,118.3],[14.6,116.3],[13.66,114.0],[12.79,111.7],[11.97,109.6],[11.2,107.6],[10.48,105.2],[9.81,102.6],[9.18,100.5],[8.59,98.1],[8.04,95.9],[7.53,94.1],[7.04,91.9],[6.59,89.6],[6.17,87.4],[5.77,85.0],[5.4,82.8],[5.06,80.6],[4.73,78.4],[4.43,75.8],[4.15,73.7],[3.88,71.3],[3.63,68.9],[3.4,66.7],[3.18,64.5],[2.98,62.4],[2.79,60.2],[2.61,57.7],[2.44,55.4],[2.28,53.2],[2.14,50.8],[2.0,48.4]]},"worst_year":{"total":666.5,"sub":19.7,"wx":32.8,"fl":614.0,"gw":0.0,"inc_wx_pct":0.8,"inc_fl_pct":0.2,"inc_sub_pct":0.1,"inc_gw_pct":0.0}};
+const SENS = {"baseline":{"mean_el":166.4,"mean_premium":172.2,"mean_el_erosion":4.5,"mean_tvar99":12940.8,"mean_uplift_pct":10.26,"cat_year_cost":423.0,"cat_vs_indep_pct":1.3,"group_churn_pct":0.0},"theta_low":{"mean_el":166.4,"mean_premium":172.1,"mean_el_erosion":4.5,"mean_tvar99":13131.0,"mean_uplift_pct":11.45,"cat_year_cost":422.9,"cat_vs_indep_pct":1.3,"group_churn_pct":0.0},"theta_high":{"mean_el":166.4,"mean_premium":172.2,"mean_el_erosion":4.5,"mean_tvar99":12725.9,"mean_uplift_pct":8.74,"cat_year_cost":423.0,"cat_vs_indep_pct":1.3,"group_churn_pct":0.7},"rho2_zero":{"mean_el":166.4,"mean_premium":172.2,"mean_el_erosion":4.5,"mean_tvar99":12801.5,"mean_uplift_pct":8.93,"cat_year_cost":422.7,"cat_vs_indep_pct":1.2,"group_churn_pct":0.0},"rho2_high":{"mean_el":166.4,"mean_premium":172.2,"mean_el_erosion":4.5,"mean_tvar99":13229.6,"mean_uplift_pct":12.92,"cat_year_cost":423.7,"cat_vs_indep_pct":1.5,"group_churn_pct":0.7},"sev_sigma_up":{"mean_el":166.4,"mean_premium":172.2,"mean_el_erosion":4.5,"mean_tvar99":12898.8,"mean_uplift_pct":9.91,"cat_year_cost":474.3,"cat_vs_indep_pct":1.1,"group_churn_pct":0.0},"flood_freq_150":{"mean_el":176.4,"mean_premium":182.7,"mean_el_erosion":4.5,"mean_tvar99":14253.9,"mean_uplift_pct":10.32,"cat_year_cost":474.1,"cat_vs_indep_pct":1.0,"group_churn_pct":23.7},"erosion_no_intervention":{"mean_el":166.4,"mean_premium":172.2,"mean_el_erosion":10.5,"mean_tvar99":12940.8,"mean_uplift_pct":10.26,"cat_year_cost":423.0,"cat_vs_indep_pct":1.3,"group_churn_pct":0.0},"depth_flat":{"mean_el":166.6,"mean_premium":172.4,"mean_el_erosion":4.5,"mean_tvar99":12964.5,"mean_uplift_pct":10.01,"cat_year_cost":425.9,"cat_vs_indep_pct":1.5,"group_churn_pct":12.3},"depth_half":{"mean_el":166.5,"mean_premium":172.3,"mean_el_erosion":4.5,"mean_tvar99":12952.3,"mean_uplift_pct":10.12,"cat_year_cost":423.6,"cat_vs_indep_pct":1.4,"group_churn_pct":7.8},"depth_steep":{"mean_el":166.3,"mean_premium":172.1,"mean_el_erosion":4.5,"mean_tvar99":12931.0,"mean_uplift_pct":10.39,"cat_year_cost":425.1,"cat_vs_indep_pct":1.3,"group_churn_pct":8.6},"depth_jrc_eu":{"mean_el":166.3,"mean_premium":172.1,"mean_el_erosion":4.5,"mean_tvar99":12930.3,"mean_uplift_pct":10.4,"cat_year_cost":425.2,"cat_vs_indep_pct":1.1,"group_churn_pct":8.3},"sw_band_ratio_2_5":{"mean_el":166.3,"mean_premium":172.1,"mean_el_erosion":4.5,"mean_tvar99":12942.9,"mean_uplift_pct":10.49,"cat_year_cost":421.9,"cat_vs_indep_pct":1.4,"group_churn_pct":3.9},"sw_band_ratio_10":{"mean_el":166.4,"mean_premium":172.2,"mean_el_erosion":4.5,"mean_tvar99":12939.3,"mean_uplift_pct":10.13,"cat_year_cost":423.5,"cat_vs_indep_pct":1.2,"group_churn_pct":2.9},"rs_low_ratio_147":{"mean_el":166.3,"mean_premium":172.1,"mean_el_erosion":4.5,"mean_tvar99":12931.3,"mean_uplift_pct":10.27,"cat_year_cost":422.3,"cat_vs_indep_pct":1.1,"group_churn_pct":5.3},"rs_low_ratio_247":{"mean_el":166.4,"mean_premium":172.2,"mean_el_erosion":4.5,"mean_tvar99":12947.6,"mean_uplift_pct":10.25,"cat_year_cost":423.5,"cat_vs_indep_pct":1.4,"group_churn_pct":5.3},"flood_rs_weight_067":{"mean_el":166.4,"mean_premium":172.2,"mean_el_erosion":4.5,"mean_tvar99":12940.8,"mean_uplift_pct":10.25,"cat_year_cost":424.8,"cat_vs_indep_pct":1.7,"group_churn_pct":15.5},"flood_rs_weight_150":{"mean_el":166.4,"mean_premium":172.2,"mean_el_erosion":4.5,"mean_tvar99":12938.8,"mean_uplift_pct":10.34,"cat_year_cost":421.5,"cat_vs_indep_pct":0.8,"group_churn_pct":13.6},"rs_top_ratio_130":{"mean_el":166.3,"mean_premium":172.1,"mean_el_erosion":4.5,"mean_tvar99":12934.2,"mean_uplift_pct":10.25,"cat_year_cost":423.0,"cat_vs_indep_pct":1.4,"group_churn_pct":4.8},"rs_top_ratio_218":{"mean_el":166.4,"mean_premium":172.3,"mean_el_erosion":4.5,"mean_tvar99":12949.7,"mean_uplift_pct":10.27,"cat_year_cost":422.9,"cat_vs_indep_pct":1.1,"group_churn_pct":5.5},"gw_share_05":{"mean_el":165.6,"mean_premium":171.4,"mean_el_erosion":4.5,"mean_tvar99":12803.6,"mean_uplift_pct":9.1,"cat_year_cost":420.8,"cat_vs_indep_pct":1.1,"group_churn_pct":2.1},"gw_share_20":{"mean_el":167.8,"mean_premium":173.7,"mean_el_erosion":4.5,"mean_tvar99":13171.1,"mean_uplift_pct":12.16,"cat_year_cost":427.4,"cat_vs_indep_pct":1.7,"group_churn_pct":3.4},"gw_background_01":{"mean_el":166.3,"mean_premium":172.2,"mean_el_erosion":4.5,"mean_tvar99":12931.1,"mean_uplift_pct":10.18,"cat_year_cost":423.0,"cat_vs_indep_pct":1.3,"group_churn_pct":0.7},"gw_background_04":{"mean_el":166.4,"mean_premium":172.2,"mean_el_erosion":4.5,"mean_tvar99":12942.2,"mean_uplift_pct":10.27,"cat_year_cost":422.9,"cat_vs_indep_pct":1.3,"group_churn_pct":1.8},"spatial_equal":{"mean_el":166.4,"mean_premium":172.2,"mean_el_erosion":4.5,"mean_tvar99":12940.8,"mean_uplift_pct":10.26,"cat_year_cost":423.8,"cat_vs_indep_pct":1.0,"group_churn_pct":1.1}};
+const HIST = [{"year":"1990","storm_days":45.33,"max_gust":124.6,"rain5d":55.8,"jja_deficit":60.4,"jja_tmax":19.06},{"year":"1991","storm_days":31.08,"max_gust":103.8,"rain5d":56.2,"jja_deficit":37.1,"jja_tmax":18.18},{"year":"1992","storm_days":26.08,"max_gust":98.4,"rain5d":62.2,"jja_deficit":-7.0,"jja_tmax":18.44},{"year":"1993","storm_days":31.25,"max_gust":116.9,"rain5d":61.8,"jja_deficit":34.2,"jja_tmax":17.35},{"year":"1994","storm_days":33.0,"max_gust":107.1,"rain5d":52.3,"jja_deficit":73.0,"jja_tmax":18.84},{"year":"1995","storm_days":25.75,"max_gust":105.4,"rain5d":58.5,"jja_deficit":154.2,"jja_tmax":20.52},{"year":"1996","storm_days":17.33,"max_gust":99.0,"rain5d":46.4,"jja_deficit":60.0,"jja_tmax":18.63},{"year":"1997","storm_days":24.92,"max_gust":116.5,"rain5d":57.6,"jja_deficit":-16.2,"jja_tmax":19.12},{"year":"1998","storm_days":27.92,"max_gust":113.1,"rain5d":60.5,"jja_deficit":-4.4,"jja_tmax":17.4},{"year":"1999","storm_days":30.75,"max_gust":110.7,"rain5d":61.6,"jja_deficit":8.0,"jja_tmax":18.46},{"year":"2000","storm_days":32.83,"max_gust":115.1,"rain5d":62.3,"jja_deficit":34.5,"jja_tmax":17.95},{"year":"2001","storm_days":14.42,"max_gust":93.1,"rain5d":53.3,"jja_deficit":14.6,"jja_tmax":18.33},{"year":"2002","storm_days":28.92,"max_gust":114.8,"rain5d":65.7,"jja_deficit":11.1,"jja_tmax":18.14},{"year":"2003","storm_days":14.58,"max_gust":89.8,"rain5d":53.0,"jja_deficit":46.4,"jja_tmax":20.03},{"year":"2004","storm_days":27.0,"max_gust":105.4,"rain5d":62.8,"jja_deficit":-64.7,"jja_tmax":18.56},{"year":"2005","storm_days":22.75,"max_gust":110.9,"rain5d":58.0,"jja_deficit":41.4,"jja_tmax":18.82},{"year":"2006","storm_days":25.0,"max_gust":103.1,"rain5d":57.6,"jja_deficit":58.0,"jja_tmax":20.04},{"year":"2007","storm_days":29.67,"max_gust":115.9,"rain5d":63.2,"jja_deficit":-94.7,"jja_tmax":17.57},{"year":"2008","storm_days":33.42,"max_gust":107.2,"rain5d":68.1,"jja_deficit":-46.7,"jja_tmax":17.94},{"year":"2009","storm_days":23.17,"max_gust":100.4,"rain5d":57.4,"jja_deficit":-33.3,"jja_tmax":18.34},{"year":"2010","storm_days":9.17,"max_gust":91.7,"rain5d":55.6,"jja_deficit":13.6,"jja_tmax":18.55},{"year":"2011","storm_days":24.92,"max_gust":97.9,"rain5d":57.6,"jja_deficit":-11.0,"jja_tmax":17.5},{"year":"2012","storm_days":20.5,"max_gust":106.8,"rain5d":68.9,"jja_deficit":-138.9,"jja_tmax":17.37},{"year":"2013","storm_days":28.42,"max_gust":118.8,"rain5d":50.7,"jja_deficit":58.8,"jja_tmax":19.41},{"year":"2014","storm_days":28.17,"max_gust":107.9,"rain5d":54.0,"jja_deficit":-9.4,"jja_tmax":18.63},{"year":"2015","storm_days":41.75,"max_gust":108.1,"rain5d":58.9,"jja_deficit":-13.2,"jja_tmax":18.0},{"year":"2016","storm_days":19.42,"max_gust":104.2,"rain5d":50.9,"jja_deficit":2.6,"jja_tmax":18.81},{"year":"2017","storm_days":27.67,"max_gust":104.7,"rain5d":55.2,"jja_deficit":-63.6,"jja_tmax":18.7},{"year":"2018","storm_days":31.83,"max_gust":107.3,"rain5d":55.3,"jja_deficit":63.9,"jja_tmax":20.76},{"year":"2019","storm_days":32.67,"max_gust":103.4,"rain5d":72.1,"jja_deficit":-106.1,"jja_tmax":19.34},{"year":"2020","storm_days":45.33,"max_gust":117.2,"rain5d":80.2,"jja_deficit":-102.2,"jja_tmax":18.89},{"year":"2021","storm_days":23.67,"max_gust":98.7,"rain5d":73.1,"jja_deficit":-12.0,"jja_tmax":19.36},{"year":"2022","storm_days":24.75,"max_gust":108.9,"rain5d":56.5,"jja_deficit":64.2,"jja_tmax":20.8},{"year":"2023","storm_days":22.0,"max_gust":94.8,"rain5d":71.0,"jja_deficit":-81.7,"jja_tmax":19.68},{"year":"2024","storm_days":26.67,"max_gust":102.9,"rain5d":78.1,"jja_deficit":-15.0,"jja_tmax":18.73}];
+const ABI = {"annual":[{"y":2022,"m":"home_paid_total","v":2330.0,"basis":"published","vintage":"2024-04 release comparative"},{"y":2022,"m":"weather_homes_total","v":421.0,"basis":"published","vintage":"2024-04 release comparative"},{"y":2023,"m":"burstpipes_avg_gbp","v":17000.0,"basis":"published","vintage":"2024-11 and 2025-01 winter advice"},{"y":2023,"m":"burstpipes_count","v":12000.0,"basis":"published","vintage":"2024-11 and 2025-01 winter advice"},{"y":2023,"m":"burstpipes_homes","v":153.0,"basis":"published","vintage":"2024-04 release"},{"y":2023,"m":"flood_homes","v":286.0,"basis":"published","vintage":"2024-04 release"},{"y":2023,"m":"home_paid_total","v":2550.0,"basis":"published","vintage":"2024-04 release"},{"y":2023,"m":"storm_homes","v":133.0,"basis":"published","vintage":"2024-04 release"},{"y":2023,"m":"weather_homes_total","v":573.0,"basis":"published","vintage":"2024-04 release"},{"y":2023,"m":"weather_homes_total","v":458.0,"basis":"restated","vintage":"2025-02 release comparative"},{"y":2024,"m":"burstpipes_avg_gbp","v":33000.0,"basis":"reported - ABI primary 404","vintage":"2026-01 cold-weather advice"},{"y":2024,"m":"burstpipes_count","v":8000.0,"basis":"reported - ABI primary 404","vintage":"2026-01 cold-weather advice"},{"y":2024,"m":"burstpipes_homes","v":174.0,"basis":"derived","vintage":"2025-02 release, residual"},{"y":2024,"m":"burstpipes_settled_total","v":250.0,"basis":"reported - ABI primary 404","vintage":"2026-01 cold-weather advice"},{"y":2024,"m":"flood_avg_gbp","v":18750.0,"basis":"derived","vintage":"2026-02 release comparative"},{"y":2024,"m":"flood_homes","v":226.0,"basis":"derived","vintage":"2026-02 release comparative"},{"y":2024,"m":"storm_avg_gbp","v":1700.0,"basis":"derived","vintage":"2026-02 release comparative"},{"y":2024,"m":"storm_homes","v":185.0,"basis":"derived","vintage":"2026-02 release comparative"},{"y":2024,"m":"subsidence_homes","v":280.0,"basis":"derived","vintage":"2026-02 release comparative"},{"y":2024,"m":"weather_homes_total","v":585.0,"basis":"published","vintage":"2025-02 release"},{"y":2025,"m":"avg_home_claim_gbp","v":6000.0,"basis":"published","vintage":"2026-02 release"},{"y":2025,"m":"burstpipes_homes","v":202.0,"basis":"derived","vintage":"2026-02 release"},{"y":2025,"m":"flood_avg_gbp","v":30000.0,"basis":"published","vintage":"2026-02 release"},{"y":2025,"m":"flood_homes","v":312.0,"basis":"published","vintage":"2026-02 release"},{"y":2025,"m":"home_claims_count","v":560000.0,"basis":"published","vintage":"2026-02 release"},{"y":2025,"m":"home_paid_total","v":3400.0,"basis":"published","vintage":"2026-02 release"},{"y":2025,"m":"storm_avg_gbp","v":2450.0,"basis":"published","vintage":"2026-02 release"},{"y":2025,"m":"storm_homes","v":244.0,"basis":"published","vintage":"2026-02 release"},{"y":2025,"m":"subsidence_homes","v":307.0,"basis":"published","vintage":"2026-02 release"},{"y":2025,"m":"weather_homes_total","v":758.0,"basis":"published","vintage":"2026-02 release"}],"sources":[{"label":"ABI 2018-12","url":"https://www.abi.org.uk/news/news-articles/2018/subsidence-claims-quadruple-to-highest-level-in-more-than-a-decade/"},{"label":"ABI 2023 Q2 release comparative","url":"https://www.abi.org.uk/news/news-articles/2023/9/home-insurance-payouts-up-11/"},{"label":"ABI 2023-03","url":"https://www.abi.org.uk/media-hub/news-post/surge-in-subsidence-payouts"},{"label":"ABI 2024 Q2 release comparative","url":"https://www.abi.org.uk/news/news-articles/2024/8/property-insurance-payouts-hit-record-quarterly-high/"},{"label":"ABI 2024 Q3 release comparative","url":"https://www.abi.org.uk/news/news-articles/2024/112/year-to-date-property-claims-payouts-hit-4.1-billion/"},{"label":"ABI 2024-04","url":"https://www.abi.org.uk/news/news-articles/2024/4/weather-damage-insurance-claims-worst-on-record/"},{"label":"ABI 2024-11","url":"https://www.abi.org.uk/news/news-articles/2025/1/stay-safe-in-cold-weather--insurance-advice-from-the-abi/"},{"label":"ABI 2025-02","url":"https://www.abi.org.uk/news/news-articles/2025/2/more-action-needed-to-protect-properties-as-adverse-weather-takes-record-toll-on-insurance-claims-in-2024/"},{"label":"ABI 2025-08","url":"https://www.abi.org.uk/news/news-articles/2025/7/insurance-support-tops-150-million-for-homes-affected-by-subsidence/"},{"label":"ABI 2026-01","url":"https://www.abi.org.uk/media-hub/news-post/the-abi-issues-advice-for-homeowners-and-drivers-ahead-of-upcoming-cold-weather"},{"label":"ABI 2026-02","url":"https://www.abi.org.uk/media-hub/news-post/adverse-weather-pushes-property-insurance-payouts-to-61-billion-in-2025"},{"label":"ABI 2026-05","url":"https://www.abi.org.uk/media-hub/news-post/home-insurers-pay-out-846-million-to-support-households"},{"label":"ABI 2026-08","url":"https://www.abi.org.uk/media-hub/news-post/average-claim-for-subsidence-reaches-record-20000-amidst-hot-weather"}]};
+const ABISUB = {"rows":[{"p":"2018Q2","m":"subsidence_claims","v":2500.0,"unit":"count","basis":"notified_count","prov":"published","vintage":"ABI 2018-12"},{"p":"2018Q2","m":"subsidence_incurred","v":14.0,"unit":"gbp_m","basis":"incurred_notified","prov":"published","vintage":"ABI 2018-12"},{"p":"2018Q3","m":"subsidence_claims","v":10000.0,"unit":"count","basis":"notified_count","prov":"published","vintage":"ABI 2018-12"},{"p":"2018Q3","m":"subsidence_incurred","v":64.0,"unit":"gbp_m","basis":"incurred_notified","prov":"published","vintage":"ABI 2018-12"},{"p":"2022","m":"subsidence_avg","v":9600.0,"unit":"gbp","basis":"avg_incurred","prov":"published","vintage":"ABI 2023-03"},{"p":"2022","m":"subsidence_claims","v":23000.0,"unit":"count","basis":"notified_count","prov":"published","vintage":"ABI 2023-03"},{"p":"2022","m":"subsidence_incurred","v":219.0,"unit":"gbp_m","basis":"incurred_ultimate","prov":"published","vintage":"ABI 2023-03"},{"p":"2022H2","m":"subsidence_claims","v":18000.0,"unit":"count","basis":"notified_count","prov":"published","vintage":"ABI 2023-03"},{"p":"2022Q2","m":"subsidence_paid","v":45.0,"unit":"gbp_m","basis":"paid_in_period","prov":"published","vintage":"ABI 2023 Q2 release comparative"},{"p":"2023Q2","m":"subsidence_paid","v":54.0,"unit":"gbp_m","basis":"paid_in_period","prov":"published","vintage":"ABI 2023 Q2 release"},{"p":"2023Q3","m":"subsidence_paid","v":41.0,"unit":"gbp_m","basis":"paid_in_period","prov":"derived","vintage":"ABI 2024 Q3 release comparative"},{"p":"2024","m":"subsidence_paid","v":280.0,"unit":"gbp_m","basis":"paid_in_period","prov":"derived","vintage":"ABI 2026-02"},{"p":"2024Q1","m":"subsidence_paid","v":53.0,"unit":"gbp_m","basis":"paid_in_period","prov":"published","vintage":"ABI 2024 Q2 release comparative"},{"p":"2024Q2","m":"subsidence_paid","v":60.0,"unit":"gbp_m","basis":"paid_in_period","prov":"published","vintage":"ABI 2024 Q2 release"},{"p":"2024Q2","m":"subsidence_paid","v":59.0,"unit":"gbp_m","basis":"paid_in_period","prov":"restated","vintage":"ABI 2024 Q3 release comparative"},{"p":"2024Q3","m":"subsidence_paid","v":66.0,"unit":"gbp_m","basis":"paid_in_period","prov":"published","vintage":"ABI 2024 Q3 release"},{"p":"2025","m":"subsidence_paid","v":307.0,"unit":"gbp_m","basis":"paid_in_period","prov":"published","vintage":"ABI 2026-02"},{"p":"2025H1","m":"subsidence_avg","v":17264.0,"unit":"gbp","basis":"avg_paid","prov":"published","vintage":"ABI 2025-08"},{"p":"2025H1","m":"subsidence_claims","v":9000.0,"unit":"count","basis":"supported_households","prov":"published","vintage":"ABI 2025-08"},{"p":"2025H1","m":"subsidence_paid","v":153.0,"unit":"gbp_m","basis":"paid_in_period","prov":"published","vintage":"ABI 2025-08"},{"p":"2025Q1","m":"subsidence_avg","v":16295.0,"unit":"gbp","basis":"avg_paid","prov":"published","vintage":"ABI 2026-05"},{"p":"2025Q2","m":"subsidence_avg","v":18000.0,"unit":"gbp","basis":"avg_paid","prov":"derived","vintage":"ABI 2026-08"},{"p":"2026Q1","m":"subsidence_avg","v":17820.0,"unit":"gbp","basis":"avg_paid","prov":"published","vintage":"ABI 2026-05"},{"p":"2026Q2","m":"subsidence_avg","v":20000.0,"unit":"gbp","basis":"avg_paid","prov":"published","vintage":"ABI 2026-08"},{"p":"2026Q2","m":"subsidence_claims","v":3600.0,"unit":"count","basis":"implied","prov":"derived","vintage":"ABI 2026-08"},{"p":"2026Q2","m":"subsidence_paid","v":72.0,"unit":"gbp_m","basis":"paid_in_period","prov":"published","vintage":"ABI 2026-08"}]};
+const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+const GBP = v => '£' + Math.round(v).toLocaleString('en-GB');
+const tip = document.getElementById('tip');
+function showTip(html, x, y) {
+  tip.innerHTML = html; tip.style.display = 'block';
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.min(x + 14, innerWidth - w - 8) + 'px';
+  tip.style.top = Math.max(y - h - 12, 8) + 'px';
+}
+function hideTip() { tip.style.display = 'none'; }
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+document.getElementById('nsim').textContent = A.n_sim.toLocaleString('en-GB');
+
+/* ---- responsive chart geometry ----------------------------------------
+   Every chart is drawn in viewBox units and stretched to the card width.
+   On a desktop card that is roughly 1:1, so an 11px label reads as 11px.
+   Squeeze the same 900-unit canvas into a ~300px phone card and the whole
+   drawing scales by 0.33 - correct layout, 3.6px text, unreadable.
+
+   So below a breakpoint we draw on a canvas the width of the card. viewBox
+   units become CSS pixels again, type comes back to full size, and the
+   plot is genuinely smaller - which means the tick and label density has
+   to come down with it, or the labels collide instead of shrinking. Each
+   chart passes its own narrow overrides for that.
+
+   Charts re-draw on resize (and orientation change) rather than only at
+   load, so rotating the phone does not leave a chart laid out for the
+   other orientation. */
+const NARROW_AT = 560;
+function geom(mount, wide, narrow) {
+  const avail = Math.max(document.getElementById(mount).clientWidth || 0, 260);
+  return avail >= NARROW_AT
+    ? Object.assign({ narrow: false }, wide)
+    : Object.assign({ narrow: true }, wide, { W: Math.round(avail) }, narrow);
+}
+/* £1,000 is six glyphs of axis label; on a narrow plot that is most of the
+   left margin, so compact it. */
+const GBPk = v => v >= 1000 ? '£' + (v / 1000).toFixed(v % 1000 ? 1 : 0) + 'k'
+                            : '£' + Math.round(v);
+/* "catastrophic" does not fit a quarter of a phone-width plot. */
+const SHORT = { good: 'good', typical: 'typical', bad: 'bad', catastrophic: 'worst 1%' };
+
+const CHARTS = [];
+function chart(mount, draw) { CHARTS.push({ mount, draw, key: null }); }
+/* Which canvas width the current card calls for. Redraws are keyed on this
+   rather than on the pixel width, so a 1px reflow does not rebuild four
+   charts - and, more importantly, redrawing cannot re-trigger itself,
+   because a redraw never changes the card's WIDTH. */
+function widthKey(m) {
+  const avail = Math.max(m.clientWidth || 0, 260);
+  return avail >= NARROW_AT ? 'wide' : Math.round(avail);
+}
+function renderCharts(force) {
+  for (const c of CHARTS) {
+    const m = document.getElementById(c.mount);
+    if (!m) continue;
+    const k = widthKey(m);
+    if (!force && k === c.key) continue;
+    c.key = k;
+    m.textContent = '';
+    c.draw(m);
+  }
+}
+/* Observe the cards, not the window. A ResizeObserver fires whenever the
+   container's box changes for ANY reason - rotation, a font finally
+   loading, the page being embedded somewhere narrower - whereas a window
+   resize listener only catches one of those. It also catches viewport
+   changes that never dispatch a window resize event at all, which is
+   exactly what happens under an automated browser. Both are wired up; the
+   width key makes the duplicate harmless. */
+if (typeof ResizeObserver !== 'undefined') {
+  const ro = new ResizeObserver(() => renderCharts());
+  // after this script finishes, so every chart has registered
+  queueMicrotask(() => CHARTS.forEach(c => {
+    const m = document.getElementById(c.mount);
+    if (m) ro.observe(m);
+  }));
+}
+let _rt;
+addEventListener('resize', () => { clearTimeout(_rt); _rt = setTimeout(renderCharts, 150); });
+
+/* ---- observed: ABI payouts, with their own revisions visible ---------
+   Every row of data/abi_annual.csv carries the release it came from. The
+   chart plots the LATEST figure per year as the series and every
+   superseded figure as a hollow ghost marker at the same x - the
+   revision is part of the record, not a footnote. Latest = lexically
+   greatest vintage, which works because vintages start "YYYY-MM". */
+const latestBy = (rows, key) => {
+  const m = new Map();
+  for (const r of rows) {
+    const k = key(r);
+    if (!m.has(k) || r.vintage > m.get(k).vintage) m.set(k, r);
+  }
+  return m;
+};
+
+chart('abichart', function (mount) {
+  const g = geom('abichart', { W: 900, H: 300, L: 56, R: 16, T: 16, B: 30, GAP: 26 },
+                             { H: 250, L: 40, R: 10, T: 12, B: 28, GAP: 20 });
+  const { W, H, L, R, T, B, GAP } = g;
+  const panelH = (H - T - B - GAP) / 2;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
+  const series = [['weather_homes_total', '--wx', 'weather claims paid (£m)'],
+                  ['home_paid_total', '--indep', 'all home claims paid (£m)']];
+  const years = [...new Set(ABI.annual
+    .filter(r => series.some(s => s[0] === r.m)).map(r => r.y))].sort();
+  const slot = (W - L - R) / years.length;
+  const x = yr => L + (years.indexOf(yr) + 0.5) * slot;
+
+  series.forEach(([metric, colour, label], pi) => {
+    const rows = ABI.annual.filter(r => r.m === metric);
+    const latest = latestBy(rows, r => r.y);
+    const y0 = T + pi * (panelH + GAP) + 10;
+    const hi = Math.max(...rows.map(r => r.v)) * 1.12;
+    const y = v => y0 + panelH - (v / hi) * panelH;
+    el('text', { x: L, y: y0 - 3, class: 'axis-label' }, svg).textContent = label;
+    for (const v of [0, hi / 1.12]) {
+      el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: css('--grid') }, svg);
+      el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+        .textContent = Math.round(v).toLocaleString('en-GB');
+    }
+    const pts = [...latest.values()].sort((a, b) => a.y - b.y);
+    el('path', { d: pts.map((r, i) => (i ? 'L' : 'M') + x(r.y).toFixed(1) + ' ' + y(r.v).toFixed(1)).join(' '),
+                 fill: 'none', stroke: css(colour), 'stroke-width': 2 }, svg);
+    for (const r of rows) {
+      const cur = latest.get(r.y) === r;
+      const dot = el('circle', {
+        cx: x(r.y), cy: y(r.v), r: cur ? 4.5 : 4,
+        fill: cur ? css(colour) : css('--surface-1'),
+        stroke: css(colour), 'stroke-width': cur ? 0 : 2,
+      }, svg);
+      dot.addEventListener('mousemove', ev => showTip(
+        `<b>${r.y}</b> · £${r.v.toLocaleString('en-GB')}m<br>` +
+        (cur ? `${r.basis} · ${r.vintage}`
+             : `as first published (${r.vintage.replace(' comparative', '')})<br>since revised to £${latest.get(r.y).v.toLocaleString('en-GB')}m`),
+        ev.clientX, ev.clientY));
+      dot.addEventListener('mouseleave', hideTip);
+    }
+  });
+  years.forEach(yr => {
+    el('text', { x: x(yr), y: H - 8, 'text-anchor': 'middle', class: 'tick-label' }, svg)
+      .textContent = yr;
+  });
+});
+
+/* ---- observed: homes claiming, by peril ---- */
+chart('abicount', function (mount) {
+  const g = geom('abicount', { W: 900, H: 260, L: 56, R: 16, T: 18, B: 34 },
+                             { H: 220, L: 40, R: 10, T: 14, B: 32 });
+  const { W, H, L, R, T, B } = g;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
+  const perils = [['storm_homes', '--wx', 'Storm'], ['flood_homes', '--fl', 'Flood'],
+                  ['subsidence_homes', '--sub', 'Subsidence'],
+                  ['burstpipes_homes', '--eow', 'Burst pipes']];
+  const rows = ABI.annual.filter(r => perils.some(p => p[0] === r.m));
+  const latest = latestBy(rows, r => r.m + '|' + r.y);
+  const years = [...new Set(rows.map(r => r.y))].sort();
+  const hi = Math.max(...rows.map(r => r.v)) * 1.15;
+  const y = v => T + (1 - v / hi) * (H - T - B);
+  const slot = (W - L - R) / years.length;
+  const gap = g.narrow ? 2 : 6;
+  const bw = Math.min(34, (slot * 0.86 - 3 * gap) / 4);
+  const kfmt = v => v >= 1000 ? Math.round(v / 1000) + 'k' : v;
+  const ystep = hi > 80000 ? 20000 : 10000;
+  for (let v = 0; v <= hi; v += ystep) {
+    el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: css('--grid') }, svg);
+    el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = kfmt(v);
+  }
+  el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: css('--axis') }, svg);
+  years.forEach((yr, i) => {
+    const cx = L + slot * (i + 0.5);
+    perils.forEach(([m, colour, name], j) => {
+      const r = latest.get(m + '|' + yr);
+      if (!r) return;   // not every peril count is published every year
+      const bx = cx + (j - 1.5) * (bw + gap) - bw / 2;
+      const rect = el('rect', { x: bx, y: y(r.v), width: bw, height: H - B - y(r.v),
+                                fill: css(colour), rx: 2 }, svg);
+      rect.addEventListener('mousemove', ev => showTip(
+        `<b>${yr}</b> · ${name}<br><b>${r.v.toLocaleString('en-GB')}</b> homes claimed<br>${r.basis} · ${r.vintage}`,
+        ev.clientX, ev.clientY));
+      rect.addEventListener('mouseleave', hideTip);
+    });
+    el('text', { x: cx, y: H - B + 17, 'text-anchor': 'middle', class: 'tick-label' }, svg)
+      .textContent = yr;
+  });
+});
+
+/* ---- observed: the quarterly subsidence record ---- */
+(function () {
+  const BAS = { notified_count: 'notified', incurred_notified: 'incurred',
+                incurred_ultimate: 'ultimate', paid_in_period: 'paid in period',
+                avg_incurred: 'avg incurred', avg_paid: 'avg paid',
+                implied: 'implied', supported_households: 'households' };
+  const COLS = [['subsidence_claims', v => v.toLocaleString('en-GB')],
+                ['subsidence_incurred', v => '£' + v.toLocaleString('en-GB') + 'm'],
+                ['subsidence_paid', v => '£' + v.toLocaleString('en-GB') + 'm'],
+                ['subsidence_avg', v => '£' + v.toLocaleString('en-GB')]];
+  const periods = [...new Set(ABISUB.rows.map(r => r.p))].sort();
+  const html = periods.map(p => {
+    const cells = COLS.map(([m, fmt]) => {
+      const es = ABISUB.rows.filter(r => r.p === p && r.m === m);
+      return '<td>' + (es.length ? es.map(r =>
+        fmt(r.v) + (r.prov !== 'published' || es.length > 1
+          ? ` <small style="color:var(--ink-muted)">(${BAS[r.basis] || r.basis}${r.prov !== 'published' ? ', ' + r.prov : ''})</small>` : ''))
+        .join('<br>') : '—') + '</td>';
+    }).join('');
+    const vint = [...new Set(ABISUB.rows.filter(r => r.p === p).map(r => r.vintage))].sort();
+    return `<tr><td class="hl">${p}</td>${cells}<td><small>${vint.join('; ')}</small></td></tr>`;
+  }).join('');
+  document.getElementById('abisub').innerHTML =
+    `<tr><th>Period</th><th>Claims</th><th>Incurred</th><th>Paid</th>
+     <th>Avg / claim</th><th>ABI release</th></tr>` + html;
+
+  const links = ABI.sources.map(s => `<a href="${s.url}">${s.label}</a>`).join(' · ');
+  document.getElementById('abisources').innerHTML =
+    `<b>Sources.</b> ${links} · full provenance, including every recovered
+     figure's exact wording: <a href="https://github.com/SMcode-source/uk-home-insurance-risk-map/blob/main/data/abi_annual.csv">abi_annual.csv</a>
+     and <a href="https://github.com/SMcode-source/uk-home-insurance-risk-map/blob/main/data/abi_subsidence.csv">abi_subsidence.csv</a>
+     · how these anchor the model: <a href="methodology.html#calibration">methodology</a>.`;
+})();
+
+/* ---- stat tiles ---- */
+const bk = Object.fromEntries(A.buckets.map(b => [b.label, b]));
+const cat = bk.catastrophic, bad = bk.bad, typ = bk.typical;
+const tiles = [
+  ['Typical year', GBP(typ.mean_total), 'per policy, 50–90th percentile years'],
+  ['Bad year (1-in-10)', GBP(bad.mean_total), '+' + GBP(bad.extra_vs_typical) + ' vs typical'],
+  ['Catastrophic year (1-in-100)', GBP(cat.mean_total), '+' + GBP(cat.extra_vs_typical) + ' vs typical'],
+  ['Cost of dependence', '+' + Math.round(100 * (cat.mean_total - cat.indep_mean_total) / cat.indep_mean_total) + '%',
+   'catastrophic-year cost vs independence (' + GBP(cat.indep_mean_total) + ')'],
+];
+document.getElementById('tiles').innerHTML = tiles.map(t =>
+  `<div class="tile"><div class="k">${t[0]}</div><div class="v">${t[1]}</div><div class="d">${t[2]}</div></div>`).join('');
+
+/* ---- exceedance chart ---- */
+chart('exceedance', function (mount) {
+  const g = geom('exceedance', { W: 900, H: 340, L: 64, R: 20, T: 16, B: 44 },
+                                { H: 250, L: 40, R: 12, T: 12, B: 40 });
+  const { W, H, L, R, T, B } = g;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
+  const vine = A.exceedance.vine.filter(d => d[0] >= 2 && d[0] <= 1000);
+  const ind = A.exceedance.indep.filter(d => d[0] >= 2 && d[0] <= 1000);
+  const ymax = Math.max(...vine.map(d => d[1])) * 1.08;
+  const x = rp => L + (Math.log10(rp) - Math.log10(2)) / (3 - Math.log10(2)) * (W - L - R);
+  const y = v => T + (1 - v / ymax) * (H - T - B);
+  for (const rp of (g.narrow ? [2, 10, 100, 1000]
+                             : [2, 5, 10, 20, 50, 100, 200, 500, 1000])) {
+    el('line', { x1: x(rp), x2: x(rp), y1: T, y2: H - B, stroke: css('--grid'), 'stroke-width': 1 }, svg);
+    el('text', { x: x(rp), y: H - B + 16, 'text-anchor': 'middle', class: 'tick-label' }, svg).textContent = rp;
+  }
+  const ystep = ymax > 4000 ? 1000 : ymax > 2000 ? 500 : 250;
+  for (let v = 0; v <= ymax; v += ystep) {
+    el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: css('--grid'), 'stroke-width': 1 }, svg);
+    el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = g.narrow ? GBPk(v) : GBP(v);
+  }
+  el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: css('--axis'), 'stroke-width': 1 }, svg);
+  el('text', { x: (L + W - R) / 2, y: H - 6, 'text-anchor': 'middle', class: 'axis-label' }, svg)
+    .textContent = g.narrow ? 'return period (yrs, log)'
+                            : 'return period (years) — log scale';
+  const path = pts => pts.map((d, i) => (i ? 'L' : 'M') + x(d[0]).toFixed(1) + ' ' + y(d[1]).toFixed(1)).join(' ');
+  el('path', { d: path(ind), fill: 'none', stroke: css('--indep'), 'stroke-width': 2, 'stroke-dasharray': '5 4' }, svg);
+  el('path', { d: path(vine), fill: 'none', stroke: css('--wx'), 'stroke-width': 2 }, svg);
+  const cross = el('line', { y1: T, y2: H - B, stroke: css('--axis'), 'stroke-width': 1, visibility: 'hidden' }, svg);
+  const dotV = el('circle', { r: 4, fill: css('--wx'), stroke: css('--surface-1'), 'stroke-width': 2, visibility: 'hidden' }, svg);
+  const dotI = el('circle', { r: 4, fill: css('--indep'), stroke: css('--surface-1'), 'stroke-width': 2, visibility: 'hidden' }, svg);
+  const hit = el('rect', { x: L, y: T, width: W - L - R, height: H - T - B, fill: 'transparent' }, svg);
+  const nearest = (pts, rp) => pts.reduce((a, b) => Math.abs(Math.log10(b[0]) - Math.log10(rp)) < Math.abs(Math.log10(a[0]) - Math.log10(rp)) ? b : a);
+  hit.addEventListener('mousemove', ev => {
+    const r = svg.getBoundingClientRect();
+    const px = (ev.clientX - r.left) * W / r.width;
+    const rp = Math.pow(10, Math.log10(2) + (px - L) / (W - L - R) * (3 - Math.log10(2)));
+    const v = nearest(vine, rp), n = nearest(ind, rp);
+    cross.setAttribute('x1', x(v[0])); cross.setAttribute('x2', x(v[0]));
+    [cross, dotV, dotI].forEach(e => e.setAttribute('visibility', 'visible'));
+    dotV.setAttribute('cx', x(v[0])); dotV.setAttribute('cy', y(v[1]));
+    dotI.setAttribute('cx', x(n[0])); dotI.setAttribute('cy', y(n[1]));
+    showTip(`<b>1-in-${Math.round(v[0])} year</b><br>C-vine: <b>${GBP(v[1])}</b><br>independent: ${GBP(n[1])}<br>gap: +${GBP(v[1] - n[1])}`, ev.clientX, ev.clientY);
+  });
+  hit.addEventListener('mouseleave', () => { [cross, dotV, dotI].forEach(e => e.setAttribute('visibility', 'hidden')); hideTip(); });
+});
+
+/* ---- stacked bars ---- */
+chart('stacked', function (mount) {
+  const g = geom('stacked', { W: 900, H: 300, L: 64, R: 20, T: 24, B: 34 },
+                            { H: 240, L: 40, R: 10, T: 20, B: 32 });
+  const { W, H, L, R, T, B } = g;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
+  const perils = [['mean_wx', '--wx', 'Weather'], ['mean_sub', '--sub', 'Subsidence'], ['mean_fl', '--fl', 'Flood'], ['mean_gw', '--gw', 'Groundwater']];
+  const ymax = Math.max(...A.buckets.map(b => b.mean_total)) * 1.15;
+  const y = v => T + (1 - v / ymax) * (H - T - B);
+  const slot = (W - L - R) / A.buckets.length;
+  // 64 units is wider than a whole slot once the canvas is phone-width, so
+  // the bars would overlap each other. Scale to the slot and keep a gap.
+  const bw = Math.min(64, slot * 0.62);
+  const ystep = ymax > 4000 ? 1000 : ymax > 1500 ? 500 : 200;
+  for (let v = 0; v <= ymax; v += ystep) {
+    el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: css('--grid'), 'stroke-width': 1 }, svg);
+    el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = g.narrow ? GBPk(v) : GBP(v);
+  }
+  el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: css('--axis'), 'stroke-width': 1 }, svg);
+  A.buckets.forEach((b, i) => {
+    const cx = L + slot * (i + 0.5);
+    let acc = 0;
+    for (const [key, color, name] of perils) {
+      const v = b[key];
+      const rect = el('rect', {
+        x: cx - bw / 2, y: y(acc + v), width: bw,
+        height: Math.max(y(acc) - y(acc + v) - 2, 0.5),
+        fill: css(color), rx: 2,
+      }, svg);
+      rect.addEventListener('mousemove', ev =>
+        showTip(`<b>${b.label}</b> · ${name}<br><b>${GBP(v)}</b> per policy (${Math.round(100 * v / b.mean_total)}%)`, ev.clientX, ev.clientY));
+      rect.addEventListener('mouseleave', hideTip);
+      acc += v;
+    }
+    el('text', { x: cx, y: y(acc) - 7, 'text-anchor': 'middle', class: 'direct-label' }, svg)
+      .textContent = g.narrow ? GBPk(b.mean_total) : GBP(b.mean_total);
+    el('text', { x: cx, y: H - B + 17, 'text-anchor': 'middle', class: 'tick-label' }, svg)
+      .textContent = g.narrow ? (SHORT[b.label] || b.label) : b.label;
+  });
+});
+
+/* ---- incidence ---- */
+chart('incidence', function (mount) {
+  const g = geom('incidence', { W: 900, H: 280, L: 64, R: 20, T: 18, B: 34 },
+                              { H: 225, L: 32, R: 10, T: 14, B: 32 });
+  const { W, H, L, R, T, B } = g;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
+  const perils = [['inc_wx_pct', '--wx', 'Weather'], ['inc_sub_pct', '--sub', 'Subsidence'], ['inc_fl_pct', '--fl', 'Flood'], ['inc_gw_pct', '--gw', 'Groundwater']];
+  const ymax = Math.max(...A.buckets.map(b => Math.max(b.inc_wx_pct, b.inc_sub_pct, b.inc_fl_pct, b.inc_gw_pct))) * 1.2;
+  const y = v => T + (1 - v / ymax) * (H - T - B);
+  const slot = (W - L - R) / A.buckets.length;
+  // Four bars and three gaps have to fit inside one slot: at 900 units that
+  // is 30+6, on a phone canvas the same numbers would need more than twice
+  // the slot, so derive both from the slot instead of hard-coding them.
+  const gap = g.narrow ? 2 : 6;
+  const bw = Math.min(30, (slot * 0.86 - 3 * gap) / 4);
+  const ystep = ymax > 40 ? 10 : ymax > 16 ? 5 : 2;
+  for (let v = 0; v <= ymax; v += ystep) {
+    el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: css('--grid'), 'stroke-width': 1 }, svg);
+    el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = v + '%';
+  }
+  el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: css('--axis'), 'stroke-width': 1 }, svg);
+  A.buckets.forEach((b, i) => {
+    const cx = L + slot * (i + 0.5);
+    perils.forEach(([key, color, name], j) => {
+      const v = b[key];
+      const bx = cx + (j - 1.5) * (bw + gap) - bw / 2;
+      const rect = el('rect', { x: bx, y: y(v), width: bw, height: H - B - y(v), fill: css(color), rx: 2 }, svg);
+      rect.addEventListener('mousemove', ev =>
+        showTip(`<b>${b.label}</b> · ${name}<br><b>${v}%</b> of districts claim`, ev.clientX, ev.clientY));
+      rect.addEventListener('mouseleave', hideTip);
+    });
+    el('text', { x: cx, y: H - B + 17, 'text-anchor': 'middle', class: 'tick-label' }, svg)
+      .textContent = g.narrow ? (SHORT[b.label] || b.label) : b.label;
+  });
+});
+
+/* ---- table ---- */
+(function () {
+  const t = document.getElementById('btable');
+  const rows = A.buckets.map(b => `
+    <tr><td class="hl">${b.label}</td><td>${b.share_pct}%</td>
+    <td class="hl">${GBP(b.mean_total)}</td>
+    <td>${GBP(b.mean_wx)}</td><td>${GBP(b.mean_sub)}</td><td>${GBP(b.mean_fl)}</td><td>${GBP(b.mean_gw)}</td>
+    <td>${b.extra_vs_typical >= 0 ? '+' : ''}${GBP(b.extra_vs_typical)}</td>
+    <td>${GBP(b.indep_mean_total)}</td></tr>`).join('');
+  t.innerHTML = `<tr><th>Year bucket</th><th>Share of years</th><th>Cost / policy</th>
+    <th>Weather</th><th>Subsidence</th><th>Flood</th><th>Groundwater</th><th>vs typical</th><th>If independent</th></tr>` + rows;
+  const w = A.worst_year;
+  document.getElementById('worstnote').innerHTML =
+    `Worst simulated year: <b>${GBP(w.total)}</b> per policy (weather ${GBP(w.wx)},
+    flood ${GBP(w.fl)}, subsidence ${GBP(w.sub)}, groundwater ${GBP(w.gw)}) with claims
+    in ${w.inc_wx_pct}% of districts for weather and ${w.inc_fl_pct}% for flood — a
+    nationwide storm-and-flood event, which is exactly the joint tail the Gumbel
+    pairs put mass on.`;
+})();
+
+/* ---- claim counts and claim sizes by bucket (Gate 4) ----
+   The headline multiples are computed from the data, not typed in, so a
+   re-simulation cannot leave this sentence quoting stale figures. */
+(function () {
+  const b0 = A.buckets[0];
+  if (!('claims_total_per_100k' in b0)) return;  // pre-Gate-4 data
+  const typ = A.buckets.find(b => b.label === 'typical');
+  const cat = A.buckets.find(b => b.label === 'catastrophic');
+  const xC = (cat.claims_total_per_100k / typ.claims_total_per_100k).toFixed(1);
+  const xV = (cat.cost_total_per_claim / typ.cost_total_per_claim).toFixed(1);
+  document.getElementById('g4headline').innerHTML =
+    `A bad year is mostly <b>dearer claims, not more claims</b>: the worst 1%
+     of years run at ${xC}× a typical year's claim count but ${xV}× its cost
+     per claim.`;
+  const P = [['total', 'All perils'], ['wx', 'Weather'], ['sub', 'Subsidence'],
+             ['fl', 'Flood'], ['gw', 'Groundwater']];
+  const num = v => Math.round(v).toLocaleString('en-GB');
+  const rows = (field, fmt) => A.buckets.map(b => `
+    <tr><td class="hl">${b.label}</td>` +
+    P.map(([k]) => `<td${k === 'total' ? ' class="hl"' : ''}>${fmt(b[`${field}_${k}${field === 'claims' ? '_per_100k' : '_per_claim'}`])}</td>`).join('') +
+    `<td>${(b[`${field}_total${field === 'claims' ? '_per_100k' : '_per_claim'}`] /
+            typ[`${field}_total${field === 'claims' ? '_per_100k' : '_per_claim'}`]).toFixed(2)}×</td></tr>`).join('');
+  const head = title => `<tr><th>Year bucket</th>` +
+    P.map(([, n]) => `<th>${n}</th>`).join('') + `<th>vs typical</th></tr>`;
+  document.getElementById('g4counts').innerHTML =
+    `<tr><th colspan="7" style="text-align:left; color:var(--ink-1)">Claims per 100,000 policies</th></tr>` +
+    head() + rows('claims', num);
+  document.getElementById('g4costs').innerHTML =
+    `<tr><th colspan="7" style="text-align:left; color:var(--ink-1)">Cost per claim</th></tr>` +
+    head() + rows('cost', v => GBP(v));
+})();
+
+/* ---- backtest: real hazard drivers by year ---- */
+(function () {
+  if (!HIST) return;
+  document.getElementById('backtest').style.display = '';
+
+  // What these years are actually known for (historical record).
+  const EVENTS = {
+    1990: 'Burns’ Day storm', 1994: 'Dry summer', 1995: 'Drought summer',
+    2003: 'August heatwave', 2007: 'Summer floods', 2012: 'Wettest summer on record',
+    2013: 'St Jude’s Day storm', 2014: 'Winter storm sequence',
+    2015: 'Storms Desmond, Eva, Frank', 2018: 'Summer drought',
+    2019: 'November floods', 2020: 'Storms Ciara & Dennis',
+    2022: 'Record heat & drought', 2023: 'Storms Babet & Ciarán',
+    2024: 'Storms Henk & Bert',
+  };
+
+  chart('histchart', function (mount) {
+  const g = geom('histchart', { W: 900, H: 240, L: 52, R: 14, T: 14, B: 30, GAP: 22 },
+                              { H: 215, L: 34, R: 8, T: 12, B: 28, GAP: 18 });
+  const { W, H, L, R, T, B, GAP } = g;
+  const panelH = (H - T - B - GAP) / 2;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
+  const bw = (W - L - R) / HIST.length;
+
+  function panel(key, colour, y0, label) {
+    const vals = HIST.map(d => d[key]);
+    const lo = Math.min(0, ...vals), hi = Math.max(...vals);
+    const y = v => y0 + panelH - ((v - lo) / (hi - lo)) * panelH;
+    el('text', { x: L, y: y0 - 3, class: 'axis-label' }, svg).textContent = label;
+    el('line', { x1: L, x2: W - R, y1: y(0), y2: y(0), stroke: css('--axis') }, svg);
+    HIST.forEach((d, i) => {
+      const x = L + i * bw + 1.5, v = d[key];
+      const top = Math.min(y(v), y(0)), h = Math.abs(y(v) - y(0));
+      const rect = el('rect', {
+        x, y: top, width: Math.max(bw - 3, 1), height: Math.max(h, 0.5),
+        fill: css(colour), rx: 1.5,
+        opacity: EVENTS[d.year] ? 1 : 0.55,
+      }, svg);
+      rect.addEventListener('mousemove', ev => showTip(
+        `<b>${d.year}</b>${EVENTS[d.year] ? ' · ' + EVENTS[d.year] : ''}<br>` +
+        `storm days <b>${d.storm_days.toFixed(1)}</b> · max gust ${d.max_gust.toFixed(0)} km/h<br>` +
+        `wettest 5 days ${d.rain5d.toFixed(0)} mm · summer deficit ${d.jja_deficit.toFixed(0)} mm`,
+        ev.clientX, ev.clientY));
+      rect.addEventListener('mouseleave', hideTip);
+    });
+    el('text', { x: L - 6, y: y(hi) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = Math.round(hi);
+    el('text', { x: L - 6, y: y(lo) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = Math.round(lo);
+  }
+
+  panel('storm_days', '--wx', T + 10,
+        g.narrow ? 'storm days / yr' : 'storm days per year');
+  panel('jja_deficit', '--sub', T + panelH + GAP + 12,
+        g.narrow ? 'summer deficit (mm)' : 'summer rainfall deficit (mm)');
+  HIST.forEach((d, i) => {
+    // every 5th year at 900 units; every 10th once the canvas is a third
+    // of that, or the year labels run into each other
+    if (+d.year % (g.narrow ? 10 : 5)) return;
+    // A year centred on the first or last bar hangs outside the plot and
+    // lands on the y-axis value beside it - at phone width "1990" sat on
+    // top of "-139". Measure the label rather than guessing a margin, and
+    // anchor the edge ones inward.
+    const cx = L + i * bw + bw / 2;
+    const t = el('text', { x: cx, y: H - 8, 'text-anchor': 'middle', class: 'tick-label' }, svg);
+    t.textContent = d.year;
+    const half = t.getComputedTextLength() / 2;
+    if (cx - half < L) { t.setAttribute('x', L); t.setAttribute('text-anchor', 'start'); }
+    else if (cx + half > W - R) { t.setAttribute('x', W - R); t.setAttribute('text-anchor', 'end'); }
+  });
+  });   /* end chart('histchart') */
+
+  const top = (key, n) => [...HIST].sort((a, b) => b[key] - a[key]).slice(0, n);
+  const fmtRow = d => `<tr><td class="hl">${d.year}</td>
+    <td>${EVENTS[d.year] || '—'}</td>
+    <td>${d.storm_days.toFixed(1)}</td><td>${d.max_gust.toFixed(0)} km/h</td>
+    <td>${d.rain5d.toFixed(0)} mm</td><td>${d.jja_deficit.toFixed(0)} mm</td></tr>`;
+  document.getElementById('histtable').innerHTML =
+    `<tr><th>Year</th><th>What it is remembered for</th><th>Storm days</th>
+     <th>Max gust</th><th>Wettest 5 days</th><th>Summer deficit</th></tr>` +
+    `<tr><td colspan="6" style="color:var(--ink-muted);padding-top:10px">Worst storm years</td></tr>` +
+    top('storm_days', 3).map(fmtRow).join('') +
+    `<tr><td colspan="6" style="color:var(--ink-muted);padding-top:10px">Driest summers — the subsidence driver</td></tr>` +
+    top('jja_deficit', 3).map(fmtRow).join('') +
+    `<tr><td colspan="6" style="color:var(--ink-muted);padding-top:10px">Wettest 5-day totals — the flood driver</td></tr>` +
+    top('rain5d', 3).map(fmtRow).join('');
+})();
+
+/* ---- sensitivity table ---- */
+(function () {
+  if (!SENS) return;
+  document.getElementById('sens-section').style.display = '';
+  const LABELS = {
+    baseline: 'Baseline (sampled)',
+    theta_low: 'Weaker dependence (θ−1 ×0.75)',
+    theta_high: 'Stronger dependence (θ−1 ×1.25)',
+    rho2_zero: 'Tree-2 correlations → 0',
+    rho2_high: 'Tree-2 correlations doubled',
+    sev_sigma_up: 'Severity σ ×1.10, mean held (check: should move no premium)',
+    flood_freq_150: 'Flood frequency ×1.5 (climate stress)',
+    erosion_no_intervention: 'Erosion: defences lapse (NFI, not the plan)',
+    depth_flat: 'Flood depth ignored (depth-damage flat)',
+    depth_half: 'Flood depth-damage curve half as steep',
+    depth_steep: 'Flood depth-damage curve 1.5× as steep',
+    depth_jrc_eu: 'Flood depth-damage: JRC Europe residential curve',
+    flood_band_ratio_2_5: 'Flood high-zone : envelope claim rate 2.5:1 (not 5:1)',
+    flood_band_ratio_10: 'Flood high-zone : envelope claim rate 10:1 (not 5:1)',
+    flood_rs_weight_067: 'River/sea vs surface water ×⅔',
+    flood_rs_weight_150: 'River/sea vs surface water ×1.5',
+    gw_share_05: 'Groundwater at 5% of flood (not 10%)',
+    gw_share_20: 'Groundwater at 20% of flood (not 10%)',
+    gw_background_01: 'Groundwater outside EA areas 1% (not 2%)',
+    gw_background_04: 'Groundwater outside EA areas 4% (not 2%)',
+    spatial_equal: 'Systemic loadings equal across perils',
+  };
+  /* Erosion gets its own column because it is NOT in the premium: the NFI
+     scenario more than doubles it while moving no district between rating groups,
+     which is the check that the exclusion is actually wired up. */
+  const rows = Object.entries(SENS).map(([k, s]) => `
+    <tr><td class="hl">${LABELS[k] || k}</td>
+    <td>${GBP(s.mean_el)}</td><td>${GBP(s.mean_premium)}</td>
+    <td>${s.mean_el_erosion == null ? '—' : GBP(s.mean_el_erosion)}</td>
+    <td>${GBP(s.cat_year_cost)}</td><td>+${s.cat_vs_indep_pct}%</td>
+    <td>${s.group_churn_pct}%</td></tr>`).join('');
+  // The per-district TVaR uplift is deliberately not shown: at calibrated
+  // frequencies it is inside Monte Carlo noise (see the methodology page),
+  // so tabulating it per scenario would be tabulating noise.
+  document.getElementById('stable').innerHTML =
+    `<tr><th>Scenario</th><th>E[loss]</th><th>Premium</th>
+     <th>Erosion (not priced)</th>
+     <th>Cat-year cost</th><th>Cat vs independence</th><th>Group churn</th></tr>` + rows;
+})();
+
+/* Every chart registered itself above; draw them all now, after the
+   conditional backtest block has had its chance to register too. */
+renderCharts();
+</script>
+</body>
+</html>

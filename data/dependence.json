@@ -1,0 +1,14 @@
+{
+ "districts": 60,
+ "years_per_district": 400000,
+ "multi_peril_vine": 0.0012169166666666667,
+ "multi_peril_indep": 1.225e-05,
+ "multi_peril_ratio": 99.34013605442176,
+ "tvar99_vine": 5927.71484375,
+ "tvar99_indep": 5749.1806640625,
+ "tvar_uplift_pct": 3.1053847516655297,
+ "tvar_uplift_ci": [
+  -7.6276979171540304,
+  14.625816662392975
+ ]
+}

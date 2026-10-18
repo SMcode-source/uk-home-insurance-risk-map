@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UK Home Insurance Risk Map — eight insured perils, one dependence model</title>
+<link rel="stylesheet" href="assets/site.css">
+__HEAD__
+</head>
+<body>
+__NAV__
+
+<div class="wrap">
+
+  <section class="hero">
+    <div class="eyebrow">Geospatial risk modelling · open data</div>
+    <h1>Eight insured perils.<br>2,736 postcode districts.<br>One dependence model.</h1>
+    <p class="lede">A UK home-insurance risk model that scores every postcode district for
+    <b>subsidence</b>, <b>weather damage</b>, <b>flood</b>, <b>groundwater flooding</b>,
+    <b>theft</b>, <b>escape of water</b>, <b>fire</b> and <b>accidental damage</b> —
+    the weather-driven four joined by a vine copula, because the expensive years are
+    the ones where several perils strike at once; the other four priced independently,
+    because burglary does not arrive on the storm track, burst pipes answer to cold
+    snaps, and kitchen fires and dropped televisions pay no attention to the sky at
+    all. <b>Coastal erosion</b> is modelled alongside them but kept out of the premium,
+    because no standard policy covers it.</p>
+    <div class="perils">
+      <span class="chip"><i style="background:var(--sub)"></i>Subsidence · BGS geology</span>
+      <span class="chip"><i style="background:var(--wx)"></i>Weather · Met Office</span>
+      <span class="chip"><i style="background:var(--fl)"></i>Flood · EA / NRW / SEPA</span>
+      <span class="chip"><i style="background:var(--gw)"></i>Groundwater · EA alert areas</span>
+      <span class="chip"><i style="background:var(--th)"></i>Theft · police.uk</span>
+      <span class="chip"><i style="background:var(--eow)"></i>Escape of water · Met Office frost</span>
+      <span class="chip"><i style="background:var(--fire)"></i>Fire · Home Office incidents</span>
+      <span class="chip"><i style="background:var(--ad)"></i>Accidental damage · Census children</span>
+      <span class="chip"><i style="background:var(--er)"></i>Erosion · EA NCERM · not insured</span>
+    </div>
+    <div class="cta">
+      <a class="btn btn-primary" href="map.html">Explore the map →</a>
+      <a class="btn btn-ghost" href="methodology.html">How it works</a>
+    </div>
+  </section>
+
+  <section style="padding-top:0">
+    <div class="tiles">
+      <div class="tile"><div class="k">Districts &middot; households</div><div class="v">__N_DISTRICTS__</div><div class="d">__N_HOUSEHOLDS__ households (census-weighted)</div></div>
+      <div class="tile"><div class="k">Simulated years</div><div class="v">__N_SIM__</div><div class="d">per district, seeded &amp; reproducible</div></div>
+      <div class="tile"><div class="k">Eight-peril premium</div><div class="v">£__PREM_MIN__–__PREM_MAX__</div><div class="d">lowest to highest district</div></div>
+      <div class="tile"><div class="k">Diversification credit</div><div class="v">__DIVERSIFICATION__%</div><div class="d">portfolio vs standalone tail</div></div>
+    </div>
+    <p class="note" style="margin-top:14px">Separately, __EROSION_N__ districts sit on a
+    coast the sea is projected to take land from by 2105 — England's, and three Welsh
+    border districts its estuary frontages reach. For <b>__EROSION_SAVED__</b> of them the
+    adopted defence plans hold that at <b>zero</b> — the clearest thing in the model that
+    sea walls do. Worst case is __EROSION_WORST__, losing __EROSION_WORST_PCT__% of its
+    area even with its plan in place. Scotland adds <b>__EROSION_SCOT_N__</b> districts and
+    __EROSION_SCOT_KM2__ km² by 2100, on a
+    <a href="methodology.html#erosion">different and clearly-marked basis</a>; the Welsh
+    coast itself has no published projection at all. None of this is in the premium:
+    <a href="methodology.html#erosion">no standard policy covers coastal erosion</a>.</p>
+    <p class="note" style="margin-top:10px">And re-running the whole model on the
+    Environment Agency's <b>climate-change flood extents</b> — calibration held fixed, so
+    only the hazard map moves — shifts the technical premium by
+    <b>__CC_UPLIFT__%</b> across the __CC_N__ districts it covers, worst
+    __CC_WORST__ at __CC_WORST_PCT__%. A scenario, not a forecast, and England only:
+    <a href="methodology.html#climate">what it does and does not mean</a>.</p>
+  </section>
+
+  <section id="lookup">
+    <h2>Find a postcode district</h2>
+    <p class="lede" style="margin-bottom:16px">Type the outward part of a postcode —
+    the bit before the space — to see how the model rates it.</p>
+    <div class="lookup-box">
+      <input id="q" type="search" autocomplete="off" spellcheck="false"
+             placeholder="Try HU6, TW18, M1, CF10, EH6…" aria-label="Postcode district">
+      <div id="matches" class="matches" role="listbox"></div>
+      <div id="result" class="result" hidden></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Five ways in</h2>
+    <p class="lede" style="margin-bottom:20px">What actually happened, what the model
+    makes of it, the same model relative to the median, what a warming climate does to
+    it — and the methodology page as the full audit trail behind all four.</p>
+    <div class="cards">
+      <a class="card" href="years.html">
+        <svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="var(--fl)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 20h18"/><path d="M4 16l5-6 4 4 6-8"/><circle cx="19" cy="6" r="1.6" fill="var(--fl)" stroke="none"/>
+        </svg>
+        <h3>What happened</h3>
+        <p>What UK home insurance actually paid out, year by year, from the ABI&rsquo;s
+        own releases — revisions included — beside the model&rsquo;s account of what
+        separates a quiet year from a catastrophic one, and the 35 years of real
+        weather that test it.</p>
+        <span class="more">See the record →</span>
+      </a>
+      <a class="card" href="map.html">
+        <svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="var(--wx)" stroke-width="1.6" stroke-linejoin="round">
+          <path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"/><path d="M9 4v13.5M15 6.5V20"/>
+        </svg>
+        <h3>The model</h3>
+        <p>Eleven switchable layers — rating group, technical premium, each peril score,
+        1-in-200 loss, surface-water depth, coastal erosion and the climate repricing.
+        Click any district for its full risk breakdown, right down to the bedrock
+        formation beneath it.</p>
+        <span class="more">Open the map →</span>
+      </a>
+      <a class="card" href="relative.html">
+        <svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="var(--sub)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="8.5"/>
+        </svg>
+        <h3>Relative risk</h3>
+        <p>The same technical premium, re-expressed: every district as a multiple of the
+        UK median, so &ldquo;2.4&times; the national median&rdquo; answers &ldquo;how
+        exposed is my area?&rdquo; without needing a &pound; figure interpreted first.</p>
+        <span class="more">Compare your area →</span>
+      </a>
+      <a class="card" href="temperature.html">
+        <svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="var(--sub)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 13.6V5a2 2 0 1 1 4 0v8.6"/><circle cx="12" cy="17" r="3.4"/>
+          <path d="M17.5 6.5h3M17.5 10h3"/>
+        </svg>
+        <h3>Temperature</h3>
+        <p>Frost days are down a fifth since the 1961&ndash;1990 normal and summer soil
+        deficits are up. What 66 years of measured weather did to the two perils
+        temperature actually reaches &mdash; one of them re-mapped on the evidence, the
+        other deliberately left alone, with the reasoning for both.</p>
+        <span class="more">See what changed →</span>
+      </a>
+      <a class="card" href="methodology.html">
+        <svg class="icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="var(--gw)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="5" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="19" cy="18" r="2.2"/>
+          <path d="M12 7.2 6.4 15.8M12 7.2l5.6 8.6M7.2 18h9.6"/>
+        </svg>
+        <h3>Methodology &amp; data</h3>
+        <p>Every peril score, the vine copula structure, why the risk measure is TVaR and
+        not VaR, all twenty-eight open datasets with their endpoints and quirks — and the
+        commands to rebuild the whole thing.</p>
+        <span class="more">Read the methodology →</span>
+      </a>
+    </div>
+  </section>
+
+  <section>
+    <h2>What the model says</h2>
+    <p class="lede" style="margin-bottom:8px">Findings that fall out of the simulation.</p>
+
+    <div class="finding">
+      <div class="num">__SECTOR_WIDE_PCT__%<small>of districts hide a &gt;2× spread</small></div>
+      <div>
+        <h3>A postcode district can be two different risks</h3>
+        <p>Re-running the whole model at <b>postcode-sector</b> resolution —
+        <b>__SECTOR_N__</b> units instead of __N_DISTRICTS__ — reproduces the district
+        answer when aggregated back, but shows what the district average was hiding:
+        in <b>__SECTOR_WIDE_N__ districts</b> (__SECTOR_WIDE_PCT__%) the cheapest and
+        dearest sectors differ by more than <b>2×</b>, and in __SECTOR_WORST__ by
+        <b>__SECTOR_WORST_RATIO__×</b> (£__SECTOR_WORST_LO__–£__SECTOR_WORST_HI__). The
+        splits are physical: a river through half a district, a clay boundary under the
+        other. <a href="sectors.html">See the sector map →</a></p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="num">×__MULTI_RATIO__<small>multi-peril years</small></div>
+      <div>
+        <h3>Dependence changes what can happen, not what usually does</h3>
+        <p>Storms, floods and shrink–swell droughts share a climate. Modelling that
+        properly makes it <b>__MULTI_RATIO__ times more likely</b> that the same home is hit by two
+        or more perils in one year — <b>__MULTI_VINE__%</b> of years against <b>__MULTI_INDEP__%</b>
+        under independence. But both are rare, so a single home's own 1-in-100 loss barely
+        moves: measured at ±0 within simulation noise. The dependence surfaces where it
+        should, in the aggregate — catastrophic years cost <b>__CAT_VS_INDEP__%</b> more than an
+        independence assumption implies.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="num">×__FL_MULT__<small>flood cost, typical → bad</small></div>
+      <div>
+        <h3>Bad years aren't just "more weather"</h3>
+        <p>Weather is the workhorse loss in every year, but it is the secondary perils that
+        turn a typical year (<b>£__TYPICAL__</b> per policy) into a bad one (<b>£__BAD__</b>). Going
+        from typical to bad, flood cost multiplies __FL_MULT__× and subsidence __SUB_MULT__×, while
+        weather multiplies just __WX_MULT__×.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="num">TVaR<small>not VaR</small></div>
+      <div>
+        <h3>The obvious risk measure gives the wrong answer here</h3>
+        <p>With rare compound losses, tail dependence concentrates claims into fewer, worse
+        years — pushing losses <i>beyond</i> the 99.5% quantile. Value-at-Risk can therefore
+        <i>fall</i> as dependence rises. Premiums use expected shortfall (TVaR 99%), which is
+        monotone in dependence and doesn't hide the clustering.</p>
+      </div>
+    </div>
+
+    __SENS_FINDING__
+
+    <div class="finding">
+      <div class="num">__EL_CLAIMS_SHARE__%<small>of a home's claims cost</small></div>
+      <div>
+        <h3>Each peril is pinned to what the market actually paid</h3>
+        <p>Storm, flood and subsidence are calibrated separately to the ABI's 2025
+        payouts — £__CAL_WX_PAID__m, £__CAL_FL_PAID__m and £__CAL_SUB_PAID__m across
+        ~15.5m policies — theft to the floor of its documented vintage envelope
+        (£__CAL_TH_PAID__m), escape of water to the ABI's £1.8m-a-day
+        figure (~£__CAL_EOW_PAID__m a year), fire to a documented triangle of Home Office
+        incident counts and the ABI's average fire payout (~£__CAL_FIRE_PAID__m a year), and
+        accidental damage to a triangle of its own — the ABI's claim count, the
+        market's at-home AD share and Aviva's average payout (~£__CAL_AD_PAID__m a year) — rather
+        than to a single blended number. Together the eight
+        insured perils come to <b>£__MEAN_EL__</b> per policy per year,
+        __EL_CLAIMS_SHARE__% of what all home claims cost. The rest of a real premium is
+        expenses — which this does not model — plus
+        commission and profit.
+        <a href="methodology.html#calibration">How the calibration works →</a></p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="num">100%<small>of open data</small></div>
+      <div>
+        <h3>Every hazard input is public, and it matches the record</h3>
+        <p>BGS geology, Met Office climatologies, Environment Agency, Natural Resources Wales
+        and SEPA flood maps, EA groundwater alert areas — all Open Government Licence, all
+        fetched by scripts in the repo. Reconstructing 35 years of those drivers picks out
+        1990, 2015 and 2020 as the worst storm years and 1995, 2018 and 2022 as the driest
+        summers — the Burns' Day storm, Desmond, Ciara and Dennis, and the known
+        subsidence-surge years. <a href="years.html#backtest">See the backtest →</a></p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The riskiest districts are peril cocktails</h2>
+    <p class="lede" style="margin-bottom:18px">Top of the premium ranking, and what is
+    actually driving each one. No two are alike.</p>
+    <div class="tablewrap">
+      <table class="data">
+        <tr>
+          <th>District</th><th>Where</th>
+          <th class="num">Premium</th>
+          <th class="num">Subs.</th><th class="num">Weather</th><th class="num">Flood</th><th class="num">Gr.water</th>
+          <th>What drives it</th>
+        </tr>
+        __TOP_ROWS__
+      </table>
+    </div>
+    <p class="note" style="margin-top:10px">Technical premium per policy per year =
+    expected loss + 6% cost of capital on the district's allocated share of
+    <i>portfolio</i> tail risk. Scores are 0–1.
+    <a href="assets/uk_district_risk.csv" download>Download the full table (CSV)</a> ·
+    <a href="methodology.html#calibration">how these numbers are calibrated</a></p>
+  </section>
+
+  <section>
+    <h2>Built on open data</h2>
+    <p class="lede">Twenty-eight datasets from a dozen public bodies, fetched by the scripts
+    in the repository and documented endpoint-by-endpoint — including the quirks that cost
+    hours to discover, and the dead ends so nobody repeats them.</p>
+    <div class="sources" style="margin:16px 0 18px">
+      <span>British Geological Survey</span>
+      <span>Met Office</span>
+      <span>Environment Agency</span>
+      <span>Natural Resources Wales</span>
+      <span>SEPA</span>
+      <span>ECMWF ERA5</span>
+      <span>ONS Census 2021</span>
+      <span>National Records of Scotland</span>
+      <span>Ordnance Survey</span>
+      <span>police.uk</span>
+      <span>Home Office</span>
+      <span>Welsh Government</span>
+      <span>ABI</span>
+    </div>
+    <div class="callout">
+      <b>This is a demonstration model, not a priced product.</b> The hazard data is real and
+      current, and each peril's loss level is pinned to published ABI payouts — but these are
+      <b>eight-peril technical premiums</b>, not home insurance premiums. A real policy
+      also carries expenses,
+      commission and profit on top. The
+      <a href="methodology.html#caveats">caveats section</a> is explicit about every assumption.
+    </div>
+  </section>
+
+</div>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="row">
+      <div>
+        <b style="color:var(--ink-2)">UK Home Insurance Risk Map</b><br>
+        Code MIT-licensed · hazard data © their publishers under the
+        <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3</a>
+      </div>
+      <div>
+        <a href="__REPO_URL__">Source on GitHub</a> ·
+        <a href="years.html">What happened</a> ·
+        <a href="map.html">The model</a> ·
+        <a href="relative.html">Relative risk</a> ·
+        <a href="temperature.html">Temperature</a> ·
+        <a href="methodology.html">Methodology</a>
+      </div>
+    </div>
+  </div>
+</footer>
+<script>
+(function () {
+  const input = document.getElementById('q');
+  const matchBox = document.getElementById('matches');
+  const result = document.getElementById('result');
+  const GBP = v => '£' + Math.round(v).toLocaleString('en-GB');
+  let DATA = null, active = -1, shown = [];
+
+  fetch('assets/districts.json')
+    .then(r => r.json())
+    .then(d => { DATA = d; if (input.value) run(); })
+    .catch(() => { input.placeholder = 'District lookup unavailable offline'; });
+
+  const bar = (v, colour) =>
+    `<span class="bar"><span style="width:${Math.round(v * 100)}%;background:${colour}"></span></span>`;
+
+  function show(d) {
+    [...matchBox.children].forEach(c =>
+      c.classList.toggle('on', shown[+c.dataset.i] === d));
+    result.hidden = false;
+    result.innerHTML = `
+      <div class="result-head">
+        <div>
+          <div class="rname">${d.n}</div>
+          <div class="rsub">postcode district · rating group <b>${d.g}</b> of 10${
+            d.h ? ' · ' + d.h.toLocaleString('en-GB') + ' households' : ''}</div>
+        </div>
+        <div class="rprem"><div class="v">${GBP(d.p)}</div><div class="k">technical premium / yr</div></div>
+      </div>
+      <div class="rgrid">
+        <div><span class="lbl">Subsidence</span>${bar(d.s, 'var(--sub)')}<b>${d.s.toFixed(2)}</b></div>
+        <div><span class="lbl">Weather</span>${bar(d.w, 'var(--wx)')}<b>${d.w.toFixed(2)}</b></div>
+        <div><span class="lbl">Flood</span>${bar(d.f, 'var(--fl)')}<b>${d.f.toFixed(2)}</b></div>
+        <div><span class="lbl">Groundwater</span>${bar(d.gw, 'var(--gw)')}<b>${d.gw.toFixed(2)}</b></div>
+      </div>
+      <div class="decomp">
+        <div class="lbl">How the premium is built</div>
+        <div class="dbar">${
+          [['ew', 'Weather', '--wx'], ['es', 'Subsidence', '--sub'],
+           ['ef', 'Flood', '--fl'], ['eg', 'Groundwater', '--gw'],
+           ['et', 'Theft', '--th'],
+           ['ee', 'Esc. of water', '--eow'],
+           ['efi', 'Fire', '--fire'],
+           ['ea', 'Acc. damage', '--ad'],
+           ['c', 'Capital', '--ink-muted']]
+            .filter(([k]) => d[k] > 0)
+            .map(([k, name, col]) =>
+              `<span style="width:${(100 * d[k] / d.p).toFixed(2)}%;background:var(${col})"
+                     title="${name}: ${GBP(d[k])}"></span>`).join('')
+        }</div>
+        <div class="dkey">${
+          [['ew', 'Weather', '--wx'], ['es', 'Subsidence', '--sub'],
+           ['ef', 'Flood', '--fl'], ['eg', 'Groundwater', '--gw'],
+           ['et', 'Theft', '--th'],
+           ['ee', 'Esc. of water', '--eow'],
+           ['efi', 'Fire', '--fire'],
+           ['ea', 'Acc. damage', '--ad'],
+           ['c', 'Capital', '--ink-muted']]
+            .filter(([k]) => d[k] > 0)
+            .map(([k, name, col]) =>
+              `<span><i style="background:var(${col})"></i>${name} ${GBP(d[k])}</span>`).join('')
+        }</div>
+      </div>
+      <div class="rfoot">
+        Tail dependence adds <b>+${d.u.toFixed(0)}%</b> to this district's own 1-in-100 loss
+        versus treating the perils as independent.
+        <a class="btn btn-primary" style="padding:8px 14px;font-size:13.5px"
+           href="map.html?d=${encodeURIComponent(d.n)}">View on the map →</a>
+      </div>`;
+  }
+
+  function run() {
+    const v = input.value.trim().toUpperCase().replace(/\s+/g, '');
+    result.hidden = true;
+    active = -1;
+    if (!DATA || v.length < 1) { matchBox.innerHTML = ''; shown = []; return; }
+    const exact = DATA.filter(d => d.n === v);
+    const pre = DATA.filter(d => d.n !== v && d.n.startsWith(v));
+    // shortest first, so "SW1" surfaces SW1A…SW1Y alongside SW10…SW19
+    pre.sort((a, b) => a.n.length - b.n.length || a.n.localeCompare(b.n));
+    shown = exact.concat(pre).slice(0, 12);
+    if (!shown.length) {
+      matchBox.innerHTML = '<div class="nores">No district starts with “' + v + '”.</div>';
+      return;
+    }
+    matchBox.innerHTML = shown.map((d, i) =>
+      `<button class="match" data-i="${i}" role="option">
+         <b>${d.n}</b><span class="g">group ${d.g}</span><span class="p">${GBP(d.p)}</span>
+       </button>`).join('');
+    if (exact.length) show(exact[0]);
+  }
+
+  matchBox.addEventListener('click', e => {
+    const b = e.target.closest('.match');
+    if (b) show(shown[+b.dataset.i]);
+  });
+  input.addEventListener('input', run);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && shown.length) { show(shown[Math.max(active, 0)]); e.preventDefault(); }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      active = Math.min(shown.length - 1, Math.max(0, active + (e.key === 'ArrowDown' ? 1 : -1)));
+      [...matchBox.children].forEach((c, i) => c.classList.toggle('on', i === active));
+      e.preventDefault();
+    }
+  });
+})();
+</script>
+</body>
+</html>

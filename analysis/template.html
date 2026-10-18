@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UK Home Insurance — What Happened, Year by Year</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface-1: #fcfcfb;
+    /* --ink-muted darkened from #898781 (3.50:1) to meet WCAG AA on light */
+    --ink-1: #0b0b0b; --ink-2: #52514e; --ink-muted: #6f6d67;
+    --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,0.10);
+    --wx: #2a78d6; --sub: #eb6834; --fl: #1baf7a; --gw: #6f5cc4; --indep: #898781;
+    --eow: #5b7c99;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface-1: #1a1a19;
+      --ink-1: #ffffff; --ink-2: #c3c2b7; --ink-muted: #898781;
+      --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+      --wx: #3987e5; --sub: #d95926; --fl: #199e70; --gw: #9085e9;
+      --eow: #7fa3c0;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface-1: #1a1a19;
+    --ink-1: #ffffff; --ink-2: #c3c2b7; --ink-muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --wx: #3987e5; --sub: #d95926; --fl: #199e70; --gw: #9085e9;
+    --eow: #7fa3c0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink-1);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 28px 20px 60px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  .sub { color: var(--ink-muted); font-size: 13.5px; margin-bottom: 24px; }
+  h2 { font-size: 17px; margin: 34px 0 4px; }
+  .desc { color: var(--ink-2); font-size: 13.5px; margin: 0 0 14px; max-width: 70ch; }
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px;
+  }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .tile { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .tile .k { font-size: 12px; color: var(--ink-muted); }
+  .tile .v { font-size: 26px; font-weight: 650; margin: 2px 0; }
+  .tile .d { font-size: 12px; color: var(--ink-2); }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); margin: 8px 0 2px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .sw.line { width: 16px; height: 2px; border-radius: 1px; }
+  .sw.ghost { background: transparent; border: 2px solid var(--ink-muted); border-radius: 50%; width: 8px; height: 8px; }
+  svg { display: block; width: 100%; height: auto; }
+  /* Charts size their own canvas to the card (see geom() below), so they
+     fit without scrolling. overflow-x stays as a safety net only - if a
+     chart ever did exceed its card it should scroll inside itself rather
+     than push the page sideways. No min-width: that would force the
+     scrollbar back and defeat the responsive drawing. */
+  .chart { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  svg text { font-family: inherit; }
+  .axis-label { fill: var(--ink-muted); font-size: 11px; }
+  .tick-label { fill: var(--ink-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .direct-label { fill: var(--ink-2); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .tooltip {
+    position: fixed; pointer-events: none; z-index: 10; display: none;
+    background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 10px; font-size: 12px; color: var(--ink-2);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15); font-variant-numeric: tabular-nums;
+  }
+  .tooltip b { color: var(--ink-1); }
+  table.buckets { border-collapse: collapse; width: 100%; font-size: 13px; }
+  table.buckets th, table.buckets td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; }
+  table.buckets th:first-child, table.buckets td:first-child { text-align: left; }
+  table.buckets th { color: var(--ink-muted); font-weight: 600; font-size: 12px; }
+  table.buckets td { color: var(--ink-2); }
+  table.buckets td.hl { color: var(--ink-1); font-weight: 600; }
+  .note { color: var(--ink-muted); font-size: 12px; max-width: 76ch; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>What happened</h1>
+  <div class="sub">UK home insurance, year by year &mdash; first what was
+  <b>actually paid out</b>, from the ABI&rsquo;s own published figures with
+  their revisions shown, then what the model makes of good and bad years,
+  and whether the drivers it watches match the years Britain remembers.
+  No per-district claims data is published anywhere, by any insurer, at any
+  price &mdash; so the observed record here is national, and the maps on the
+  other tabs are model output calibrated to it.</div>
+
+  <h2>What the ABI actually paid</h2>
+  <p class="desc">Weather-related payouts to UK homes, as the Association of
+  British Insurers announced them &mdash; the observed numbers this model is
+  calibrated against. <b>Hollow markers are figures as first published where
+  the ABI later revised them</b>: claims keep settling after a year closes,
+  so the first announcement and the eventual cost differ &mdash; for 2023 by
+  a quarter.</p>
+  <div class="card">
+    <div class="legend">
+      <span><span class="sw" style="background:var(--wx)"></span>Weather claims paid to homes (&pound;m)</span>
+      <span><span class="sw" style="background:var(--indep)"></span>All home claims paid (&pound;m, context)</span>
+      <span><span class="sw ghost"></span>as first published, since revised</span>
+    </div>
+    <div id="abichart" class="chart"></div>
+  </div>
+
+  <h2>How many homes claimed</h2>
+  <p class="desc">Homes making claims per year by weather peril, where the
+  ABI has published a count. Burst pipes are the freeze component of escape
+  of water &mdash; announced in the winter releases rather than the annual
+  ones, which is why their years differ.</p>
+  <div class="card">
+    <div class="legend">
+      <span><span class="sw" style="background:var(--wx)"></span>Storm</span>
+      <span><span class="sw" style="background:var(--fl)"></span>Flood</span>
+      <span><span class="sw" style="background:var(--sub)"></span>Subsidence</span>
+      <span><span class="sw" style="background:var(--eow)"></span>Burst pipes</span>
+    </div>
+    <div id="abicount" class="chart"></div>
+  </div>
+
+  <h2>The subsidence record, quarter by quarter</h2>
+  <p class="desc">The ABI&rsquo;s subsidence announcements, assembled from
+  its press releases &mdash; one recovered from the Internet Archive after
+  the original page 404ed. Gaps are gaps in what the ABI chose to announce,
+  not quiet quarters. The 2018 surge &mdash; from 2,500 notified claims to
+  more than 10,000 in a single quarter &mdash; is the sharpest jump since
+  the series began, and 2022&rsquo;s record-heat summer is the modern
+  echo.</p>
+  <div class="card" style="overflow-x:auto">
+    <table class="buckets" id="abisub"></table>
+  </div>
+  <p class="note" id="abisources" style="margin-top:10px"></p>
+
+  <h2 style="margin-top:44px; font-size:19px">The model&rsquo;s view: good years vs bad years</h2>
+  <div class="sub">Everything below is <b>simulated</b> &mdash; the model&rsquo;s
+  answer to what separates a quiet year from an expensive one. UK home portfolio &middot; subsidence &times; weather &times; flood (incl. surface water) &times; groundwater &middot; C-vine copula &middot; <span id="nsim"></span> simulated years &middot; per-policy averages, <b>these four weather-driven perils only</b> &mdash; coastal erosion is in the model but not here, being chronic rather than episodic, so it has no good or bad years; theft, escape of water, fire and accidental damage are priced but sit outside the vine &mdash; theft's ~0.1% systemic loading means its bad years barely exist (a 1-in-100 theft year is ~1.3&times; average), fire's is smaller still (no systemic fire years in forty-five years of Home Office counts), accidental damage's is the smallest of all (the 2020&ndash;21 lockdowns, the biggest stay-at-home shock on record, moved AD claims by only ~6%), and while escape of water's freeze loading is real (winter 2010 doubled the year's burst-pipe bill), its bad years are cold snaps, not storm seasons, so all four would only blur the weather story told here</div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <h2>How much worse do bad years get?</h2>
+  <p class="desc">Average annual cost per policy by return period. The gap between the
+  two lines is the portfolio cost of tail dependence. It is much smaller than the same gap
+  for a single home (see the map popups): across 2,736 districts, diversification between
+  <i>places</i> largely washes out dependence between <i>perils</i>.
+  Hover for values.</p>
+  <div class="card">
+    <div class="legend">
+      <span><span class="sw line" style="background:var(--wx)"></span>C-vine (modelled dependence)</span>
+      <span><span class="sw line" style="background:var(--indep)"></span>Perils independent</span>
+    </div>
+    <div id="exceedance" class="chart"></div>
+  </div>
+
+  <h2>What drives the cost, year by year</h2>
+  <p class="desc">Years are ranked by portfolio cost and bucketed: <b>good</b> (best 50%),
+  <b>typical</b> (50–90th percentile), <b>bad</b> (90–99th), <b>catastrophic</b> (worst 1%).
+  Bars show the average per-policy cost split by peril.</p>
+  <div class="card">
+    <div class="legend">
+      <span><span class="sw" style="background:var(--wx)"></span>Weather</span>
+      <span><span class="sw" style="background:var(--sub)"></span>Subsidence</span>
+      <span><span class="sw" style="background:var(--fl)"></span>Flood</span>
+      <span><span class="sw" style="background:var(--gw)"></span>Groundwater</span>
+    </div>
+    <div id="stacked" class="chart"></div>
+  </div>
+
+  <h2>How widespread are claims in each kind of year?</h2>
+  <p class="desc">Share of districts with at least one claim per peril. The spread between
+  good and catastrophic years is deliberately modest: the spatial loading is calibrated so a
+  1-in-100 year runs at about twice the claim frequency of an average year, which is already
+  generous against the record. UK weather is strongly correlated across the country, but UK
+  <i>claims</i> are not — a storm crosses every county while only a small, weakly correlated
+  fraction of homes end up claiming.</p>
+  <div class="card">
+    <div class="legend">
+      <span><span class="sw" style="background:var(--wx)"></span>Weather</span>
+      <span><span class="sw" style="background:var(--sub)"></span>Subsidence</span>
+      <span><span class="sw" style="background:var(--fl)"></span>Flood</span>
+      <span><span class="sw" style="background:var(--gw)"></span>Groundwater</span>
+    </div>
+    <div id="incidence" class="chart"></div>
+  </div>
+
+  <h2>The numbers</h2>
+  <div class="card" style="overflow-x:auto">
+    <table class="buckets" id="btable"></table>
+  </div>
+  <p class="note" id="worstnote"></p>
+
+  <h2>How many claims, and how big?</h2>
+  <p class="desc">The same simulated buckets, split the other way: how many
+  claims each kind of year produces, and what each claim costs.
+  <span id="g4headline"></span> Counts are claims, not claimants &mdash; a
+  home claiming on two perils counts twice, which is the basis the
+  ABI&rsquo;s own published figure uses.</p>
+  <div class="card" style="overflow-x:auto">
+    <table class="buckets" id="g4counts"></table>
+  </div>
+  <div class="card" style="overflow-x:auto; margin-top:14px">
+    <table class="buckets" id="g4costs"></table>
+  </div>
+
+  <div id="backtest" style="display:none; scroll-margin-top:64px">
+    <h2>Does this match real UK years?</h2>
+    <p class="desc">The loss model can't be validated without claims data — but its
+    <b>hazard drivers</b> can. These are the real drivers, reconstructed from 35 years of
+    ERA5 reanalysis over twelve UK locations. If the model is watching the right things,
+    the years it would call bad should be the years Britain actually remembers.</p>
+    <div class="card">
+      <div class="legend">
+        <span><span class="sw" style="background:var(--wx)"></span>Storm days (gusts ≥ 70 km/h)</span>
+        <span><span class="sw" style="background:var(--sub)"></span>Summer rainfall deficit (subsidence driver)</span>
+      </div>
+      <div id="histchart" class="chart"></div>
+    </div>
+    <div class="card" style="margin-top:14px; overflow-x:auto">
+      <table class="buckets" id="histtable"></table>
+    </div>
+    <p class="note" style="margin-top:10px">Storm days and summer deficits are means across
+    the twelve points; the deficit is measured against each point's own 1991–2020 June–August
+    normal. Event names are the historical record, not model output — they are what these
+    years are known for.</p>
+  </div>
+
+  <div id="sens-section" style="display:none; scroll-margin-top:64px">
+    <h2>Which assumptions matter?</h2>
+    <p class="desc">Each row re-runs the simulation (1-in-3 district sample, 8,000
+    years) with one assumption perturbed. &ldquo;Group churn&rdquo; is the share of sampled
+    districts whose rating-group decile changes vs the sampled baseline.</p>
+    <div class="card" style="overflow-x:auto">
+      <table class="buckets" id="stable"></table>
+    </div>
+  </div>
+  <p class="note">Method: 20,000 simulated portfolio years; perils joined per district by a
+  C-vine copula (weather-root; Gumbel weather–flood, weather–groundwater and
+  weather–subsidence; Gaussian flood–groundwater and flood–subsidence given
+  weather). Each district's year combines the national systemic factor per peril —
+  which carries the vine dependence — with district-level noise (spatial loadings:
+  weather 50%, flood 40%, subsidence 60%, groundwater 70%; storm, drought and
+  aquifer-recharge years are large-scale in the UK, flood more localised), so good
+  years still see scattered claims while bad years cluster nationally. Hazard data:
+  BGS, Met Office, EA/NRW/SEPA (OGL) — see DATA_SOURCES.md. Loss
+  frequencies/severities are illustrative assumptions.</p>
+</div>
+<div class="tooltip" id="tip"></div>
+
+<script>
+const A = __DATA__;
+const SENS = __SENS__;
+const HIST = __HISTORY__;
+const ABI = __ABI__;
+const ABISUB = __ABI_SUB__;
+const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+const GBP = v => '£' + Math.round(v).toLocaleString('en-GB');
+const tip = document.getElementById('tip');
+function showTip(html, x, y) {
+  tip.innerHTML = html; tip.style.display = 'block';
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.min(x + 14, innerWidth - w - 8) + 'px';
+  tip.style.top = Math.max(y - h - 12, 8) + 'px';
+}
+function hideTip() { tip.style.display = 'none'; }
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+
+document.getElementById('nsim').textContent = A.n_sim.toLocaleString('en-GB');
+
+/* ---- responsive chart geometry ----------------------------------------
+   Every chart is drawn in viewBox units and stretched to the card width.
+   On a desktop card that is roughly 1:1, so an 11px label reads as 11px.
+   Squeeze the same 900-unit canvas into a ~300px phone card and the whole
+   drawing scales by 0.33 - correct layout, 3.6px text, unreadable.
+
+   So below a breakpoint we draw on a canvas the width of the card. viewBox
+   units become CSS pixels again, type comes back to full size, and the
+   plot is genuinely smaller - which means the tick and label density has
+   to come down with it, or the labels collide instead of shrinking. Each
+   chart passes its own narrow overrides for that.
+
+   Charts re-draw on resize (and orientation change) rather than only at
+   load, so rotating the phone does not leave a chart laid out for the
+   other orientation. */
+const NARROW_AT = 560;
+function geom(mount, wide, narrow) {
+  const avail = Math.max(document.getElementById(mount).clientWidth || 0, 260);
+  return avail >= NARROW_AT
+    ? Object.assign({ narrow: false }, wide)
+    : Object.assign({ narrow: true }, wide, { W: Math.round(avail) }, narrow);
+}
+/* £1,000 is six glyphs of axis label; on a narrow plot that is most of the
+   left margin, so compact it. */
+const GBPk = v => v >= 1000 ? '£' + (v / 1000).toFixed(v % 1000 ? 1 : 0) + 'k'
+                            : '£' + Math.round(v);
+/* "catastrophic" does not fit a quarter of a phone-width plot. */
+const SHORT = { good: 'good', typical: 'typical', bad: 'bad', catastrophic: 'worst 1%' };
+
+const CHARTS = [];
+function chart(mount, draw) { CHARTS.push({ mount, draw, key: null }); }
+/* Which canvas width the current card calls for. Redraws are keyed on this
+   rather than on the pixel width, so a 1px reflow does not rebuild four
+   charts - and, more importantly, redrawing cannot re-trigger itself,
+   because a redraw never changes the card's WIDTH. */
+function widthKey(m) {
+  const avail = Math.max(m.clientWidth || 0, 260);
+  return avail >= NARROW_AT ? 'wide' : Math.round(avail);
+}
+function renderCharts(force) {
+  for (const c of CHARTS) {
+    const m = document.getElementById(c.mount);
+    if (!m) continue;
+    const k = widthKey(m);
+    if (!force && k === c.key) continue;
+    c.key = k;
+    m.textContent = '';
+    c.draw(m);
+  }
+}
+/* Observe the cards, not the window. A ResizeObserver fires whenever the
+   container's box changes for ANY reason - rotation, a font finally
+   loading, the page being embedded somewhere narrower - whereas a window
+   resize listener only catches one of those. It also catches viewport
+   changes that never dispatch a window resize event at all, which is
+   exactly what happens under an automated browser. Both are wired up; the
+   width key makes the duplicate harmless. */
+if (typeof ResizeObserver !== 'undefined') {
+  const ro = new ResizeObserver(() => renderCharts());
+  // after this script finishes, so every chart has registered
+  queueMicrotask(() => CHARTS.forEach(c => {
+    const m = document.getElementById(c.mount);
+    if (m) ro.observe(m);
+  }));
+}
+let _rt;
+addEventListener('resize', () => { clearTimeout(_rt); _rt = setTimeout(renderCharts, 150); });
+
+/* ---- observed: ABI payouts, with their own revisions visible ---------
+   Every row of data/abi_annual.csv carries the release it came from. The
+   chart plots the LATEST figure per year as the series and every
+   superseded figure as a hollow ghost marker at the same x - the
+   revision is part of the record, not a footnote. Latest = lexically
+   greatest vintage, which works because vintages start "YYYY-MM". */
+const latestBy = (rows, key) => {
+  const m = new Map();
+  for (const r of rows) {
+    const k = key(r);
+    if (!m.has(k) || r.vintage > m.get(k).vintage) m.set(k, r);
+  }
+  return m;
+};
+
+chart('abichart', function (mount) {
+  const g = geom('abichart', { W: 900, H: 300, L: 56, R: 16, T: 16, B: 30, GAP: 26 },
+                             { H: 250, L: 40, R: 10, T: 12, B: 28, GAP: 20 });
+  const { W, H, L, R, T, B, GAP } = g;
+  const panelH = (H - T - B - GAP) / 2;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
+  const series = [['weather_homes_total', '--wx', 'weather claims paid (£m)'],
+                  ['home_paid_total', '--indep', 'all home claims paid (£m)']];
+  const years = [...new Set(ABI.annual
+    .filter(r => series.some(s => s[0] === r.m)).map(r => r.y))].sort();
+  const slot = (W - L - R) / years.length;
+  const x = yr => L + (years.indexOf(yr) + 0.5) * slot;
+
+  series.forEach(([metric, colour, label], pi) => {
+    const rows = ABI.annual.filter(r => r.m === metric);
+    const latest = latestBy(rows, r => r.y);
+    const y0 = T + pi * (panelH + GAP) + 10;
+    const hi = Math.max(...rows.map(r => r.v)) * 1.12;
+    const y = v => y0 + panelH - (v / hi) * panelH;
+    el('text', { x: L, y: y0 - 3, class: 'axis-label' }, svg).textContent = label;
+    for (const v of [0, hi / 1.12]) {
+      el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: css('--grid') }, svg);
+      el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+        .textContent = Math.round(v).toLocaleString('en-GB');
+    }
+    const pts = [...latest.values()].sort((a, b) => a.y - b.y);
+    el('path', { d: pts.map((r, i) => (i ? 'L' : 'M') + x(r.y).toFixed(1) + ' ' + y(r.v).toFixed(1)).join(' '),
+                 fill: 'none', stroke: css(colour), 'stroke-width': 2 }, svg);
+    for (const r of rows) {
+      const cur = latest.get(r.y) === r;
+      const dot = el('circle', {
+        cx: x(r.y), cy: y(r.v), r: cur ? 4.5 : 4,
+        fill: cur ? css(colour) : css('--surface-1'),
+        stroke: css(colour), 'stroke-width': cur ? 0 : 2,
+      }, svg);
+      dot.addEventListener('mousemove', ev => showTip(
+        `<b>${r.y}</b> · £${r.v.toLocaleString('en-GB')}m<br>` +
+        (cur ? `${r.basis} · ${r.vintage}`
+             : `as first published (${r.vintage.replace(' comparative', '')})<br>since revised to £${latest.get(r.y).v.toLocaleString('en-GB')}m`),
+        ev.clientX, ev.clientY));
+      dot.addEventListener('mouseleave', hideTip);
+    }
+  });
+  years.forEach(yr => {
+    el('text', { x: x(yr), y: H - 8, 'text-anchor': 'middle', class: 'tick-label' }, svg)
+      .textContent = yr;
+  });
+});
+
+/* ---- observed: homes claiming, by peril ---- */
+chart('abicount', function (mount) {
+  const g = geom('abicount', { W: 900, H: 260, L: 56, R: 16, T: 18, B: 34 },
+                             { H: 220, L: 40, R: 10, T: 14, B: 32 });
+  const { W, H, L, R, T, B } = g;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
+  const perils = [['storm_homes', '--wx', 'Storm'], ['flood_homes', '--fl', 'Flood'],
+                  ['subsidence_homes', '--sub', 'Subsidence'],
+                  ['burstpipes_homes', '--eow', 'Burst pipes']];
+  const rows = ABI.annual.filter(r => perils.some(p => p[0] === r.m));
+  const latest = latestBy(rows, r => r.m + '|' + r.y);
+  const years = [...new Set(rows.map(r => r.y))].sort();
+  const hi = Math.max(...rows.map(r => r.v)) * 1.15;
+  const y = v => T + (1 - v / hi) * (H - T - B);
+  const slot = (W - L - R) / years.length;
+  const gap = g.narrow ? 2 : 6;
+  const bw = Math.min(34, (slot * 0.86 - 3 * gap) / 4);
+  const kfmt = v => v >= 1000 ? Math.round(v / 1000) + 'k' : v;
+  const ystep = hi > 80000 ? 20000 : 10000;
+  for (let v = 0; v <= hi; v += ystep) {
+    el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: css('--grid') }, svg);
+    el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = kfmt(v);
+  }
+  el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: css('--axis') }, svg);
+  years.forEach((yr, i) => {
+    const cx = L + slot * (i + 0.5);
+    perils.forEach(([m, colour, name], j) => {
+      const r = latest.get(m + '|' + yr);
+      if (!r) return;   // not every peril count is published every year
+      const bx = cx + (j - 1.5) * (bw + gap) - bw / 2;
+      const rect = el('rect', { x: bx, y: y(r.v), width: bw, height: H - B - y(r.v),
+                                fill: css(colour), rx: 2 }, svg);
+      rect.addEventListener('mousemove', ev => showTip(
+        `<b>${yr}</b> · ${name}<br><b>${r.v.toLocaleString('en-GB')}</b> homes claimed<br>${r.basis} · ${r.vintage}`,
+        ev.clientX, ev.clientY));
+      rect.addEventListener('mouseleave', hideTip);
+    });
+    el('text', { x: cx, y: H - B + 17, 'text-anchor': 'middle', class: 'tick-label' }, svg)
+      .textContent = yr;
+  });
+});
+
+/* ---- observed: the quarterly subsidence record ---- */
+(function () {
+  const BAS = { notified_count: 'notified', incurred_notified: 'incurred',
+                incurred_ultimate: 'ultimate', paid_in_period: 'paid in period',
+                avg_incurred: 'avg incurred', avg_paid: 'avg paid',
+                implied: 'implied', supported_households: 'households' };
+  const COLS = [['subsidence_claims', v => v.toLocaleString('en-GB')],
+                ['subsidence_incurred', v => '£' + v.toLocaleString('en-GB') + 'm'],
+                ['subsidence_paid', v => '£' + v.toLocaleString('en-GB') + 'm'],
+                ['subsidence_avg', v => '£' + v.toLocaleString('en-GB')]];
+  const periods = [...new Set(ABISUB.rows.map(r => r.p))].sort();
+  const html = periods.map(p => {
+    const cells = COLS.map(([m, fmt]) => {
+      const es = ABISUB.rows.filter(r => r.p === p && r.m === m);
+      return '<td>' + (es.length ? es.map(r =>
+        fmt(r.v) + (r.prov !== 'published' || es.length > 1
+          ? ` <small style="color:var(--ink-muted)">(${BAS[r.basis] || r.basis}${r.prov !== 'published' ? ', ' + r.prov : ''})</small>` : ''))
+        .join('<br>') : '—') + '</td>';
+    }).join('');
+    const vint = [...new Set(ABISUB.rows.filter(r => r.p === p).map(r => r.vintage))].sort();
+    return `<tr><td class="hl">${p}</td>${cells}<td><small>${vint.join('; ')}</small></td></tr>`;
+  }).join('');
+  document.getElementById('abisub').innerHTML =
+    `<tr><th>Period</th><th>Claims</th><th>Incurred</th><th>Paid</th>
+     <th>Avg / claim</th><th>ABI release</th></tr>` + html;
+
+  const links = ABI.sources.map(s => `<a href="${s.url}">${s.label}</a>`).join(' · ');
+  document.getElementById('abisources').innerHTML =
+    `<b>Sources.</b> ${links} · full provenance, including every recovered
+     figure's exact wording: <a href="https://github.com/SMcode-source/uk-home-insurance-risk-map/blob/main/data/abi_annual.csv">abi_annual.csv</a>
+     and <a href="https://github.com/SMcode-source/uk-home-insurance-risk-map/blob/main/data/abi_subsidence.csv">abi_subsidence.csv</a>
+     · how these anchor the model: <a href="methodology.html#calibration">methodology</a>.`;
+})();
+
+/* ---- stat tiles ---- */
+const bk = Object.fromEntries(A.buckets.map(b => [b.label, b]));
+const cat = bk.catastrophic, bad = bk.bad, typ = bk.typical;
+const tiles = [
+  ['Typical year', GBP(typ.mean_total), 'per policy, 50–90th percentile years'],
+  ['Bad year (1-in-10)', GBP(bad.mean_total), '+' + GBP(bad.extra_vs_typical) + ' vs typical'],
+  ['Catastrophic year (1-in-100)', GBP(cat.mean_total), '+' + GBP(cat.extra_vs_typical) + ' vs typical'],
+  ['Cost of dependence', '+' + Math.round(100 * (cat.mean_total - cat.indep_mean_total) / cat.indep_mean_total) + '%',
+   'catastrophic-year cost vs independence (' + GBP(cat.indep_mean_total) + ')'],
+];
+document.getElementById('tiles').innerHTML = tiles.map(t =>
+  `<div class="tile"><div class="k">${t[0]}</div><div class="v">${t[1]}</div><div class="d">${t[2]}</div></div>`).join('');
+
+/* ---- exceedance chart ---- */
+chart('exceedance', function (mount) {
+  const g = geom('exceedance', { W: 900, H: 340, L: 64, R: 20, T: 16, B: 44 },
+                                { H: 250, L: 40, R: 12, T: 12, B: 40 });
+  const { W, H, L, R, T, B } = g;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
+  const vine = A.exceedance.vine.filter(d => d[0] >= 2 && d[0] <= 1000);
+  const ind = A.exceedance.indep.filter(d => d[0] >= 2 && d[0] <= 1000);
+  const ymax = Math.max(...vine.map(d => d[1])) * 1.08;
+  const x = rp => L + (Math.log10(rp) - Math.log10(2)) / (3 - Math.log10(2)) * (W - L - R);
+  const y = v => T + (1 - v / ymax) * (H - T - B);
+  for (const rp of (g.narrow ? [2, 10, 100, 1000]
+                             : [2, 5, 10, 20, 50, 100, 200, 500, 1000])) {
+    el('line', { x1: x(rp), x2: x(rp), y1: T, y2: H - B, stroke: css('--grid'), 'stroke-width': 1 }, svg);
+    el('text', { x: x(rp), y: H - B + 16, 'text-anchor': 'middle', class: 'tick-label' }, svg).textContent = rp;
+  }
+  const ystep = ymax > 4000 ? 1000 : ymax > 2000 ? 500 : 250;
+  for (let v = 0; v <= ymax; v += ystep) {
+    el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: css('--grid'), 'stroke-width': 1 }, svg);
+    el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = g.narrow ? GBPk(v) : GBP(v);
+  }
+  el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: css('--axis'), 'stroke-width': 1 }, svg);
+  el('text', { x: (L + W - R) / 2, y: H - 6, 'text-anchor': 'middle', class: 'axis-label' }, svg)
+    .textContent = g.narrow ? 'return period (yrs, log)'
+                            : 'return period (years) — log scale';
+  const path = pts => pts.map((d, i) => (i ? 'L' : 'M') + x(d[0]).toFixed(1) + ' ' + y(d[1]).toFixed(1)).join(' ');
+  el('path', { d: path(ind), fill: 'none', stroke: css('--indep'), 'stroke-width': 2, 'stroke-dasharray': '5 4' }, svg);
+  el('path', { d: path(vine), fill: 'none', stroke: css('--wx'), 'stroke-width': 2 }, svg);
+  const cross = el('line', { y1: T, y2: H - B, stroke: css('--axis'), 'stroke-width': 1, visibility: 'hidden' }, svg);
+  const dotV = el('circle', { r: 4, fill: css('--wx'), stroke: css('--surface-1'), 'stroke-width': 2, visibility: 'hidden' }, svg);
+  const dotI = el('circle', { r: 4, fill: css('--indep'), stroke: css('--surface-1'), 'stroke-width': 2, visibility: 'hidden' }, svg);
+  const hit = el('rect', { x: L, y: T, width: W - L - R, height: H - T - B, fill: 'transparent' }, svg);
+  const nearest = (pts, rp) => pts.reduce((a, b) => Math.abs(Math.log10(b[0]) - Math.log10(rp)) < Math.abs(Math.log10(a[0]) - Math.log10(rp)) ? b : a);
+  hit.addEventListener('mousemove', ev => {
+    const r = svg.getBoundingClientRect();
+    const px = (ev.clientX - r.left) * W / r.width;
+    const rp = Math.pow(10, Math.log10(2) + (px - L) / (W - L - R) * (3 - Math.log10(2)));
+    const v = nearest(vine, rp), n = nearest(ind, rp);
+    cross.setAttribute('x1', x(v[0])); cross.setAttribute('x2', x(v[0]));
+    [cross, dotV, dotI].forEach(e => e.setAttribute('visibility', 'visible'));
+    dotV.setAttribute('cx', x(v[0])); dotV.setAttribute('cy', y(v[1]));
+    dotI.setAttribute('cx', x(n[0])); dotI.setAttribute('cy', y(n[1]));
+    showTip(`<b>1-in-${Math.round(v[0])} year</b><br>C-vine: <b>${GBP(v[1])}</b><br>independent: ${GBP(n[1])}<br>gap: +${GBP(v[1] - n[1])}`, ev.clientX, ev.clientY);
+  });
+  hit.addEventListener('mouseleave', () => { [cross, dotV, dotI].forEach(e => e.setAttribute('visibility', 'hidden')); hideTip(); });
+});
+
+/* ---- stacked bars ---- */
+chart('stacked', function (mount) {
+  const g = geom('stacked', { W: 900, H: 300, L: 64, R: 20, T: 24, B: 34 },
+                            { H: 240, L: 40, R: 10, T: 20, B: 32 });
+  const { W, H, L, R, T, B } = g;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
+  const perils = [['mean_wx', '--wx', 'Weather'], ['mean_sub', '--sub', 'Subsidence'], ['mean_fl', '--fl', 'Flood'], ['mean_gw', '--gw', 'Groundwater']];
+  const ymax = Math.max(...A.buckets.map(b => b.mean_total)) * 1.15;
+  const y = v => T + (1 - v / ymax) * (H - T - B);
+  const slot = (W - L - R) / A.buckets.length;
+  // 64 units is wider than a whole slot once the canvas is phone-width, so
+  // the bars would overlap each other. Scale to the slot and keep a gap.
+  const bw = Math.min(64, slot * 0.62);
+  const ystep = ymax > 4000 ? 1000 : ymax > 1500 ? 500 : 200;
+  for (let v = 0; v <= ymax; v += ystep) {
+    el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: css('--grid'), 'stroke-width': 1 }, svg);
+    el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = g.narrow ? GBPk(v) : GBP(v);
+  }
+  el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: css('--axis'), 'stroke-width': 1 }, svg);
+  A.buckets.forEach((b, i) => {
+    const cx = L + slot * (i + 0.5);
+    let acc = 0;
+    for (const [key, color, name] of perils) {
+      const v = b[key];
+      const rect = el('rect', {
+        x: cx - bw / 2, y: y(acc + v), width: bw,
+        height: Math.max(y(acc) - y(acc + v) - 2, 0.5),
+        fill: css(color), rx: 2,
+      }, svg);
+      rect.addEventListener('mousemove', ev =>
+        showTip(`<b>${b.label}</b> · ${name}<br><b>${GBP(v)}</b> per policy (${Math.round(100 * v / b.mean_total)}%)`, ev.clientX, ev.clientY));
+      rect.addEventListener('mouseleave', hideTip);
+      acc += v;
+    }
+    el('text', { x: cx, y: y(acc) - 7, 'text-anchor': 'middle', class: 'direct-label' }, svg)
+      .textContent = g.narrow ? GBPk(b.mean_total) : GBP(b.mean_total);
+    el('text', { x: cx, y: H - B + 17, 'text-anchor': 'middle', class: 'tick-label' }, svg)
+      .textContent = g.narrow ? (SHORT[b.label] || b.label) : b.label;
+  });
+});
+
+/* ---- incidence ---- */
+chart('incidence', function (mount) {
+  const g = geom('incidence', { W: 900, H: 280, L: 64, R: 20, T: 18, B: 34 },
+                              { H: 225, L: 32, R: 10, T: 14, B: 32 });
+  const { W, H, L, R, T, B } = g;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
+  const perils = [['inc_wx_pct', '--wx', 'Weather'], ['inc_sub_pct', '--sub', 'Subsidence'], ['inc_fl_pct', '--fl', 'Flood'], ['inc_gw_pct', '--gw', 'Groundwater']];
+  const ymax = Math.max(...A.buckets.map(b => Math.max(b.inc_wx_pct, b.inc_sub_pct, b.inc_fl_pct, b.inc_gw_pct))) * 1.2;
+  const y = v => T + (1 - v / ymax) * (H - T - B);
+  const slot = (W - L - R) / A.buckets.length;
+  // Four bars and three gaps have to fit inside one slot: at 900 units that
+  // is 30+6, on a phone canvas the same numbers would need more than twice
+  // the slot, so derive both from the slot instead of hard-coding them.
+  const gap = g.narrow ? 2 : 6;
+  const bw = Math.min(30, (slot * 0.86 - 3 * gap) / 4);
+  const ystep = ymax > 40 ? 10 : ymax > 16 ? 5 : 2;
+  for (let v = 0; v <= ymax; v += ystep) {
+    el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: css('--grid'), 'stroke-width': 1 }, svg);
+    el('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = v + '%';
+  }
+  el('line', { x1: L, x2: W - R, y1: H - B, y2: H - B, stroke: css('--axis'), 'stroke-width': 1 }, svg);
+  A.buckets.forEach((b, i) => {
+    const cx = L + slot * (i + 0.5);
+    perils.forEach(([key, color, name], j) => {
+      const v = b[key];
+      const bx = cx + (j - 1.5) * (bw + gap) - bw / 2;
+      const rect = el('rect', { x: bx, y: y(v), width: bw, height: H - B - y(v), fill: css(color), rx: 2 }, svg);
+      rect.addEventListener('mousemove', ev =>
+        showTip(`<b>${b.label}</b> · ${name}<br><b>${v}%</b> of districts claim`, ev.clientX, ev.clientY));
+      rect.addEventListener('mouseleave', hideTip);
+    });
+    el('text', { x: cx, y: H - B + 17, 'text-anchor': 'middle', class: 'tick-label' }, svg)
+      .textContent = g.narrow ? (SHORT[b.label] || b.label) : b.label;
+  });
+});
+
+/* ---- table ---- */
+(function () {
+  const t = document.getElementById('btable');
+  const rows = A.buckets.map(b => `
+    <tr><td class="hl">${b.label}</td><td>${b.share_pct}%</td>
+    <td class="hl">${GBP(b.mean_total)}</td>
+    <td>${GBP(b.mean_wx)}</td><td>${GBP(b.mean_sub)}</td><td>${GBP(b.mean_fl)}</td><td>${GBP(b.mean_gw)}</td>
+    <td>${b.extra_vs_typical >= 0 ? '+' : ''}${GBP(b.extra_vs_typical)}</td>
+    <td>${GBP(b.indep_mean_total)}</td></tr>`).join('');
+  t.innerHTML = `<tr><th>Year bucket</th><th>Share of years</th><th>Cost / policy</th>
+    <th>Weather</th><th>Subsidence</th><th>Flood</th><th>Groundwater</th><th>vs typical</th><th>If independent</th></tr>` + rows;
+  const w = A.worst_year;
+  document.getElementById('worstnote').innerHTML =
+    `Worst simulated year: <b>${GBP(w.total)}</b> per policy (weather ${GBP(w.wx)},
+    flood ${GBP(w.fl)}, subsidence ${GBP(w.sub)}, groundwater ${GBP(w.gw)}) with claims
+    in ${w.inc_wx_pct}% of districts for weather and ${w.inc_fl_pct}% for flood — a
+    nationwide storm-and-flood event, which is exactly the joint tail the Gumbel
+    pairs put mass on.`;
+})();
+
+/* ---- claim counts and claim sizes by bucket (Gate 4) ----
+   The headline multiples are computed from the data, not typed in, so a
+   re-simulation cannot leave this sentence quoting stale figures. */
+(function () {
+  const b0 = A.buckets[0];
+  if (!('claims_total_per_100k' in b0)) return;  // pre-Gate-4 data
+  const typ = A.buckets.find(b => b.label === 'typical');
+  const cat = A.buckets.find(b => b.label === 'catastrophic');
+  const xC = (cat.claims_total_per_100k / typ.claims_total_per_100k).toFixed(1);
+  const xV = (cat.cost_total_per_claim / typ.cost_total_per_claim).toFixed(1);
+  document.getElementById('g4headline').innerHTML =
+    `A bad year is mostly <b>dearer claims, not more claims</b>: the worst 1%
+     of years run at ${xC}× a typical year's claim count but ${xV}× its cost
+     per claim.`;
+  const P = [['total', 'All perils'], ['wx', 'Weather'], ['sub', 'Subsidence'],
+             ['fl', 'Flood'], ['gw', 'Groundwater']];
+  const num = v => Math.round(v).toLocaleString('en-GB');
+  const rows = (field, fmt) => A.buckets.map(b => `
+    <tr><td class="hl">${b.label}</td>` +
+    P.map(([k]) => `<td${k === 'total' ? ' class="hl"' : ''}>${fmt(b[`${field}_${k}${field === 'claims' ? '_per_100k' : '_per_claim'}`])}</td>`).join('') +
+    `<td>${(b[`${field}_total${field === 'claims' ? '_per_100k' : '_per_claim'}`] /
+            typ[`${field}_total${field === 'claims' ? '_per_100k' : '_per_claim'}`]).toFixed(2)}×</td></tr>`).join('');
+  const head = title => `<tr><th>Year bucket</th>` +
+    P.map(([, n]) => `<th>${n}</th>`).join('') + `<th>vs typical</th></tr>`;
+  document.getElementById('g4counts').innerHTML =
+    `<tr><th colspan="7" style="text-align:left; color:var(--ink-1)">Claims per 100,000 policies</th></tr>` +
+    head() + rows('claims', num);
+  document.getElementById('g4costs').innerHTML =
+    `<tr><th colspan="7" style="text-align:left; color:var(--ink-1)">Cost per claim</th></tr>` +
+    head() + rows('cost', v => GBP(v));
+})();
+
+/* ---- backtest: real hazard drivers by year ---- */
+(function () {
+  if (!HIST) return;
+  document.getElementById('backtest').style.display = '';
+
+  // What these years are actually known for (historical record).
+  const EVENTS = {
+    1990: 'Burns’ Day storm', 1994: 'Dry summer', 1995: 'Drought summer',
+    2003: 'August heatwave', 2007: 'Summer floods', 2012: 'Wettest summer on record',
+    2013: 'St Jude’s Day storm', 2014: 'Winter storm sequence',
+    2015: 'Storms Desmond, Eva, Frank', 2018: 'Summer drought',
+    2019: 'November floods', 2020: 'Storms Ciara & Dennis',
+    2022: 'Record heat & drought', 2023: 'Storms Babet & Ciarán',
+    2024: 'Storms Henk & Bert',
+  };
+
+  chart('histchart', function (mount) {
+  const g = geom('histchart', { W: 900, H: 240, L: 52, R: 14, T: 14, B: 30, GAP: 22 },
+                              { H: 215, L: 34, R: 8, T: 12, B: 28, GAP: 18 });
+  const { W, H, L, R, T, B, GAP } = g;
+  const panelH = (H - T - B - GAP) / 2;
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}` }, mount);
+  const bw = (W - L - R) / HIST.length;
+
+  function panel(key, colour, y0, label) {
+    const vals = HIST.map(d => d[key]);
+    const lo = Math.min(0, ...vals), hi = Math.max(...vals);
+    const y = v => y0 + panelH - ((v - lo) / (hi - lo)) * panelH;
+    el('text', { x: L, y: y0 - 3, class: 'axis-label' }, svg).textContent = label;
+    el('line', { x1: L, x2: W - R, y1: y(0), y2: y(0), stroke: css('--axis') }, svg);
+    HIST.forEach((d, i) => {
+      const x = L + i * bw + 1.5, v = d[key];
+      const top = Math.min(y(v), y(0)), h = Math.abs(y(v) - y(0));
+      const rect = el('rect', {
+        x, y: top, width: Math.max(bw - 3, 1), height: Math.max(h, 0.5),
+        fill: css(colour), rx: 1.5,
+        opacity: EVENTS[d.year] ? 1 : 0.55,
+      }, svg);
+      rect.addEventListener('mousemove', ev => showTip(
+        `<b>${d.year}</b>${EVENTS[d.year] ? ' · ' + EVENTS[d.year] : ''}<br>` +
+        `storm days <b>${d.storm_days.toFixed(1)}</b> · max gust ${d.max_gust.toFixed(0)} km/h<br>` +
+        `wettest 5 days ${d.rain5d.toFixed(0)} mm · summer deficit ${d.jja_deficit.toFixed(0)} mm`,
+        ev.clientX, ev.clientY));
+      rect.addEventListener('mouseleave', hideTip);
+    });
+    el('text', { x: L - 6, y: y(hi) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = Math.round(hi);
+    el('text', { x: L - 6, y: y(lo) + 4, 'text-anchor': 'end', class: 'tick-label' }, svg)
+      .textContent = Math.round(lo);
+  }
+
+  panel('storm_days', '--wx', T + 10,
+        g.narrow ? 'storm days / yr' : 'storm days per year');
+  panel('jja_deficit', '--sub', T + panelH + GAP + 12,
+        g.narrow ? 'summer deficit (mm)' : 'summer rainfall deficit (mm)');
+  HIST.forEach((d, i) => {
+    // every 5th year at 900 units; every 10th once the canvas is a third
+    // of that, or the year labels run into each other
+    if (+d.year % (g.narrow ? 10 : 5)) return;
+    // A year centred on the first or last bar hangs outside the plot and
+    // lands on the y-axis value beside it - at phone width "1990" sat on
+    // top of "-139". Measure the label rather than guessing a margin, and
+    // anchor the edge ones inward.
+    const cx = L + i * bw + bw / 2;
+    const t = el('text', { x: cx, y: H - 8, 'text-anchor': 'middle', class: 'tick-label' }, svg);
+    t.textContent = d.year;
+    const half = t.getComputedTextLength() / 2;
+    if (cx - half < L) { t.setAttribute('x', L); t.setAttribute('text-anchor', 'start'); }
+    else if (cx + half > W - R) { t.setAttribute('x', W - R); t.setAttribute('text-anchor', 'end'); }
+  });
+  });   /* end chart('histchart') */
+
+  const top = (key, n) => [...HIST].sort((a, b) => b[key] - a[key]).slice(0, n);
+  const fmtRow = d => `<tr><td class="hl">${d.year}</td>
+    <td>${EVENTS[d.year] || '—'}</td>
+    <td>${d.storm_days.toFixed(1)}</td><td>${d.max_gust.toFixed(0)} km/h</td>
+    <td>${d.rain5d.toFixed(0)} mm</td><td>${d.jja_deficit.toFixed(0)} mm</td></tr>`;
+  document.getElementById('histtable').innerHTML =
+    `<tr><th>Year</th><th>What it is remembered for</th><th>Storm days</th>
+     <th>Max gust</th><th>Wettest 5 days</th><th>Summer deficit</th></tr>` +
+    `<tr><td colspan="6" style="color:var(--ink-muted);padding-top:10px">Worst storm years</td></tr>` +
+    top('storm_days', 3).map(fmtRow).join('') +
+    `<tr><td colspan="6" style="color:var(--ink-muted);padding-top:10px">Driest summers — the subsidence driver</td></tr>` +
+    top('jja_deficit', 3).map(fmtRow).join('') +
+    `<tr><td colspan="6" style="color:var(--ink-muted);padding-top:10px">Wettest 5-day totals — the flood driver</td></tr>` +
+    top('rain5d', 3).map(fmtRow).join('');
+})();
+
+/* ---- sensitivity table ---- */
+(function () {
+  if (!SENS) return;
+  document.getElementById('sens-section').style.display = '';
+  const LABELS = {
+    baseline: 'Baseline (sampled)',
+    theta_low: 'Weaker dependence (θ−1 ×0.75)',
+    theta_high: 'Stronger dependence (θ−1 ×1.25)',
+    rho2_zero: 'Tree-2 correlations → 0',
+    rho2_high: 'Tree-2 correlations doubled',
+    sev_sigma_up: 'Severity σ ×1.10, mean held (check: should move no premium)',
+    flood_freq_150: 'Flood frequency ×1.5 (climate stress)',
+    erosion_no_intervention: 'Erosion: defences lapse (NFI, not the plan)',
+    depth_flat: 'Flood depth ignored (depth-damage flat)',
+    depth_half: 'Flood depth-damage curve half as steep',
+    depth_steep: 'Flood depth-damage curve 1.5× as steep',
+    depth_jrc_eu: 'Flood depth-damage: JRC Europe residential curve',
+    flood_band_ratio_2_5: 'Flood high-zone : envelope claim rate 2.5:1 (not 5:1)',
+    flood_band_ratio_10: 'Flood high-zone : envelope claim rate 10:1 (not 5:1)',
+    flood_rs_weight_067: 'River/sea vs surface water ×⅔',
+    flood_rs_weight_150: 'River/sea vs surface water ×1.5',
+    gw_share_05: 'Groundwater at 5% of flood (not 10%)',
+    gw_share_20: 'Groundwater at 20% of flood (not 10%)',
+    gw_background_01: 'Groundwater outside EA areas 1% (not 2%)',
+    gw_background_04: 'Groundwater outside EA areas 4% (not 2%)',
+    spatial_equal: 'Systemic loadings equal across perils',
+  };
+  /* Erosion gets its own column because it is NOT in the premium: the NFI
+     scenario more than doubles it while moving no district between rating groups,
+     which is the check that the exclusion is actually wired up. */
+  const rows = Object.entries(SENS).map(([k, s]) => `
+    <tr><td class="hl">${LABELS[k] || k}</td>
+    <td>${GBP(s.mean_el)}</td><td>${GBP(s.mean_premium)}</td>
+    <td>${s.mean_el_erosion == null ? '—' : GBP(s.mean_el_erosion)}</td>
+    <td>${GBP(s.cat_year_cost)}</td><td>+${s.cat_vs_indep_pct}%</td>
+    <td>${s.group_churn_pct}%</td></tr>`).join('');
+  // The per-district TVaR uplift is deliberately not shown: at calibrated
+  // frequencies it is inside Monte Carlo noise (see the methodology page),
+  // so tabulating it per scenario would be tabulating noise.
+  document.getElementById('stable').innerHTML =
+    `<tr><th>Scenario</th><th>E[loss]</th><th>Premium</th>
+     <th>Erosion (not priced)</th>
+     <th>Cat-year cost</th><th>Cat vs independence</th><th>Group churn</th></tr>` + rows;
+})();
+
+/* Every chart registered itself above; draw them all now, after the
+   conditional backtest block has had its chance to register too. */
+renderCharts();
+</script>
+</body>
+</html>
