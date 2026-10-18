@@ -1,14 +1,14 @@
-"""Non-domestic premises per postcode district, from the VOA's
+"""Non-domestic premises per postcode SECTOR, from the VOA's
 NDR stock-of-properties LSOA tables (DATA_SOURCES.md #29).
 
 Purpose: the police.uk "Burglary" category includes commercial
-break-ins, so district burglary rates carry shops and offices in the
+break-ins, so burglary rates carry shops and offices in the
 numerator while only households sit in the denominator. Dividing by
-(households + non-domestic premises) instead attributes each district
+(households + non-domestic premises) instead attributes each area
 its residential share - the "proper fix" the theft section promised,
 replacing crude duty the p99.9 winsorisation cap was doing for
 commercial cores (the cap itself stays, as a backstop for
-tiny-denominator districts).
+tiny-denominator areas).
 
 Source: ndr_stock_oa_2025.zip from the VOA "Non-domestic rating:
 stock of properties 2025" release (OGL v3, no registration).
@@ -85,7 +85,7 @@ def lsoa_premises():
 
 
 def postcode_lsoa_pairs():
-    """Yield (district, lsoa11cd, lsoa21cd) per live E&W postcode from
+    """Yield (sector, lsoa11cd, lsoa21cd) per live E&W postcode from
     the same cached ONS lookup fetch_households.py uses."""
     from fetch_households import LOOKUP_URL
     raw_path = cached("onspd_lookup.zip", LOOKUP_URL)
@@ -111,11 +111,17 @@ def postcode_lsoa_pairs():
                     continue
                 if term_i is not None and (row[term_i] or "").strip():
                     continue          # terminated: not an address
-                out = pc.split()[0] if " " in pc else pc[:-3].strip()
-                if not out:
+                # sector-model branch: key on "OUTWARD D", the same seam
+                # fetch_households, fetch_fires and fetch_children carry
+                # here. The inward code is ALWAYS the last three
+                # characters, however the column pads ("YO25 6QP",
+                # "S1  1AA") - do not split on whitespace.
+                compact = pc.replace(" ", "")
+                if len(compact) < 5:
                     continue
+                out, inward = compact[:-3], compact[-3:]
                 l11 = row[l11_i].strip() if l11_i is not None else ""
-                yield out.upper(), l11, l21
+                yield f"{out.upper()} {inward[0]}", l11, l21
 
 
 def main():
@@ -153,10 +159,10 @@ def main():
 
     placed = sum(district.values())
     print(f"  {placed:,.0f} of {total:,.0f} premises placed "
-          f"({placed / total:.1%}) across {len(district):,} districts",
+          f"({placed / total:.1%}) across {len(district):,} sectors",
           flush=True)
     # premises in LSOAs with no live postcode (fully commercial islands
-    # do exist) are the remainder; they belong to no household district.
+    # do exist) are the remainder; they belong to no household sector.
     assert placed / total >= 0.97, "apportionment lost too many premises"
 
     out_path = os.path.join(DATA, "premises.csv")
@@ -165,7 +171,7 @@ def main():
         w.writerow(["name", "premises"])
         for name in sorted(district):
             w.writerow([name, f"{district[name]:.1f}"])
-    print(f"wrote {out_path}: {len(district):,} districts, "
+    print(f"wrote {out_path}: {len(district):,} sectors, "
           f"{placed:,.0f} premises", flush=True)
 
     top = sorted(district.items(), key=lambda kv: -kv[1])[:5]

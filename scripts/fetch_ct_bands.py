@@ -186,10 +186,16 @@ def postcode_rows():
                 code = row[l21_i].strip()
                 if code[:3] not in ("E01", "W01", "S01"):
                     continue
-                out = pc.split()[0] if " " in pc else pc[:-3].strip()
-                if not out:
+                # sector-model branch: key on "OUTWARD D", exactly as
+                # fetch_households.py does. The inward code is ALWAYS
+                # the last three characters, however the column pads
+                # ("YO25 6QP", "S1  1AA", fixed-width pcd7) - splitting
+                # on whitespace does not survive the padded variants.
+                compact = pc.replace(" ", "")
+                if len(compact) < 5:
                     continue
-                yield out.upper(), code
+                out, inward = compact[:-3], compact[-3:]
+                yield f"{out.upper()} {inward[0]}", code
 
 
 def main():

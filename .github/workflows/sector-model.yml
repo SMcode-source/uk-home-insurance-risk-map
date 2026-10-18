@@ -60,6 +60,20 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: { name: sector-erosion, path: data/erosion.csv, retention-days: 14 }
 
+  # NO ct-bands job, deliberately. The council-tax band mix
+  # (DATA_SOURCES.md #30) has to be rebuilt at sector grain - main's
+  # ct_bands.csv is keyed on districts ("AB10") and every sector row
+  # ("AB10 1") would miss, which ct_value_from_bands turns into a
+  # SystemExit rather than a silent neutral relativity. But the VOA
+  # host closes the connection on runner IPs: run 33023456613 died on
+  # the first request with RemoteDisconnected, ~3 seconds in, while the
+  # identical fetch from a laptop placed 100% of dwellings. Same
+  # treatment as the EA climate flood edition further down - fetched
+  # off-runner and committed. Rerun with:
+  #     .venv/Scripts/python.exe scripts/fetch_ct_bands.py
+  # on this branch (the key change is in postcode_rows) and commit
+  # data/ct_bands.csv.
+
   flood:
     # present-day only, by POSTCODE share: one ~6-minute pass over the
     # WMS masks at every ONSPD unit-postcode centroid (the area-share
@@ -278,6 +292,10 @@ jobs:
           path: data
           merge-multiple: true
 
+      # data/ct_bands.csv is NOT fetched here - it is committed to this
+      # branch, sector-keyed, because the VOA host refuses runner IPs.
+      # See the note where the ct-bands job would otherwise be.
+
       # Geology from the repo's own mirror - BGS blocks runner IPs
       # (same block and hashes as rebuild.yml; see DATA_SOURCES.md #2).
       - name: Download BGS geology from the data mirror
@@ -345,7 +363,7 @@ jobs:
                   data/sw_fractions.csv data/sw_depth.csv \
                   data/sw_fractions_cc.csv data/sw_depth_cc.csv \
                   data/rs_depth.csv data/rs_depth_cc.csv \
-                  data/subsidence_postcodes.csv \
+                  data/ct_bands.csv data/subsidence_postcodes.csv \
                   data/districts_risk.geojson data/year_analysis.json
           if git diff --cached --quiet; then
             echo "nothing new to commit"

@@ -178,9 +178,15 @@ def ew_postcodes():
                     continue
                 if term_i is not None and (row[term_i] or "").strip():
                     continue
-                out = pc.split()[0] if " " in pc else pc[:-3].strip()
-                if out:
-                    yield out.upper(), area
+                # sector-model branch: key on "OUTWARD D", the same seam
+                # fetch_households.py and fetch_fires.py carry here. The
+                # inward code is ALWAYS the last three characters, however
+                # the column pads ("YO25 6QP", "S1  1AA", fixed-width pcd7).
+                compact = pc.replace(" ", "")
+                if len(compact) < 5:
+                    continue
+                out, inward = compact[:-3], compact[-3:]
+                yield f"{out.upper()} {inward[0]}", area
 
 
 def scot_postcodes():
@@ -193,8 +199,13 @@ def scot_postcodes():
             pc = r["Postcode"].strip()
             if not pc:
                 continue
-            out = pc.split()[0] if " " in pc else pc[:-3].strip()
-            yield (out.upper(), r["OutputArea2022Code"].strip(),
+            # sector-model branch: key on "OUTWARD D" (see ew_postcodes).
+            compact = pc.replace(" ", "")
+            if len(compact) < 5:
+                continue
+            out, inward = compact[:-3], compact[-3:]
+            yield (f"{out.upper()} {inward[0]}",
+                   r["OutputArea2022Code"].strip(),
                    int(r["HouseholdCount"] or 0))
 
 

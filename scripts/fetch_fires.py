@@ -287,10 +287,16 @@ def postcode_geographies():
                     continue
                 if term_i is not None and (row[term_i] or "").strip():
                     continue
-                out = pc.split()[0] if " " in pc else pc[:-3].strip()
-                if out:
-                    yield (out.upper(), area,
-                           row[lad_i].strip(), row[ladnm_i].strip())
+                # sector-model branch: key on "OUTWARD D", the same seam
+                # fetch_households.py carries here. The inward code is
+                # ALWAYS the last three characters, however the column
+                # pads ("YO25 6QP", "S1  1AA", fixed-width pcd7).
+                compact = pc.replace(" ", "")
+                if len(compact) < 5:
+                    continue
+                out, inward = compact[:-3], compact[-3:]
+                yield (f"{out.upper()} {inward[0]}", area,
+                       row[lad_i].strip(), row[ladnm_i].strip())
 
 
 def main():
