@@ -12,7 +12,9 @@ __pycache__/
 # Remember the one-way rule - main merges INTO sector-model, never back.
 .worktrees/
 
-# Large raw source data — not redistributed; refetch with the scripts.
+# Large raw source data — never in git. Refetch with the scripts, or restore the
+# vintage the site was built from from the data-inputs-2026-10 release
+# (DATA_SOURCES.md, "Pinned input mirror").
 # See DATA_SOURCES.md for every endpoint, licence and manual-download URL.
 # data/bgs_625k_bedrock.geojson  (~32 MB) -> scripts/fetch_bgs.py
 data/bgs_625k_bedrock.geojson

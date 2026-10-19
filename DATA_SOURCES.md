@@ -5,6 +5,28 @@ it is fetched, its licence, and any access quirks discovered along the way. All
 sources are **open data** (Open Government Licence v3 unless noted). Access
 dates: 2026-07-29/30; 2026-08-01 for sources 20–21; 2026-08-08/09 for 23–24.
 
+**Pinned input mirror (`data-inputs-2026-10` release).** Some inputs come
+from sources that move: a monthly rolling archive, a "latest version"
+fetcher, a live service, or an expired CI artifact. For those, a fresh
+download would not reproduce the published tables. The vintages the site
+was built from are kept as release assets on this repo, sha256-listed in
+the release notes:
+
+- `haduk_district_annual_1km.csv` (the only copy; feeds the SMD and frost
+  climatologies and the temperature tab);
+- the police.uk 2026-06 archive (→ `burglary.csv`);
+- MIDAS Open dataset version 202607 (→ `gusts.csv`);
+- Dynamic Coast (→ `erosion_scotland.csv`);
+- the Scottish recorded-crime cube (→ `housebreaking.csv`);
+- `ea_postcode_risk.csv` (→ `gw_fractions.csv`);
+- the raw EA surface-water postcode flags;
+- the small dated census, council-tax, fire and NFRA inputs.
+
+None of these is needed to rebuild or publish. Restore one with
+`gh release download data-inputs-2026-10 -p <asset>`. The raw HadUK-Grid
+5/12 km grids are not mirrored: they feed no committed table, and
+`fetch_haduk.py` re-downloads them with a free CEDA token.
+
 | # | Dataset | Publisher | Fetched by | Local file(s) |
 |---|---------|-----------|------------|---------------|
 | 1 | UK postcode district polygons | missinglink/uk-postcode-polygons (OS/Wikipedia-derived) | `git clone` | `data/uk-postcode-polygons/` (120 GeoJSONs, 2,736 districts) |
